@@ -1998,7 +1998,52 @@
 <!-- TOAST -->
 <div id="toast" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:#1a2a3a;color:white;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.3);transform:translateY(80px);opacity:0;transition:all 0.3s ease;pointer-events:none;"></div>
 
-<script>
+<script type="module">
+// ===== FIREBASE SETUP =====
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDp7p042YlfRS8VZ5EVJnLhExJTOSmbD2o",
+  authDomain: "icon-hospital.firebaseapp.com",
+  databaseURL: "https://icon-hospital-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "icon-hospital",
+  storageBucket: "icon-hospital.firebasestorage.app",
+  messagingSenderId: "490196266145",
+  appId: "1:490196266145:web:4dd3bce03cfa419b2ad4e0"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
+const DB_REF = 'hms_data';
+
+// Firebase থেকে real-time sync
+function startFirebaseSync() {
+  const dataRef = ref(db, DB_REF);
+  onValue(dataRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      const defaultData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+      appData = { ...defaultData, ...data };
+      rebuildUsers();
+      if (currentUser) {
+        refreshDashboard();
+        showToast('🔄 ডেটা আপডেট হয়েছে');
+      }
+    }
+  });
+}
+
+// Firebase-এ ডেটা সেভ
+async function saveToFirebase() {
+  try {
+    await set(ref(db, DB_REF), appData);
+  } catch(e) {
+    console.error('Firebase save error:', e);
+    showToast('⚠️ Firebase সেভ ব্যর্থ, লোকাল সেভ হয়েছে');
+  }
+}
+
 // ===== USERS =====
 // Default users — overridden by appData.users at runtime
 const DEFAULT_USERS = {
@@ -2511,9 +2556,14 @@ function loadData() {
     }
   } catch(e) {}
   rebuildUsers();
+  // Firebase real-time sync শুরু করুন
+  startFirebaseSync();
 }
 function saveData() {
+  // লোকাল সেভ (offline backup)
   localStorage.setItem('hms_data', JSON.stringify(appData));
+  // Firebase-এ সেভ (সব ডিভাইসে sync)
+  saveToFirebase();
 }
 
 // ===== NAVIGATION =====
