@@ -281,6 +281,7 @@
         <div class="stat-card" style="border-left-color:#8e44ad"><div class="stat-icon">📅</div><div class="stat-label">মাসিক লাভ/লস</div><div class="stat-value" id="monthlyProfit" style="color:#8e44ad">৳ ৯০০</div><div class="stat-change" id="monthlyProfitStatus">✅ লাভজনক মাস</div></div>
         <div class="stat-card" style="border-left-color:#e67e22"><div class="stat-icon">🏕️</div><div class="stat-label">ক্যাম্প আয় (এই মাস)</div><div class="stat-value" id="campIncome" style="color:#e67e22">৳ ০</div><div class="stat-change">ক্যাম্প: <span id="campCount">0</span>টি</div></div>
         <div class="stat-card due"><div class="stat-icon">⏳</div><div class="stat-label">মোট বাকি</div><div class="stat-value due" id="totalDue">৳ ৫,১৪০</div><div class="stat-change">রোগী: <span id="dueCount">2</span>জন</div></div>
+        <div class="stat-card expense" style="border-left-color:#c0392b"><div class="stat-icon">🏦</div><div class="stat-label">মোট দেনা</div><div class="stat-value" id="totalDebt" style="color:#c0392b">৳ ০</div><div class="stat-change">লোন + সরবরাহকারী বাকি</div></div>
       </div>
       <!-- Pending camp operations -->
       <div id="campOpsAlert" style="display:none" class="panel">
@@ -2558,7 +2559,17 @@ function startFirebaseSync() {
       const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
       appData = { ...def, ...data };
       rebuildUsers();
-      if (currentUser) { refreshDashboard(); showToast('🔄 ডেটা sync হয়েছে'); }
+      if (currentUser) {
+        refreshDashboard();
+        // ফিচার অ্যাক্সেস রিয়েলটাইম আপডেট
+        if (currentUser.role === 'moderator') {
+          document.querySelectorAll('.nav-item[data-page]').forEach(el=>{
+            const feat = el.getAttribute('data-page');
+            el.style.display = canAccess('moderator', feat) ? '' : 'none';
+          });
+        }
+        showToast('🔄 ডেটা sync হয়েছে');
+      }
     }
   });
 }
@@ -2671,6 +2682,13 @@ function refreshDashboard() {
   document.getElementById('totalDue').textContent = '৳ ' + fmt(totalDue);
   document.getElementById('dueCount').textContent = dueVisits.length;
   document.getElementById('dueNavBadge').style.display = dueVisits.length>0 ? 'inline' : 'none';
+
+  // দেনা = লোন বাকি + সরবরাহকারী বাকি ভাউচার
+  const loanIn = (appData.loans||[]).filter(l=>l.type==='received').reduce((s,l)=>s+l.amount,0);
+  const loanOut = (appData.loans||[]).filter(l=>l.type==='repaid').reduce((s,l)=>s+l.amount,0);
+  const vendorDue = (appData.vouchers||[]).filter(v=>v.type==='payable').reduce((s,v)=>s+v.amount,0);
+  const totalDebt = Math.max(0, loanIn - loanOut) + vendorDue;
+  const debtEl = document.getElementById('totalDebt'); if(debtEl) debtEl.textContent = '৳ ' + fmt(totalDebt);
 
   // Pending camp operations on dashboard
   const pendingOps = [];
@@ -3452,7 +3470,17 @@ function saveCamp() {
   };
   appData.camps.push(campEntry);
 
-  // ব্যয় থাকলে ব্যয় এন্ট্রিতে অটো যোগ
+  // আয় থাকলে আয় এন্ট্রিতে অটো যোগ
+  if (totalIncome > 0) {
+    appData.income.push({
+      id:Date.now()+2, date,
+      category:'ক্যাম্প আয়',
+      amount:totalIncome,
+      ref:name,
+      note:`${name} — ${location} (অটো)`,
+      by:currentUser.name, campId:campEntry.id
+    });
+  }
   if (totalExpense > 0) {
     const expItems = [
       { key:'travel', label:'যাতায়াত' },
@@ -3726,7 +3754,6 @@ function editVendor(id) {
 }
 function saveVoucher() {
   const vendorId=parseInt(document.getElementById('vcVendor').value);
-  const voucher=document.getElementById('vcVoucher').value.trim();
   const date=document.getElementById('vcDate').value;
   const amount=parseFloat(document.getElementById('vcAmount').value)||0;
   const type=document.getElementById('vcType').value;
@@ -3734,11 +3761,18 @@ function saveVoucher() {
   if(!vendorId||!date||!amount){showToast('⚠️ সরবরাহকারী, তারিখ ও পরিমাণ আবশ্যক!');return;}
   const vendor=(appData.vendors||[]).find(v=>v.id===vendorId);
   if(!appData.vouchers) appData.vouchers=[];
+  // VN prefix সহ ভাউচার নম্বর অটো
+  const vnNum = (appData.vouchers.length+1).toString().padStart(4,'0');
+  const voucher = 'VN-' + vnNum;
   appData.vouchers.push({id:Date.now(),vendorId,vendorName:vendor?.name||'—',voucher,date,amount,type,note,paid:type==='paid'});
-  // ব্যয়ে অটো
-  appData.expense.push({id:Date.now()+1,date,category:'ওষুধ/সরঞ্জাম কেনা',amount,voucher,ref:vendor?.name||'—',note:`ভাউচার: ${voucher||'—'} (অটো)`,by:currentUser.name});
+  // শুধু পরিশোধ হলে ব্যয়ে যাবে (বাকি থাকলে শুধু দেনায় থাকবে)
+  if(type==='paid'){
+    appData.expense.push({id:Date.now()+1,date,category:'ওষুধ/সরঞ্জাম কেনা',amount,ref:vendor?.name||'—',note:`ভাউচার: ${voucher} — পরিশোধ (অটো)`,by:currentUser.name});
+    showToast('✅ ভাউচার সেভ! ব্যয়ে অটো যোগ হয়েছে।');
+  } else {
+    showToast('✅ ভাউচার সেভ! বাকি দেনায় যোগ হয়েছে।');
+  }
   saveData(); clearVoucherForm(); renderVoucherList(); renderVendorList(); refreshDashboard();
-  showToast('✅ ভাউচার সেভ! ব্যয়ে অটো যোগ হয়েছে।');
 }
 function clearVoucherForm() {
   ['vcVendor','vcVoucher','vcAmount','vcNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -4429,13 +4463,36 @@ function saveCamperBill() {
 
   // Save as camp visit
   if (!appData.campVisits) appData.campVisits=[];
-  appData.campVisits.push({
+  const campVisitEntry = {
     id:Date.now(), campName:camperSession.name, campLocation:camperSession.location,
     date:camperSession.date, patName, patAge:document.getElementById('cpPatAge').value.trim(),
     patPhone:document.getElementById('cpPatPhone').value.trim(),
     items, addVisit, visitFee:addVisit?visitFee:0, total, discAmt, netTotal, paid, due,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
-  });
+  };
+  appData.campVisits.push(campVisitEntry);
+
+  // Admin/moderator প্যানেলেও দেখানোর জন্য income এ যোগ
+  if (paid > 0) {
+    appData.income.push({
+      id:Date.now()+1, date:camperSession.date,
+      category:'ক্যাম্প আয়',
+      amount:paid, ref:patName,
+      note:`${camperSession.name} — ${patName} (ক্যাম্পেইনার)`,
+      by:currentUser.name, campVisitId:campVisitEntry.id
+    });
+  }
+  // বাকি থাকলে visits এ যোগ
+  if (due > 0) {
+    if (!appData.visits) appData.visits=[];
+    appData.visits.push({
+      id:Date.now()+2, date:camperSession.date,
+      patName, patPhone:document.getElementById('cpPatPhone').value.trim(),
+      services:items.map(i=>({name:i.name,price:i.price})),
+      total:netTotal, cashPaid:paid, due, discAmt,
+      by:currentUser.name, source:'camp', campName:camperSession.name
+    });
+  }
 
   saveData(); clearCamperBill(); renderCamperHistory();
   showToast(`✅ বিল সেভ! মোট: ৳${fmt(netTotal)}`);
@@ -6057,14 +6114,34 @@ function saveBill() {
   const total   = services.reduce((s,r)=>s+r.subtotal, 0);
   const netBill = Math.max(0, total - discAmt);
   const due     = Math.max(0, netBill - cashPaid);
+  // অটো রিসিট নম্বর Rcpt prefix সহ
+  const lastVisit = [...(appData.visits||[])].sort((a,b)=>b.id-a.id)[0];
+  let rcptNum = 1;
+  if (lastVisit && lastVisit.rcptNo) {
+    const lastNum = parseInt((lastVisit.rcptNo+'').replace(/\D/g,''))||0;
+    rcptNum = lastNum + 1;
+  } else {
+    rcptNum = (appData.visits||[]).length + 1;
+  }
+  const rcptNo = 'Rcpt-' + rcptNum.toString().padStart(4,'0');
   const visit   = {
     id:Date.now(), date, patName, patPhone, patAge, patDoc,
-    services, total, discAmt, netBill, cashPaid, due, note,
+    services, total, discAmt, netBill, cashPaid, due, note, rcptNo,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
   };
   appData.visits.push(visit);
+  // income এ অটো যোগ
+  if (cashPaid > 0) {
+    appData.income.push({
+      id:Date.now()+1, date,
+      category:'রিসেপশন আয়',
+      amount:cashPaid, ref:patName,
+      note:`${rcptNo} — ${patName}`,
+      by:currentUser.name, visitId:visit.id
+    });
+  }
   saveData();
-  showToast('✅ বিল সেভ হয়েছে!');
+  showToast(`✅ বিল সেভ! রিসিট: ${rcptNo}`);
   clearBillForm();
   renderRecDue();
   renderRecHistory();
@@ -6182,7 +6259,7 @@ function formatDate(d) {
   const months=['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে'];
   return `${day} ${months[parseInt(m)-1]}, ${y}`;
 }
-function fmt(n) { return Number(n||0).toLocaleString('bn-BD'); }
+function fmt(n) { return Math.round(Number(n||0)).toLocaleString('bn-BD'); }
 let toastTimer;
 function showToast(msg) {
   const t=document.getElementById('toast');
