@@ -237,9 +237,11 @@
     <div class="nav-section">
       <div class="nav-label">ব্যবস্থাপনা</div>
       <div class="nav-item" data-page="stock"><span class="nav-icon">📦</span> স্টক ম্যানেজমেন্ট</div>
+      <div class="nav-item admin-only" data-page="testfees"><span class="nav-icon">🔬</span> টেস্ট/অপারেশন ফি</div>
+      <div class="nav-item" data-page="newbill"><span class="nav-icon">🧾</span> নতুন বিল</div>
       <div class="nav-item" data-page="salary"><span class="nav-icon">👨‍⚕️</span> স্যালারি শিট</div>
       <div class="nav-item" data-page="demand"><span class="nav-icon">📝</span> ডিমান্ড নোট <span class="nbadge" id="demandBadge" style="display:none">0</span></div>
-      <div class="nav-item admin-only" data-page="adminbill"><span class="nav-icon">🧾</span> নতুন বিল (অ্যাডমিন)</div>
+
       <div class="nav-item" data-page="patients"><span class="nav-icon">🏥</span> রোগীর ডেটাবেস</div>
     </div>
     <div class="nav-section">
@@ -518,6 +520,134 @@
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>রোগীর নাম</th><th>ফোন</th><th>মোট বিল</th><th>পরিশোধিত</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="dueTable"><tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">কোনো বাকি নেই</td></tr></tbody>
+        </table></div></div>
+      </div>
+    </div>
+
+    <!-- TEST / OPERATION FEE -->
+    <div id="pg-testfees" class="page-view">
+      <!-- ফি যোগ ফর্ম -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔬 টেস্ট ও অপারেশন ফি নির্ধারণ</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleTestFeeForm()">➕ নতুন আইটেম</button>
+        </div>
+        <div class="panel-body" id="testFeeFormBody" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>আইটেমের নাম *</label><input type="text" id="tfName" placeholder="যেমন: Eye Test, Cataract Operation"></div>
+            <div class="field"><label>ক্যাটাগরি *</label>
+              <select id="tfCat">
+                <option value="">-- ক্যাটাগরি --</option>
+                <option>টেস্ট / পরীক্ষা</option>
+                <option>অপারেশন</option>
+                <option>ভিজিট ফি</option>
+                <option>অন্যান্য সেবা</option>
+              </select>
+            </div>
+            <div class="field"><label>ফি (৳) *</label><input type="number" id="tfFee" placeholder="০.০০" min="0"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>বিবরণ</label><input type="text" id="tfNote" placeholder="ঐচ্ছিক"></div>
+            <div class="field"><label>স্ট্যাটাস</label>
+              <select id="tfStatus"><option value="active">সক্রিয়</option><option value="inactive">নিষ্ক্রিয়</option></select>
+            </div>
+          </div>
+          <input type="hidden" id="tfEditId" value="">
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+            <button class="btn btn-outline" onclick="clearTestFeeForm()">🔄 রিসেট</button>
+            <button class="btn btn-success" onclick="saveTestFee()">✅ সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+      <!-- ফি তালিকা -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📋 টেস্ট ও অপারেশন ফির তালিকা</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="tfSearch" placeholder="🔍 খুঁজুন..." oninput="renderTestFeeTable()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:160px">
+            <select id="tfCatFilter" onchange="renderTestFeeTable()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+              <option value="">সব ক্যাটাগরি</option>
+              <option>টেস্ট / পরীক্ষা</option><option>অপারেশন</option><option>ভিজিট ফি</option><option>অন্যান্য সেবা</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>#</th><th>নাম</th><th>ক্যাটাগরি</th><th>ফি (৳)</th><th>বিবরণ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="testFeeTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW BILL (Admin/Moderator/Receptionist) -->
+    <div id="pg-newbill" class="page-view">
+      <!-- Draft bills from receptionist -->
+      <div class="panel" id="newbillDraftPanel" style="display:none">
+        <div class="panel-header"><div class="panel-title">📨 রিসেপশনিস্টের ড্রাফট বিল</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>রোগী</th><th>সার্ভিস</th><th>মোট</th><th>ড্রাফট ডিসকাউন্ট</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+          <tbody id="newbillDraftTable"></tbody>
+        </table></div></div>
+      </div>
+      <!-- New bill form -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🧾 নতুন বিল তৈরি করুন</div></div>
+        <div class="panel-body">
+          <div class="form-row three">
+            <div class="field"><label>রোগীর নাম *</label><input type="text" id="nbPatName" placeholder="পূর্ণ নাম" oninput="searchPatientForNewBill(this.value)"></div>
+            <div class="field"><label>ফোন নম্বর</label><input type="text" id="nbPatPhone" placeholder="০১XXXXXXXXX"></div>
+            <div class="field"><label>তারিখ *</label><input type="date" id="nbBillDate"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>বয়স</label><input type="text" id="nbPatAge" placeholder="যেমন: ৩৫ বছর"></div>
+            <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="nbPatDoc" placeholder="ডাক্তারের নাম"></div>
+            <div class="field"><label>মেমো নং</label><input type="text" id="nbMemoNo" placeholder="অটো" readonly style="background:#f0f4f8;font-weight:600"></div>
+          </div>
+          <!-- সার্ভিস / পণ্য রো -->
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <label style="font-weight:600">🏷️ পণ্য ও সার্ভিস</label>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm" onclick="addNewBillStockRow()">+ স্টক আইটেম</button>
+                <button class="btn btn-outline btn-sm" onclick="addNewBillServiceRow()">+ টেস্ট/অপারেশন</button>
+                <button class="btn btn-outline btn-sm" onclick="addNewBillManualRow()">+ ম্যানুয়াল</button>
+              </div>
+            </div>
+            <div id="nbRowsContainer"></div>
+          </div>
+          <!-- Summary -->
+          <div style="background:#f8fbff;border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px">
+            <div class="receipt-row"><span>মোট:</span><span id="nbTotal" style="font-weight:700">৳ ০</span></div>
+            <div style="display:flex;gap:12px;align-items:center;margin:8px 0">
+              <label style="font-size:13px">ডিসকাউন্ট:</label>
+              <input type="number" id="nbDiscPct" min="0" max="100" placeholder="%" style="width:70px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit" oninput="updateNewBillSummary()">
+              <span style="font-size:12px;color:var(--text-light)" id="nbDiscLimit"></span>
+            </div>
+            <div class="receipt-row" id="nbDiscRow" style="display:none;color:var(--danger)"><span>ডিসকাউন্ট:</span><span id="nbDiscAmt">-৳ ০</span></div>
+            <div class="receipt-row total"><span>নেট বিল:</span><span id="nbNetBill" style="color:var(--success)">৳ ০</span></div>
+            <div style="display:flex;gap:12px;align-items:center;margin-top:10px">
+              <label style="font-size:13px">নগদ পরিশোধ:</label>
+              <input type="number" id="nbCashPaid" placeholder="৳" style="width:120px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit" oninput="updateNewBillSummary()">
+              <span style="color:var(--danger);font-weight:600">বাকি: <span id="nbDue">৳ ০</span></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="clearNewBillForm()">🔄 রিসেট</button>
+            <button class="btn btn-primary" id="nbSendDraftBtn" style="display:none" onclick="sendNewBillDraft()">📨 অ্যাডমিনে পাঠান</button>
+            <button class="btn btn-success" onclick="saveNewBill()">✅ বিল সেভ ও প্রিন্ট</button>
+          </div>
+        </div>
+      </div>
+      <!-- Bill history -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📋 বিলের ইতিহাস</div>
+          <input type="date" id="nbHistDate" onchange="renderNewBillHistory()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+        </div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>মেমো নং</th><th>তারিখ</th><th>রোগী</th><th>ফোন</th><th>মোট</th><th>ডিসকাউন্ট</th><th>নেট</th><th>পরিশোধ</th><th>বাকি</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+          <tbody id="newBillHistTable"></tbody>
         </table></div></div>
       </div>
     </div>
@@ -2181,7 +2311,7 @@ function canAccess(role, feature) {
 }
 
 let currentUser = null;
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -2655,7 +2785,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -2667,7 +2797,7 @@ function startFirebaseSync() {
   window._fbOnValue(dataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
       appData = { ...def, ...data };
       rebuildUsers();
       if (currentUser) {
@@ -2684,6 +2814,410 @@ function startFirebaseSync() {
     }
   });
 }
+// ===== TEST / OPERATION FEE =====
+function toggleTestFeeForm() {
+  const b = document.getElementById('testFeeFormBody');
+  b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  if (b.style.display === 'block') {
+    document.getElementById('tfEditId').value = '';
+    clearTestFeeForm();
+  }
+}
+function clearTestFeeForm() {
+  ['tfName','tfNote'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const cat=document.getElementById('tfCat'); if(cat) cat.value='';
+  const fee=document.getElementById('tfFee'); if(fee) fee.value='';
+  const st=document.getElementById('tfStatus'); if(st) st.value='active';
+  document.getElementById('tfEditId').value='';
+}
+function saveTestFee() {
+  const name = (document.getElementById('tfName').value||'').trim();
+  const cat  = document.getElementById('tfCat').value;
+  const fee  = parseFloat(document.getElementById('tfFee').value)||0;
+  const note = (document.getElementById('tfNote').value||'').trim();
+  const status = document.getElementById('tfStatus').value;
+  if (!name) { showToast('⚠️ নাম দিন!'); return; }
+  if (!cat)  { showToast('⚠️ ক্যাটাগরি নির্বাচন করুন!'); return; }
+  if (fee <= 0) { showToast('⚠️ সঠিক ফি দিন!'); return; }
+  if (!appData.testFees) appData.testFees = [];
+  const editId = parseInt(document.getElementById('tfEditId').value)||0;
+  if (editId) {
+    const idx = appData.testFees.findIndex(t=>t.id===editId);
+    if (idx >= 0) appData.testFees[idx] = { ...appData.testFees[idx], name, cat, fee, note, status };
+  } else {
+    appData.testFees.push({ id:Date.now(), name, cat, fee, note, status, addedBy:currentUser.name });
+  }
+  saveData();
+  clearTestFeeForm();
+  document.getElementById('testFeeFormBody').style.display='none';
+  renderTestFeeTable();
+  showToast('✅ টেস্ট/অপারেশন ফি সেভ হয়েছে!');
+}
+function editTestFee(id) {
+  const t = (appData.testFees||[]).find(x=>x.id===id);
+  if (!t) return;
+  document.getElementById('testFeeFormBody').style.display='block';
+  document.getElementById('tfName').value  = t.name;
+  document.getElementById('tfCat').value   = t.cat;
+  document.getElementById('tfFee').value   = t.fee;
+  document.getElementById('tfNote').value  = t.note||'';
+  document.getElementById('tfStatus').value= t.status||'active';
+  document.getElementById('tfEditId').value= t.id;
+}
+function deleteTestFee(id) {
+  if (!confirm('মুছবেন?')) return;
+  appData.testFees = (appData.testFees||[]).filter(t=>t.id!==id);
+  saveData(); renderTestFeeTable(); showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+function renderTestFeeTable() {
+  const search = (document.getElementById('tfSearch')?.value||'').toLowerCase();
+  const catF   = document.getElementById('tfCatFilter')?.value||'';
+  const tbody  = document.getElementById('testFeeTable');
+  if (!tbody) return;
+  const list = (appData.testFees||[]).filter(t =>
+    (!search || t.name.toLowerCase().includes(search)) &&
+    (!catF   || t.cat === catF)
+  ).sort((a,b)=>a.cat.localeCompare(b.cat)||a.name.localeCompare(b.name));
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">কোনো আইটেম নেই। ➕ বোতামে নতুন যোগ করুন।</td></tr>'; return; }
+  tbody.innerHTML = list.map((t,i)=>`<tr>
+    <td style="color:var(--text-light)">${i+1}</td>
+    <td style="font-weight:600">${t.name}</td>
+    <td><span class="badge badge-info">${t.cat}</span></td>
+    <td style="font-weight:700;color:var(--success)">৳ ${fmt(t.fee)}</td>
+    <td style="color:var(--text-light)">${t.note||'—'}</td>
+    <td><span class="badge ${t.status==='active'?'badge-income':'badge-expense'}">${t.status==='active'?'✅ সক্রিয়':'❌ নিষ্ক্রিয়'}</span></td>
+    <td style="display:flex;gap:6px">
+      <button class="btn btn-primary btn-sm" onclick="editTestFee(${t.id})">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteTestFee(${t.id})">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ===== NEW BILL (Admin / Moderator / Receptionist) =====
+let nbRowCount = 0;
+function initNewBillPage() {
+  document.getElementById('nbBillDate').value = todayStr();
+  // অটো মেমো নম্বর
+  const allB = [...(appData.newBills||[]),...(appData.adminBills||[])];
+  const lastNum = allB.length ? Math.max(...allB.map(b=>parseInt((b.memoNo+'').replace(/\D/g,''))||0)) : 0;
+  document.getElementById('nbMemoNo').value = 'Memo-' + (lastNum+1).toString().padStart(4,'0');
+  // ডিসকাউন্ট লিমিট
+  const role = currentUser.role;
+  const maxDisc = role==='admin' ? (appData.settings.adminDiscount||30)
+                : role==='receptionist' ? (appData.settings.recDiscount||10)
+                : 15;
+  document.getElementById('nbDiscLimit').textContent = `সর্বোচ্চ ${maxDisc}%`;
+  // receptionist-এর জন্য draft বোতাম দেখাই
+  const draftBtn = document.getElementById('nbSendDraftBtn');
+  if (draftBtn) draftBtn.style.display = role==='receptionist' ? '' : 'none';
+  // admin-এর জন্য draft panel দেখাই
+  renderNewBillDrafts();
+  if (!nbRowCount) addNewBillStockRow();
+}
+function addNewBillStockRow() {
+  nbRowCount++;
+  const id = nbRowCount;
+  const sellable = (appData.stock||[]).filter(s=>s.qty>0);
+  const container = document.getElementById('nbRowsContainer');
+  const div = document.createElement('div');
+  div.id = 'nbRow-'+id;
+  div.style.cssText = 'display:grid;grid-template-columns:2.5fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;background:#f8fafc;padding:8px;border-radius:8px;border:1px solid var(--border)';
+  div.innerHTML = `
+    <div>
+      <select id="nbStkSel-${id}" onchange="setNewBillStockPrice(${id})" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+        <option value="">-- স্টক আইটেম --</option>
+        ${sellable.map(s=>`<option value="${s.id}" data-price="${s.cat==='চশমা/লেন্স'?s.sellMin||0:s.sellPrice||0}" data-name="${s.name}" data-cat="${s.cat}">${s.name} (স্টক: ${s.qty}) — ৳${s.cat==='চশমা/লেন্স'?s.sellMin||0:s.sellPrice||0}</option>`).join('')}
+      </select>
+    </div>
+    <input type="number" id="nbQty-${id}" value="1" min="1" placeholder="পরিমাণ" oninput="updateNewBillSummary()" style="padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center">
+    <input type="number" id="nbPrice-${id}" placeholder="মূল্য" min="0" oninput="updateNewBillSummary()" style="padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:right">
+    <span id="nbSub-${id}" style="font-weight:700;text-align:right;color:var(--success)">৳ ০</span>
+    <button class="btn-icon-del" onclick="removeNbRow(${id})">✕</button>`;
+  container.appendChild(div);
+}
+function addNewBillServiceRow() {
+  nbRowCount++;
+  const id = nbRowCount;
+  const activeServices = (appData.testFees||[]).filter(t=>t.status==='active');
+  const container = document.getElementById('nbRowsContainer');
+  const div = document.createElement('div');
+  div.id = 'nbRow-'+id;
+  div.style.cssText = 'display:grid;grid-template-columns:2.5fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;background:#f0fff4;padding:8px;border-radius:8px;border:1px solid #a7f3d0';
+  div.innerHTML = `
+    <div>
+      <select id="nbSvcSel-${id}" onchange="setNewBillServicePrice(${id})" style="width:100%;padding:8px;border:1.5px solid #a7f3d0;border-radius:6px;font-family:inherit;font-size:13px">
+        <option value="">-- টেস্ট/অপারেশন --</option>
+        ${activeServices.map(t=>`<option value="${t.id}" data-price="${t.fee}" data-name="${t.name}" data-cat="${t.cat}">${t.name} (${t.cat}) — ৳${fmt(t.fee)}</option>`).join('')}
+      </select>
+    </div>
+    <input type="number" id="nbQty-${id}" value="1" min="1" placeholder="পরিমাণ" oninput="updateNewBillSummary()" style="padding:8px;border:1.5px solid #a7f3d0;border-radius:6px;font-family:inherit;font-size:13px;text-align:center">
+    <input type="number" id="nbPrice-${id}" placeholder="মূল্য" min="0" oninput="updateNewBillSummary()" style="padding:8px;border:1.5px solid #a7f3d0;border-radius:6px;font-family:inherit;font-size:13px;text-align:right">
+    <span id="nbSub-${id}" style="font-weight:700;text-align:right;color:var(--success)">৳ ০</span>
+    <button class="btn-icon-del" onclick="removeNbRow(${id})">✕</button>`;
+  container.appendChild(div);
+}
+function addNewBillManualRow() {
+  nbRowCount++;
+  const id = nbRowCount;
+  const container = document.getElementById('nbRowsContainer');
+  const div = document.createElement('div');
+  div.id = 'nbRow-'+id;
+  div.style.cssText = 'display:grid;grid-template-columns:2.5fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;background:#fff8f0;padding:8px;border-radius:8px;border:1px solid var(--border)';
+  div.innerHTML = `
+    <input type="text" id="nbManName-${id}" placeholder="সার্ভিস/পণ্যের নাম" oninput="updateNewBillSummary()" style="padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+    <input type="number" id="nbQty-${id}" value="1" min="1" placeholder="পরিমাণ" oninput="updateNewBillSummary()" style="padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center">
+    <input type="number" id="nbPrice-${id}" placeholder="মূল্য" min="0" oninput="updateNewBillSummary()" style="padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:right">
+    <span id="nbSub-${id}" style="font-weight:700;text-align:right;color:var(--success)">৳ ০</span>
+    <button class="btn-icon-del" onclick="removeNbRow(${id})">✕</button>`;
+  container.appendChild(div);
+}
+function removeNbRow(id) {
+  const el = document.getElementById('nbRow-'+id);
+  if (el) el.remove();
+  updateNewBillSummary();
+}
+function setNewBillStockPrice(id) {
+  const sel = document.getElementById('nbStkSel-'+id);
+  if (!sel || !sel.value) return;
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('nbPrice-'+id).value = opt.getAttribute('data-price')||0;
+  updateNewBillSummary();
+}
+function setNewBillServicePrice(id) {
+  const sel = document.getElementById('nbSvcSel-'+id);
+  if (!sel || !sel.value) return;
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('nbPrice-'+id).value = opt.getAttribute('data-price')||0;
+  updateNewBillSummary();
+}
+function getNewBillItems() {
+  const rows = document.querySelectorAll('#nbRowsContainer > div');
+  const items = [];
+  rows.forEach(row => {
+    const id = row.id.split('-')[1];
+    const qty   = parseFloat(document.getElementById('nbQty-'+id)?.value)||1;
+    const price = parseFloat(document.getElementById('nbPrice-'+id)?.value)||0;
+    const sub   = qty * price;
+    // স্টক আইটেম?
+    const stkSel = document.getElementById('nbStkSel-'+id);
+    if (stkSel && stkSel.value) {
+      const opt = stkSel.options[stkSel.selectedIndex];
+      items.push({ type:'stock', stockId:parseInt(stkSel.value), name:opt.getAttribute('data-name')||opt.text, cat:opt.getAttribute('data-cat')||'', qty, price, subtotal:sub });
+      const sub2 = document.getElementById('nbSub-'+id);
+      if (sub2) sub2.textContent = '৳ '+fmt(sub);
+      return;
+    }
+    // সার্ভিস?
+    const svcSel = document.getElementById('nbSvcSel-'+id);
+    if (svcSel && svcSel.value) {
+      const opt = svcSel.options[svcSel.selectedIndex];
+      items.push({ type:'service', feeId:parseInt(svcSel.value), name:opt.getAttribute('data-name')||opt.text, cat:opt.getAttribute('data-cat')||'', qty, price, subtotal:sub });
+      const sub2 = document.getElementById('nbSub-'+id);
+      if (sub2) sub2.textContent = '৳ '+fmt(sub);
+      return;
+    }
+    // ম্যানুয়াল?
+    const manName = document.getElementById('nbManName-'+id);
+    if (manName && manName.value.trim()) {
+      items.push({ type:'manual', name:manName.value.trim(), cat:'অন্যান্য', qty, price, subtotal:sub });
+      const sub2 = document.getElementById('nbSub-'+id);
+      if (sub2) sub2.textContent = '৳ '+fmt(sub);
+    }
+  });
+  return items.filter(i=>i.price>0);
+}
+function updateNewBillSummary() {
+  const items = getNewBillItems();
+  const total = items.reduce((s,i)=>s+i.subtotal, 0);
+  document.getElementById('nbTotal').textContent = '৳ '+fmt(total);
+  const role = currentUser?.role||'receptionist';
+  const maxDisc = role==='admin' ? (appData.settings.adminDiscount||30)
+                : role==='receptionist' ? (appData.settings.recDiscount||10)
+                : 15;
+  const discPct = Math.min(parseFloat(document.getElementById('nbDiscPct').value)||0, maxDisc);
+  const discAmt = Math.floor(total * discPct / 100);
+  const netBill = Math.max(0, total - discAmt);
+  document.getElementById('nbNetBill').textContent = '৳ '+fmt(netBill);
+  const dRow = document.getElementById('nbDiscRow');
+  if (discAmt > 0) { dRow.style.display='flex'; document.getElementById('nbDiscAmt').textContent='-৳ '+fmt(discAmt); }
+  else dRow.style.display='none';
+  const paid = parseFloat(document.getElementById('nbCashPaid').value)||0;
+  document.getElementById('nbDue').textContent = '৳ '+fmt(Math.max(0,netBill-paid));
+}
+function clearNewBillForm() {
+  ['nbPatName','nbPatPhone','nbPatAge','nbPatDoc','nbDiscPct','nbCashPaid'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('nbBillDate').value = todayStr();
+  document.getElementById('nbRowsContainer').innerHTML='';
+  nbRowCount=0;
+  // মেমো নম্বর রিফ্রেশ
+  const allB=[...(appData.newBills||[]),...(appData.adminBills||[])];
+  const lastNum=allB.length?Math.max(...allB.map(b=>parseInt((b.memoNo+'').replace(/\D/g,''))||0)):0;
+  document.getElementById('nbMemoNo').value='Memo-'+(lastNum+1).toString().padStart(4,'0');
+  updateNewBillSummary();
+  addNewBillStockRow();
+}
+function searchPatientForNewBill(q) {
+  if (!q || q.length < 2) return;
+  const patients = buildPatientList();
+  const match = patients.find(p=>p.name.toLowerCase().includes(q.toLowerCase()));
+  if (match) {
+    document.getElementById('nbPatPhone').value = match.phone||'';
+    document.getElementById('nbPatAge').value   = match.age||'';
+    document.getElementById('nbPatDoc').value   = match.doctor||'';
+  }
+}
+function saveNewBill() {
+  const patName = document.getElementById('nbPatName').value.trim();
+  if (!patName) { showToast('⚠️ রোগীর নাম দিন!'); return; }
+  const items = getNewBillItems();
+  if (!items.length) { showToast('⚠️ কমপক্ষে একটি আইটেম দিন!'); return; }
+  const date    = document.getElementById('nbBillDate').value;
+  const memoNo  = document.getElementById('nbMemoNo').value.trim()||('Memo-'+Date.now());
+  const total   = items.reduce((s,i)=>s+i.subtotal,0);
+  const role    = currentUser.role;
+  const maxDisc = role==='admin'?(appData.settings.adminDiscount||30):role==='receptionist'?(appData.settings.recDiscount||10):15;
+  const discPct = Math.min(parseFloat(document.getElementById('nbDiscPct').value)||0, maxDisc);
+  const discAmt = Math.floor(total*discPct/100);
+  const netBill = Math.max(0,total-discAmt);
+  const cashPaid= parseFloat(document.getElementById('nbCashPaid').value)||0;
+  const due     = Math.max(0,netBill-cashPaid);
+  const patPhone= document.getElementById('nbPatPhone').value.trim();
+  const patAge  = document.getElementById('nbPatAge').value.trim();
+  const patDoc  = document.getElementById('nbPatDoc').value.trim();
+
+  // স্টক আপডেট (স্টক আইটেমের জন্য)
+  items.filter(i=>i.type==='stock').forEach(item=>{
+    const st = appData.stock.find(s=>s.id===item.stockId);
+    if (st) {
+      st.qty = Math.max(0, st.qty - item.qty);
+      if (!appData.stockLog) appData.stockLog=[];
+      appData.stockLog.push({ id:Date.now()+Math.random(), date, itemId:st.id, itemName:item.name, move:'out', qty:item.qty, note:`বিল: ${memoNo}`, by:currentUser.name });
+    }
+  });
+
+  // নতুন বিল সেভ
+  if (!appData.newBills) appData.newBills=[];
+  const bill = { id:Date.now(), date, memoNo, patName, patPhone, patAge, patDoc, items, total, discAmt, discPct, netBill, cashPaid, due, by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD') };
+  appData.newBills.push(bill);
+
+  // visits এও যোগ (patient database এর জন্য)
+  appData.visits.push({ id:Date.now()+1, date, patName, patPhone, patAge, patDoc, services:items, total, discAmt, netBill, cashPaid, due, rcptNo:memoNo, by:currentUser.name, time:bill.time, source:'newbill' });
+
+  // income এ যোগ
+  if (cashPaid > 0) {
+    appData.income.push({ id:Date.now()+2, date, category:'নতুন বিল', amount:cashPaid, ref:patName, note:`${memoNo} — ${patName}`, by:currentUser.name });
+  }
+
+  saveData();
+  clearNewBillForm();
+  renderNewBillHistory();
+  refreshDashboard();
+  showToast(`✅ বিল সেভ! মেমো: ${memoNo}`);
+}
+function sendNewBillDraft() {
+  const patName = document.getElementById('nbPatName').value.trim();
+  if (!patName) { showToast('⚠️ রোগীর নাম দিন!'); return; }
+  const items = getNewBillItems();
+  if (!items.length) { showToast('⚠️ কমপক্ষে একটি আইটেম দিন!'); return; }
+  const total   = items.reduce((s,i)=>s+i.subtotal,0);
+  const discAmt = parseFloat(document.getElementById('nbDiscPct').value)||0;
+  const date    = document.getElementById('nbBillDate').value;
+  if (!appData.draftBills) appData.draftBills=[];
+  appData.draftBills.push({
+    id:Date.now(), date, patName,
+    patPhone:document.getElementById('nbPatPhone').value.trim(),
+    patAge:document.getElementById('nbPatAge').value.trim(),
+    patDoc:document.getElementById('nbPatDoc').value.trim(),
+    services:items, total, adminDiscAmt:discAmt, by:currentUser.name, status:'pending'
+  });
+  saveData();
+  showToast('✅ ড্রাফট অ্যাডমিনে পাঠানো হয়েছে!');
+}
+function renderNewBillDrafts() {
+  const panel = document.getElementById('newbillDraftPanel');
+  const tbody = document.getElementById('newbillDraftTable');
+  if (!panel || !tbody) return;
+  if (currentUser.role !== 'admin') { panel.style.display='none'; return; }
+  const drafts=(appData.draftBills||[]).filter(d=>d.status==='pending'||d.status==='returned');
+  panel.style.display = drafts.length ? '' : 'none';
+  if (!drafts.length) return;
+  tbody.innerHTML = drafts.map(d=>`<tr>
+    <td style="font-weight:600">${d.patName}</td>
+    <td style="font-size:12px;color:var(--text-light)">${(d.services||[]).map(s=>s.name).join(', ')}</td>
+    <td style="font-weight:700">৳ ${fmt(d.total)}</td>
+    <td>${d.adminDiscAmt?`${d.adminDiscAmt}%`:'—'}</td>
+    <td style="color:var(--text-light)">${d.by}</td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-success btn-sm" onclick="loadDraftToNewBill(${d.id})">✅ লোড</button>
+      <button class="btn btn-danger btn-sm" onclick="rejectNewBillDraft(${d.id})">❌</button>
+    </td>
+  </tr>`).join('');
+}
+function loadDraftToNewBill(id) {
+  const draft = (appData.draftBills||[]).find(d=>d.id===id);
+  if (!draft) return;
+  document.getElementById('nbPatName').value  = draft.patName;
+  document.getElementById('nbPatPhone').value = draft.patPhone||'';
+  document.getElementById('nbPatAge').value   = draft.patAge||'';
+  document.getElementById('nbPatDoc').value   = draft.patDoc||'';
+  document.getElementById('nbDiscPct').value  = draft.adminDiscAmt||0;
+  document.getElementById('nbRowsContainer').innerHTML='';
+  nbRowCount=0;
+  // ম্যানুয়াল রো হিসেবে লোড করি
+  (draft.services||[]).forEach(svc=>{
+    addNewBillManualRow();
+    const id2=nbRowCount;
+    const mn=document.getElementById('nbManName-'+id2);
+    if(mn) mn.value=svc.name;
+    const qty=document.getElementById('nbQty-'+id2);
+    if(qty) qty.value=svc.qty||1;
+    const pr=document.getElementById('nbPrice-'+id2);
+    if(pr) pr.value=svc.price||svc.subtotal||(svc.qty?svc.subtotal/svc.qty:0);
+  });
+  draft.status='rec_received';
+  saveData();
+  updateNewBillSummary();
+  renderNewBillDrafts();
+  showToast('✅ ড্রাফট লোড হয়েছে!');
+}
+function rejectNewBillDraft(id) {
+  if (!confirm('ড্রাফট বাতিল করবেন?')) return;
+  const d=(appData.draftBills||[]).find(d=>d.id===id);
+  if(d) d.status='rejected';
+  saveData(); renderNewBillDrafts(); showToast('❌ ড্রাফট বাতিল');
+}
+function renderNewBillHistory() {
+  const fd  = document.getElementById('nbHistDate')?.value||'';
+  const tbody = document.getElementById('newBillHistTable');
+  if (!tbody) return;
+  // newBills ও adminBills উভয় দেখাই
+  const nb = (appData.newBills||[]).map(b=>({...b,source:'newbill'}));
+  const ab = (appData.adminBills||[]).map(b=>({...b,source:'adminbill'}));
+  const all = [...nb,...ab].filter(b=>!fd||b.date===fd).sort((a,b2)=>b2.id-a.id);
+  if (!all.length) { tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px">কোনো বিল নেই</td></tr>'; return; }
+  tbody.innerHTML = all.map(b=>`<tr>
+    <td style="font-weight:600;color:var(--accent)">${b.memoNo}</td>
+    <td>${formatDate(b.date)}</td>
+    <td style="font-weight:600">${b.patName}</td>
+    <td style="color:var(--text-light)">${b.patPhone||'—'}</td>
+    <td>৳ ${fmt(b.total)}</td>
+    <td style="color:var(--danger)">${b.discAmt>0?'৳ '+fmt(b.discAmt):'—'}</td>
+    <td style="font-weight:700">৳ ${fmt(b.netBill)}</td>
+    <td style="color:var(--success)">৳ ${fmt(b.cashPaid)}</td>
+    <td style="color:${b.due>0?'var(--danger)':'var(--success)'}">${b.due>0?'৳ '+fmt(b.due):'✅'}</td>
+    <td style="font-size:12px;color:var(--text-light)">${b.by||'—'}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteNewBill(${b.id},'${b.source}')">🗑️</button></td>
+  </tr>`).join('');
+}
+function deleteNewBill(id, source) {
+  if (!confirm('মুছবেন?')) return;
+  if (source==='adminbill') appData.adminBills=(appData.adminBills||[]).filter(b=>b.id!==id);
+  else appData.newBills=(appData.newBills||[]).filter(b=>b.id!==id);
+  saveData(); renderNewBillHistory(); showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
   if (window._fbDb && window._fbRef && window._fbSet) {
@@ -2705,6 +3239,8 @@ const pageMap = {
   shareholders: { title:'👥 শেয়ারহোল্ডার', sub:'মালিকানা ও লাভ বন্টন' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
   stock:    { title:'📦 স্টক ম্যানেজমেন্ট', sub:'ওষুধ ও চশমার স্টক' },
+  testfees: { title:'🔬 টেস্ট/অপারেশন ফি', sub:'হাসপাতালের সেবা ও টেস্টের মূল্য তালিকা' },
+  newbill:  { title:'🧾 নতুন বিল', sub:'রোগীর বিল তৈরি করুন' },
   demand:   { title:'📝 ডিমান্ড নোট', sub:'স্টক চাহিদার তালিকা' },
   report:   { title:'📊 মাসিক রিপোর্ট', sub:'আয়-ব্যয়ের মাসিক সারসংক্ষেপ' },
   settings: { title:'⚙️ সেটিংস', sub:'হাসপাতালের সেটিংস ও কনফিগারেশন' },
@@ -2713,7 +3249,8 @@ const pageMap = {
   patients: { title:'🏥 রোগীর ডেটাবেস', sub:'সকল রোগীর তথ্য ও ইতিহাস' },
 };
 function showPage(name) {
-  if ((name === 'settings'||name==='adminbill') && currentUser.role !== 'admin') return;
+  if ((name === 'settings') && currentUser.role !== 'admin') return;
+  if ((name === 'testfees') && currentUser.role !== 'admin') return;
   document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('pg-' + name).classList.add('active');
@@ -2729,6 +3266,8 @@ function showPage(name) {
   if (name === 'report') { initReportFilters(); renderReport(); }
   if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); }
+  if (name === 'testfees')     { renderTestFeeTable(); }
+  if (name === 'newbill')      { initNewBillPage(); renderNewBillHistory(); }
   if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); }
   if (name === 'demand')       { initDemandForm(); renderDemandList(); }
   if (name === 'vendor')       { initVendorPage(); }
@@ -2736,7 +3275,7 @@ function showPage(name) {
   if (name === 'loan')         { initLoanPage(); }
   if (name === 'shareholders') { renderShareholderTable(); renderDividendHistory(); }
   if (name === 'officialpad')  { initOfficialPad(); }
-  if (name === 'adminbill')    { initAdminBillPage(); renderDraftBills(); }
+  if (name === 'adminbill') { showPage('newbill'); return; }
   if (name === 'patients')     { renderPatientDB(); }
   if (name === 'settings')     { renderCategoryLists(); updateCategorySelects(); }
   closeSidebar();
@@ -4201,6 +4740,7 @@ const ALL_FEATURES = [
   { id:'camp',      label:'ক্যাম্প এন্ট্রি' },
   { id:'due',       label:'বাকি তালিকা' },
   { id:'stock',     label:'স্টক ম্যানেজমেন্ট' },
+  { id:'newbill',   label:'নতুন বিল' },
   { id:'salary',    label:'স্যালারি শিট' },
   { id:'demand',    label:'ডিমান্ড নোট' },
   { id:'report',    label:'মাসিক রিপোর্ট' },
