@@ -1507,8 +1507,9 @@
             <div class="field"><label>চশমার সর্বনিম্ন লাভ (%)</label><input type="number" id="settGlassMinProfit" placeholder="৩০" min="0" max="200"></div>
             <div class="field"><label>চশমার সর্বোচ্চ লাভ (%)</label><input type="number" id="settGlassMaxProfit" placeholder="৮০" min="0" max="500"></div>
           </div>
-          <div class="form-row">
+          <div class="form-row three">
             <div class="field"><label>রিসেপশনের সর্বোচ্চ ডিসকাউন্ট (%)</label><input type="number" id="settRecDiscount" placeholder="১০" min="0" max="100"></div>
+            <div class="field"><label>মডারেটরের সর্বোচ্চ ডিসকাউন্ট (%)</label><input type="number" id="settModDiscount" placeholder="১৫" min="0" max="100"></div>
             <div class="field"><label>অ্যাডমিনের সর্বোচ্চ ডিসকাউন্ট (%)</label><input type="number" id="settAdminDiscount" placeholder="৩০" min="0" max="100"></div>
           </div>
         </div>
@@ -2311,7 +2312,7 @@ function canAccess(role, feature) {
 }
 
 let currentUser = null;
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, modDiscount:15, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -2583,6 +2584,7 @@ function loadUserList() {
   document.getElementById('settGlassMinProfit').value = s.glassMinProfit||30;
   document.getElementById('settGlassMaxProfit').value = s.glassMaxProfit||80;
   document.getElementById('settRecDiscount').value    = s.recDiscount||10;
+  if(document.getElementById('settModDiscount')) document.getElementById('settModDiscount').value = s.modDiscount||15;
   document.getElementById('settAdminDiscount').value  = s.adminDiscount||30;
   loadGHSettingsToForm();
 }
@@ -2600,6 +2602,7 @@ function saveSettings() {
   appData.settings.glassMinProfit = parseFloat(document.getElementById('settGlassMinProfit').value)||30;
   appData.settings.glassMaxProfit = parseFloat(document.getElementById('settGlassMaxProfit').value)||80;
   appData.settings.recDiscount    = parseFloat(document.getElementById('settRecDiscount').value)||10;
+  appData.settings.modDiscount    = parseFloat(document.getElementById('settModDiscount')?.value)||15;
   appData.settings.adminDiscount  = parseFloat(document.getElementById('settAdminDiscount').value)||30;
   saveData(); showToast('✅ সেটিংস সেভ হয়েছে!');
 }
@@ -2785,7 +2788,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, modDiscount:15, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -2797,7 +2800,7 @@ function startFirebaseSync() {
   window._fbOnValue(dataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], testFees:[], newBills:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, modDiscount:15, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
       appData = { ...def, ...data };
       rebuildUsers();
       if (currentUser) {
@@ -4820,6 +4823,7 @@ function loadUserList() {
   if(document.getElementById('settGlassMinProfit')) document.getElementById('settGlassMinProfit').value=s.glassMinProfit||30;
   if(document.getElementById('settGlassMaxProfit')) document.getElementById('settGlassMaxProfit').value=s.glassMaxProfit||80;
   if(document.getElementById('settRecDiscount'))    document.getElementById('settRecDiscount').value=s.recDiscount||10;
+  if(document.getElementById('settModDiscount'))    document.getElementById('settModDiscount').value=s.modDiscount||15;
   if(document.getElementById('settAdminDiscount'))  document.getElementById('settAdminDiscount').value=s.adminDiscount||30;
   loadGHSettingsToForm();
 
@@ -6692,6 +6696,7 @@ function getServices() {
 function getDiscountLimit() {
   const s = appData.settings;
   if (currentUser.role === 'admin') return s.adminDiscount||30;
+  if (currentUser.role === 'moderator') return s.modDiscount||15;
   return s.recDiscount||10;
 }
 
