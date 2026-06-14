@@ -185,6 +185,47 @@
     #printArea { position:fixed; top:0; left:0; width:100%; z-index:9999; background:white; padding:20px; }
   }
 </style>
+
+<script>
+// ===== UNIVERSAL PRINT HELPER =====
+function openPrintWindow(htmlContent, title) {
+  const hospName = (typeof appData !== 'undefined' && appData.settings && appData.settings.hospName) ? appData.settings.hospName : 'ICON Eye Hospital';
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { showToast('⚠️ পপআপ ব্লক করা আছে! Browser এর পপআপ অনুমতি দিন।'); return; }
+  w.document.write(`<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>${title || hospName}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Hind Siliguri',Arial,sans-serif; background:white; color:#333; }
+    table { border-collapse:collapse; width:100%; }
+    th, td { padding:6px 8px; }
+    @media print {
+      body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .no-print { display:none !important; }
+      @page { margin:12mm; }
+    }
+    .print-btn {
+      position:fixed; top:16px; right:16px; z-index:9999;
+      background:#0f4c81; color:white; border:none; border-radius:8px;
+      padding:10px 20px; font-size:14px; cursor:pointer; font-family:inherit;
+      box-shadow:0 2px 8px rgba(0,0,0,0.2);
+    }
+    .print-btn:hover { background:#0a3460; }
+    @media print { .print-btn { display:none !important; } }
+  </style>
+</head>
+<body>
+  <button class="print-btn no-print" onclick="window.print()">🖨️ প্রিন্ট করুন</button>
+  ${htmlContent}
+</body>
+</html>`);
+  w.document.close();
+}
+</script>
 </head>
 <body>
 
@@ -271,7 +312,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <div style="position:relative">
-          <input type="text" id="dashSearch" placeholder="🔍 কোড বা নাম দিয়ে দাম খুঁজুন..." oninput="showDashSearchResults()" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:inherit;font-size:13px;width:220px;outline:none;transition:all 0.2s" onfocus="this.style.borderColor='var(--accent)';this.style.width='280px'" onblur="this.style.borderColor='var(--border)';this.style.width='220px';setTimeout(()=&gt;document.getElementById('dashSearchResults').style.display='none',200)">
+          <input type="text" id="dashSearch" placeholder="🔍 কোড বা নাম দিয়ে দাম খুঁজুন..." oninput="showDashSearchResults()" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:inherit;font-size:13px;width:220px;outline:none;transition:all 0.2s" onfocus="this.style.borderColor=&#39;var(--accent)&#39;;this.style.width=&#39;280px&#39;" onblur="this.style.borderColor=&#39;var(--border)&#39;;this.style.width=&#39;220px&#39;;setTimeout(()=&gt;document.getElementById(&#39;dashSearchResults&#39;).style.display=&#39;none&#39;,200)">
           <div id="dashSearchResults" style="display:none;position:absolute;top:38px;right:0;width:320px;background:white;border:1.5px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);z-index:50;max-height:280px;overflow-y:auto"></div>
         </div>
         <div class="today-badge" id="todayBadge">📅 09 জুন, 2026</div>
@@ -291,14 +332,14 @@
       </div>
       <!-- Pending camp operations -->
       <div id="campOpsAlert" style="display:none" class="panel">
-        <div class="panel-header"><div class="panel-title">🔔 অপেক্ষমাণ ক্যাম্প অপারেশন রোগী</div><button class="btn btn-primary btn-sm" onclick="showPage('camp')">সব দেখুন</button></div>
+        <div class="panel-header"><div class="panel-title">🔔 অপেক্ষমাণ ক্যাম্প অপারেশন রোগী</div><button class="btn btn-primary btn-sm" onclick="showPage(&#39;camp&#39;)">সব দেখুন</button></div>
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>ক্যাম্প</th><th>রোগীর নাম</th><th>ফোন</th><th>অপারেশন</th><th>স্ট্যাটাস</th></tr></thead>
           <tbody id="pendingOpsTable"></tbody>
         </table></div></div>
       </div>
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">📋 সাম্প্রতিক এন্ট্রি</div><button class="btn btn-primary btn-sm" onclick="showPage('income')">+ নতুন এন্ট্রি</button></div>
+        <div class="panel-header"><div class="panel-title">📋 সাম্প্রতিক এন্ট্রি</div><button class="btn btn-primary btn-sm" onclick="showPage(&#39;income&#39;)">+ নতুন এন্ট্রি</button></div>
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>ভাউচার/মেমো</th><th>ধরন</th><th>খাত</th><th>রেফ/রোগী/ক্যাম্প</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th></tr></thead>
           <tbody id="recentTable"><tr>
@@ -1033,7 +1074,7 @@
           </div>
           <div style="background:#f0f4f8;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px" id="opProfitPreview">নেট লাভ: —</div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-outline btn-sm" onclick="document.getElementById('opEntryForm').style.display='none'">বাতিল</button>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById(&#39;opEntryForm&#39;).style.display=&#39;none&#39;">বাতিল</button>
             <button class="btn btn-success" onclick="saveOperation()">✅ সেভ করুন</button>
           </div>
         </div>
@@ -1568,7 +1609,7 @@
             </div>
             <input type="hidden" id="nuEditId">
             <div style="display:flex;gap:10px;justify-content:flex-end">
-              <button class="btn btn-outline btn-sm" onclick="document.getElementById('addUserForm').style.display='none'">বাতিল</button>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById(&#39;addUserForm&#39;).style.display=&#39;none&#39;">বাতিল</button>
               <button class="btn btn-success" onclick="saveUser()">✅ সেভ করুন</button>
             </div>
           </div>
@@ -1581,7 +1622,7 @@
       <td style="padding:8px"><span class="badge badge-warning">মডারেটর</span></td>
       <td style="padding:8px;font-size:11px;color:var(--text-light)">ডিফল্ট</td>
       <td style="padding:8px">
-        <button class="btn btn-primary btn-sm" onclick="editUserForm('mod')">✏️</button>
+        <button class="btn btn-primary btn-sm" onclick="editUserForm(&#39;mod&#39;)">✏️</button>
         
       </td>
     </tr><tr style="border-bottom:1px solid var(--border)">
@@ -1590,7 +1631,7 @@
       <td style="padding:8px"><span class="badge badge-warning">মডারেটর</span></td>
       <td style="padding:8px;font-size:11px;color:var(--text-light)">ডিফল্ট</td>
       <td style="padding:8px">
-        <button class="btn btn-primary btn-sm" onclick="editUserForm('mod2')">✏️</button>
+        <button class="btn btn-primary btn-sm" onclick="editUserForm(&#39;mod2&#39;)">✏️</button>
         
       </td>
     </tr><tr style="border-bottom:1px solid var(--border)">
@@ -1599,7 +1640,7 @@
       <td style="padding:8px"><span class="badge badge-rec">রিসেপশনিস্ট</span></td>
       <td style="padding:8px;font-size:11px;color:var(--text-light)">ডিফল্ট</td>
       <td style="padding:8px">
-        <button class="btn btn-primary btn-sm" onclick="editUserForm('rec')">✏️</button>
+        <button class="btn btn-primary btn-sm" onclick="editUserForm(&#39;rec&#39;)">✏️</button>
         
       </td>
     </tr><tr style="border-bottom:1px solid var(--border)">
@@ -1608,7 +1649,7 @@
       <td style="padding:8px"><span class="badge badge-purple">মালিক</span></td>
       <td style="padding:8px;font-size:11px;color:var(--text-light)">ডিফল্ট</td>
       <td style="padding:8px">
-        <button class="btn btn-primary btn-sm" onclick="editUserForm('owner')">✏️</button>
+        <button class="btn btn-primary btn-sm" onclick="editUserForm(&#39;owner&#39;)">✏️</button>
         
       </td>
     </tr><tr style="border-bottom:1px solid var(--border)">
@@ -1617,7 +1658,7 @@
       <td style="padding:8px"><span class="badge badge-info">ক্যাম্পেইনার</span></td>
       <td style="padding:8px;font-size:11px;color:var(--text-light)">ডিফল্ট</td>
       <td style="padding:8px">
-        <button class="btn btn-primary btn-sm" onclick="editUserForm('camp')">✏️</button>
+        <button class="btn btn-primary btn-sm" onclick="editUserForm(&#39;camp&#39;)">✏️</button>
         
       </td>
     </tr></tbody>
@@ -1893,7 +1934,7 @@
               <p style="font-weight:700;font-size:14px;color:#92400e;margin-bottom:8px">📥 ডেটা ইম্পোর্ট</p>
               <p style="font-size:12px;color:#f59e0b;margin-bottom:12px">আগের ব্যাকআপ ফাইল থেকে রিস্টোর করুন</p>
               <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-              <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">⬆️ JSON ইম্পোর্ট করুন</button>
+              <button class="btn btn-warning" onclick="document.getElementById(&#39;importFile&#39;).click()">⬆️ JSON ইম্পোর্ট করুন</button>
             </div>
           </div>
           <hr class="divider">
@@ -1960,7 +2001,7 @@
 
             <!-- বডি -->
             <div style="padding:20px 32px;min-height:400px">
-              <textarea id="padBody" placeholder="এখানে আপনার বার্তা / নোটিশ / প্রজ্ঞাপন লিখুন..." style="width:100%;min-height:360px;border:none;resize:vertical;font-family:inherit;font-size:14px;line-height:1.8;color:#1a2a3a;outline:none;background:transparent" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+              <textarea id="padBody" placeholder="এখানে আপনার বার্তা / নোটিশ / প্রজ্ঞাপন লিখুন..." style="width:100%;min-height:360px;border:none;resize:vertical;font-family:inherit;font-size:14px;line-height:1.8;color:#1a2a3a;outline:none;background:transparent" oninput="this.style.height=&#39;auto&#39;;this.style.height=this.scrollHeight+&#39;px&#39;"></textarea>
             </div>
 
             <!-- স্বাক্ষর -->
@@ -2286,7 +2327,7 @@
 <div id="recPage" style="display: none;">
   <div class="rec-header">
     <div class="rec-logo">
-      <img src="data:image/png;base64," id="recLogoImg" style="height: 44px; object-fit: contain; display: none;" onerror="this.style.display='none'">
+      <img src="data:image/png;base64," id="recLogoImg" style="height: 44px; object-fit: contain; display: none;" onerror="this.style.display=&#39;none&#39;">
       <div>
         <div class="rec-en">ICON EYE HOSPITAL</div>
         <div class="rec-bn">রিসেপশন প্যানেল</div>
@@ -2302,10 +2343,10 @@
   </div>
   <div class="rec-body">
     <div class="rec-tabs">
-      <button class="rec-tab active" id="rtab-new" onclick="switchRecTab('new',this)">🧾 নতুন বিল</button>
-      <button class="rec-tab" id="rtab-due" onclick="switchRecTab('due',this)">⏳ বাকি তালিকা</button>
-      <button class="rec-tab" id="rtab-history" onclick="switchRecTab('history',this)">📋 আজকের এন্ট্রি</button>
-      <button class="rec-tab" id="rtab-lookup" onclick="switchRecTab('lookup',this)">🔍 দাম খুঁজুন</button>
+      <button class="rec-tab active" id="rtab-new" onclick="switchRecTab(&#39;new&#39;,this)">🧾 নতুন বিল</button>
+      <button class="rec-tab" id="rtab-due" onclick="switchRecTab(&#39;due&#39;,this)">⏳ বাকি তালিকা</button>
+      <button class="rec-tab" id="rtab-history" onclick="switchRecTab(&#39;history&#39;,this)">📋 আজকের এন্ট্রি</button>
+      <button class="rec-tab" id="rtab-lookup" onclick="switchRecTab(&#39;lookup&#39;,this)">🔍 দাম খুঁজুন</button>
     </div>
 
     <!-- NEW BILL -->
@@ -2842,7 +2883,7 @@ function printOfficialPad() {
   const signName = document.getElementById('padSignName').value.trim();
   const signDesig= document.getElementById('padSignDesig').value.trim();
 
-  document.getElementById('printArea').innerHTML = `
+  openPrintWindow(`
   <html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -2889,11 +2930,7 @@ function printOfficialPad() {
       <div>${email}</div>
     </div>
   </div>
-  </body></html>`;
-
-  document.getElementById('printArea').style.display='block';
-  window.print();
-  document.getElementById('printArea').style.display='none';
+  </body></html>`);
 }
 
 // ===== LOGIN WITH CUSTOM PASSWORD SUPPORT =====
@@ -2992,16 +3029,10 @@ function startFirebaseSync() {
   window._fbOnValue(dataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
       appData = { ...def, ...data };
-      // localStorage-এ সেভ করো যাতে পরের লোডে কাজে লাগে
-      try { localStorage.setItem('hms_data', JSON.stringify(appData)); } catch(e) {}
       rebuildUsers();
       if (currentUser) {
-        // লগইন করা ইউজার এখনও valid কিনা চেক করো
-        if (USERS[currentUser.username]) {
-          currentUser = { username:currentUser.username, ...USERS[currentUser.username] };
-        }
         refreshDashboard();
         // ফিচার অ্যাক্সেস রিয়েলটাইম আপডেট
         if (currentUser.role === 'moderator') {
@@ -3011,18 +3042,6 @@ function startFirebaseSync() {
           });
         }
         showToast('🔄 ডেটা sync হয়েছে');
-      } else {
-        // currentUser নেই — Firebase ডেটা আগে এসে গেছে, session restore করো
-        const saved = localStorage.getItem('hms_session');
-        if (saved) {
-          try {
-            const u = JSON.parse(saved);
-            if (USERS[u.username]) {
-              currentUser = { username:u.username, ...USERS[u.username] };
-              startApp();
-            }
-          } catch(e) {}
-        }
       }
     }
   });
@@ -3516,7 +3535,7 @@ function printBoardReport() {
     </tr>`;
   }
 
-  document.getElementById('printArea').innerHTML = `
+  openPrintWindow(`
   <html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>${css}</style></head>
@@ -3646,11 +3665,7 @@ function printBoardReport() {
   <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">
     এই রিপোর্ট ${hospName} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।
   </div>
-  </body></html>`;
-
-  document.getElementById('printArea').style.display='block';
-  window.print();
-  document.getElementById('printArea').style.display='none';
+  </body></html>`);
 }
 
 // ===== REPORT MODULE =====
@@ -3816,21 +3831,21 @@ function printReport() {
   const month = parseInt(document.getElementById('rpMonth').value);
   const year  = parseInt(document.getElementById('rpYear').value);
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
-  const hospName = appData.settings.hospName || 'ICON Eye Hospital';
+  const hospName  = appData.settings.hospName || 'ICON Eye Hospital';
   const totalInc  = document.getElementById('rpTotalIncome').textContent;
   const totalExp  = document.getElementById('rpTotalExpense').textContent;
   const netProfit = document.getElementById('rpNetProfit').textContent;
   const dailyRows = document.getElementById('rpDailyTable').innerHTML;
   const dailyFoot = document.getElementById('rpDailyFoot').innerHTML;
 
-  document.getElementById('printArea').innerHTML = `
-    <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:680px;margin:0 auto;padding:24px">
+  openPrintWindow(`
+    <div style="max-width:720px;margin:0 auto;padding:24px">
       <div style="text-align:center;margin-bottom:20px;border-bottom:3px solid #0f4c81;padding-bottom:16px">
         <div style="font-size:22px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
         <div style="font-size:16px;font-weight:600;color:#333;margin-top:6px">মাসিক আয়-ব্যয় রিপোর্ট</div>
         <div style="font-size:14px;color:#666;margin-top:3px">${months[month-1]}, ${year}</div>
       </div>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <table style="margin-bottom:20px">
         <tr>
           <td style="padding:10px;background:#d1fae5;border-radius:8px;text-align:center;width:33%">
             <div style="font-size:12px;color:#065f46;font-weight:600">মোট আয়</div>
@@ -3849,7 +3864,7 @@ function printReport() {
         </tr>
       </table>
       <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:14px">📅 দৈনিক সারসংক্ষেপ</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <table style="font-size:13px">
         <thead><tr style="background:#0f4c81;color:white">
           <th style="padding:8px;text-align:left">তারিখ</th>
           <th style="padding:8px;text-align:right">আয়</th>
@@ -3864,10 +3879,7 @@ function printReport() {
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;border-top:1px solid #eee;padding-top:10px">
         রিপোর্ট তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
-    </div>`;
-  document.getElementById('printArea').style.display = 'block';
-  window.print();
-  document.getElementById('printArea').style.display = 'none';
+    </div>`, `মাসিক রিপোর্ট — ${months[month-1]} ${year}`);
 }
 
 // ===== CAMP MODULE =====
@@ -6865,7 +6877,7 @@ function printStockReport() {
     <td style="padding:7px;text-align:right">${s.sellPrice?'৳ '+fmt(s.sellPrice):'—'}</td>
     <td style="padding:7px;text-align:center"><span style="color:${s.qty<=(s.minQty||5)?'#e74c3c':'#2ecc71'}">${s.qty<=(s.minQty||5)?'⚠️ কম':'✅ ঠিক'}</span></td>
   </tr>`).join('');
-  document.getElementById('printArea').innerHTML=`
+  openPrintWindow(`
     <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:720px;margin:0 auto;padding:24px">
       <div style="text-align:center;margin-bottom:16px;border-bottom:3px solid #0f4c81;padding-bottom:12px">
         <div style="font-size:20px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
@@ -6882,10 +6894,7 @@ function printStockReport() {
         <tbody>${rows}</tbody>
       </table>
       <div style="margin-top:12px;font-size:12px;color:#666">মোট আইটেম: ${data.length}টি | কম স্টক: ${data.filter(s=>s.qty<=(s.minQty||5)).length}টি</div>
-    </div>`;
-  document.getElementById('printArea').style.display='block';
-  window.print();
-  document.getElementById('printArea').style.display='none';
+    </div>`);
 }
 
 function doLookup() {
@@ -7032,7 +7041,7 @@ function viewStaffProfile(id) {
   const p = s.profile||{};
   const hospName = appData.settings.hospName||'ICON Eye Hospital';
 
-  document.getElementById('printArea').innerHTML = `
+  openPrintWindow(`
     <html><head><meta charset="UTF-8">
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -7097,13 +7106,11 @@ function viewStaffProfile(id) {
     </div>
 
     <div style="margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between">
-      <button onclick="printRelievingLetter(${id})" style="padding:8px 16px;background:#0f4c81;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">📄 Relieving Letter</button>
-      <button onclick="printExperienceCert(${id})" style="padding:8px 16px;background:#2ecc71;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">📄 Experience Certificate</button>
-      <button onclick="window.print()" style="padding:8px 16px;background:#f39c12;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">🖨️ প্রোফাইল প্রিন্ট</button>
-      <button onclick="document.getElementById('printArea').style.display='none'" style="padding:8px 16px;background:#e74c3c;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">✕ বন্ধ করুন</button>
-    </div>
-    </body></html>`;
-  document.getElementById('printArea').style.display='block';
+      <button data-sid="${id}" onclick="printRelievingLetter(parseInt(this.getAttribute('data-sid')))" style="padding:8px 16px;background:#0f4c81;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">📄 Relieving Letter</button>
+      <button data-sid="${id}" onclick="printExperienceCert(parseInt(this.getAttribute('data-sid')))" style="padding:8px 16px;background:#2ecc71;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">📄 Experience Certificate</button>
+      <button onclick="openPrintWindow(document.getElementById('staffProfileContent').innerHTML,'Staff Profile')" style="padding:8px 16px;background:#f39c12;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">🖨️ প্রোফাইল প্রিন্ট</button>
+      <button onclick="document.getElementById('staffProfileModal').style.display='none'" style="padding:8px 16px;background:#e74c3c;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">✕ বন্ধ করুন</button>
+    </div>`, `কর্মী প্রোফাইল — ${s.name||''}`);
 }
 
 function printRelievingLetter(id) {
@@ -7115,7 +7122,7 @@ function printRelievingLetter(id) {
   const tagline  = appData.settings.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
   const today    = new Date().toLocaleDateString('bn-BD',{year:'numeric',month:'long',day:'numeric'});
 
-  document.getElementById('printArea').innerHTML = `
+  openPrintWindow(`
     <html><head><meta charset="UTF-8">
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -7162,9 +7169,7 @@ function printRelievingLetter(id) {
         <div></div><div>${tagline}</div><div></div>
       </div>
     </div>
-    </body></html>`;
-  document.getElementById('printArea').style.display='block';
-  window.print();
+    </body></html>`);
 }
 
 function printExperienceCert(id) {
@@ -7177,7 +7182,7 @@ function printExperienceCert(id) {
   const today    = new Date().toLocaleDateString('bn-BD',{year:'numeric',month:'long',day:'numeric'});
   const joinDate = s.join ? formatDate(s.join) : '___________';
 
-  document.getElementById('printArea').innerHTML = `
+  openPrintWindow(`
     <html><head><meta charset="UTF-8">
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -7223,9 +7228,7 @@ function printExperienceCert(id) {
         <div></div><div>${tagline}</div><div></div>
       </div>
     </div>
-    </body></html>`;
-  document.getElementById('printArea').style.display='block';
-  window.print();
+    </body></html>`);
 }
 
 function printSalarySlips() {
@@ -7274,23 +7277,12 @@ function printSalarySlips() {
     </div>`;
   }
 
-  document.getElementById('printArea').innerHTML = `
-    <html><head><meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-      body{font-family:'Hind Siliguri',Arial,sans-serif;margin:0;padding:16px;background:white}
-      @media print{body{padding:8px} @page{margin:10mm}}
-    </style></head>
-    <body>
-      <div style="text-align:center;margin-bottom:12px;border-bottom:2px solid #0f4c81;padding-bottom:8px">
-        <strong style="color:#0f4c81;font-size:15px">${hospName} — বেতন স্লিপ — ${months[month-1]}, ${year}</strong>
-        <div style="font-size:11px;color:#888;margin-top:2px">✂️ ছিঁড়ে প্রতিটি কর্মীকে দিন</div>
-      </div>
-      ${gridRows}
-    </body></html>`;
-  document.getElementById('printArea').style.display='block';
-  window.print();
-  document.getElementById('printArea').style.display='none';
+  openPrintWindow(`
+    <div style="text-align:center;margin-bottom:12px;border-bottom:2px solid #0f4c81;padding-bottom:8px">
+      <strong style="color:#0f4c81;font-size:15px">${hospName} — বেতন স্লিপ — ${months[month-1]}, ${year}</strong>
+      <div style="font-size:11px;color:#888;margin-top:2px">✂️ ছিঁড়ে প্রতিটি কর্মীকে দিন</div>
+    </div>
+    ${gridRows}`, `বেতন স্লিপ — ${months[month-1]} ${year}`);
 }
 
 function getSalaryKey(staffId, month, year) {
@@ -7402,7 +7394,7 @@ function printSalarySheet() {
       <td style="padding:8px;text-align:center">____________</td>
     </tr>`;
   });
-  document.getElementById('printArea').innerHTML = `
+  openPrintWindow(`
     <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:720px;margin:0 auto;padding:24px">
       <div style="text-align:center;margin-bottom:16px;border-bottom:3px solid #0f4c81;padding-bottom:12px">
         <div style="font-size:20px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
@@ -7433,10 +7425,7 @@ function printSalarySheet() {
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;border-top:1px solid #eee;padding-top:8px">
         তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
-    </div>`;
-  document.getElementById('printArea').style.display='block';
-  window.print();
-  document.getElementById('printArea').style.display='none';
+    </div>`);
 }
 
 // ===== RECEPTIONIST =====
@@ -7767,7 +7756,7 @@ function showPrint(d) {
   const hospName = appData.settings.hospName||'ICON Eye Hospital';
   const address  = appData.settings.address||'';
   const rows = d.services.map(s=>`<tr><td>${s.name}</td><td style="text-align:center">${s.qty}</td><td style="text-align:right">৳ ${fmt(s.price)}</td><td style="text-align:right">৳ ${fmt(s.subtotal)}</td></tr>`).join('');
-  document.getElementById('printArea').innerHTML=`
+  openPrintWindow(`
     <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:420px;margin:0 auto;padding:20px;border:2px solid #1a8fb5;border-radius:8px">
       <div style="text-align:center;margin-bottom:12px">
         <img src="${LOGO_B64}" style="height:50px;object-fit:contain;margin-bottom:6px" /><br>
@@ -7795,10 +7784,7 @@ function showPrint(d) {
       </table>
       ${d.note?`<div style="font-size:12px;color:#888;margin-top:8px">মন্তব্য: ${d.note}</div>`:''}
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:14px;border-top:1px solid #eee;padding-top:8px">ধন্যবাদ — আপনার সেবায় আমরা প্রতিশ্রুতিবদ্ধ</div>
-    </div>`;
-  document.getElementById('printArea').style.display='block';
-  window.print();
-  document.getElementById('printArea').style.display='none';
+    </div>`);
 }
 
 // ===== SIDEBAR =====
