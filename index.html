@@ -2992,10 +2992,16 @@ function startFirebaseSync() {
   window._fbOnValue(dataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
       appData = { ...def, ...data };
+      // localStorage-এ সেভ করো যাতে পরের লোডে কাজে লাগে
+      try { localStorage.setItem('hms_data', JSON.stringify(appData)); } catch(e) {}
       rebuildUsers();
       if (currentUser) {
+        // লগইন করা ইউজার এখনও valid কিনা চেক করো
+        if (USERS[currentUser.username]) {
+          currentUser = { username:currentUser.username, ...USERS[currentUser.username] };
+        }
         refreshDashboard();
         // ফিচার অ্যাক্সেস রিয়েলটাইম আপডেট
         if (currentUser.role === 'moderator') {
@@ -3005,6 +3011,18 @@ function startFirebaseSync() {
           });
         }
         showToast('🔄 ডেটা sync হয়েছে');
+      } else {
+        // currentUser নেই — Firebase ডেটা আগে এসে গেছে, session restore করো
+        const saved = localStorage.getItem('hms_session');
+        if (saved) {
+          try {
+            const u = JSON.parse(saved);
+            if (USERS[u.username]) {
+              currentUser = { username:u.username, ...USERS[u.username] };
+              startApp();
+            }
+          } catch(e) {}
+        }
       }
     }
   });
