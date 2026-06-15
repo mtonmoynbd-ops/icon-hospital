@@ -335,6 +335,8 @@ function openPrintWindow(htmlContent, title) {
         <div class="stat-card" style="border-left-color:#e67e22"><div class="stat-icon">🏕️</div><div class="stat-label">ক্যাম্প আয় (এই মাস)</div><div class="stat-value" id="campIncome" style="color:#e67e22">৳ ০</div><div class="stat-change">ক্যাম্প: <span id="campCount">0</span>টি</div></div>
         <div class="stat-card due"><div class="stat-icon">⏳</div><div class="stat-label">মোট বাকি</div><div class="stat-value due" id="totalDue">৳ ৫,১৪০</div><div class="stat-change">রোগী: <span id="dueCount">2</span>জন</div></div>
         <div class="stat-card expense" style="border-left-color:#c0392b"><div class="stat-icon">🏦</div><div class="stat-label">মোট দেনা</div><div class="stat-value" id="totalDebt" style="color:#c0392b">৳ ০</div><div class="stat-change">লোন + সরবরাহকারী বাকি</div></div>
+        <div class="stat-card income"><div class="stat-icon">💵</div><div class="stat-label">ক্যাশ ব্যালেন্স</div><div class="stat-value income" id="dashCashBalance">৳ ০</div><div class="stat-change">হাতে নগদ মজুদ</div></div>
+        <div class="stat-card" style="border-left-color:#3498db"><div class="stat-icon">🏦</div><div class="stat-label">ব্যাংক ব্যালেন্স</div><div class="stat-value" id="dashBankBalance" style="color:#3498db">৳ ০</div><div class="stat-change" id="dashBankName">ব্যাংক একাউন্ট</div></div>
       </div>
       <!-- Pending camp operations -->
       <div id="campOpsAlert" style="display:none" class="panel">
@@ -2049,7 +2051,7 @@ function openPrintWindow(htmlContent, title) {
   <div id="ownerFeatureBar" class="role-feature-bar" style="display:none"></div>
   <div style="padding:16px;max-width:600px;margin:0 auto;width:100%">
     <!-- Summary Cards -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px" id="ownerCards"></div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px" id="ownerCards"></div>
     <!-- Monthly Chart area -->
     <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px">
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📊 এই মাসের সারসংক্ষেপ</div>
@@ -2085,6 +2087,7 @@ function openPrintWindow(htmlContent, title) {
         <div style="color:white;font-size:13px;font-weight:600" id="camperName">ক্যাম্পেইনার</div>
         <div style="color:var(--accent);font-size:11px">Campaigner</div>
       </div>
+      <button onclick="showCamperCashSubmitModal()" style="background:rgba(255,255,255,0.15);color:white;border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px">💵 ক্যাশ জমা</button>
       <button onclick="doLogout()" class="btn-logout" style="width:auto;padding:8px 14px">🚪</button>
     </div>
   </div>
@@ -2351,6 +2354,7 @@ function openPrintWindow(htmlContent, title) {
         <div class="rec-user-name" id="recUserName">রিসেপশনিস্ট</div>
         <div class="rec-user-role">Receptionist</div>
       </div>
+      <button class="btn" style="background:rgba(255,255,255,0.15);color:white;border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px" onclick="showRecCashSubmitModal()">💵 ক্যাশ জমা</button>
       <button class="btn-logout" style="width:auto;padding:8px 16px" onclick="doLogout()">🚪 লগআউট</button>
     </div>
   </div>
@@ -3181,6 +3185,12 @@ function refreshDashboard() {
   const vendorDue = (appData.vouchers||[]).filter(v=>v.type==='payable').reduce((s,v)=>s+v.amount,0);
   const totalDebt = Math.max(0, loanIn - loanOut) + vendorDue;
   const debtEl = document.getElementById('totalDebt'); if(debtEl) debtEl.textContent = '৳ ' + fmt(totalDebt);
+
+  // Cash / Bank balance on dashboard
+  const { cash: dCash, bank: dBank } = calcCashBankBalance();
+  const dce=document.getElementById('dashCashBalance'); if(dce) dce.textContent='৳ '+fmt(dCash);
+  const dbe=document.getElementById('dashBankBalance'); if(dbe) dbe.textContent='৳ '+fmt(dBank);
+  const dbn=document.getElementById('dashBankName'); if(dbn) dbn.textContent=appData.settings.bankName||'ব্যাংক একাউন্ট';
 
   // Pending camp operations on dashboard
   const pendingOps = [];
@@ -4482,21 +4492,44 @@ function initBankPage() {
   updateBankBalances();
   renderBankTx();
 }
-function updateBankBalances() {
-  // ব্যালেন্স সব bankTx থেকে ক্যালকুলেট
-  let cash=0, bank=0;
-  (appData.bankTx||[]).forEach(tx=>{
+function calcCashBankBalance() {
+  // ক্যাশ = সব আয় - সব ব্যয় + bankTx অ্যাডজাস্টমেন্ট
+  // income: manual income + visit cashPaid + camp totalIncome
+  let cash = 0, bank = 0;
+  // ১. Manual income → ক্যাশে যোগ
+  (appData.income||[]).forEach(e => { cash += (e.amount||0); });
+  // ২. Receptionist visits → ক্যাশে যোগ
+  (appData.visits||[]).forEach(v => { cash += (v.cashPaid||0); });
+  // ৩. Camp income → ক্যাশে যোগ
+  (appData.camps||[]).forEach(c => { cash += (c.totalIncome||0); });
+  // ৪. Manual expense → ক্যাশ থেকে বাদ
+  (appData.expense||[]).forEach(e => { cash -= (e.amount||0); });
+  // ৫. Camp expense → ক্যাশ থেকে বাদ
+  (appData.camps||[]).forEach(c => { cash -= ((c.totalExpense||0) + (c.totalCOGS||0) + (c.regularStaffCost||0)); });
+  // ৬. bankTx: ক্যাশ→ব্যাংক ট্রান্সফার ও ম্যানুয়াল অ্যাডজাস্টমেন্ট
+  (appData.bankTx||[]).forEach(tx => {
     if(tx.type==='cash_in') cash+=tx.amount;
     else if(tx.type==='bank_in') bank+=tx.amount;
-    else if(tx.type==='cash_to_bank'){cash-=tx.amount;bank+=tx.amount;}
-    else if(tx.type==='bank_to_cash'){bank-=tx.amount;cash+=tx.amount;}
+    else if(tx.type==='cash_to_bank'){cash-=tx.amount; bank+=tx.amount;}
+    else if(tx.type==='bank_to_cash'){bank-=tx.amount; cash+=tx.amount;}
     else if(tx.type==='cash_out') cash-=tx.amount;
     else if(tx.type==='bank_out') bank-=tx.amount;
   });
+  return { cash, bank };
+}
+function updateBankBalances() {
+  const { cash, bank } = calcCashBankBalance();
   const cashEl=document.getElementById('cashBalance'); if(cashEl) cashEl.textContent='৳ '+fmt(cash);
   const bankEl=document.getElementById('bankBalance'); if(bankEl) bankEl.textContent='৳ '+fmt(bank);
   const totEl=document.getElementById('totalBalance'); if(totEl) totEl.textContent='৳ '+fmt(cash+bank);
   const bnEl=document.getElementById('bankName'); if(bnEl) bnEl.textContent=appData.settings.bankName||'ব্যাংক একাউন্ট';
+  // Dashboard এও আপডেট করো
+  ['dashCashBalance','ownerDashCashBalance'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent='৳ '+fmt(cash);
+  });
+  ['dashBankBalance','ownerDashBankBalance'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent='৳ '+fmt(bank);
+  });
 }
 function saveBankTx() {
   const type=document.getElementById('bankTxType').value;
@@ -4612,6 +4645,92 @@ function deleteLoan(id) {
   if(!confirm('মুছবেন?'))return;
   appData.loans=(appData.loans||[]).filter(l=>l.id!==id);
   saveData(); renderLoanTable(); updateLoanSummary(); showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+
+
+// ===== CASH SUBMIT MODAL (Receptionist & Campaigner) =====
+function buildCashSubmitModal(role) {
+  const today = todayStr();
+  // আজকের আয় হিসাব
+  let todayInc = 0, todayExp = 0, label = '';
+  if (role === 'receptionist') {
+    todayInc = (appData.visits||[]).filter(v=>v.date===today).reduce((s,v)=>s+v.cashPaid,0);
+    todayExp = 0; // receptionist সাধারণত ব্যয় করে না
+    label = 'রিসেপশন';
+  } else if (role === 'campaigner') {
+    const sess = camperSession;
+    if (sess) {
+      todayInc = (appData.campVisits||[]).filter(v=>v.sessionId===sess.id).reduce((s,v)=>s+v.paid,0);
+      todayExp = (appData.campExpenses||[]).filter(e=>e.sessionId===sess.id).reduce((s,e)=>s+e.amount,0);
+    }
+    label = 'ক্যাম্পেইনার';
+  }
+  const net = todayInc - todayExp;
+  const modal = document.createElement('div');
+  modal.id = 'cashSubmitModalWrap';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:var(--primary);font-size:17px;margin:0">💵 ক্যাশ জমা — ${label}</h3>
+        <button onclick="document.getElementById('cashSubmitModalWrap').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>
+      </div>
+      <div style="background:#f0fff4;border:1.5px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;padding:4px 0">
+          <span style="color:#666">আজকের মোট আয়</span>
+          <span style="font-weight:700;color:#2ecc71">৳ ${fmt(todayInc)}</span>
+        </div>
+        ${todayExp>0?`<div style="display:flex;justify-content:space-between;padding:4px 0">
+          <span style="color:#666">আজকের মোট ব্যয়</span>
+          <span style="font-weight:700;color:#e74c3c">৳ ${fmt(todayExp)}</span>
+        </div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1.5px solid #86efac;margin-top:6px">
+          <span style="font-weight:700;color:#065f46">জমাযোগ্য নেট ক্যাশ</span>
+          <span style="font-weight:800;color:#065f46;font-size:16px">৳ ${fmt(net)}</span>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:13px;font-weight:600;color:var(--primary);display:block;margin-bottom:6px">প্রকৃত জমার পরিমাণ *</label>
+        <input type="number" id="cashSubmitAmt" value="${net}" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:16px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;color:var(--primary);display:block;margin-bottom:6px">নোট (ঐচ্ছিক)</label>
+        <input type="text" id="cashSubmitNote" placeholder="যেমন: শিফট শেষে জমা" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="background:#fef3c7;border-radius:8px;padding:10px;font-size:12px;color:#92400e;margin-bottom:16px">
+        ⚠️ এই পরিমাণ প্রধান ক্যাশ ব্যালেন্সে স্বয়ংক্রিয়ভাবে রেকর্ড হবে। ইতোমধ্যে এন্ট্রি করা আয়/ব্যয় আলাদাভাবে গণনা হয়ে আছে — এটি শুধু বাড়তি অ্যাডজাস্টমেন্টের জন্য।
+      </div>
+      <button class="btn btn-success" style="width:100%" onclick="confirmCashSubmit('${role}')">✅ ক্যাশ জমা নিশ্চিত করুন</button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function showRecCashSubmitModal() {
+  buildCashSubmitModal('receptionist');
+}
+function showCamperCashSubmitModal() {
+  buildCashSubmitModal('campaigner');
+}
+function confirmCashSubmit(role) {
+  const amt = parseFloat(document.getElementById('cashSubmitAmt').value)||0;
+  const note = document.getElementById('cashSubmitNote').value.trim();
+  if (amt === 0) { showToast('⚠️ পরিমাণ দিন!'); return; }
+  if (!appData.bankTx) appData.bankTx = [];
+  // এটি শুধু অ্যাডজাস্টমেন্ট ট্র্যাক করার জন্য — note-এ উল্লেখ করা হবে
+  const roleLabel = role === 'receptionist' ? 'রিসেপশনিস্ট' : 'ক্যাম্পেইনার';
+  appData.bankTx.push({
+    id: Date.now(),
+    type: 'cash_in',
+    amount: amt,
+    date: todayStr(),
+    note: note || `${roleLabel} ডিউটি শেষে ক্যাশ জমা — ${currentUser.name}`,
+    ref: 'duty-submit',
+    by: currentUser.name
+  });
+  saveData();
+  updateBankBalances();
+  document.getElementById('cashSubmitModalWrap').remove();
+  showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
 }
 
 // ===== SHAREHOLDER MODULE =====
@@ -5046,15 +5165,37 @@ function initOwnerPage() {
   const salCost = appData.staff.filter(s=>s.status==='active').reduce((s,st)=>s+st.basic,0);
   const mProfit = mInc - mExp - fixed - salCost;
 
+  // দেনা
+  const loanIn2 = (appData.loans||[]).filter(l=>l.type==='received').reduce((s,l)=>s+l.amount,0);
+  const loanOut2 = (appData.loans||[]).filter(l=>l.type==='repaid').reduce((s,l)=>s+l.amount,0);
+  const vendorDue2 = (appData.vouchers||[]).filter(v=>v.type==='payable').reduce((s,v)=>s+v.amount,0);
+  const totalDebt2 = Math.max(0, loanIn2 - loanOut2) + vendorDue2;
+  // বাকি
+  const dueVisits2 = (appData.visits||[]).filter(v=>v.due>0);
+  const totalDue2 = dueVisits2.reduce((s,v)=>s+v.due,0);
+  // ক্যাম্প আয়
+  const campMonthInc2 = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
+  const campCount2 = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).length;
+  // ক্যাশ/ব্যাংক
+  const { cash: oCash, bank: oBank } = calcCashBankBalance();
+  const todayProfit2 = todayInc - todayExp;
+
   const cards = document.getElementById('ownerCards');
   if (cards) cards.innerHTML = [
-    { label:'আজকের আয়', value:'৳ '+fmt(todayInc), color:'#2ecc71', bg:'#d1fae5' },
-    { label:'আজকের ব্যয়', value:'৳ '+fmt(todayExp), color:'#e74c3c', bg:'#fee2e2' },
-    { label:'মাসিক আয়', value:'৳ '+fmt(mInc), color:'#0f4c81', bg:'#dbeafe' },
-    { label:'মাসিক লাভ/লস', value:(mProfit>=0?'':'- ')+'৳ '+fmt(Math.abs(mProfit)), color:mProfit>=0?'#2ecc71':'#e74c3c', bg:mProfit>=0?'#d1fae5':'#fee2e2' },
+    { icon:'💰', label:'আজকের আয়', value:'৳ '+fmt(todayInc), color:'#2ecc71', bg:'#d1fae5', sub:'আজকের মোট' },
+    { icon:'💸', label:'আজকের ব্যয়', value:'৳ '+fmt(todayExp), color:'#e74c3c', bg:'#fee2e2', sub:'আজকের মোট' },
+    { icon:'📈', label:'আজকের লাভ/লস', value:(todayProfit2>=0?'':'- ')+'৳ '+fmt(Math.abs(todayProfit2)), color:todayProfit2>=0?'#2ecc71':'#e74c3c', bg:todayProfit2>=0?'#d1fae5':'#fff0f0', sub:todayProfit2>=0?'✅ লাভজনক':'⚠️ লোকসান' },
+    { icon:'📅', label:'মাসিক লাভ/লস', value:(mProfit>=0?'':'- ')+'৳ '+fmt(Math.abs(mProfit)), color:mProfit>=0?'#8e44ad':'#e74c3c', bg:'#f3e8ff', sub:mProfit>=0?'✅ লাভজনক মাস':'⚠️ লোকসানের মাস' },
+    { icon:'🏕️', label:'ক্যাম্প আয় (এই মাস)', value:'৳ '+fmt(campMonthInc2), color:'#e67e22', bg:'#fff7ed', sub:'ক্যাম্প: '+campCount2+'টি' },
+    { icon:'⏳', label:'মোট বাকি', value:'৳ '+fmt(totalDue2), color:'#f59e0b', bg:'#fffbeb', sub:'রোগী: '+dueVisits2.length+'জন' },
+    { icon:'🔴', label:'মোট দেনা', value:'৳ '+fmt(totalDebt2), color:'#c0392b', bg:'#fff0f0', sub:'লোন + সরবরাহকারী' },
+    { icon:'💵', label:'ক্যাশ ব্যালেন্স', value:'৳ '+fmt(oCash), color:'#2ecc71', bg:'#d1fae5', sub:'হাতে নগদ মজুদ', id:'ownerDashCashBalance' },
+    { icon:'🏦', label:'ব্যাংক ব্যালেন্স', value:'৳ '+fmt(oBank), color:'#3498db', bg:'#dbeafe', sub:appData.settings.bankName||'ব্যাংক একাউন্ট', id:'ownerDashBankBalance' },
   ].map(c=>`<div style="background:${c.bg};border-radius:12px;padding:14px;text-align:center">
-    <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase">${c.label}</div>
-    <div style="font-size:20px;font-weight:800;color:${c.color};margin-top:4px">${c.value}</div>
+    <div style="font-size:18px">${c.icon}</div>
+    <div style="font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-top:2px">${c.label}</div>
+    <div style="font-size:18px;font-weight:800;color:${c.color};margin-top:4px"${c.id?' id="'+c.id+'"':''}>${c.value}</div>
+    <div style="font-size:10px;color:#888;margin-top:2px">${c.sub}</div>
   </div>`).join('');
 
   // Monthly summary
@@ -5478,10 +5619,18 @@ function buildReadOnlyHTML(feature) {
   }
   if (feature === 'camp') {
     const rows = (appData.camps||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏕️ ক্যাম্প তালিকা ${badge}</div>
+    const trStyle = 'cursor:pointer;transition:background 0.15s';
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:4px;font-size:15px">🏕️ ক্যাম্প তালিকা ${badge}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:10px">👆 যেকোনো ক্যাম্পে ট্যাপ করুন বিস্তারিত দেখতে</div>
       <div style="overflow-x:auto"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">আয়</th></tr>
-        ${rows.length ? rows.map(c=>`<tr><td style="${tdStyle}">${formatDate(c.date)}</td><td style="${tdStyle}">${c.name||'—'}</td><td style="${tdStyle}">${c.totalPatients||0}</td><td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(c.totalIncome)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">আয়</th><th style="${thStyle}"></th></tr>
+        ${rows.length ? rows.map(c=>`<tr style="${trStyle}" onclick="showCampDetail(${c.id})" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
+          <td style="${tdStyle}">${formatDate(c.date)}</td>
+          <td style="${tdStyle};font-weight:600">${c.name||'—'}</td>
+          <td style="${tdStyle};text-align:center">${c.totalPatients||0}</td>
+          <td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(c.totalIncome)}</td>
+          <td style="${tdStyle};text-align:center;color:#0f4c81">👁️</td>
+        </tr>`).join('') : `<tr><td colspan="5" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'due') {
