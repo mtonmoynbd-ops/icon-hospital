@@ -1959,8 +1959,6 @@
 
     <!-- NEW BILL -->
     <div id="rec-new" class="rec-tab-view active">
-      <!-- ফেরত আসা draft notification -->
-      <div id="returnedDraftNotif" style="display:none"></div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🧾 নতুন ক্যাশ মেমো / বিল</div></div>
         <div class="panel-body">
@@ -2645,7 +2643,7 @@ function startApp() {
         el.style.display = canAccess('moderator', feat) ? '' : 'none';
       });
     }
-    refreshDashboard(); loadUserList(); updateDemandBadge(); updateCategorySelects();
+    refreshDashboard(); loadUserList(); updateDemandBadge();
   }
 }
 
@@ -6274,20 +6272,6 @@ function clearBillForm() {
   updateSummary();
 }
 function renderRecDue() {
-  // returned drafts notification
-  const returned=(appData.draftBills||[]).filter(d=>d.status==='returned');
-  const notifEl=document.getElementById('returnedDraftNotif');
-  if(notifEl){
-    if(returned.length){
-      notifEl.style.display='block';
-      notifEl.innerHTML=`<div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
-        <span style="font-size:20px">↩️</span>
-        <div style="flex:1"><div style="font-weight:600;color:#92400e">${returned.length}টি বিল অ্যাডমিন থেকে ফেরত এসেছে</div>
-        <div style="font-size:12px;color:#b45309">অ্যাডমিন ডিসকাউন্ট সহ — পেমেন্ট নিয়ে সেভ করুন</div></div>
-        <button class="btn btn-warning btn-sm" onclick="loadReturnedDraft()">দেখুন →</button>
-      </div>`;
-    } else notifEl.style.display='none';
-  }
   const visits=appData.visits.filter(v=>v.due>0).sort((a,b)=>b.id-a.id);
   const totalDue=visits.reduce((s,v)=>s+v.due,0);
   document.getElementById('recTotalDueAmt').textContent='৳ '+fmt(totalDue);
@@ -6555,7 +6539,7 @@ function sendDraftToAdmin() {
   showToast('✅ ড্রাফট অ্যাডমিনে পাঠানো হয়েছে!');
 }
 function renderDraftBills() {
-  const drafts=(appData.draftBills||[]).filter(d=>d.status==='pending'||d.status==='returned');
+  const drafts=(appData.draftBills||[]).filter(d=>d.status==='pending');
   const panel=document.getElementById('draftBillsPanel');
   const tbody=document.getElementById('draftBillTable');
   if(!panel||!tbody)return;
@@ -6565,86 +6549,16 @@ function renderDraftBills() {
     <td style="font-weight:600">${d.patName}</td>
     <td style="font-size:12px">${d.services.map(s=>s.name).join(', ')}</td>
     <td>৳ ${fmt(d.total)}</td>
-    <td style="color:var(--danger)">${d.adminDiscAmt>0?'৳ '+fmt(d.adminDiscAmt):(d.discAmt>0?'৳ '+fmt(d.discAmt):'—')}</td>
+    <td style="color:var(--danger)">${d.discAmt>0?'৳ '+fmt(d.discAmt):'—'}</td>
     <td style="font-size:12px;color:var(--text-light)">${d.by}</td>
-    <td style="font-size:12px;color:${d.status==='returned'?'var(--success)':'var(--warning)'}">
-      ${d.status==='returned'?'↩️ ফেরত পাঠানো হয়েছে':'⏳ অপেক্ষমাণ'}
-    </td>
-    <td style="display:flex;gap:6px;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" onclick="editDraftInAdmin(${d.id})">✏️ এডিট</button>
+    <td style="display:flex;gap:6px">
       <button class="btn btn-success btn-sm" onclick="approveDraft(${d.id})">✅ অ্যাপ্রুভ</button>
       <button class="btn btn-danger btn-sm" onclick="rejectDraft(${d.id})">❌ বাতিল</button>
     </td>
   </tr>`).join('');
 }
-function editDraftInAdmin(id) {
-  const draft=(appData.draftBills||[]).find(d=>d.id===id);
-  if(!draft)return;
-  // admin bill form এ লোড করি সব তথ্য সহ
-  document.getElementById('abPatName').value=draft.patName;
-  document.getElementById('abPatPhone').value=draft.patPhone||'';
-  document.getElementById('abPatAge').value=draft.patAge||'';
-  document.getElementById('abPatDoc').value=draft.patDoc||'';
-  document.getElementById('abBillDate').value=draft.date;
-  document.getElementById('adminBillRows').innerHTML='';
-  adminBillRowCount=0;
-  draft.services.forEach(s=>{
-    addAdminBillRow();
-    const rows=document.getElementById('adminBillRows').querySelectorAll('tr');
-    const last=rows[rows.length-1];
-    const inputs=last.querySelectorAll('input,select');
-    inputs[0].value=s.name;
-    inputs[2].value=s.qty||1;
-    inputs[3].value=s.price||0;
-  });
-  // rec এর আগের discount দেখাই
-  if(draft.discAmt>0){
-    const total=draft.services.reduce((s,r)=>s+r.subtotal,0);
-    const pct=Math.round(draft.discAmt/total*100);
-    document.getElementById('abDiscPct').value=pct;
-  }
-  updateAdminBillSummary();
-  // Save বাটন → এই draft update করবে + rec এ ফেরত পাঠাবে
-  // draftId hidden field এ রাখি
-  document.getElementById('abMemoNo').setAttribute('data-draft-id', id);
-  // Send back button দেখাই
-  const btnArea=document.querySelector('#pg-adminbill .panel:nth-child(2) .panel-body div:last-child');
-  if(btnArea && !document.getElementById('sendBackBtn')){
-    const btn=document.createElement('button');
-    btn.id='sendBackBtn';
-    btn.className='btn btn-warning';
-    btn.innerHTML='↩️ রিসেপশনিস্টে ফেরত পাঠান';
-    btn.onclick=()=>sendDraftBackToRec(id);
-    btnArea.insertBefore(btn, btnArea.lastElementChild);
-  }
-  showToast('✏️ ড্রাফট এডিট মোডে আছেন');
-}
-function sendDraftBackToRec(id) {
-  const draft=(appData.draftBills||[]).find(d=>d.id===id);
-  if(!draft)return;
-  // admin এর এডিট করা তথ্য সেভ করি
-  const svcs=getAdminBillServices();
-  const total=svcs.reduce((s,r)=>s+r.subtotal,0);
-  const maxDisc=appData.settings.adminDiscount||30;
-  const discPct=Math.min(parseFloat(document.getElementById('abDiscPct').value)||0,maxDisc);
-  const adminDiscAmt=Math.floor(total*discPct/100);
-  draft.services=svcs.length?svcs:draft.services;
-  draft.adminDiscAmt=adminDiscAmt;
-  draft.adminDiscPct=discPct;
-  draft.total=total||draft.total;
-  draft.adminNote=`অ্যাডমিন ডিসকাউন্ট: ${discPct}%`;
-  draft.status='returned';
-  draft.returnedAt=new Date().toLocaleString('bn-BD');
-  saveData();
-  // Send back button সরাই
-  const btn=document.getElementById('sendBackBtn');
-  if(btn)btn.remove();
-  document.getElementById('abMemoNo').removeAttribute('data-draft-id');
-  clearAdminBillForm();
-  showToast('↩️ রিসেপশনিস্টে ফেরত পাঠানো হয়েছে!');
-}
 function approveDraft(id) {
-  const draft=(appData.draftBills||[]).find(d=>d.id===id);
+  const draft = (appData.draftBills||[]).find(d=>d.id===id);
   if(!draft)return;
   // admin bill form এ লোড করি
   showPage('adminbill');
@@ -6664,48 +6578,11 @@ function approveDraft(id) {
     inputs[2].value=s.qty||1;
     inputs[3].value=s.price||0;
   });
-  if(draft.adminDiscPct) document.getElementById('abDiscPct').value=draft.adminDiscPct;
+  // draft মার্ক করি
   draft.status='approved';
   saveData();
   updateAdminBillSummary();
   showToast('✅ ড্রাফট লোড হয়েছে — বিল সেভ করুন');
-}
-function loadReturnedDraft() {
-  const returned=(appData.draftBills||[]).filter(d=>d.status==='returned');
-  if(!returned.length){showToast('কোনো ফেরত আসা বিল নেই');return;}
-  const draft=returned[0]; // প্রথমটা লোড করি
-  document.getElementById('rPatName').value=draft.patName;
-  document.getElementById('rPatPhone').value=draft.patPhone||'';
-  document.getElementById('rPatAge').value=draft.patAge||'';
-  document.getElementById('rPatDoc').value=draft.patDoc||'';
-  document.getElementById('rBillDate').value=draft.date;
-  // services লোড
-  const rows=document.getElementById('serviceRows');
-  if(rows){
-    rows.innerHTML='';
-    draft.services.forEach(s=>{
-      addServiceRow();
-      const allRows=rows.querySelectorAll('.service-row');
-      const last=allRows[allRows.length-1];
-      const inputs=last.querySelectorAll('input,select');
-      if(inputs[0]) inputs[0].value=s.name;
-      if(inputs[2]) inputs[2].value=s.qty||1;
-      if(inputs[3]) inputs[3].value=s.price||0;
-    });
-  }
-  // অ্যাডমিন discount যোগ করি
-  if(draft.adminDiscAmt>0){
-    const discEl=document.getElementById('rDiscountAmt');
-    if(discEl) discEl.value=draft.adminDiscAmt;
-    const noteEl=document.getElementById('rNote');
-    if(noteEl) noteEl.value=draft.adminNote||'';
-  }
-  // draft টা pending করি (আর দেখাবে না)
-  draft.status='rec_received';
-  saveData();
-  updateSummary();
-  showToast(`✅ অ্যাডমিন অনুমোদিত বিল লোড হয়েছে${draft.adminDiscPct?` — অ্যাডমিন ডিসকাউন্ট: ${draft.adminDiscPct}%`:''}`);
-  renderRecDue();
 }
 function rejectDraft(id) {
   if(!confirm('ড্রাফট বাতিল করবেন?'))return;
