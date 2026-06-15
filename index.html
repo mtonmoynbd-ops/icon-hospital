@@ -479,11 +479,20 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">📋 ক্যাম্পের তালিকা</div>
-          <input type="month" id="campFilterMonth" onchange="renderCampList()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <div style="display:flex;gap:8px">
+            <select id="campRatingFilter" onchange="renderCampList()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+              <option value="">সব মতামত</option>
+              <option value="খুব সফল">🌟 খুব সফল</option>
+              <option value="সফল">✅ সফল</option>
+              <option value="মোটামুটি">🆗 মোটামুটি</option>
+              <option value="অসফল">❌ অসফল</option>
+            </select>
+            <input type="month" id="campFilterMonth" onchange="renderCampList()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          </div>
         </div>
         <div class="panel-body">
           <div class="table-wrap"><table>
-            <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>মোট আয়</th><th>রোগী</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+            <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>মোট আয়</th><th>রোগী</th><th>রিসিট রেঞ্জ</th><th>মতামত</th><th>অ্যাকশন</th></tr></thead>
             <tbody id="campListTable"></tbody>
           </table></div>
         </div>
@@ -1625,6 +1634,53 @@
         </div>
       </div>
 
+      <!-- ক্যাম্প শিডিউল ম্যানেজমেন্ট -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🏕️ ক্যাম্প শিডিউল ম্যানেজমেন্ট</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleCampScheduleForm()">➕ নতুন ক্যাম্প শিডিউল</button>
+        </div>
+        <div class="panel-body">
+          <div id="campScheduleForm" style="display:none;background:#f8fafc;border-radius:10px;padding:16px;margin-bottom:16px">
+            <div class="form-row three">
+              <div class="field"><label>ক্যাম্পের নাম *</label><input type="text" id="csName" placeholder="ক্যাম্পের নাম"></div>
+              <div class="field"><label>স্থান/লোকেশন *</label><input type="text" id="csLocation" placeholder="গ্রাম/উপজেলা"></div>
+              <div class="field"><label>তারিখ *</label><input type="date" id="csDate"></div>
+            </div>
+            <div class="form-row three">
+              <div class="field"><label>ভিজিট ফি (৳)</label><input type="number" id="csVisitFee" placeholder="০" min="0"></div>
+              <div class="field"><label>দায়িত্বপ্রাপ্ত ক্যাম্পেইনার</label><input type="text" id="csCamper" placeholder="ক্যাম্পেইনারের নাম"></div>
+              <div class="field"><label>ডাক্তার</label><input type="text" id="csDoctor" placeholder="ডাক্তারের নাম"></div>
+            </div>
+            <div class="field"><label>উপলব্ধ কর্মী (কমা দিয়ে আলাদা করুন)</label><input type="text" id="csStaff" placeholder="যেমন: রহিম, করিম, সালমা"></div>
+            <input type="hidden" id="csEditId">
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('campScheduleForm').style.display='none'">বাতিল</button>
+              <button class="btn btn-success" onclick="saveCampSchedule()">✅ সেভ করুন</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>তারিখ</th><th>নাম</th><th>স্থান</th><th>ভিজিট ফি</th><th>ক্যাম্পেইনার</th><th>কর্মী</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="campScheduleTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- টেস্ট ও সার্ভিস ফি -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔬 টেস্ট / অপারেশন ফি তালিকা</div>
+          <button class="btn btn-primary btn-sm" onclick="addServiceFeeRow()">➕ যোগ করুন</button>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px">এই তালিকা ক্যাম্পেইনার বিলিংয়ে সার্ভিস সিলেক্ট করতে ব্যবহার হবে</p>
+          <div id="serviceFeeRows"></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:10px">
+            <button class="btn btn-primary" onclick="saveServiceFees()">💾 ফি তালিকা সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
       <!-- কাস্টম আয়/ব্যয় খাত -->
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📂 আয় ও ব্যয়ের খাত ব্যবস্থাপনা</div></div>
@@ -1806,7 +1862,7 @@
 <div id="camperPage" style="display:none;width:100%;min-height:100vh;background:var(--bg);flex-direction:column">
   <div style="background:linear-gradient(135deg,#0a2540,#0f4c81);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,0.2)">
     <div style="display:flex;align-items:center;gap:12px">
-      <img src="file:///C:/Users/ADMIN/Downloads/hospital_v2_11.html" id="camperLogoImg" style="height:36px;object-fit:contain;filter:brightness(0) invert(1)">
+      <img src="" id="camperLogoImg" style="height:36px;object-fit:contain;filter:brightness(0) invert(1);display:none">
       <div>
         <div style="color:var(--accent);font-size:14px;font-weight:700">ICON EYE HOSPITAL</div>
         <div style="color:rgba(255,255,255,0.7);font-size:11px">ক্যাম্পেইনার প্যানেল</div>
@@ -1820,51 +1876,95 @@
       <button onclick="doLogout()" class="btn-logout" style="width:auto;padding:8px 14px">🚪</button>
     </div>
   </div>
-  <div style="padding:20px;max-width:900px;margin:0 auto;width:100%">
-    <!-- Camp selector -->
-    <div class="panel">
+  <div style="padding:20px;max-width:960px;margin:0 auto;width:100%">
+
+    <!-- ক্যাম্প নির্বাচন -->
+    <div class="panel" id="campSelectorPanel">
       <div class="panel-header">
         <div class="panel-title">🏕️ ক্যাম্প নির্বাচন করুন</div>
       </div>
       <div class="panel-body">
         <div class="form-row">
-          <div class="field"><label>ক্যাম্পের নাম *</label><input type="text" id="cpCampName" placeholder="ক্যাম্পের নাম লিখুন"></div>
-          <div class="field"><label>স্থান *</label><input type="text" id="cpCampLocation" placeholder="স্থান/গ্রাম/উপজেলা"></div>
+          <div class="field">
+            <label>Admin নির্ধারিত ক্যাম্প সিলেক্ট করুন *</label>
+            <select id="cpCampSelect" onchange="onCampScheduleSelect()" style="padding:10px 12px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;width:100%;background:#f8fafc">
+              <option value="">-- ক্যাম্প বেছে নিন --</option>
+            </select>
+          </div>
         </div>
-        <div class="form-row">
-          <div class="field"><label>তারিখ</label><input type="date" id="cpCampDate"></div>
-          <div class="field"><label>ভিজিট ফি (৳) <span style="color:var(--accent);font-size:11px">Admin নির্ধারিত</span></label>
-            <input type="number" id="cpVisitFee" placeholder="০" min="0" style="background:#f0fff4;font-weight:600"></div>
+        <!-- Selected camp info -->
+        <div id="cpCampInfoBox" style="display:none;background:#f0f9ff;border:1.5px solid var(--accent);border-radius:10px;padding:14px;margin:10px 0">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+            <div><span style="color:var(--text-light)">📍 স্থান:</span> <strong id="cpCampLocShow"></strong></div>
+            <div><span style="color:var(--text-light)">📅 তারিখ:</span> <strong id="cpCampDateShow"></strong></div>
+            <div><span style="color:var(--text-light)">💰 ভিজিট ফি:</span> <strong id="cpCampFeeShow" style="color:var(--success)"></strong></div>
+            <div><span style="color:var(--text-light)">👨‍⚕️ ডাক্তার:</span> <strong id="cpCampDoctorShow"></strong></div>
+          </div>
+          <div style="margin-top:8px;font-size:13px"><span style="color:var(--text-light)">👥 উপলব্ধ কর্মী:</span> <strong id="cpCampStaffShow"></strong></div>
         </div>
-        <div style="display:flex;gap:10px">
-          <button class="btn btn-primary" onclick="initCamperSession()">✅ ক্যাম্প শুরু করুন</button>
-          <button class="btn btn-outline btn-sm" onclick="switchCamperTab(&#39;lookup&#39;,this)">🔍 স্টক/দাম দেখুন</button>
+        <!-- স্টক নেওয়া -->
+        <div id="cpStockTakeBox" style="display:none;margin-top:12px">
+          <div style="font-weight:700;font-size:14px;color:var(--primary);margin-bottom:8px">📦 ক্যাম্পে নিয়ে যাওয়ার স্টক</div>
+          <div id="cpStockTakeRows"></div>
+          <button class="btn btn-outline btn-sm" onclick="addStockTakeRow()" style="margin-top:6px">+ পণ্য যোগ করুন</button>
+          <div style="margin-top:10px;display:flex;gap:10px">
+            <button class="btn btn-success" onclick="initCamperSession()">✅ ক্যাম্প শুরু করুন</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Active camp banner -->
+    <div id="cpActiveBanner" style="display:none;background:linear-gradient(135deg,#0a2540,#0f4c81);border-radius:12px;padding:14px 20px;margin-bottom:16px;display:none;align-items:center;justify-content:space-between">
+      <div>
+        <div style="color:var(--accent);font-size:12px;font-weight:600;text-transform:uppercase">সক্রিয় ক্যাম্প</div>
+        <div style="color:white;font-size:16px;font-weight:700" id="cpActiveName"></div>
+        <div style="color:rgba(255,255,255,0.7);font-size:12px" id="cpActiveInfo"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="text-align:right;margin-right:8px">
+          <div style="color:var(--accent);font-size:11px">রিসিট রেঞ্জ</div>
+          <div style="color:white;font-size:13px;font-weight:600" id="cpReceiptRange"></div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="closeCamperCamp()" style="background:rgba(231,76,60,0.8);border:1px solid rgba(231,76,60,0.5)">🔒 ক্যাম্প ক্লোজ</button>
+      </div>
+    </div>
+
     <!-- Camper tabs -->
     <div class="rec-tabs" id="camperTabsRow" style="display:none">
-      <button class="rec-tab active" onclick="switchCamperTab(&#39;billing&#39;,this)">🧾 বিল এন্ট্রি</button>
-      <button class="rec-tab" onclick="switchCamperTab(&#39;history&#39;,this)">📋 আজকের এন্ট্রি</button>
-      <button class="rec-tab" onclick="switchCamperTab(&#39;lookup&#39;,this)">🔍 স্টক/দাম</button>
+      <button class="rec-tab active" onclick="switchCamperTab('billing',this)">🧾 বিল এন্ট্রি</button>
+      <button class="rec-tab" onclick="switchCamperTab('history',this)">📋 আজকের এন্ট্রি</button>
+      <button class="rec-tab" onclick="switchCamperTab('expense',this)">💸 ক্যাম্প খরচ</button>
+      <button class="rec-tab" onclick="switchCamperTab('oppatient',this)">🔪 অপারেশন রোগী</button>
+      <button class="rec-tab" onclick="switchCamperTab('returnstock',this)">↩️ স্টক ফেরত</button>
+      <button class="rec-tab" onclick="switchCamperTab('lookup',this)">🔍 স্টক/দাম</button>
     </div>
 
     <!-- BILLING TAB -->
     <div id="camper-billing" class="rec-tab-view active" style="display:none">
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">🧾 রোগীর বিল</div></div>
+        <div class="panel-header">
+          <div class="panel-title">🧾 রোগীর বিল</div>
+          <div style="font-size:13px;color:var(--text-light)">রিসিট নং: <strong id="cpNextReceiptNo" style="color:var(--primary)"></strong></div>
+        </div>
         <div class="panel-body">
           <div class="form-row three">
             <div class="field"><label>রোগীর নাম *</label><input type="text" id="cpPatName" placeholder="পূর্ণ নাম"></div>
             <div class="field"><label>বয়স</label><input type="text" id="cpPatAge" placeholder="৩৫ বছর"></div>
             <div class="field"><label>ফোন</label><input type="text" id="cpPatPhone" placeholder="০১XXXXXXXXX"></div>
           </div>
-          <!-- Services -->
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <p style="font-weight:700;font-size:14px;color:var(--primary)">💊 পণ্য / সার্ভিস</p>
-            <button class="btn btn-primary btn-sm" onclick="addCamperRow()">+ যোগ করুন</button>
+          <!-- স্টক পণ্য সেকশন -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;margin-top:4px">
+            <p style="font-weight:700;font-size:14px;color:var(--primary)">💊 পণ্য (স্টক থেকে)</p>
+            <button class="btn btn-primary btn-sm" onclick="addCamperRow()">+ পণ্য যোগ করুন</button>
           </div>
           <div id="camperServiceRows"></div>
+          <!-- সার্ভিস/টেস্ট সেকশন -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;margin-top:12px">
+            <p style="font-weight:700;font-size:14px;color:var(--primary)">🔬 সার্ভিস / টেস্ট</p>
+            <button class="btn btn-outline btn-sm" onclick="addCamperServiceRow()">+ সার্ভিস যোগ করুন</button>
+          </div>
+          <div id="camperTestRows"></div>
           <!-- Visit fee toggle -->
           <div style="background:#f0fff4;border:1.5px solid #86efac;border-radius:8px;padding:10px;margin:10px 0;display:flex;align-items:center;justify-content:space-between">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
@@ -1873,7 +1973,7 @@
             </label>
             <span id="cpVisitFeeShow" style="color:var(--success);font-weight:700"></span>
           </div>
-          <!-- Discount -->
+          <!-- Discount & payment -->
           <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:10px;margin-bottom:10px">
             <div style="display:flex;gap:10px;align-items:center">
               <div class="field" style="margin:0;flex:1">
@@ -1907,9 +2007,79 @@
           <div id="camperDaySummary" style="font-size:13px;color:var(--text-light)"></div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>রোগী</th><th>বয়স</th><th>পণ্য/সার্ভিস</th><th>মোট</th><th>ডিস.</th><th>নগদ</th><th>বাকি</th></tr></thead>
+          <thead><tr><th>রিসিট</th><th>রোগী</th><th>বয়স</th><th>পণ্য/সার্ভিস</th><th>মোট</th><th>ডিস.</th><th>নগদ</th><th>বাকি</th></tr></thead>
           <tbody id="camperHistTable"></tbody>
         </table></div></div>
+      </div>
+    </div>
+
+    <!-- EXPENSE TAB -->
+    <div id="camper-expense" class="rec-tab-view" style="display:none">
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">💸 ক্যাম্প খরচ এন্ট্রি</div></div>
+        <div class="panel-body">
+          <div id="cpExpCampInfo" style="background:#f0f9ff;border:1.5px solid var(--accent);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px"></div>
+          <div id="cpExpenseRows"></div>
+          <button class="btn btn-outline btn-sm" onclick="addCamperExpenseRow()" style="margin-bottom:12px">+ খরচ যোগ করুন</button>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-success" onclick="saveCamperExpenses()">💾 খরচ সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPERATION PATIENT TAB -->
+    <div id="camper-oppatient" class="rec-tab-view" style="display:none">
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🔪 সম্ভাব্য অপারেশন রোগী</div></div>
+        <div class="panel-body">
+          <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:12px;margin-bottom:16px">
+            <div class="form-row three">
+              <div class="field"><label>রোগীর নাম *</label><input type="text" id="cpOpPatName" placeholder="পূর্ণ নাম"></div>
+              <div class="field"><label>বয়স</label><input type="text" id="cpOpPatAge" placeholder="৬০ বছর"></div>
+              <div class="field"><label>মোবাইল *</label><input type="text" id="cpOpPatPhone" placeholder="০১XXXXXXXXX"></div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>ঠিকানা</label><input type="text" id="cpOpPatAddress" placeholder="গ্রাম/উপজেলা/জেলা"></div>
+              <div class="field"><label>অপারেশনের ধরন</label>
+                <select id="cpOpPatType" style="padding:10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%">
+                  <option>ছানি অপারেশন (Cataract)</option>
+                  <option>টেরিজিয়াম অপারেশন</option>
+                  <option>গ্লুকোমা সার্জারি</option>
+                  <option>রেটিনা সার্জারি</option>
+                  <option>চোখের পাতার অপারেশন</option>
+                  <option>অন্যান্য অপারেশন</option>
+                </select>
+              </div>
+            </div>
+            <div class="field"><label>মন্তব্য / কথোপকথনের সারসংক্ষেপ</label>
+              <textarea id="cpOpPatNote" placeholder="রোগীর সাথে কী কথা হয়েছে, সম্ভাবনা কেমন ইত্যাদি..." rows="2" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;resize:none"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px">
+              <button class="btn btn-success" onclick="saveCamperOpPatient()">✅ রোগী সেভ করুন</button>
+            </div>
+          </div>
+          <div class="panel-header" style="border:none;padding:0 0 8px 0"><div class="panel-title" style="font-size:14px">📋 এই ক্যাম্পের অপারেশন রোগী তালিকা</div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>নাম</th><th>বয়স</th><th>মোবাইল</th><th>ঠিকানা</th><th>অপারেশন</th><th>স্ট্যাটাস</th></tr></thead>
+            <tbody id="cpOpPatTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RETURN STOCK TAB -->
+    <div id="camper-returnstock" class="rec-tab-view" style="display:none">
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">↩️ অবিক্রিত স্টক ফেরত</div></div>
+        <div class="panel-body">
+          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">ক্যাম্পে নিয়ে যাওয়া পণ্যের মধ্যে যা অবিক্রিত রয়েছে তা ফেরত দিন</p>
+          <div id="cpReturnRows"></div>
+          <button class="btn btn-outline btn-sm" onclick="addReturnStockRow()" style="margin-bottom:12px">+ পণ্য যোগ করুন</button>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-primary" onclick="saveReturnStock()">↩️ স্টক ফেরত দিন</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1920,7 +2090,6 @@
         <div class="panel-body">
           <input type="text" id="camperLookupQ" placeholder="কোড বা নাম লিখুন..." oninput="doCamperLookup()" style="width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;margin-bottom:12px">
           <div id="camperLookupResults"></div>
-          <!-- Full stock list -->
           <div style="margin-top:16px">
             <p style="font-weight:700;font-size:14px;color:var(--primary);margin-bottom:10px">📦 সব বিক্রয়যোগ্য পণ্য</p>
             <div id="camperStockList"></div>
@@ -1928,6 +2097,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
@@ -1959,6 +2129,8 @@
 
     <!-- NEW BILL -->
     <div id="rec-new" class="rec-tab-view active">
+      <!-- ফেরত আসা draft notification -->
+      <div id="returnedDraftNotif" style="display:none"></div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🧾 নতুন ক্যাশ মেমো / বিল</div></div>
         <div class="panel-body">
@@ -2179,7 +2351,7 @@ function canAccess(role, feature) {
 }
 
 let currentUser = null;
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -2453,6 +2625,8 @@ function loadUserList() {
   document.getElementById('settRecDiscount').value    = s.recDiscount||10;
   document.getElementById('settAdminDiscount').value  = s.adminDiscount||30;
   loadGHSettingsToForm();
+  renderCampScheduleTable();
+  renderServiceFeeRows();
 }
 
 function saveSettings() {
@@ -2643,7 +2817,7 @@ function startApp() {
         el.style.display = canAccess('moderator', feat) ? '' : 'none';
       });
     }
-    refreshDashboard(); loadUserList(); updateDemandBadge();
+    refreshDashboard(); loadUserList(); updateDemandBadge(); updateCategorySelects();
   }
 }
 
@@ -2653,7 +2827,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -3653,10 +3827,12 @@ function deleteCamp(id) {
 
 function renderCampList() {
   const fm = document.getElementById('campFilterMonth');
+  const rf = (document.getElementById('campRatingFilter')||{}).value||'';
   const filter = fm ? fm.value : '';
   let camps = filter
     ? appData.camps.filter(c=>c.date&&c.date.startsWith(filter))
     : [...appData.camps];
+  if (rf) camps = camps.filter(c => c.rating === rf);
   camps.sort((a,b)=>b.id-a.id);
 
   const tbody = document.getElementById('campListTable');
@@ -3664,16 +3840,17 @@ function renderCampList() {
     tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">কোনো ক্যাম্প নেই</td></tr>';
     return;
   }
+  const ratingEmoji = { 'খুব সফল':'🌟','সফল':'✅','মোটামুটি':'🆗','অসফল':'❌' };
   tbody.innerHTML = camps.map(c=>`<tr>
     <td>${formatDate(c.date)}</td>
     <td style="font-weight:600">${c.name}</td>
     <td style="color:var(--text-light)">${c.location}</td>
-    <td style="color:var(--text-light)">${c.doctor||'—'}</td>
-    <td style="font-weight:700;color:var(--success)">৳ ${fmt(c.totalIncome)}</td>
+    <td style="font-weight:700;color:var(--success)">৳ ${fmt(c.totalIncome||0)}</td>
     <td style="text-align:center">
-      <span class="badge badge-info">${(c.patients||[]).length} জন</span>
+      <span class="badge badge-info">${c.totalPatients||(c.patients||[]).length} জন</span>
     </td>
-    <td style="font-size:12px;color:var(--text-light)">${c.by||'—'}</td>
+    <td style="font-size:12px;color:var(--text-light)">${c.receiptStart&&c.receiptEnd?`#${c.receiptStart}–${c.receiptEnd}`:'—'}</td>
+    <td>${c.rating?`<span class="badge ${c.rating==='খুব সফল'?'badge-success':c.rating==='সফল'?'badge-info':c.rating==='অসফল'?'badge-danger':'badge-warning'}">${ratingEmoji[c.rating]||''} ${c.rating}</span>`:'—'}</td>
     <td style="display:flex;gap:4px">
       <button class="btn btn-primary btn-sm" onclick="showCampDetail(${c.id})">👁️</button>
       ${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteCamp(${c.id})">🗑️</button>`:''}
@@ -3684,8 +3861,39 @@ function renderCampList() {
 function showCampDetail(id) {
   const c = appData.camps.find(c=>c.id===id);
   if (!c) return;
-  const b = c.incBreakdown||{};
-  alert(`🏕️ ${c.name} — ${formatDate(c.date)}\n📍 ${c.location}\n👨‍⚕️ ${c.doctor||'—'}\n\n💰 আয় বিশ্লেষণ:\nভিজিট: ৳${fmt(b.visit||0)}\nওষুধ: ৳${fmt(b.med||0)}\nচশমা: ৳${fmt(b.glass||0)}\nটেস্ট: ৳${fmt(b.test||0)}\nঅন্যান্য: ৳${fmt(b.other||0)}\nমোট: ৳${fmt(c.totalIncome)}\n\n🔪 রোগী: ${(c.patients||[]).length} জন`);
+  const ratingEmoji = { 'খুব সফল':'🌟','সফল':'✅','মোটামুটি':'🆗','অসফল':'❌' };
+  const itemSalesHtml = c.itemSales ? Object.entries(c.itemSales).map(([k,v])=>`
+    <tr><td style="padding:4px 8px">${k}</td><td style="padding:4px 8px;text-align:center">${v.qty}</td><td style="padding:4px 8px;text-align:right;color:var(--success)">৳ ${fmt(v.total)}</td></tr>`).join('') : '';
+  const testSalesHtml = c.testSales ? Object.entries(c.testSales).map(([k,v])=>`
+    <tr><td style="padding:4px 8px">${k}</td><td style="padding:4px 8px;text-align:center">${v.qty}</td><td style="padding:4px 8px;text-align:right;color:var(--success)">৳ ${fmt(v.total)}</td></tr>`).join('') : '';
+  const expHtml = c.expBreakdown ? Object.entries(c.expBreakdown).map(([k,v])=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>${k}</span><span style="color:var(--danger)">৳ ${fmt(v)}</span></div>`).join('') : '';
+  const modal = document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  modal.innerHTML=`<div style="background:white;border-radius:16px;padding:28px;max-width:600px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
+      <div>
+        <h3 style="color:var(--primary);font-size:18px;margin:0">${c.name}</h3>
+        <div style="color:var(--text-light);font-size:13px">📍 ${c.location} | 📅 ${formatDate(c.date)}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${c.rating?`<span style="background:#f0fff4;border:1.5px solid #86efac;border-radius:8px;padding:4px 10px;font-size:13px;font-weight:700">${ratingEmoji[c.rating]||''} ${c.rating}</span>`:''}
+        <button onclick="this.closest('[style]').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa">✕</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:#f0fff4;border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:#aaa">রোগী</div><div style="font-size:20px;font-weight:700;color:var(--primary)">${c.totalPatients||0} জন</div></div>
+      <div style="background:#f0fff4;border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:#aaa">মোট আয়</div><div style="font-size:18px;font-weight:700;color:var(--success)">৳ ${fmt(c.totalIncome||0)}</div></div>
+      <div style="background:#fff9f0;border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:#aaa">মোট ব্যয়</div><div style="font-size:18px;font-weight:700;color:var(--danger)">৳ ${fmt(c.totalExpense||0)}</div></div>
+    </div>
+    ${c.receiptStart?`<div style="background:#f0f9ff;border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px"><strong>🧾 রিসিট বুক:</strong> পেজ #${c.receiptStart} থেকে #${c.receiptEnd||c.receiptStart} পর্যন্ত</div>`:''}
+    ${itemSalesHtml?`<div style="margin-bottom:14px"><p style="font-weight:700;font-size:14px;color:var(--primary);margin-bottom:6px">💊 পণ্য বিক্রয়</p><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f0f4f8"><th style="padding:4px 8px;text-align:left">পণ্য</th><th style="padding:4px 8px">পরিমাণ</th><th style="padding:4px 8px;text-align:right">আয়</th></tr></thead><tbody>${itemSalesHtml}</tbody></table></div>`:''}
+    ${testSalesHtml?`<div style="margin-bottom:14px"><p style="font-weight:700;font-size:14px;color:var(--primary);margin-bottom:6px">🔬 সার্ভিস/টেস্ট</p><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f0f4f8"><th style="padding:4px 8px;text-align:left">সার্ভিস</th><th style="padding:4px 8px">সংখ্যা</th><th style="padding:4px 8px;text-align:right">আয়</th></tr></thead><tbody>${testSalesHtml}</tbody></table></div>`:''}
+    ${expHtml?`<div style="margin-bottom:14px"><p style="font-weight:700;font-size:14px;color:var(--danger);margin-bottom:6px">💸 খরচ বিভাজন</p>${expHtml}</div>`:''}
+    ${c.campNote?`<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:10px;font-size:13px"><strong>📝 নোট:</strong> ${c.campNote}</div>`:''}
+    <div style="margin-top:14px;font-size:12px;color:#aaa">বন্ধ করেছেন: ${c.closedBy||c.by||'—'} | ${c.closedAt||''}</div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 function renderCampOps() {
@@ -4440,62 +4648,451 @@ function initOwnerPage() {
 // ===== CAMPAIGNER PAGE =====
 let camperSession = null;
 let camperRowCount = 0;
+let camperTestRowCount = 0;
+let camperExpRowCount = 0;
+let camperReturnRowCount = 0;
+let stockTakeRowCount = 0;
 
+// ===== CAMP SCHEDULE (ADMIN) =====
+function toggleCampScheduleForm() {
+  const f = document.getElementById('campScheduleForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  if (f.style.display === 'block') {
+    document.getElementById('csDate').value = todayStr();
+    document.getElementById('csEditId').value = '';
+  }
+}
+
+function saveCampSchedule() {
+  const name     = document.getElementById('csName').value.trim();
+  const location = document.getElementById('csLocation').value.trim();
+  const date     = document.getElementById('csDate').value;
+  const visitFee = parseFloat(document.getElementById('csVisitFee').value)||0;
+  const camper   = document.getElementById('csCamper').value.trim();
+  const doctor   = document.getElementById('csDoctor').value.trim();
+  const staff    = document.getElementById('csStaff').value.trim();
+  const editId   = document.getElementById('csEditId').value;
+  if (!name || !location || !date) { showToast('⚠️ নাম, স্থান ও তারিখ আবশ্যক!'); return; }
+  if (!appData.campSchedules) appData.campSchedules = [];
+  if (editId) {
+    const idx = appData.campSchedules.findIndex(s => s.id == editId);
+    if (idx >= 0) appData.campSchedules[idx] = { ...appData.campSchedules[idx], name, location, date, visitFee, camper, doctor, staff };
+  } else {
+    appData.campSchedules.push({ id: Date.now(), name, location, date, visitFee, camper, doctor, staff, status: 'scheduled' });
+  }
+  saveData();
+  renderCampScheduleTable();
+  document.getElementById('campScheduleForm').style.display = 'none';
+  ['csName','csLocation','csVisitFee','csCamper','csDoctor','csStaff'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('csEditId').value = '';
+  showToast('✅ ক্যাম্প শিডিউল সেভ হয়েছে');
+}
+
+function renderCampScheduleTable() {
+  const tbody = document.getElementById('campScheduleTable');
+  if (!tbody) return;
+  const schedules = (appData.campSchedules||[]).slice().reverse();
+  if (!schedules.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">কোনো শিডিউল নেই</td></tr>'; return; }
+  tbody.innerHTML = schedules.map(s => `<tr>
+    <td>${formatDate(s.date)}</td>
+    <td style="font-weight:600">${s.name}</td>
+    <td>${s.location}</td>
+    <td style="color:var(--success);font-weight:600">৳ ${fmt(s.visitFee||0)}</td>
+    <td style="font-size:12px">${s.camper||'—'}</td>
+    <td style="font-size:12px">${s.staff||'—'}</td>
+    <td><span class="badge ${s.status==='closed'?'badge-danger':s.status==='active'?'badge-success':'badge-info'}">${s.status==='closed'?'সম্পন্ন':s.status==='active'?'সক্রিয়':'নির্ধারিত'}</span></td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-primary btn-sm" onclick="editCampSchedule(${s.id})">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCampSchedule(${s.id})">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+
+function editCampSchedule(id) {
+  const s = (appData.campSchedules||[]).find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('csName').value = s.name;
+  document.getElementById('csLocation').value = s.location;
+  document.getElementById('csDate').value = s.date;
+  document.getElementById('csVisitFee').value = s.visitFee||'';
+  document.getElementById('csCamper').value = s.camper||'';
+  document.getElementById('csDoctor').value = s.doctor||'';
+  document.getElementById('csStaff').value = s.staff||'';
+  document.getElementById('csEditId').value = s.id;
+  document.getElementById('campScheduleForm').style.display = 'block';
+}
+
+function deleteCampSchedule(id) {
+  if (!confirm('এই শিডিউল মুছবেন?')) return;
+  appData.campSchedules = (appData.campSchedules||[]).filter(s => s.id !== id);
+  saveData(); renderCampScheduleTable();
+  showToast('🗑️ শিডিউল মুছে ফেলা হয়েছে');
+}
+
+// ===== SERVICE FEES (ADMIN) =====
+function addServiceFeeRow(name='', fee=0) {
+  const container = document.getElementById('serviceFeeRows');
+  if (!container) return;
+  const id = Date.now() + Math.random();
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
+    <input type="text" placeholder="সার্ভিস/টেস্টের নাম" value="${name}" class="svc-name" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+    <input type="number" placeholder="ফি (৳)" value="${fee||''}" class="svc-fee" min="0" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+    <button class="btn-icon-del" onclick="this.parentElement.remove()">✕</button>`;
+  container.appendChild(div);
+}
+
+function saveServiceFees() {
+  const rows = document.querySelectorAll('#serviceFeeRows > div');
+  const fees = [];
+  rows.forEach(r => {
+    const name = r.querySelector('.svc-name').value.trim();
+    const fee  = parseFloat(r.querySelector('.svc-fee').value)||0;
+    if (name) fees.push({ name, fee });
+  });
+  appData.settings.serviceFees = fees;
+  saveData();
+  showToast(`✅ ${fees.length}টি সার্ভিস ফি সেভ হয়েছে`);
+}
+
+function renderServiceFeeRows() {
+  const container = document.getElementById('serviceFeeRows');
+  if (!container) return;
+  container.innerHTML = '';
+  (appData.settings.serviceFees||[]).forEach(s => addServiceFeeRow(s.name, s.fee));
+  if (!container.children.length) {
+    addServiceFeeRow('পরামর্শ ফি', 0);
+    addServiceFeeRow('চোখ পরীক্ষা (Refraction)', 0);
+    addServiceFeeRow('ছানি অপারেশন (Cataract)', 0);
+  }
+}
+
+// ===== RECEIPT NUMBER SYSTEM =====
+function getNextReceiptNo() {
+  const allVisits = appData.campVisits || [];
+  if (!allVisits.length) return 1;
+  const maxNo = Math.max(...allVisits.map(v => v.receiptNo || 0));
+  return maxNo + 1;
+}
+
+// ===== CAMPER PAGE INIT =====
 function initCamperPage() {
   const cl = document.getElementById('camperLogoImg');
-  if (cl) cl.src = LOGO_B64;
+  if (cl && LOGO_B64) { cl.src = LOGO_B64; cl.style.display = 'block'; }
   const cn = document.getElementById('camperName');
   if (cn) cn.textContent = currentUser.name;
-  document.getElementById('cpCampDate').value = todayStr();
-  // show visit fee from settings
-  const vf = appData.settings.campVisitFee||0;
-  const vfEl = document.getElementById('cpVisitFee');
-  if (vfEl) vfEl.value = vf||'';
   const dl = document.getElementById('cpDiscLimit');
   if (dl) dl.textContent = `(সর্বোচ্চ ${appData.settings.camperDiscount||5}%)`;
+  // Populate camp schedule dropdown
+  populateCampScheduleDropdown();
   doCamperLookup();
   renderCamperStockList();
+  // Reset session if page reloaded
+  if (!camperSession) {
+    document.getElementById('camperTabsRow').style.display = 'none';
+    document.getElementById('cpActiveBanner').style.display = 'none';
+  }
+}
+
+function populateCampScheduleDropdown() {
+  const sel = document.getElementById('cpCampSelect');
+  if (!sel) return;
+  const schedules = (appData.campSchedules||[]).filter(s => s.status !== 'closed');
+  sel.innerHTML = '<option value="">-- ক্যাম্প বেছে নিন --</option>';
+  schedules.forEach(s => {
+    sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.location} (${formatDate(s.date)})</option>`;
+  });
+}
+
+function onCampScheduleSelect() {
+  const sel = document.getElementById('cpCampSelect');
+  const id  = parseInt(sel.value);
+  const infoBox  = document.getElementById('cpCampInfoBox');
+  const stockBox = document.getElementById('cpStockTakeBox');
+  if (!id) { infoBox.style.display='none'; stockBox.style.display='none'; return; }
+  const s = (appData.campSchedules||[]).find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('cpCampLocShow').textContent    = s.location;
+  document.getElementById('cpCampDateShow').textContent   = formatDate(s.date);
+  document.getElementById('cpCampFeeShow').textContent    = '৳ ' + fmt(s.visitFee||0);
+  document.getElementById('cpCampDoctorShow').textContent = s.doctor||'—';
+  document.getElementById('cpCampStaffShow').textContent  = s.staff||'—';
+  infoBox.style.display  = 'block';
+  stockBox.style.display = 'block';
+  renderStockTakeRows();
+}
+
+function renderStockTakeRows() {
+  const container = document.getElementById('cpStockTakeRows');
+  if (!container) return;
+  container.innerHTML = '';
+  stockTakeRowCount = 0;
+  addStockTakeRow();
+}
+
+function addStockTakeRow() {
+  stockTakeRowCount++;
+  const id = stockTakeRowCount;
+  const container = document.getElementById('cpStockTakeRows');
+  const sellable  = (appData.stock||[]).filter(s => s.cat !== 'অফিস সামগ্রী' && s.qty > 0);
+  const div = document.createElement('div');
+  div.id = 'strow-' + id;
+  div.style.cssText = 'display:grid;grid-template-columns:3fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
+    <select id="stItem-${id}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%">
+      <option value="">-- পণ্য বেছে নিন --</option>
+      ${sellable.map(s=>`<option value="${s.id}" data-max="${s.qty}">${s.name} (স্টক: ${s.qty} ${s.unit})</option>`).join('')}
+    </select>
+    <input type="number" id="stQty-${id}" placeholder="পরিমাণ" min="1" value="1" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+    <button class="btn-icon-del" onclick="document.getElementById('strow-${id}').remove()">✕</button>`;
+  container.appendChild(div);
 }
 
 function initCamperSession() {
-  const name = document.getElementById('cpCampName').value.trim();
-  const loc  = document.getElementById('cpCampLocation').value.trim();
-  const date = document.getElementById('cpCampDate').value;
-  const fee  = parseFloat(document.getElementById('cpVisitFee').value)||0;
-  if (!name||!loc) { showToast('⚠️ ক্যাম্পের নাম ও স্থান দিন!'); return; }
-  camperSession = { name, location:loc, date, visitFee:fee };
-  document.getElementById('camperTabsRow').style.display='flex';
-  document.getElementById('camper-billing').style.display='block';
+  const selId = parseInt(document.getElementById('cpCampSelect').value);
+  if (!selId) { showToast('⚠️ আগে ক্যাম্প সিলেক্ট করুন!'); return; }
+  const schedule = (appData.campSchedules||[]).find(s => s.id === selId);
+  if (!schedule) { showToast('⚠️ ক্যাম্প পাওয়া যায়নি!'); return; }
+
+  // Process stock take-out
+  const rows = Array.from(document.querySelectorAll('#cpStockTakeRows > div'));
+  const stockTaken = [];
+  for (const row of rows) {
+    const rid = row.id.split('-')[1];
+    const itemSel = document.getElementById('stItem-' + rid);
+    const qty = parseInt(document.getElementById('stQty-' + rid).value)||0;
+    if (!itemSel || !itemSel.value || !qty) continue;
+    const stockItem = appData.stock.find(s => s.id === parseInt(itemSel.value));
+    if (!stockItem) continue;
+    if (qty > stockItem.qty) { showToast(`⚠️ ${stockItem.name} স্টকে মাত্র ${stockItem.qty}টি আছে!`); return; }
+    stockTaken.push({ itemId: stockItem.id, itemName: stockItem.name, qtyTaken: qty, qtySold: 0, unit: stockItem.unit });
+  }
+
+  // Deduct from stock
+  stockTaken.forEach(item => {
+    const s = appData.stock.find(x => x.id === item.itemId);
+    if (s) s.qty = Math.max(0, s.qty - item.qtyTaken);
+    if (!appData.stockLog) appData.stockLog = [];
+    appData.stockLog.push({ id: Date.now()+Math.random(), date: schedule.date, itemId: item.itemId, itemName: item.itemName, move: 'out', qty: item.qtyTaken, note: `ক্যাম্প স্টক নেওয়া: ${schedule.name}`, by: currentUser.name });
+  });
+
+  const receiptStart = getNextReceiptNo();
+  camperSession = {
+    scheduleId: schedule.id, name: schedule.name, location: schedule.location,
+    date: schedule.date, visitFee: schedule.visitFee||0, doctor: schedule.doctor||'',
+    staff: schedule.staff||'', stockTaken, receiptStart, receiptCurrent: receiptStart
+  };
+
+  // Mark schedule as active
+  const sIdx = appData.campSchedules.findIndex(x => x.id === selId);
+  if (sIdx >= 0) appData.campSchedules[sIdx].status = 'active';
+
+  saveData();
+
+  // Update UI
+  document.getElementById('campSelectorPanel').style.display = 'none';
+  const banner = document.getElementById('cpActiveBanner');
+  banner.style.display = 'flex';
+  document.getElementById('cpActiveName').textContent = schedule.name;
+  document.getElementById('cpActiveInfo').textContent = `${schedule.location} | ${formatDate(schedule.date)}`;
+  document.getElementById('cpReceiptRange').textContent = `${receiptStart} থেকে শুরু`;
+  document.getElementById('camperTabsRow').style.display = 'flex';
+  document.getElementById('camper-billing').style.display = 'block';
+
+  // Set visit fee display
   const vfs = document.getElementById('cpVisitFeeShow');
-  if (vfs) vfs.textContent = fee>0?`৳ ${fmt(fee)}`:'-';
-  showToast(`✅ ক্যাম্প শুরু: ${name}`);
+  if (vfs) vfs.textContent = schedule.visitFee>0 ? `৳ ${fmt(schedule.visitFee)}` : '—';
+
+  // Set next receipt no display
+  updateReceiptDisplay();
+
+  // Init expense tab info
+  const expInfo = document.getElementById('cpExpCampInfo');
+  if (expInfo) expInfo.innerHTML = `<strong>${schedule.name}</strong> | ${schedule.location} | ${formatDate(schedule.date)}`;
+
+  // Init return stock rows
+  renderReturnStockRows();
+
+  // Init op patient table
+  renderCamperOpPatients();
+
+  showToast(`✅ ক্যাম্প শুরু: ${schedule.name} | রিসিট নং ${receiptStart} থেকে`);
   addCamperRow();
 }
 
-function switchCamperTab(tab, btn) {
-  document.querySelectorAll('.rec-tab').forEach(t=>t.classList.remove('active'));
-  ['billing','history','lookup'].forEach(t=>{
-    const el=document.getElementById('camper-'+t); if(el) el.style.display='none';
+function updateReceiptDisplay() {
+  const el = document.getElementById('cpNextReceiptNo');
+  if (el && camperSession) el.textContent = '#' + camperSession.receiptCurrent;
+}
+
+// ===== CAMP CLOSE =====
+function closeCamperCamp() {
+  if (!camperSession) return;
+  if (!confirm('ক্যাম্প ক্লোজ করবেন? এরপর নতুন বিল এন্ট্রি করা যাবে না।')) return;
+
+  // Show rating modal
+  showCampCloseModal();
+}
+
+function showCampCloseModal() {
+  const modal = document.createElement('div');
+  modal.id = 'campCloseModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const visits = (appData.campVisits||[]).filter(v => v.campName === camperSession.name && v.date === camperSession.date);
+  const totalIncome = visits.reduce((s,v) => s+v.paid, 0);
+  const totalPatients = visits.length;
+  const receiptEnd = camperSession.receiptCurrent - 1;
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:28px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <h3 style="color:var(--primary);margin-bottom:16px;font-size:18px">🔒 ক্যাম্প সারসংক্ষেপ ও ক্লোজ</h3>
+      <div style="background:#f0f9ff;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
+        <div style="font-weight:700;margin-bottom:6px">${camperSession.name} — ${camperSession.location}</div>
+        <div>📅 ${formatDate(camperSession.date)}</div>
+        <div>👥 মোট রোগী: <strong>${totalPatients} জন</strong></div>
+        <div>💰 মোট আয়: <strong style="color:var(--success)">৳ ${fmt(totalIncome)}</strong></div>
+        <div>🧾 রিসিট নং: <strong>${camperSession.receiptStart} – ${receiptEnd || camperSession.receiptStart}</strong></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-weight:600;font-size:13px;color:var(--primary);display:block;margin-bottom:8px">ক্যাম্পের মতামত:</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${[{v:'খুব সফল',e:'🌟'},{ v:'সফল',e:'✅'},{ v:'মোটামুটি',e:'🆗'},{ v:'অসফল',e:'❌'}].map(o=>`
+          <label style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:600">
+            <input type="radio" name="campRating" value="${o.v}" style="width:16px;height:16px"> ${o.e} ${o.v}
+          </label>`).join('')}
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600">ক্যাম্পেইনারের নোট (ঐচ্ছিক)</label>
+        <textarea id="campCloseNote" rows="2" placeholder="যেকোনো মন্তব্য..." style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;margin-top:4px;resize:none"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('campCloseModal').remove()">বাতিল</button>
+        <button class="btn btn-danger" onclick="finalizeCampClose()">🔒 ক্যাম্প ক্লোজ করুন</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function finalizeCampClose() {
+  const rating = document.querySelector('input[name="campRating"]:checked');
+  if (!rating) { showToast('⚠️ ক্যাম্পের মতামত বেছে নিন!'); return; }
+  const note = document.getElementById('campCloseNote').value.trim();
+  const visits = (appData.campVisits||[]).filter(v => v.campName === camperSession.name && v.date === camperSession.date);
+  const expenses = (appData.campExpenses||[]).filter(e => e.campName === camperSession.name && e.date === camperSession.date);
+  const totalIncome  = visits.reduce((s,v) => s+v.paid, 0);
+  const totalExpense = expenses.reduce((s,e) => s+e.amount, 0);
+  const receiptEnd   = camperSession.receiptCurrent - 1;
+
+  // Build item sales summary
+  const itemSales = {};
+  visits.forEach(v => {
+    (v.items||[]).forEach(item => {
+      if (!itemSales[item.name]) itemSales[item.name] = { qty: 0, total: 0 };
+      itemSales[item.name].qty   += item.qty || 1;
+      itemSales[item.name].total += item.subtotal || 0;
+    });
   });
-  const el=document.getElementById('camper-'+tab); if(el) el.style.display='block';
-  if(btn) btn.classList.add('active');
-  if(tab==='history') renderCamperHistory();
-  if(tab==='lookup')  { doCamperLookup(); renderCamperStockList(); }
+  // Test/service summary
+  const testSales = {};
+  visits.forEach(v => {
+    (v.testItems||[]).forEach(item => {
+      if (!testSales[item.name]) testSales[item.name] = { qty: 0, total: 0 };
+      testSales[item.name].qty   += 1;
+      testSales[item.name].total += item.price || 0;
+    });
+  });
+
+  const campRecord = {
+    id: camperSession.scheduleId,
+    name: camperSession.name, location: camperSession.location, date: camperSession.date,
+    doctor: camperSession.doctor, staff: camperSession.staff,
+    totalPatients: visits.length, totalIncome, totalExpense,
+    netProfit: totalIncome - totalExpense,
+    receiptStart: camperSession.receiptStart,
+    receiptEnd: receiptEnd || camperSession.receiptStart,
+    itemSales, testSales,
+    rating: rating.value, campNote: note,
+    closedBy: currentUser.name, closedAt: new Date().toLocaleString('bn-BD'),
+    stockTaken: camperSession.stockTaken || [],
+    patients: visits.map(v => ({ name: v.patName, age: v.patAge, phone: v.patPhone })),
+    expBreakdown: {}
+  };
+  // Expense breakdown
+  expenses.forEach(e => {
+    if (!campRecord.expBreakdown[e.category]) campRecord.expBreakdown[e.category] = 0;
+    campRecord.expBreakdown[e.category] += e.amount;
+  });
+
+  // Save to camps (merge with existing or create new)
+  if (!appData.camps) appData.camps = [];
+  const existIdx = appData.camps.findIndex(c => c.id === camperSession.scheduleId);
+  if (existIdx >= 0) {
+    appData.camps[existIdx] = { ...appData.camps[existIdx], ...campRecord };
+  } else {
+    appData.camps.push(campRecord);
+  }
+
+  // Mark schedule as closed
+  const sIdx = (appData.campSchedules||[]).findIndex(s => s.id === camperSession.scheduleId);
+  if (sIdx >= 0) appData.campSchedules[sIdx].status = 'closed';
+
+  // Expense entries in main expense
+  expenses.forEach(e => {
+    if (!appData.expense) appData.expense = [];
+    appData.expense.push({
+      id: Date.now()+Math.random(), date: e.date,
+      category: 'ক্যাম্প ব্যয়', amount: e.amount,
+      ref: camperSession.name, note: `${camperSession.name} — ${e.category} (ক্যাম্পেইনার)`,
+      by: currentUser.name
+    });
+  });
+
+  saveData();
+  document.getElementById('campCloseModal').remove();
+
+  // Reset UI
+  camperSession = null;
+  document.getElementById('campSelectorPanel').style.display = 'block';
+  document.getElementById('cpActiveBanner').style.display = 'none';
+  document.getElementById('camperTabsRow').style.display = 'none';
+  ['billing','history','expense','oppatient','returnstock','lookup'].forEach(t => {
+    const el = document.getElementById('camper-' + t); if (el) el.style.display = 'none';
+  });
+  populateCampScheduleDropdown();
+  document.getElementById('cpCampSelect').value = '';
+  document.getElementById('cpCampInfoBox').style.display = 'none';
+  document.getElementById('cpStockTakeBox').style.display = 'none';
+
+  showToast(`✅ ক্যাম্প ক্লোজ! আয়: ৳${fmt(totalIncome)} | রোগী: ${visits.length} জন | মতামত: ${rating.value}`);
+}
+
+// ===== CAMPER BILLING =====
+function switchCamperTab(tab, btn) {
+  document.querySelectorAll('#camperTabsRow .rec-tab').forEach(t => t.classList.remove('active'));
+  ['billing','history','expense','oppatient','returnstock','lookup'].forEach(t => {
+    const el = document.getElementById('camper-' + t); if (el) el.style.display = 'none';
+  });
+  const el = document.getElementById('camper-' + tab); if (el) el.style.display = 'block';
+  if (btn) btn.classList.add('active');
+  if (tab === 'history')     renderCamperHistory();
+  if (tab === 'lookup')      { doCamperLookup(); renderCamperStockList(); }
+  if (tab === 'expense')     renderCamperExpenseRows();
+  if (tab === 'oppatient')   renderCamperOpPatients();
+  if (tab === 'returnstock') renderReturnStockRows();
 }
 
 function addCamperRow() {
   camperRowCount++;
-  const id=camperRowCount;
-  const sellable = appData.stock.filter(s=>s.cat!=='অফিস সামগ্রী'&&s.qty>0);
-  const div=document.createElement('div');
-  div.id='cpr-'+id;
-  div.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
-  div.innerHTML=`
+  const id = camperRowCount;
+  const sellable = (appData.stock||[]).filter(s => s.cat !== 'অফিস সামগ্রী' && s.qty > 0);
+  const div = document.createElement('div');
+  div.id = 'cpr-' + id;
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
     <select id="cpItem-${id}" onchange="setCamperItemPrice(${id})" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%">
-      <option value="">-- পণ্য/সার্ভিস --</option>
-      ${sellable.map(s=>`<option value="${s.id}" data-price="${s.cat==='চশমা/লেন্স'?s.sellMin||0:s.sellPrice||0}" data-name="${s.name}">${s.name} (স্টক: ${s.qty})</option>`).join('')}
-      <option value="test" data-price="0" data-name="টেস্ট">টেস্ট/পরীক্ষা</option>
-      <option value="other" data-price="0" data-name="অন্যান্য">অন্যান্য</option>
+      <option value="">-- পণ্য বেছে নিন --</option>
+      ${sellable.map(s=>`<option value="${s.id}" data-price="${s.cat==='চশমা/লেন্স'?s.sellMin||0:s.sellPrice||0}" data-name="${s.name}" data-max="${s.qty}">${s.name} (স্টক: ${s.qty})</option>`).join('')}
     </select>
     <input type="number" placeholder="১" id="cpQty-${id}" value="1" min="1" oninput="updateCamperSummary()" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%" />
     <input type="number" placeholder="মূল্য" id="cpPrice-${id}" min="0" oninput="updateCamperSummary()" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%" />
@@ -4503,132 +5100,190 @@ function addCamperRow() {
   document.getElementById('camperServiceRows').appendChild(div);
 }
 
-function setCamperItemPrice(id) {
-  const sel = document.getElementById('cpItem-'+id);
+function addCamperServiceRow() {
+  camperTestRowCount++;
+  const id = camperTestRowCount;
+  const fees = appData.settings.serviceFees || [];
+  const div = document.createElement('div');
+  div.id = 'ctr-' + id;
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
+    <select id="ctItem-${id}" onchange="setCamperTestPrice(${id})" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%">
+      <option value="">-- সার্ভিস/টেস্ট --</option>
+      ${fees.map(f=>`<option value="${f.name}" data-price="${f.fee}">${f.name}${f.fee>0?' (৳'+fmt(f.fee)+')':''}</option>`).join('')}
+      <option value="__custom__" data-price="0">🖊️ কাস্টম...</option>
+    </select>
+    <input type="number" placeholder="ফি (৳)" id="ctPrice-${id}" min="0" oninput="updateCamperSummary()" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%" />
+    <button class="btn-icon-del" onclick="document.getElementById('ctr-${id}').remove();updateCamperSummary()">✕</button>`;
+  document.getElementById('camperTestRows').appendChild(div);
+}
+
+function setCamperTestPrice(id) {
+  const sel = document.getElementById('ctItem-' + id);
   const opt = sel.options[sel.selectedIndex];
+  if (sel.value === '__custom__') {
+    const name = prompt('সার্ভিসের নাম লিখুন:');
+    if (name) { opt.value = name; opt.text = name; opt.setAttribute('data-price','0'); }
+  }
   const price = parseFloat(opt.getAttribute('data-price'))||0;
-  document.getElementById('cpPrice-'+id).value = price||'';
+  document.getElementById('ctPrice-' + id).value = price||'';
+  updateCamperSummary();
+}
+
+function setCamperItemPrice(id) {
+  const sel   = document.getElementById('cpItem-' + id);
+  const opt   = sel.options[sel.selectedIndex];
+  const price = parseFloat(opt.getAttribute('data-price'))||0;
+  document.getElementById('cpPrice-' + id).value = price||'';
   updateCamperSummary();
 }
 
 function getCamperItems() {
-  return Array.from(document.querySelectorAll('#camperServiceRows > div')).map(r=>{
-    const rid=r.id.split('-')[1];
-    const sel=document.getElementById('cpItem-'+rid);
-    if(!sel||!sel.value) return null;
-    const opt=sel.options[sel.selectedIndex];
-    const qty=parseFloat(document.getElementById('cpQty-'+rid).value)||1;
-    const price=parseFloat(document.getElementById('cpPrice-'+rid).value)||0;
-    const stockItem = appData.stock.find(s=>s.id===parseInt(sel.value));
-    return { stockId:sel.value, name:opt.getAttribute('data-name')||opt.text, qty, price, subtotal:qty*price, stockItem };
-  }).filter(Boolean).filter(i=>i.price>0);
+  return Array.from(document.querySelectorAll('#camperServiceRows > div')).map(r => {
+    const rid = r.id.split('-')[1];
+    const sel = document.getElementById('cpItem-' + rid);
+    if (!sel || !sel.value) return null;
+    const opt   = sel.options[sel.selectedIndex];
+    const qty   = parseFloat(document.getElementById('cpQty-' + rid).value)||1;
+    const price = parseFloat(document.getElementById('cpPrice-' + rid).value)||0;
+    const stockItem = appData.stock.find(s => s.id === parseInt(sel.value));
+    return { stockId: sel.value, name: opt.getAttribute('data-name')||opt.text, qty, price, subtotal: qty*price, stockItem };
+  }).filter(Boolean).filter(i => i.price > 0 || i.qty > 0);
+}
+
+function getCamperTestItems() {
+  return Array.from(document.querySelectorAll('#camperTestRows > div')).map(r => {
+    const rid = r.id.split('-')[1];
+    const sel = document.getElementById('ctItem-' + rid);
+    if (!sel || !sel.value) return null;
+    const price = parseFloat(document.getElementById('ctPrice-' + rid).value)||0;
+    return { name: sel.value, price };
+  }).filter(Boolean).filter(i => i.name);
 }
 
 function updateCamperSummary() {
-  const items = getCamperItems();
-  let total = items.reduce((s,i)=>s+i.subtotal,0);
+  const items     = getCamperItems();
+  const testItems = getCamperTestItems();
+  let total = items.reduce((s,i) => s+i.subtotal, 0)
+            + testItems.reduce((s,i) => s+i.price, 0);
   const addVisit = document.getElementById('cpAddVisit')?.checked;
   const visitFee = camperSession?.visitFee||0;
-  if (addVisit && visitFee>0) total += visitFee;
-  const discPct = parseFloat(document.getElementById('cpDiscPct').value)||0;
-  const maxDisc = appData.settings.camperDiscount||5;
+  if (addVisit && visitFee > 0) total += visitFee;
+  const discPct     = parseFloat(document.getElementById('cpDiscPct').value)||0;
+  const maxDisc     = appData.settings.camperDiscount||5;
   const effectivePct = Math.min(discPct, maxDisc);
-  const discAmt = Math.floor(total * effectivePct/100);
-  const netTotal = total - discAmt;
-  const paid = parseFloat(document.getElementById('cpCashPaid').value)||0;
-  const due  = Math.max(0, netTotal-paid);
-  document.getElementById('cpTotal').textContent = '৳ '+fmt(total);
-  document.getElementById('cpPaid').textContent  = '৳ '+fmt(paid);
-  document.getElementById('cpDue').textContent   = '৳ '+fmt(due);
-  const dr=document.getElementById('cpDiscRow');
-  if(discAmt>0){dr.style.display='';document.getElementById('cpDiscAmt').textContent='-৳ '+fmt(discAmt);}
-  else dr.style.display='none';
+  const discAmt     = Math.floor(total * effectivePct / 100);
+  const netTotal    = total - discAmt;
+  const paid        = parseFloat(document.getElementById('cpCashPaid').value)||0;
+  const due         = Math.max(0, netTotal - paid);
+  document.getElementById('cpTotal').textContent = '৳ ' + fmt(total);
+  document.getElementById('cpPaid').textContent  = '৳ ' + fmt(paid);
+  document.getElementById('cpDue').textContent   = '৳ ' + fmt(due);
+  const dr = document.getElementById('cpDiscRow');
+  if (discAmt > 0) { dr.style.display=''; document.getElementById('cpDiscAmt').textContent = '-৳ '+fmt(discAmt); }
+  else dr.style.display = 'none';
 }
 
 function clearCamperBill() {
-  ['cpPatName','cpPatAge','cpPatPhone','cpCashPaid','cpDiscPct'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('camperServiceRows').innerHTML='';
-  camperRowCount=0;
-  const cb=document.getElementById('cpAddVisit'); if(cb) cb.checked=false;
+  ['cpPatName','cpPatAge','cpPatPhone','cpCashPaid','cpDiscPct'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value='';
+  });
+  document.getElementById('camperServiceRows').innerHTML = '';
+  document.getElementById('camperTestRows').innerHTML    = '';
+  camperRowCount = 0; camperTestRowCount = 0;
+  const cb = document.getElementById('cpAddVisit'); if (cb) cb.checked = false;
   updateCamperSummary();
+  addCamperRow();
 }
 
 function saveCamperBill() {
   if (!camperSession) { showToast('⚠️ আগে ক্যাম্প শুরু করুন!'); return; }
   const patName = document.getElementById('cpPatName').value.trim();
   if (!patName) { showToast('⚠️ রোগীর নাম দিন!'); return; }
-  const items  = getCamperItems();
-  if (!items.length) { showToast('⚠️ কমপক্ষে একটি পণ্য/সার্ভিস দিন!'); return; }
+  const items     = getCamperItems();
+  const testItems = getCamperTestItems();
+  if (!items.length && !testItems.length) { showToast('⚠️ কমপক্ষে একটি পণ্য/সার্ভিস দিন!'); return; }
   const addVisit = document.getElementById('cpAddVisit')?.checked;
   const visitFee = camperSession.visitFee||0;
-  let total = items.reduce((s,i)=>s+i.subtotal,0);
-  if (addVisit && visitFee>0) total += visitFee;
-  const discPct = Math.min(parseFloat(document.getElementById('cpDiscPct').value)||0, appData.settings.camperDiscount||5);
-  const discAmt = Math.floor(total*discPct/100);
-  const netTotal = total-discAmt;
-  const paid = parseFloat(document.getElementById('cpCashPaid').value)||0;
-  const due  = Math.max(0, netTotal-paid);
+  let total = items.reduce((s,i) => s+i.subtotal, 0) + testItems.reduce((s,i) => s+i.price, 0);
+  if (addVisit && visitFee > 0) total += visitFee;
+  const discPct  = Math.min(parseFloat(document.getElementById('cpDiscPct').value)||0, appData.settings.camperDiscount||5);
+  const discAmt  = Math.floor(total * discPct / 100);
+  const netTotal = total - discAmt;
+  const paid     = parseFloat(document.getElementById('cpCashPaid').value)||0;
+  const due      = Math.max(0, netTotal - paid);
+  const receiptNo = camperSession.receiptCurrent;
 
-  // Stock deduct
-  items.forEach(item=>{
-    if(item.stockItem) {
-      const s=appData.stock.find(s=>s.id===item.stockItem.id);
-      if(s) s.qty=Math.max(0,s.qty-item.qty);
-      if(!appData.stockLog) appData.stockLog=[];
-      appData.stockLog.push({id:Date.now()+Math.random(),date:camperSession.date,itemId:item.stockItem.id,itemName:item.name,move:'out',qty:item.qty,note:`ক্যাম্প: ${camperSession.name}`,by:currentUser.name});
+  // Stock deduct for stock items sold
+  items.forEach(item => {
+    if (item.stockItem) {
+      const s = appData.stock.find(x => x.id === item.stockItem.id);
+      if (s) s.qty = Math.max(0, s.qty - item.qty);
+      if (!appData.stockLog) appData.stockLog = [];
+      appData.stockLog.push({ id:Date.now()+Math.random(), date:camperSession.date, itemId:item.stockItem.id, itemName:item.name, move:'out', qty:item.qty, note:`ক্যাম্প বিক্রয়: ${camperSession.name} — রিসিট #${receiptNo}`, by:currentUser.name });
+      // Update stockTaken qtySold
+      const st = camperSession.stockTaken.find(x => x.itemId === item.stockItem.id);
+      if (st) st.qtySold = (st.qtySold||0) + item.qty;
     }
   });
 
-  // Save as camp visit
-  if (!appData.campVisits) appData.campVisits=[];
+  // Save camp visit entry
+  if (!appData.campVisits) appData.campVisits = [];
   const campVisitEntry = {
-    id:Date.now(), campName:camperSession.name, campLocation:camperSession.location,
-    date:camperSession.date, patName, patAge:document.getElementById('cpPatAge').value.trim(),
-    patPhone:document.getElementById('cpPatPhone').value.trim(),
-    items, addVisit, visitFee:addVisit?visitFee:0, total, discAmt, netTotal, paid, due,
-    by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
+    id: Date.now(), receiptNo, campName: camperSession.name, campLocation: camperSession.location,
+    scheduleId: camperSession.scheduleId, date: camperSession.date,
+    patName, patAge: document.getElementById('cpPatAge').value.trim(),
+    patPhone: document.getElementById('cpPatPhone').value.trim(),
+    items, testItems, addVisit, visitFee: addVisit ? visitFee : 0,
+    total, discAmt, netTotal, paid, due, by: currentUser.name,
+    time: new Date().toLocaleTimeString('bn-BD')
   };
   appData.campVisits.push(campVisitEntry);
+  camperSession.receiptCurrent++;
 
-  // Admin/moderator প্যানেলেও দেখানোর জন্য income এ যোগ
+  // Income entry
   if (paid > 0) {
+    if (!appData.income) appData.income = [];
     appData.income.push({
-      id:Date.now()+1, date:camperSession.date,
-      category:'ক্যাম্প আয়',
-      amount:paid, ref:patName,
-      note:`${camperSession.name} — ${patName} (ক্যাম্পেইনার)`,
-      by:currentUser.name, campVisitId:campVisitEntry.id
+      id: Date.now()+1, date: camperSession.date, category: 'ক্যাম্প আয়', amount: paid,
+      ref: patName, note: `${camperSession.name} — ${patName} (রিসিট #${receiptNo})`,
+      by: currentUser.name, campVisitId: campVisitEntry.id
     });
   }
-  // বাকি থাকলে visits এ যোগ
+  // Due entry
   if (due > 0) {
-    if (!appData.visits) appData.visits=[];
+    if (!appData.visits) appData.visits = [];
     appData.visits.push({
-      id:Date.now()+2, date:camperSession.date,
-      patName, patPhone:document.getElementById('cpPatPhone').value.trim(),
-      services:items.map(i=>({name:i.name,price:i.price})),
-      total:netTotal, cashPaid:paid, due, discAmt,
-      by:currentUser.name, source:'camp', campName:camperSession.name
+      id: Date.now()+2, date: camperSession.date, patName,
+      patPhone: document.getElementById('cpPatPhone').value.trim(),
+      services: [...items.map(i=>({name:i.name,price:i.price})), ...testItems.map(i=>({name:i.name,price:i.price}))],
+      total: netTotal, cashPaid: paid, due, discAmt, by: currentUser.name,
+      source: 'camp', campName: camperSession.name
     });
   }
+
+  // Update receipt range display
+  document.getElementById('cpReceiptRange').textContent = `${camperSession.receiptStart}–${camperSession.receiptCurrent - 1}`;
+  updateReceiptDisplay();
 
   saveData(); clearCamperBill(); renderCamperHistory();
-  showToast(`✅ বিল সেভ! মোট: ৳${fmt(netTotal)}`);
+  showToast(`✅ বিল সেভ! রিসিট #${receiptNo} | মোট: ৳${fmt(netTotal)}`);
 }
 
 function renderCamperHistory() {
   if (!camperSession) return;
-  const visits=(appData.campVisits||[]).filter(v=>v.campName===camperSession.name&&v.date===camperSession.date);
-  const tbody=document.getElementById('camperHistTable');
-  if(!tbody) return;
-  if(!visits.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>';return;}
-  const totInc=visits.reduce((s,v)=>s+v.paid,0);
-  const ds=document.getElementById('camperDaySummary');
-  if(ds) ds.textContent=`${visits.length} জন রোগী | মোট আয়: ৳${fmt(totInc)}`;
-  tbody.innerHTML=visits.map(v=>`<tr>
+  const visits = (appData.campVisits||[]).filter(v => v.campName === camperSession.name && v.date === camperSession.date);
+  const tbody  = document.getElementById('camperHistTable');
+  if (!tbody) return;
+  if (!visits.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+  const totInc = visits.reduce((s,v) => s+v.paid, 0);
+  const ds = document.getElementById('camperDaySummary');
+  if (ds) ds.textContent = `${visits.length} জন রোগী | মোট আয়: ৳${fmt(totInc)}`;
+  tbody.innerHTML = visits.map(v => `<tr>
+    <td style="font-weight:600;color:var(--primary)">#${v.receiptNo||'—'}</td>
     <td style="font-weight:600">${v.patName}</td>
     <td style="color:var(--text-light)">${v.patAge||'—'}</td>
-    <td style="font-size:12px">${v.items.map(i=>i.name).join(', ')}</td>
+    <td style="font-size:12px">${[...(v.items||[]).map(i=>i.name), ...(v.testItems||[]).map(i=>i.name)].join(', ')}</td>
     <td>৳ ${fmt(v.total)}</td>
     <td style="color:#f59e0b">${v.discAmt>0?'৳ '+fmt(v.discAmt):'—'}</td>
     <td style="color:var(--success);font-weight:600">৳ ${fmt(v.paid)}</td>
@@ -4636,15 +5291,174 @@ function renderCamperHistory() {
   </tr>`).join('');
 }
 
+// ===== CAMP EXPENSES =====
+function renderCamperExpenseRows() {
+  if (!camperSession) return;
+  const container = document.getElementById('cpExpenseRows');
+  if (!container) return;
+  const existing = (appData.campExpenses||[]).filter(e => e.campName === camperSession.name && e.date === camperSession.date);
+  container.innerHTML = '';
+  camperExpRowCount = 0;
+  if (existing.length) {
+    existing.forEach(e => addCamperExpenseRow(e.category, e.amount, e.note));
+  } else {
+    addCamperExpenseRow();
+  }
+}
+
+function addCamperExpenseRow(cat='', amt='', note='') {
+  camperExpRowCount++;
+  const id = camperExpRowCount;
+  const cats = ['যাতায়াত খরচ','খাওয়া-দাওয়া','প্রচার/বিজ্ঞাপন','ক্যাম্প রেন্ট','কর্মী বোনাস','অন্যান্য ব্যয়'];
+  const div = document.createElement('div');
+  div.id = 'cer-' + id;
+  div.style.cssText = 'display:grid;grid-template-columns:1.5fr 1fr 2fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
+    <select id="ceCat-${id}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+      ${cats.map(c=>`<option value="${c}" ${c===cat?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <input type="number" id="ceAmt-${id}" value="${amt||''}" placeholder="পরিমাণ (৳)" min="0" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+    <input type="text" id="ceNote-${id}" value="${note||''}" placeholder="বিবরণ (ঐচ্ছিক)" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+    <button class="btn-icon-del" onclick="document.getElementById('cer-${id}').remove()">✕</button>`;
+  container.appendChild(div);
+}
+
+function saveCamperExpenses() {
+  if (!camperSession) return;
+  const rows = Array.from(document.querySelectorAll('#cpExpenseRows > div'));
+  if (!rows.length) { showToast('⚠️ কোনো খরচ নেই!'); return; }
+  // Remove existing for this camp+date
+  appData.campExpenses = (appData.campExpenses||[]).filter(e => !(e.campName===camperSession.name && e.date===camperSession.date));
+  let saved = 0;
+  rows.forEach(r => {
+    const rid = r.id.split('-')[1];
+    const cat  = document.getElementById('ceCat-' + rid).value;
+    const amt  = parseFloat(document.getElementById('ceAmt-' + rid).value)||0;
+    const note = document.getElementById('ceNote-' + rid).value.trim();
+    if (amt > 0) {
+      appData.campExpenses.push({ id: Date.now()+Math.random(), campName: camperSession.name, date: camperSession.date, category: cat, amount: amt, note, by: currentUser.name });
+      saved++;
+    }
+  });
+  saveData();
+  showToast(`✅ ${saved}টি খরচ সেভ হয়েছে`);
+}
+
+// ===== OPERATION PATIENTS =====
+function saveCamperOpPatient() {
+  if (!camperSession) { showToast('⚠️ ক্যাম্প শুরু করুন আগে!'); return; }
+  const name    = document.getElementById('cpOpPatName').value.trim();
+  const phone   = document.getElementById('cpOpPatPhone').value.trim();
+  if (!name || !phone) { showToast('⚠️ নাম ও মোবাইল আবশ্যক!'); return; }
+  const age     = document.getElementById('cpOpPatAge').value.trim();
+  const address = document.getElementById('cpOpPatAddress').value.trim();
+  const opType  = document.getElementById('cpOpPatType').value;
+  const note    = document.getElementById('cpOpPatNote').value.trim();
+  const patient = { id: Date.now(), name, age, phone, address, opType, note, status: 'pending', campName: camperSession.name, campDate: camperSession.date, by: currentUser.name };
+  if (!appData.campOpPatients) appData.campOpPatients = [];
+  appData.campOpPatients.push(patient);
+  // Also add to main operations list
+  if (!appData.operations) appData.operations = [];
+  appData.operations.push({ ...patient, source: 'camp' });
+  saveData();
+  ['cpOpPatName','cpOpPatAge','cpOpPatPhone','cpOpPatAddress','cpOpPatNote'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  renderCamperOpPatients();
+  showToast(`✅ অপারেশন রোগী সেভ: ${name}`);
+}
+
+function renderCamperOpPatients() {
+  if (!camperSession) return;
+  const tbody = document.getElementById('cpOpPatTable');
+  if (!tbody) return;
+  const patients = (appData.campOpPatients||[]).filter(p => p.campName === camperSession.name && p.campDate === camperSession.date);
+  if (!patients.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">কোনো রোগী নেই</td></tr>'; return; }
+  tbody.innerHTML = patients.map(p => `<tr>
+    <td style="font-weight:600">${p.name}</td>
+    <td>${p.age||'—'}</td>
+    <td>${p.phone}</td>
+    <td style="font-size:12px">${p.address||'—'}</td>
+    <td><span class="badge badge-warning">${p.opType}</span></td>
+    <td><span class="badge badge-info">${p.status==='pending'?'⏳ অপেক্ষমাণ':p.status}</span></td>
+  </tr>`).join('');
+}
+
+// ===== RETURN STOCK =====
+function renderReturnStockRows() {
+  const container = document.getElementById('cpReturnRows');
+  if (!container) return;
+  container.innerHTML = '';
+  camperReturnRowCount = 0;
+  if (camperSession && camperSession.stockTaken && camperSession.stockTaken.length) {
+    camperSession.stockTaken.forEach(item => {
+      const remaining = Math.max(0, item.qtyTaken - (item.qtySold||0) - (item.qtyReturned||0));
+      if (remaining > 0) addReturnStockRow(item.itemId, item.itemName, remaining, item.unit);
+    });
+  }
+  if (!container.children.length) addReturnStockRow();
+}
+
+function addReturnStockRow(itemId='', itemName='', maxQty=0, unit='') {
+  camperReturnRowCount++;
+  const id = camperReturnRowCount;
+  const sellable = (appData.stock||[]).filter(s => s.cat !== 'অফিস সামগ্রী');
+  const div = document.createElement('div');
+  div.id = 'rsr-' + id;
+  div.style.cssText = 'display:grid;grid-template-columns:3fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  if (itemId) {
+    div.innerHTML = `
+      <div style="padding:9px 10px;background:#f0f9ff;border:1.5px solid var(--accent);border-radius:6px;font-size:13px;font-weight:600">${itemName}</div>
+      <input type="number" id="rrQty-${id}" value="${maxQty}" min="0" max="${maxQty}" data-item-id="${itemId}" data-item-name="${itemName}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+      <button class="btn-icon-del" onclick="document.getElementById('rsr-${id}').remove()">✕</button>`;
+  } else {
+    div.innerHTML = `
+      <select id="rrItem-${id}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%">
+        <option value="">-- পণ্য বেছে নিন --</option>
+        ${sellable.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('')}
+      </select>
+      <input type="number" id="rrQty-${id}" value="0" min="0" placeholder="পরিমাণ" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+      <button class="btn-icon-del" onclick="document.getElementById('rsr-${id}').remove()">✕</button>`;
+  }
+  container.appendChild(div);
+}
+
+function saveReturnStock() {
+  if (!camperSession) return;
+  const rows = Array.from(document.querySelectorAll('#cpReturnRows > div'));
+  let returned = 0;
+  rows.forEach(r => {
+    const rid = r.id.split('-')[1];
+    const qtyEl = document.getElementById('rrQty-' + rid);
+    const qty = parseInt(qtyEl?.value)||0;
+    if (!qty) return;
+    const qtyInp = qtyEl;
+    const itemId   = parseInt(qtyInp.getAttribute('data-item-id')) || parseInt((document.getElementById('rrItem-'+rid)||{}).value)||0;
+    const itemName = qtyInp.getAttribute('data-item-name') || ((document.getElementById('rrItem-'+rid)||{}).options||[])[((document.getElementById('rrItem-'+rid)||{}).selectedIndex||0)]?.text || '';
+    if (!itemId) return;
+    // Add back to stock
+    const s = (appData.stock||[]).find(x => x.id === itemId);
+    if (s) s.qty += qty;
+    if (!appData.stockLog) appData.stockLog = [];
+    appData.stockLog.push({ id: Date.now()+Math.random(), date: camperSession.date, itemId, itemName, move: 'in', qty, note: `ক্যাম্প স্টক ফেরত: ${camperSession.name}`, by: currentUser.name });
+    // Update stockTaken
+    const st = camperSession.stockTaken.find(x => x.itemId === itemId);
+    if (st) st.qtyReturned = (st.qtyReturned||0) + qty;
+    returned++;
+  });
+  saveData();
+  showToast(`✅ ${returned}টি পণ্য স্টকে ফেরত দেওয়া হয়েছে`);
+  renderReturnStockRows();
+}
+
+// ===== LOOKUP =====
 function doCamperLookup() {
-  const q=(document.getElementById('camperLookupQ')?.value||'').toLowerCase().trim();
-  const res=document.getElementById('camperLookupResults');
-  if(!res) return;
-  if(!q){res.innerHTML='';return;}
-  const matches=appData.stock.filter(s=>s.cat!=='অফিস সামগ্রী'&&(s.name.toLowerCase().includes(q)||(s.code&&s.code.toLowerCase().includes(q)))).slice(0,5);
-  if(!matches.length){res.innerHTML='<p style="color:#aaa;padding:8px">পাওয়া যায়নি</p>';return;}
-  res.innerHTML=matches.map(s=>{
-    const price=s.cat==='চশমা/লেন্স'?`মিন: ৳${fmt(s.sellMin||0)} ~ ম্যাক্স: ৳${fmt(s.sellMax||0)}`:`৳ ${fmt(s.sellPrice||0)}`;
+  const q   = (document.getElementById('camperLookupQ')?.value||'').toLowerCase().trim();
+  const res = document.getElementById('camperLookupResults');
+  if (!res) return;
+  if (!q) { res.innerHTML=''; return; }
+  const matches = (appData.stock||[]).filter(s => s.cat!=='অফিস সামগ্রী' && (s.name.toLowerCase().includes(q)||(s.code&&s.code.toLowerCase().includes(q)))).slice(0,5);
+  if (!matches.length) { res.innerHTML='<p style="color:#aaa;padding:8px">পাওয়া যায়নি</p>'; return; }
+  res.innerHTML = matches.map(s => {
+    const price = s.cat==='চশমা/লেন্স' ? `মিন: ৳${fmt(s.sellMin||0)} ~ ম্যাক্স: ৳${fmt(s.sellMax||0)}` : `৳ ${fmt(s.sellPrice||0)}`;
     return `<div style="background:white;border:1.5px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between">
         <span style="font-weight:700">${s.name} ${s.code?'['+s.code+']':''}</span>
@@ -4656,11 +5470,11 @@ function doCamperLookup() {
 }
 
 function renderCamperStockList() {
-  const list=document.getElementById('camperStockList');
-  if(!list) return;
-  const sellable=appData.stock.filter(s=>s.cat!=='অফিস সামগ্রী');
-  if(!sellable.length){list.innerHTML='<p style="color:#aaa">কোনো পণ্য নেই</p>';return;}
-  list.innerHTML=sellable.map(s=>`<div style="background:white;border:1.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+  const list = document.getElementById('camperStockList');
+  if (!list) return;
+  const sellable = (appData.stock||[]).filter(s => s.cat !== 'অফিস সামগ্রী');
+  if (!sellable.length) { list.innerHTML='<p style="color:#aaa">কোনো পণ্য নেই</p>'; return; }
+  list.innerHTML = sellable.map(s => `<div style="background:white;border:1.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
     <div>
       <span style="font-weight:700;font-size:14px">${s.name}</span>
       ${s.code?`<span style="margin-left:6px;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px;font-size:11px">${s.code}</span>`:''}
@@ -6272,6 +7086,20 @@ function clearBillForm() {
   updateSummary();
 }
 function renderRecDue() {
+  // returned drafts notification
+  const returned=(appData.draftBills||[]).filter(d=>d.status==='returned');
+  const notifEl=document.getElementById('returnedDraftNotif');
+  if(notifEl){
+    if(returned.length){
+      notifEl.style.display='block';
+      notifEl.innerHTML=`<div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:20px">↩️</span>
+        <div style="flex:1"><div style="font-weight:600;color:#92400e">${returned.length}টি বিল অ্যাডমিন থেকে ফেরত এসেছে</div>
+        <div style="font-size:12px;color:#b45309">অ্যাডমিন ডিসকাউন্ট সহ — পেমেন্ট নিয়ে সেভ করুন</div></div>
+        <button class="btn btn-warning btn-sm" onclick="loadReturnedDraft()">দেখুন →</button>
+      </div>`;
+    } else notifEl.style.display='none';
+  }
   const visits=appData.visits.filter(v=>v.due>0).sort((a,b)=>b.id-a.id);
   const totalDue=visits.reduce((s,v)=>s+v.due,0);
   document.getElementById('recTotalDueAmt').textContent='৳ '+fmt(totalDue);
@@ -6539,7 +7367,7 @@ function sendDraftToAdmin() {
   showToast('✅ ড্রাফট অ্যাডমিনে পাঠানো হয়েছে!');
 }
 function renderDraftBills() {
-  const drafts=(appData.draftBills||[]).filter(d=>d.status==='pending');
+  const drafts=(appData.draftBills||[]).filter(d=>d.status==='pending'||d.status==='returned');
   const panel=document.getElementById('draftBillsPanel');
   const tbody=document.getElementById('draftBillTable');
   if(!panel||!tbody)return;
@@ -6549,16 +7377,86 @@ function renderDraftBills() {
     <td style="font-weight:600">${d.patName}</td>
     <td style="font-size:12px">${d.services.map(s=>s.name).join(', ')}</td>
     <td>৳ ${fmt(d.total)}</td>
-    <td style="color:var(--danger)">${d.discAmt>0?'৳ '+fmt(d.discAmt):'—'}</td>
+    <td style="color:var(--danger)">${d.adminDiscAmt>0?'৳ '+fmt(d.adminDiscAmt):(d.discAmt>0?'৳ '+fmt(d.discAmt):'—')}</td>
     <td style="font-size:12px;color:var(--text-light)">${d.by}</td>
-    <td style="display:flex;gap:6px">
+    <td style="font-size:12px;color:${d.status==='returned'?'var(--success)':'var(--warning)'}">
+      ${d.status==='returned'?'↩️ ফেরত পাঠানো হয়েছে':'⏳ অপেক্ষমাণ'}
+    </td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="editDraftInAdmin(${d.id})">✏️ এডিট</button>
       <button class="btn btn-success btn-sm" onclick="approveDraft(${d.id})">✅ অ্যাপ্রুভ</button>
       <button class="btn btn-danger btn-sm" onclick="rejectDraft(${d.id})">❌ বাতিল</button>
     </td>
   </tr>`).join('');
 }
+function editDraftInAdmin(id) {
+  const draft=(appData.draftBills||[]).find(d=>d.id===id);
+  if(!draft)return;
+  // admin bill form এ লোড করি সব তথ্য সহ
+  document.getElementById('abPatName').value=draft.patName;
+  document.getElementById('abPatPhone').value=draft.patPhone||'';
+  document.getElementById('abPatAge').value=draft.patAge||'';
+  document.getElementById('abPatDoc').value=draft.patDoc||'';
+  document.getElementById('abBillDate').value=draft.date;
+  document.getElementById('adminBillRows').innerHTML='';
+  adminBillRowCount=0;
+  draft.services.forEach(s=>{
+    addAdminBillRow();
+    const rows=document.getElementById('adminBillRows').querySelectorAll('tr');
+    const last=rows[rows.length-1];
+    const inputs=last.querySelectorAll('input,select');
+    inputs[0].value=s.name;
+    inputs[2].value=s.qty||1;
+    inputs[3].value=s.price||0;
+  });
+  // rec এর আগের discount দেখাই
+  if(draft.discAmt>0){
+    const total=draft.services.reduce((s,r)=>s+r.subtotal,0);
+    const pct=Math.round(draft.discAmt/total*100);
+    document.getElementById('abDiscPct').value=pct;
+  }
+  updateAdminBillSummary();
+  // Save বাটন → এই draft update করবে + rec এ ফেরত পাঠাবে
+  // draftId hidden field এ রাখি
+  document.getElementById('abMemoNo').setAttribute('data-draft-id', id);
+  // Send back button দেখাই
+  const btnArea=document.querySelector('#pg-adminbill .panel:nth-child(2) .panel-body div:last-child');
+  if(btnArea && !document.getElementById('sendBackBtn')){
+    const btn=document.createElement('button');
+    btn.id='sendBackBtn';
+    btn.className='btn btn-warning';
+    btn.innerHTML='↩️ রিসেপশনিস্টে ফেরত পাঠান';
+    btn.onclick=()=>sendDraftBackToRec(id);
+    btnArea.insertBefore(btn, btnArea.lastElementChild);
+  }
+  showToast('✏️ ড্রাফট এডিট মোডে আছেন');
+}
+function sendDraftBackToRec(id) {
+  const draft=(appData.draftBills||[]).find(d=>d.id===id);
+  if(!draft)return;
+  // admin এর এডিট করা তথ্য সেভ করি
+  const svcs=getAdminBillServices();
+  const total=svcs.reduce((s,r)=>s+r.subtotal,0);
+  const maxDisc=appData.settings.adminDiscount||30;
+  const discPct=Math.min(parseFloat(document.getElementById('abDiscPct').value)||0,maxDisc);
+  const adminDiscAmt=Math.floor(total*discPct/100);
+  draft.services=svcs.length?svcs:draft.services;
+  draft.adminDiscAmt=adminDiscAmt;
+  draft.adminDiscPct=discPct;
+  draft.total=total||draft.total;
+  draft.adminNote=`অ্যাডমিন ডিসকাউন্ট: ${discPct}%`;
+  draft.status='returned';
+  draft.returnedAt=new Date().toLocaleString('bn-BD');
+  saveData();
+  // Send back button সরাই
+  const btn=document.getElementById('sendBackBtn');
+  if(btn)btn.remove();
+  document.getElementById('abMemoNo').removeAttribute('data-draft-id');
+  clearAdminBillForm();
+  showToast('↩️ রিসেপশনিস্টে ফেরত পাঠানো হয়েছে!');
+}
 function approveDraft(id) {
-  const draft = (appData.draftBills||[]).find(d=>d.id===id);
+  const draft=(appData.draftBills||[]).find(d=>d.id===id);
   if(!draft)return;
   // admin bill form এ লোড করি
   showPage('adminbill');
@@ -6578,11 +7476,48 @@ function approveDraft(id) {
     inputs[2].value=s.qty||1;
     inputs[3].value=s.price||0;
   });
-  // draft মার্ক করি
+  if(draft.adminDiscPct) document.getElementById('abDiscPct').value=draft.adminDiscPct;
   draft.status='approved';
   saveData();
   updateAdminBillSummary();
   showToast('✅ ড্রাফট লোড হয়েছে — বিল সেভ করুন');
+}
+function loadReturnedDraft() {
+  const returned=(appData.draftBills||[]).filter(d=>d.status==='returned');
+  if(!returned.length){showToast('কোনো ফেরত আসা বিল নেই');return;}
+  const draft=returned[0]; // প্রথমটা লোড করি
+  document.getElementById('rPatName').value=draft.patName;
+  document.getElementById('rPatPhone').value=draft.patPhone||'';
+  document.getElementById('rPatAge').value=draft.patAge||'';
+  document.getElementById('rPatDoc').value=draft.patDoc||'';
+  document.getElementById('rBillDate').value=draft.date;
+  // services লোড
+  const rows=document.getElementById('serviceRows');
+  if(rows){
+    rows.innerHTML='';
+    draft.services.forEach(s=>{
+      addServiceRow();
+      const allRows=rows.querySelectorAll('.service-row');
+      const last=allRows[allRows.length-1];
+      const inputs=last.querySelectorAll('input,select');
+      if(inputs[0]) inputs[0].value=s.name;
+      if(inputs[2]) inputs[2].value=s.qty||1;
+      if(inputs[3]) inputs[3].value=s.price||0;
+    });
+  }
+  // অ্যাডমিন discount যোগ করি
+  if(draft.adminDiscAmt>0){
+    const discEl=document.getElementById('rDiscountAmt');
+    if(discEl) discEl.value=draft.adminDiscAmt;
+    const noteEl=document.getElementById('rNote');
+    if(noteEl) noteEl.value=draft.adminNote||'';
+  }
+  // draft টা pending করি (আর দেখাবে না)
+  draft.status='rec_received';
+  saveData();
+  updateSummary();
+  showToast(`✅ অ্যাডমিন অনুমোদিত বিল লোড হয়েছে${draft.adminDiscPct?` — অ্যাডমিন ডিসকাউন্ট: ${draft.adminDiscPct}%`:''}`);
+  renderRecDue();
 }
 function rejectDraft(id) {
   if(!confirm('ড্রাফট বাতিল করবেন?'))return;
