@@ -2065,6 +2065,8 @@ function openPrintWindow(htmlContent, title) {
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">👥 আমার শেয়ার তথ্য</div>
       <div id="ownerShareInfo"></div>
     </div>
+    <!-- Read-only view for other features (income, expense, stock, salary etc.) -->
+    <div id="ownerReadOnlySection" style="display:none;background:white;border-radius:12px;padding:16px;margin-bottom:16px"></div>
   </div>
 </div>
 
@@ -2327,6 +2329,9 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
     </div>
+
+    <!-- Campaigner read-only view for non-camp features -->
+    <div id="camperReadOnlySection" style="display:none;background:white;border-radius:12px;padding:16px;margin-bottom:16px"></div>
 
   </div>
 </div>
@@ -4756,9 +4761,10 @@ const ALL_FEATURES = [
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
 ];
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
+// All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','report','shareholders'],
-  campaigner: ['camp']
+  owner: ['dashboard','income','expense','camp','due','stock','salary','demand','report','vendor','bank','loan','shareholders'],
+  campaigner: ['dashboard','income','expense','camp','due','stock','salary','demand','report','vendor','bank','loan','shareholders']
 };
 
 function featureInfo(id) {
@@ -4823,22 +4829,33 @@ function applyOwnerFeatureVisibility(activeFeature) {
   const recent = document.getElementById('ownerRecentList');
   if (recent && recent.parentElement) recent.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
   show('ownerShareBlock', activeFeature === 'shareholders');
+  // Read-only sections for other features
+  show('ownerReadOnlySection', !['dashboard','report','shareholders'].includes(activeFeature));
+  if (!['dashboard','report','shareholders'].includes(activeFeature)) {
+    renderOwnerReadOnlySection(activeFeature);
+  }
 }
 
 function openRoleFeature(feature) {
   if (!currentUser) return;
   const role = currentUser.role;
   if (!canAccess(role, feature) && role !== 'admin') return;
-  if (role === 'owner' && ROLE_NATIVE_FEATURES.owner.includes(feature)) {
+  if (role === 'owner') {
+    // Owner সর্বদা ownerPage-এ থাকবে, কখনো sidebar/appPage-এ যাবে না
     setPageVisible('ownerPage');
     initOwnerPage();
     applyOwnerFeatureVisibility(feature);
     renderRoleFeatureBars(feature);
     return;
   }
-  if (role === 'campaigner' && feature === 'camp') {
+  if (role === 'campaigner') {
+    // Campaigner সর্বদা camperPage-এ থাকবে, কখনো sidebar/appPage-এ যাবে না
     setPageVisible('camperPage');
-    initCamperPage();
+    if (feature === 'camp') {
+      initCamperPage();
+    } else {
+      initCamperReadOnlySection(feature);
+    }
     renderRoleFeatureBars(feature);
     return;
   }
@@ -4846,7 +4863,7 @@ function openRoleFeature(feature) {
   applySidebarAccess(role);
   renderRoleFeatureBars(feature);
   const appBar = document.getElementById('appRoleFeatureBar');
-  if (appBar) appBar.style.display = (role === 'owner' || role === 'campaigner') ? 'flex' : 'none';
+  if (appBar) appBar.style.display = 'none';
   showPage(feature);
 }
 
@@ -5407,6 +5424,125 @@ function initCamperPage() {
     document.getElementById('camperTabsRow').style.display = 'none';
     document.getElementById('cpActiveBanner').style.display = 'none';
   }
+  // Camp section দেখান, read-only section লুকান
+  ['campSelectorPanel','cpPastCampsPanel','cpActiveBanner','camperTabsRow',
+   'camper-billing','camper-history','camper-expense','camper-oppatient','camper-returnstock','camper-lookup'
+  ].forEach(id => { const el=document.getElementById(id); if(el) el.style.removeProperty('display'); });
+  const ros = document.getElementById('camperReadOnlySection');
+  if (ros) ros.style.display = 'none';
+}
+
+// Campaigner read-only section — camp ছাড়া অন্য ফিচারের জন্য
+function initCamperReadOnlySection(feature) {
+  const cl = document.getElementById('camperLogoImg');
+  if (cl && LOGO_B64) { cl.src = LOGO_B64; cl.style.display = 'block'; }
+  const cn = document.getElementById('camperName');
+  if (cn) cn.textContent = currentUser.name;
+  // Camp section লুকান
+  ['campSelectorPanel','cpPastCampsPanel','cpActiveBanner','camperTabsRow',
+   'camper-billing','camper-history','camper-expense','camper-oppatient','camper-returnstock','camper-lookup'
+  ].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  const ros = document.getElementById('camperReadOnlySection');
+  if (ros) { ros.style.display = ''; ros.innerHTML = buildReadOnlyHTML(feature); }
+}
+
+// Owner read-only section render
+function renderOwnerReadOnlySection(feature) {
+  const ros = document.getElementById('ownerReadOnlySection');
+  if (ros) ros.innerHTML = buildReadOnlyHTML(feature);
+}
+
+// Read-only HTML builder — সব ফিচারের জন্য
+function buildReadOnlyHTML(feature) {
+  const fmt2 = n => new Intl.NumberFormat('bn-BD').format(Math.round(n)||0);
+  const badge = `<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:8px">শুধু পড়া যাবে</span>`;
+  const tableStyle = 'width:100%;border-collapse:collapse;font-size:13px';
+  const thStyle = 'padding:8px 10px;background:#f8fafc;color:#0f4c81;font-weight:700;text-align:left;border-bottom:2px solid #e2e8f0';
+  const tdStyle = 'padding:8px 10px;border-bottom:1px solid #f0f0f0';
+
+  if (feature === 'income') {
+    const rows = (appData.income||[]).slice().sort((a,b)=>b.id-a.id).slice(0,50);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">💰 আয় তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.description||'—'}</td><td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'expense') {
+    const rows = (appData.expense||[]).slice().sort((a,b)=>b.id-a.id).slice(0,50);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">💸 ব্যয় তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.description||'—'}</td><td style="${tdStyle};font-weight:700;color:#e74c3c">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'camp') {
+    const rows = (appData.camps||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏕️ ক্যাম্প তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">আয়</th></tr>
+        ${rows.length ? rows.map(c=>`<tr><td style="${tdStyle}">${formatDate(c.date)}</td><td style="${tdStyle}">${c.name||'—'}</td><td style="${tdStyle}">${c.totalPatients||0}</td><td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(c.totalIncome)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'due') {
+    const rows = (appData.visits||[]).filter(v=>v.due>0).slice().sort((a,b)=>b.id-a.id).slice(0,50);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📋 বাকি তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">মোট</th><th style="${thStyle}">বাকি</th></tr>
+        ${rows.length ? rows.map(v=>`<tr><td style="${tdStyle}">${formatDate(v.date)}</td><td style="${tdStyle}">${v.patientName||'—'}</td><td style="${tdStyle}">৳ ${fmt2(v.total)}</td><td style="${tdStyle};font-weight:700;color:#e74c3c">৳ ${fmt2(v.due)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো বাকি নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'stock') {
+    const rows = (appData.stock||[]).filter(s=>s.status!=='inactive').slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📦 স্টক তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">পণ্যের নাম</th><th style="${thStyle}">বিভাগ</th><th style="${thStyle}">পরিমাণ</th><th style="${thStyle}">বিক্রয় মূল্য</th></tr>
+        ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.category||'—'}</td><td style="${tdStyle};color:${(s.qty||0)<(s.minQty||5)?'#e74c3c':'inherit'}">${s.qty||0} ${s.unit||''}</td><td style="${tdStyle}">৳ ${fmt2(s.sellPrice||s.price||0)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো পণ্য নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'salary') {
+    const rows = (appData.staff||[]).filter(s=>s.status==='active');
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">👨‍💼 কর্মী তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">নাম</th><th style="${thStyle}">পদবি</th><th style="${thStyle}">বেসিক বেতন</th></tr>
+        ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.designation||s.role||'—'}</td><td style="${tdStyle}">৳ ${fmt2(s.basic)}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px;text-align:center;color:#aaa">কোনো কর্মী নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'demand') {
+    const rows = (appData.demands||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📝 ডিমান্ড নোট ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">নোট</th><th style="${thStyle}">স্ট্যাটাস</th></tr>
+        ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle}">${d.note||'—'}</td><td style="${tdStyle}">${d.status||'অপেক্ষমাণ'}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'vendor') {
+    const rows = (appData.vendors||[]).slice(0,30);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏪 সরবরাহকারী তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">নাম</th><th style="${thStyle}">যোগাযোগ</th><th style="${thStyle}">ঠিকানা</th></tr>
+        ${rows.length ? rows.map(v=>`<tr><td style="${tdStyle};font-weight:600">${v.name||'—'}</td><td style="${tdStyle}">${v.phone||'—'}</td><td style="${tdStyle}">${v.address||'—'}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px;text-align:center;color:#aaa">কোনো সরবরাহকারী নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'bank') {
+    const rows = (appData.bankTx||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏦 ব্যাংক/ক্যাশ তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">ধরন</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(tx=>`<tr><td style="${tdStyle}">${formatDate(tx.date)}</td><td style="${tdStyle}">${tx.note||'—'}</td><td style="${tdStyle}">${tx.type||'—'}</td><td style="${tdStyle};font-weight:700;color:${tx.type==='in'?'#2ecc71':'#e74c3c'}">৳ ${fmt2(tx.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'loan') {
+    const rows = (appData.loans||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🤝 লোন তালিকা ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ব্যক্তি/প্রতিষ্ঠান</th><th style="${thStyle}">ধরন</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(l=>`<tr><td style="${tdStyle}">${formatDate(l.date)}</td><td style="${tdStyle};font-weight:600">${l.party||'—'}</td><td style="${tdStyle}">${l.type||'—'}</td><td style="${tdStyle}">৳ ${fmt2(l.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  // Default
+  const f = ALL_FEATURES.find(x=>x.id===feature);
+  return `<div style="text-align:center;padding:40px;color:#aaa"><div style="font-size:32px;margin-bottom:12px">🔒</div><div>${f?f.label:feature} — শুধু পড়ার অনুমতি আছে।</div></div>`;
 }
 
 function populateCampScheduleDropdown() {
