@@ -152,6 +152,9 @@
   .rec-tabs { display:flex; gap:4px; margin-bottom:20px; background:white; padding:6px; border-radius:var(--radius); box-shadow:var(--shadow); width:fit-content; }
   .rec-tab { padding:9px 20px; border-radius:8px; font-family:'Hind Siliguri',sans-serif; font-size:14px; font-weight:600; cursor:pointer; border:none; color:var(--text-light); background:transparent; transition:all 0.2s; }
   .rec-tab.active { background:var(--primary); color:white; box-shadow:0 2px 8px rgba(15,76,129,0.3); }
+  .role-feature-bar { display:flex; gap:8px; overflow-x:auto; padding:10px 16px; background:#fff; border-bottom:1px solid var(--border); box-shadow:0 2px 8px rgba(15,76,129,0.08); position:sticky; top:0; z-index:80; }
+  .role-feature-bar button { flex:0 0 auto; padding:8px 12px; border:1.5px solid var(--border); border-radius:20px; background:#f8fafc; color:var(--primary); font-family:'Hind Siliguri',sans-serif; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .role-feature-bar button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
   .rec-tab-view { display:none; }
   .rec-tab-view.active { display:block; }
   .service-row { display:grid; grid-template-columns:2fr 1.5fr 0.7fr 1fr auto; gap:10px; align-items:center; margin-bottom:8px; }
@@ -180,50 +183,52 @@
   }
 
   @media print {
-    body * { visibility:hidden !important; }
-    #printArea, #printArea * { visibility:visible !important; }
-    #printArea { position:fixed; top:0; left:0; width:100%; z-index:9999; background:white; padding:20px; }
+    body > *:not(#printPreviewOverlay) { display:none !important; }
+    #printPreviewOverlay { position:fixed !important; top:0 !important; left:0 !important; width:100% !important; height:auto !important; background:white !important; padding:0 !important; margin:0 !important; box-shadow:none !important; border:none !important; z-index:99999 !important; }
+    #printPreviewOverlay .print-toolbar { display:none !important; }
+    #printPreviewBody { padding:10mm !important; }
+    @page { margin:10mm; }
   }
 </style>
 
 <script>
-// ===== UNIVERSAL PRINT HELPER =====
+// ===== IN-APP PRINT PREVIEW =====
 function openPrintWindow(htmlContent, title) {
-  const hospName = (typeof appData !== 'undefined' && appData.settings && appData.settings.hospName) ? appData.settings.hospName : 'ICON Eye Hospital';
-  const w = window.open('', '_blank', 'width=900,height=700');
-  if (!w) { showToast('⚠️ পপআপ ব্লক করা আছে! Browser এর পপআপ অনুমতি দিন।'); return; }
-  w.document.write(`<!DOCTYPE html>
-<html lang="bn">
-<head>
-  <meta charset="UTF-8">
-  <title>${title || hospName}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:'Hind Siliguri',Arial,sans-serif; background:white; color:#333; }
-    table { border-collapse:collapse; width:100%; }
-    th, td { padding:6px 8px; }
-    @media print {
-      body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .no-print { display:none !important; }
-      @page { margin:12mm; }
-    }
-    .print-btn {
-      position:fixed; top:16px; right:16px; z-index:9999;
-      background:#0f4c81; color:white; border:none; border-radius:8px;
-      padding:10px 20px; font-size:14px; cursor:pointer; font-family:inherit;
-      box-shadow:0 2px 8px rgba(0,0,0,0.2);
-    }
-    .print-btn:hover { background:#0a3460; }
-    @media print { .print-btn { display:none !important; } }
-  </style>
-</head>
-<body>
-  <button class="print-btn no-print" onclick="window.print()">🖨️ প্রিন্ট করুন</button>
-  ${htmlContent}
-</body>
-</html>`);
-  w.document.close();
+  // পুরানো overlay থাকলে সরাও
+  const old = document.getElementById('printPreviewOverlay');
+  if (old) old.remove();
+
+  const hospName = (typeof appData !== 'undefined' && appData.settings && appData.settings.hospName)
+    ? appData.settings.hospName : 'ICON Eye Hospital';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'printPreviewOverlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;
+    display:flex;flex-direction:column;align-items:center;
+    overflow-y:auto;padding:20px;
+  `;
+
+  overlay.innerHTML = `
+    <div style="background:white;max-width:720px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+      <div class="print-toolbar" style="background:#0f4c81;padding:12px 20px;display:flex;align-items:center;justify-content:space-between">
+        <div style="color:white;font-weight:700;font-size:14px">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="window.print()" style="background:#27ae60;color:white;border:none;border-radius:6px;padding:8px 18px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:600">🖨️ প্রিন্ট করুন</button>
+          <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer">✕ বন্ধ</button>
+        </div>
+      </div>
+      <div id="printPreviewBody" style="padding:24px;font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;line-height:1.6">
+        ${htmlContent}
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  // overlay এর বাইরে click করলে বন্ধ
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.remove();
+  });
 }
 </script>
 </head>
@@ -318,6 +323,7 @@ function openPrintWindow(htmlContent, title) {
         <div class="today-badge" id="todayBadge">📅 09 জুন, 2026</div>
       </div>
     </div>
+    <div id="appRoleFeatureBar" class="role-feature-bar" style="display:none"></div>
 
     <!-- DASHBOARD -->
     <div id="pg-dashboard" class="page-view active">
@@ -2040,6 +2046,7 @@ function openPrintWindow(htmlContent, title) {
     </div>
     <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;cursor:pointer">🚪</button>
   </div>
+  <div id="ownerFeatureBar" class="role-feature-bar" style="display:none"></div>
   <div style="padding:16px;max-width:600px;margin:0 auto;width:100%">
     <!-- Summary Cards -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px" id="ownerCards"></div>
@@ -2079,6 +2086,7 @@ function openPrintWindow(htmlContent, title) {
       <button onclick="doLogout()" class="btn-logout" style="width:auto;padding:8px 14px">🚪</button>
     </div>
   </div>
+  <div id="camperFeatureBar" class="role-feature-bar" style="display:none"></div>
   <div style="padding:20px;max-width:960px;margin:0 auto;width:100%">
 
     <!-- ক্যাম্প নির্বাচন -->
@@ -2563,7 +2571,7 @@ const DEFAULT_FEATURE_ACCESS = {
   moderator:   ['dashboard','income','expense','camp','due','stock','salary','demand','report'],
   receptionist:['billing'],
   owner:       ['dashboard','report','shareholders'],
-  campaigner:  ['camp_billing'],
+  campaigner:  ['camp'],
 };
 
 function canAccess(role, feature) {
@@ -2982,18 +2990,12 @@ function startApp() {
     const el = document.getElementById('rDiscountLimit');
     if (el) el.textContent = `সর্বোচ্চ ${limit}% পর্যন্ত দিতে পারবেন`;
 
-  } else if (role === 'owner') {
-    const op = document.getElementById('ownerPage');
-    if (op) { op.style.display='flex'; initOwnerPage(); }
-    else { document.getElementById('appPage').style.display='block'; refreshDashboard(); }
-
-  } else if (role === 'campaigner') {
-    const cp = document.getElementById('camperPage');
-    if (cp) { cp.style.display='flex'; initCamperPage(); }
-    else { document.getElementById('appPage').style.display='block'; refreshDashboard(); }
+  } else if (role === 'owner' || role === 'campaigner') {
+    openRoleFeature(getPreferredRoleFeature(role));
 
   } else {
     document.getElementById('appPage').style.display = 'block';
+    const roleBar=document.getElementById('appRoleFeatureBar'); if(roleBar) roleBar.style.display='none';
     document.getElementById('userName').textContent = currentUser.name;
     document.getElementById('userRole').textContent = role==='admin'?'অ্যাডমিন':'মডারেটর';
     document.getElementById('userAvatar').textContent = currentUser.name[0];
@@ -3002,8 +3004,8 @@ function startApp() {
     });
     // Moderator feature access
     if (role === 'moderator') {
-      document.querySelectorAll('.nav-item[data-feature]').forEach(el=>{
-        const feat = el.getAttribute('data-feature');
+      document.querySelectorAll('.nav-item[data-page]').forEach(el=>{
+        const feat = el.getAttribute('data-page');
         el.style.display = canAccess('moderator', feat) ? '' : 'none';
       });
     }
@@ -3040,6 +3042,9 @@ function startFirebaseSync() {
             const feat = el.getAttribute('data-page');
             el.style.display = canAccess('moderator', feat) ? '' : 'none';
           });
+        }
+        if (currentUser.role === 'owner' || currentUser.role === 'campaigner') {
+          openRoleFeature(getPreferredRoleFeature(currentUser.role));
         }
         showToast('🔄 ডেটা sync হয়েছে');
       }
@@ -4751,6 +4756,99 @@ const ALL_FEATURES = [
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
 ];
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
+const ROLE_NATIVE_FEATURES = {
+  owner: ['dashboard','report','shareholders'],
+  campaigner: ['camp']
+};
+
+function featureInfo(id) {
+  return ALL_FEATURES.find(f => f.id === id) || { id, label:id };
+}
+
+function getAllowedFeatures(role) {
+  if (role === 'admin') return ALL_FEATURES.map(f => f.id);
+  return ALL_FEATURES.map(f => f.id).filter(id => canAccess(role, id));
+}
+
+function getPreferredRoleFeature(role) {
+  const allowed = getAllowedFeatures(role);
+  const native = ROLE_NATIVE_FEATURES[role] || [];
+  return allowed.find(f => native.includes(f)) || allowed[0] || 'dashboard';
+}
+
+function renderRoleFeatureBar(containerId, role, activeFeature) {
+  const bar = document.getElementById(containerId);
+  if (!bar) return;
+  const allowed = getAllowedFeatures(role);
+  if (!allowed.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = allowed.map(id => {
+    const f = featureInfo(id);
+    return `<button type="button" class="${id===activeFeature?'active':''}" onclick="openRoleFeature('${id}')">${f.label}</button>`;
+  }).join('');
+}
+
+function renderRoleFeatureBars(activeFeature) {
+  if (!currentUser) return;
+  const role = currentUser.role;
+  ['ownerFeatureBar','camperFeatureBar','appRoleFeatureBar'].forEach(id => renderRoleFeatureBar(id, role, activeFeature));
+}
+
+function setPageVisible(id) {
+  ['appPage','recPage','ownerPage','camperPage'].forEach(pid => {
+    const el = document.getElementById(pid);
+    if (el) el.style.display = pid === id ? (pid === 'appPage' ? 'block' : 'flex') : 'none';
+  });
+}
+
+function applySidebarAccess(role) {
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userRole').textContent = role==='owner'?'Owner':role==='campaigner'?'Campaigner':role==='admin'?'অ্যাডমিন':'মডারেটর';
+  document.getElementById('userAvatar').textContent = currentUser.name[0];
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+    const page = el.getAttribute('data-page');
+    const adminOnly = el.classList.contains('admin-only');
+    if (role === 'admin') el.style.display = '';
+    else if (adminOnly && !['bank','loan','shareholders'].includes(page)) el.style.display = 'none';
+    else el.style.display = canAccess(role, page) ? '' : 'none';
+  });
+}
+
+function applyOwnerFeatureVisibility(activeFeature) {
+  const show = (id, visible) => { const el=document.getElementById(id); if(el) el.style.display = visible ? '' : 'none'; };
+  const cards = document.getElementById('ownerCards');
+  if (cards) cards.style.display = activeFeature === 'dashboard' ? 'grid' : 'none';
+  const monthly = document.getElementById('ownerMonthlySummary');
+  if (monthly && monthly.parentElement) monthly.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
+  const recent = document.getElementById('ownerRecentList');
+  if (recent && recent.parentElement) recent.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
+  show('ownerShareBlock', activeFeature === 'shareholders');
+}
+
+function openRoleFeature(feature) {
+  if (!currentUser) return;
+  const role = currentUser.role;
+  if (!canAccess(role, feature) && role !== 'admin') return;
+  if (role === 'owner' && ROLE_NATIVE_FEATURES.owner.includes(feature)) {
+    setPageVisible('ownerPage');
+    initOwnerPage();
+    applyOwnerFeatureVisibility(feature);
+    renderRoleFeatureBars(feature);
+    return;
+  }
+  if (role === 'campaigner' && feature === 'camp') {
+    setPageVisible('camperPage');
+    initCamperPage();
+    renderRoleFeatureBars(feature);
+    return;
+  }
+  setPageVisible('appPage');
+  applySidebarAccess(role);
+  renderRoleFeatureBars(feature);
+  const appBar = document.getElementById('appRoleFeatureBar');
+  if (appBar) appBar.style.display = (role === 'owner' || role === 'campaigner') ? 'flex' : 'none';
+  showPage(feature);
+}
 
 function toggleAddUserForm() {
   const f = document.getElementById('addUserForm');
@@ -7041,76 +7139,81 @@ function viewStaffProfile(id) {
   const p = s.profile||{};
   const hospName = appData.settings.hospName||'ICON Eye Hospital';
 
-  openPrintWindow(`
-    <html><head><meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-      body{font-family:'Hind Siliguri',Arial,sans-serif;margin:0;padding:24px;color:#1a2a3a}
-      h2{color:#0f4c81;margin:0 0 4px}
-      table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
-      td{padding:7px 10px;border-bottom:1px solid #e5e7eb}
-      td:first-child{color:#666;width:40%;font-weight:600}
-      .section{background:#f8fafc;border-radius:8px;padding:12px 16px;margin-bottom:14px}
-      .header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #0f4c81;padding-bottom:12px;margin-bottom:16px}
-      @media print{@page{margin:12mm}}
-    </style></head><body>
-    <div class="header">
-      <div>
-        <h2>${hospName}</h2>
-        <div style="font-size:12px;color:#666">কর্মী প্রোফাইল</div>
-      </div>
-      <img src="${LOGO_B64}" style="height:50px;object-fit:contain" />
-    </div>
+  // পুরানো modal সরাও
+  const old = document.getElementById('staffProfileModal');
+  if (old) old.remove();
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div>
-        <div class="section">
-          <div style="font-weight:700;color:#0f4c81;margin-bottom:8px">📋 মূল তথ্য</div>
-          <table>
-            <tr><td>নাম</td><td><strong>${s.name}</strong></td></tr>
-            <tr><td>পদবি</td><td>${s.desig}</td></tr>
-            <tr><td>ফোন</td><td>${s.phone||'—'}</td></tr>
-            <tr><td>ইমেইল</td><td>${p.email||'—'}</td></tr>
-            <tr><td>যোগদান</td><td>${formatDate(s.join)}</td></tr>
-            <tr><td>স্ট্যাটাস</td><td><strong style="color:${s.status==='active'?'#2ecc71':'#e74c3c'}">${s.status==='active'?'কর্মরত':'অব্যাহতি'}</strong></td></tr>
-            <tr><td>বেসিক বেতন</td><td><strong>৳ ${fmt(s.basic)}</strong></td></tr>
-          </table>
+  const profileHTML = `
+    <div id="staffProfileContent" style="font-family:'Hind Siliguri',Arial,sans-serif;color:#1a2a3a">
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #0f4c81;padding-bottom:12px;margin-bottom:16px">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#0f4c81">${hospName}</div>
+          <div style="font-size:12px;color:#666">কর্মী প্রোফাইল</div>
         </div>
-        <div class="section">
-          <div style="font-weight:700;color:#0f4c81;margin-bottom:8px">👤 ব্যক্তিগত তথ্য</div>
-          <table>
-            <tr><td>জন্ম তারিখ</td><td>${formatDate(p.dob)||'—'}</td></tr>
-            <tr><td>NID নং</td><td>${p.nid||'—'}</td></tr>
-            <tr><td>জরুরি যোগাযোগ</td><td>${p.emergency||'—'}</td></tr>
-          </table>
+        ${LOGO_B64?`<img src="${LOGO_B64}" style="height:44px;object-fit:contain">`:''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:13px">📋 মূল তথ্য</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <tr><td style="padding:5px;color:#666;width:45%;font-weight:600">নাম</td><td style="padding:5px"><strong>${s.name}</strong></td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">পদবি</td><td style="padding:5px">${s.desig||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">ফোন</td><td style="padding:5px">${s.phone||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">যোগদান</td><td style="padding:5px">${formatDate(s.join)}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">স্ট্যাটাস</td><td style="padding:5px"><strong style="color:${s.status==='active'?'#2ecc71':'#e74c3c'}">${s.status==='active'?'কর্মরত':'অব্যাহতি'}</strong></td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">বেসিক বেতন</td><td style="padding:5px"><strong>৳ ${fmt(s.basic)}</strong></td></tr>
+            </table>
+          </div>
+          <div style="background:#f8fafc;border-radius:8px;padding:12px">
+            <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:13px">👤 ব্যক্তিগত তথ্য</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <tr><td style="padding:5px;color:#666;font-weight:600">জন্ম তারিখ</td><td style="padding:5px">${p.dob?formatDate(p.dob):'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">NID নং</td><td style="padding:5px">${p.nid||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">জরুরি যোগাযোগ</td><td style="padding:5px">${p.emergency||'—'}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:13px">📍 ঠিকানা</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <tr><td style="padding:5px;color:#666;font-weight:600">স্থায়ী</td><td style="padding:5px">${p.address||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">বর্তমান</td><td style="padding:5px">${p.addressCurrent||'—'}</td></tr>
+            </table>
+          </div>
+          <div style="background:#f8fafc;border-radius:8px;padding:12px">
+            <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:13px">🎓 শিক্ষাগত তথ্য</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <tr><td style="padding:5px;color:#666;font-weight:600">যোগ্যতা</td><td style="padding:5px">${p.edu||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">প্রতিষ্ঠান</td><td style="padding:5px">${p.eduInst||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">পাশের সাল</td><td style="padding:5px">${p.eduYear||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">দক্ষতা</td><td style="padding:5px">${p.skills||'—'}</td></tr>
+            </table>
+          </div>
         </div>
       </div>
-      <div>
-        <div class="section">
-          <div style="font-weight:700;color:#0f4c81;margin-bottom:8px">📍 ঠিকানা</div>
-          <table>
-            <tr><td>স্থায়ী ঠিকানা</td><td>${p.address||'—'}</td></tr>
-            <tr><td>বর্তমান ঠিকানা</td><td>${p.addressCurrent||'—'}</td></tr>
-          </table>
-        </div>
-        <div class="section">
-          <div style="font-weight:700;color:#0f4c81;margin-bottom:8px">🎓 একাডেমিক তথ্য</div>
-          <table>
-            <tr><td>শিক্ষাগত যোগ্যতা</td><td>${p.edu||'—'}</td></tr>
-            <tr><td>প্রতিষ্ঠান</td><td>${p.eduInst||'—'}</td></tr>
-            <tr><td>পাশের সাল</td><td>${p.eduYear||'—'}</td></tr>
-            <tr><td>দক্ষতা / সার্টিফিকেট</td><td>${p.skills||'—'}</td></tr>
-          </table>
-        </div>
-      </div>
-    </div>
+    </div>`;
 
-    <div style="margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between">
-      <button data-sid="${id}" onclick="printRelievingLetter(parseInt(this.getAttribute('data-sid')))" style="padding:8px 16px;background:#0f4c81;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">📄 Relieving Letter</button>
-      <button data-sid="${id}" onclick="printExperienceCert(parseInt(this.getAttribute('data-sid')))" style="padding:8px 16px;background:#2ecc71;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">📄 Experience Certificate</button>
-      <button onclick="openPrintWindow(document.getElementById('staffProfileContent').innerHTML,'Staff Profile')" style="padding:8px 16px;background:#f39c12;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">🖨️ প্রোফাইল প্রিন্ট</button>
-      <button onclick="document.getElementById('staffProfileModal').style.display='none'" style="padding:8px 16px;background:#e74c3c;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px">✕ বন্ধ করুন</button>
-    </div>`, `কর্মী প্রোফাইল — ${s.name||''}`);
+  const modal = document.createElement('div');
+  modal.id = 'staffProfileModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:680px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden">
+      <div style="background:#0f4c81;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+        <div style="color:white;font-weight:700;font-size:15px">👤 ${s.name} — কর্মী প্রোফাইল</div>
+        <button onclick="document.getElementById('staffProfileModal').remove()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">✕ বন্ধ</button>
+      </div>
+      <div style="padding:20px">${profileHTML}</div>
+      <div style="padding:14px 20px;border-top:1px solid #e5e7eb;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;background:#f8fafc">
+        <button onclick="openPrintWindow(document.getElementById('staffProfileContent').outerHTML,'কর্মী প্রোফাইল — ${s.name}')" style="background:#f39c12;color:white;border:none;border-radius:6px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer">🖨️ প্রোফাইল প্রিন্ট</button>
+        <button onclick="printRelievingLetter(${id})" style="background:#0f4c81;color:white;border:none;border-radius:6px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer">📄 Relieving Letter</button>
+        <button onclick="printExperienceCert(${id})" style="background:#2ecc71;color:white;border:none;border-radius:6px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer">📄 Experience Cert</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 function printRelievingLetter(id) {
