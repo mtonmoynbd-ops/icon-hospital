@@ -1002,6 +1002,57 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
+      <!-- এটেন্ডেন্স ট্র্যাকার -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🕐 এটেন্ডেন্স ট্র্যাকার</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="date" id="attendDate" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="renderAttendancePanel()">
+            <button class="btn btn-outline btn-sm" onclick="renderAttendancePanel()">🔄 রিফ্রেশ</button>
+            <button class="btn btn-primary btn-sm" onclick="printAttendanceSheet()">🖨️ এটেন্ডেন্স শিট</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="attendancePanel"></div>
+        </div>
+      </div>
+
+      <!-- মঞ্জুরকৃত ছুটি -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">🗓️ ছুটি মঞ্জুর</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleLeaveForm()">➕ ছুটি দিন</button>
+        </div>
+        <div class="panel-body" id="leaveFormBody" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>কর্মী *</label>
+              <select id="lfStaff" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+                <option value="">-- কর্মী বেছে নিন --</option>
+              </select>
+            </div>
+            <div class="field"><label>ছুটির তারিখ *</label><input type="date" id="lfDate"></div>
+            <div class="field"><label>ছুটির ধরন *</label>
+              <select id="lfType" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+                <option value="casual">নৈমিত্তিক ছুটি (CL)</option>
+                <option value="sick">অসুস্থতাজনিত ছুটি (SL)</option>
+                <option value="annual">বার্ষিক ছুটি (AL)</option>
+                <option value="unpaid">বিনা বেতনে ছুটি</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>কারণ / নোট</label><input type="text" id="lfNote" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="toggleLeaveForm()">বাতিল</button>
+            <button class="btn btn-success" onclick="saveLeave()">✅ ছুটি মঞ্জুর করুন</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0">
+          <div id="leaveListPanel"></div>
+        </div>
+      </div>
+
       <!-- সার্জন / অপারেশন ডাক্তার -->
       <div class="panel admin-only">
         <div class="panel-header">
@@ -2369,6 +2420,7 @@ function openPrintWindow(htmlContent, title) {
         <div class="rec-user-name" id="recUserName">রিসেপশনিস্ট</div>
         <div class="rec-user-role">Receptionist</div>
       </div>
+      <button class="btn" style="background:rgba(255,255,255,0.15);color:white;border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px" onclick="showAttendanceModal()">🕐 IN/OUT</button>
       <button class="btn" style="background:rgba(255,255,255,0.15);color:white;border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px" onclick="showRecCashSubmitModal()">💵 ক্যাশ জমা</button>
       <button class="btn-logout" style="width:auto;padding:8px 16px" onclick="doLogout()">🚪 লগআউট</button>
     </div>
@@ -2606,7 +2658,7 @@ function canAccess(role, feature) {
 }
 
 let currentUser = null;
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -3048,7 +3100,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -3123,7 +3175,7 @@ function showPage(name) {
   if (name === 'expense') { renderExpenseTable(); clearExpenseForm(); }
   if (name === 'dashboard') refreshDashboard();
   if (name === 'report') { initReportFilters(); renderReport(); }
-  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); }
+  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); }
   if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); }
   if (name === 'demand')       { initDemandForm(); renderDemandList(); }
@@ -3429,7 +3481,7 @@ function confirmDuePayment() {
 // ===== SETTINGS =====
 function clearAllData() {
   if (!confirm('সত্যিই সব ডেটা মুছে ফেলবেন?')) return;
-  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], settings:appData.settings, passwords:appData.passwords||{} };
+  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], settings:appData.settings, passwords:appData.passwords||{} };
   saveData(); refreshDashboard(); showToast('🗑️ সব ডেটা মুছে ফেলা হয়েছে');
 }
 
@@ -4775,6 +4827,292 @@ function confirmCashSubmit(role) {
   updateBankBalances();
   document.getElementById('cashSubmitModalWrap').remove();
   showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
+}
+
+
+// ===== ATTENDANCE MODULE =====
+
+function initAttendancePage() {
+  const el = document.getElementById('attendDate');
+  if (el && !el.value) el.value = todayStr();
+  renderAttendancePanel();
+  renderLeaveList();
+  // Leave form staff dropdown আপডেট করো
+  const sel = document.getElementById('lfStaff');
+  if (sel) {
+    sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
+    (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
+      sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
+    });
+  }
+}
+
+function renderAttendancePanel() {
+  const date = document.getElementById('attendDate')?.value || todayStr();
+  const panel = document.getElementById('attendancePanel');
+  if (!panel) return;
+  const staff = (appData.staff||[]).filter(s=>s.status==='active');
+  if (!staff.length) { panel.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'; return; }
+
+  panel.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${staff.map(s => {
+        const recs = getAttendanceForDate(s.id, date);
+        const lastIn  = recs.filter(r=>r.type==='in').sort((a,b)=>b.ts-a.ts)[0];
+        const lastOut = recs.filter(r=>r.type==='out').sort((a,b)=>b.ts-a.ts)[0];
+        const isIn = lastIn && (!lastOut || lastIn.ts > lastOut.ts);
+        const totalMins = calcDayMinutes(s.id, date);
+        const hrs = Math.floor(totalMins/60), mins = totalMins%60;
+        const leave = getLeaveForDate(s.id, date);
+        const leaveTypes = {casual:'নৈমিত্তিক (CL)',sick:'অসুস্থতাজনিত (SL)',annual:'বার্ষিক (AL)',unpaid:'বিনা বেতনে'};
+        return `
+        <div style="display:flex;align-items:center;gap:10px;background:${leave?'#fff7ed':isIn?'#f0fff4':'#f8fafc'};border:1.5px solid ${leave?'#fb923c':isIn?'#86efac':'#e2e8f0'};border-radius:10px;padding:10px 12px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:14px;color:var(--primary)">${s.name}</div>
+            <div style="font-size:11px;color:#888">${s.desig||''}</div>
+            ${leave?`<div style="font-size:11px;color:#ea580c;font-weight:600">🗓️ ${leaveTypes[leave.type]||'ছুটি'}</div>`:
+              totalMins>0?`<div style="font-size:11px;color:#16a34a">⏱️ আজ ${hrs}ঘ ${mins}মি</div>`:''}
+            ${lastIn?`<div style="font-size:10px;color:#888">ইন: ${formatTime(lastIn.ts)}${lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):' | এখনো কর্মরত'}</div>`:''}
+          </div>
+          ${leave ? `<div style="font-size:11px;color:#ea580c;background:#fff;border:1px solid #fb923c;border-radius:6px;padding:4px 10px">ছুটিতে</div>` :
+          `<button onclick="markAttendance('${s.id}','in','${date}')" style="background:${isIn?'#dcfce7':'white'};color:${isIn?'#16a34a':'#666'};border:1.5px solid ${isIn?'#86efac':'#d1d5db'};border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>
+           <button onclick="markAttendance('${s.id}','out','${date}')" style="background:${!isIn&&lastOut?'#fee2e2':'white'};color:${!isIn&&lastOut?'#dc2626':'#666'};border:1.5px solid ${!isIn&&lastOut?'#fca5a5':'#d1d5db'};border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>`}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function markAttendance(staffId, type, date) {
+  if (!appData.attendance) appData.attendance = [];
+  const now = Date.now();
+  appData.attendance.push({
+    id: now,
+    staffId: parseInt(staffId)||staffId,
+    date: date,
+    type: type,  // 'in' or 'out'
+    ts: now,
+    time: new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'}),
+    by: currentUser?.name || 'সিস্টেম'
+  });
+  saveData();
+  renderAttendancePanel();
+  const staff = (appData.staff||[]).find(s=>String(s.id)===String(staffId));
+  showToast(`✅ ${staff?.name||'কর্মী'} — ${type==='in'?'ইন':'আউট'} রেকর্ড হয়েছে (${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})})`);
+}
+
+function getAttendanceForDate(staffId, date) {
+  return (appData.attendance||[]).filter(r=>String(r.staffId)===String(staffId) && r.date===date);
+}
+
+function getLeaveForDate(staffId, date) {
+  return (appData.leaveRecords||[]).find(l=>String(l.staffId)===String(staffId) && l.date===date);
+}
+
+function calcDayMinutes(staffId, date) {
+  const recs = getAttendanceForDate(staffId, date).sort((a,b)=>a.ts-b.ts);
+  let total = 0, lastIn = null;
+  recs.forEach(r=>{
+    if (r.type==='in') lastIn = r.ts;
+    else if (r.type==='out' && lastIn) { total += (r.ts - lastIn); lastIn = null; }
+  });
+  return Math.round(total/60000);
+}
+
+function calcWorkDays(staffId, month, year) {
+  const prefix = `${year}-${String(month).padStart(2,'0')}`;
+  const days = new Set(
+    (appData.attendance||[])
+      .filter(r=>String(r.staffId)===String(staffId) && r.date.startsWith(prefix) && r.type==='in')
+      .map(r=>r.date)
+  );
+  return days.size;
+}
+
+function calcWorkHours(staffId, month, year) {
+  const prefix = `${year}-${String(month).padStart(2,'0')}`;
+  const datesInMonth = [...new Set(
+    (appData.attendance||[])
+      .filter(r=>String(r.staffId)===String(staffId) && r.date.startsWith(prefix))
+      .map(r=>r.date)
+  )];
+  let totalMins = 0;
+  datesInMonth.forEach(d=>{ totalMins += calcDayMinutes(staffId, d); });
+  return (totalMins/60).toFixed(1);
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ===== LEAVE MODULE =====
+function toggleLeaveForm() {
+  const b = document.getElementById('leaveFormBody');
+  if (!b) return;
+  b.style.display = b.style.display==='none' ? 'block' : 'none';
+  if (b.style.display==='block') {
+    document.getElementById('lfDate').value = todayStr();
+    // staff dropdown refresh
+    const sel = document.getElementById('lfStaff');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
+      (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
+        sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
+      });
+    }
+  }
+}
+
+function saveLeave() {
+  const staffId = document.getElementById('lfStaff')?.value;
+  const date    = document.getElementById('lfDate')?.value;
+  const type    = document.getElementById('lfType')?.value;
+  const note    = document.getElementById('lfNote')?.value.trim()||'';
+  if (!staffId||!date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
+  // duplicate check
+  const exists = (appData.leaveRecords||[]).find(l=>String(l.staffId)===String(staffId)&&l.date===date);
+  if (exists) { showToast('⚠️ এই তারিখে ইতিমধ্যে ছুটি দেওয়া আছে!'); return; }
+  if (!appData.leaveRecords) appData.leaveRecords = [];
+  const staff = (appData.staff||[]).find(s=>String(s.id)===staffId);
+  appData.leaveRecords.push({ id:Date.now(), staffId:parseInt(staffId)||staffId, staffName:staff?.name||'—', date, type, note, by:currentUser?.name||'অ্যাডমিন' });
+  saveData();
+  toggleLeaveForm();
+  renderLeaveList();
+  renderAttendancePanel();
+  showToast(`✅ ${staff?.name||'কর্মী'} — ছুটি মঞ্জুর (${date})`);
+}
+
+function deleteLeave(id) {
+  if (!confirm('এই ছুটির রেকর্ড মুছে ফেলবেন?')) return;
+  appData.leaveRecords = (appData.leaveRecords||[]).filter(l=>l.id!==id);
+  saveData(); renderLeaveList(); renderAttendancePanel();
+  showToast('🗑️ ছুটি বাতিল করা হয়েছে');
+}
+
+function renderLeaveList() {
+  const panel = document.getElementById('leaveListPanel');
+  if (!panel) return;
+  const recs = (appData.leaveRecords||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'বিনা বেতনে'};
+  if (!recs.length) { panel.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa">কোনো ছুটির রেকর্ড নেই</div>'; return; }
+  panel.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>তারিখ</th><th>কর্মীর নাম</th><th>ছুটির ধরন</th><th>কারণ</th><th></th></tr></thead>
+    <tbody>${recs.map(l=>`<tr>
+      <td>${l.date}</td><td style="font-weight:600">${l.staffName||'—'}</td>
+      <td><span style="background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">${leaveTypes[l.type]||l.type}</span></td>
+      <td>${l.note||'—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteLeave(${l.id})">🗑️</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+// ===== ATTENDANCE MODAL (Rec / Campaigner access) =====
+function showAttendanceModal() {
+  const today = todayStr();
+  const staff = (appData.staff||[]).filter(s=>s.status==='active');
+  if (!staff.length) { showToast('⚠️ কোনো কর্মী নেই!'); return; }
+
+  const wrap = document.createElement('div');
+  wrap.id = 'attendModalWrap';
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
+
+  const buildRows = () => staff.map(s => {
+    const recs = getAttendanceForDate(s.id, today);
+    const lastIn  = recs.filter(r=>r.type==='in').sort((a,b)=>b.ts-a.ts)[0];
+    const lastOut = recs.filter(r=>r.type==='out').sort((a,b)=>b.ts-a.ts)[0];
+    const isIn = lastIn && (!lastOut || lastIn.ts > lastOut.ts);
+    const leave = getLeaveForDate(s.id, today);
+    const totalMins = calcDayMinutes(s.id, today);
+    const hrs = Math.floor(totalMins/60), mins = totalMins%60;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #f0f0f0;background:${leave?'#fff7ed':isIn?'#f0fff4':'white'};border-radius:8px;margin-bottom:4px">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${s.name}</div>
+        <div style="font-size:11px;color:#888">${s.desig||''}</div>
+        ${leave?'<div style="font-size:11px;color:#ea580c">🗓️ ছুটিতে</div>':
+          `<div style="font-size:11px;color:${isIn?'#16a34a':'#888'}">
+            ${lastIn?`ইন: ${formatTime(lastIn.ts)}${lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):''}`:
+              totalMins>0?`${hrs}ঘ ${mins}মি`:'আজ রেকর্ড নেই'}
+          </div>`}
+      </div>
+      ${leave?`<span style="font-size:11px;color:#ea580c;background:white;border:1px solid #fb923c;padding:4px 10px;border-radius:6px">ছুটি</span>`:
+      `<button onclick="markAttendance('${s.id}','in','${today}');rebuildAttendModal()" style="background:${isIn?'#dcfce7':'#f1f5f9'};color:${isIn?'#16a34a':'#555'};border:1.5px solid ${isIn?'#86efac':'#d1d5db'};border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">✅ IN</button>
+       <button onclick="markAttendance('${s.id}','out','${today}');rebuildAttendModal()" style="background:${!isIn&&lastOut?'#fee2e2':'#f1f5f9'};color:${!isIn&&lastOut?'#dc2626':'#555'};border:1.5px solid ${!isIn&&lastOut?'#fca5a5':'#d1d5db'};border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">🚪 OUT</button>`}
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = `<div style="background:white;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="margin:0;color:var(--primary);font-size:16px">🕐 এটেন্ডেন্স — ${today}</h3>
+      <button onclick="document.getElementById('attendModalWrap').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>
+    </div>
+    <div id="attendModalBody" style="overflow-y:auto;flex:1">${buildRows()}</div>
+  </div>`;
+
+  document.body.appendChild(wrap);
+  window._rebuildAttendModal = () => {
+    const body = document.getElementById('attendModalBody');
+    if (body) body.innerHTML = buildRows();
+  };
+}
+
+function rebuildAttendModal() {
+  if (window._rebuildAttendModal) window._rebuildAttendModal();
+}
+
+// ===== PRINT ATTENDANCE SHEET =====
+function printAttendanceSheet() {
+  const month = parseInt(document.getElementById('salMonth')?.value) || (new Date().getMonth()+1);
+  const year  = parseInt(document.getElementById('salYear')?.value)  || new Date().getFullYear();
+  const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const hospName = appData.settings.hospName||'ICON Eye Hospital';
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const staff = (appData.staff||[]).filter(s=>s.status==='active');
+  if (!staff.length) { showToast('⚠️ কোনো কর্মী নেই!'); return; }
+
+  const dayHeaders = Array.from({length:daysInMonth},(_,i)=>`<th style="min-width:26px;font-size:10px;text-align:center">${i+1}</th>`).join('');
+  const leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'UP'};
+
+  const rows = staff.map((s,idx) => {
+    const cells = Array.from({length:daysInMonth},(_,i)=>{
+      const d = `${year}-${String(month).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
+      const leave = getLeaveForDate(s.id, d);
+      if (leave) return `<td style="text-align:center;background:#fff7ed;font-size:9px;color:#ea580c;font-weight:700">${leaveTypes[leave.type]||'L'}</td>`;
+      const recs = getAttendanceForDate(s.id, d);
+      const hasIn = recs.some(r=>r.type==='in');
+      const mins = calcDayMinutes(s.id, d);
+      if (hasIn) return `<td style="text-align:center;background:#f0fff4;font-size:9px;font-weight:700;color:#16a34a">${mins>0?Math.round(mins/60)+'h':'✓'}</td>`;
+      return `<td style="text-align:center;color:#ddd;font-size:10px">—</td>`;
+    }).join('');
+    const workDays = calcWorkDays(s.id, month, year);
+    const workHrs  = calcWorkHours(s.id, month, year);
+    return `<tr style="background:${idx%2===0?'white':'#fafafa'}">
+      <td style="padding:5px 8px;font-weight:700;white-space:nowrap">${s.name}</td>
+      <td style="padding:5px 8px;font-size:11px;color:#666;white-space:nowrap">${s.desig||'—'}</td>
+      ${cells}
+      <td style="text-align:center;font-weight:700;color:#0f4c81;padding:5px 8px">${workDays}</td>
+      <td style="text-align:center;font-weight:700;color:#059669;padding:5px 8px">${workHrs}h</td>
+    </tr>`;
+  }).join('');
+
+  openPrintWindow(`
+    <div style="text-align:center;margin-bottom:12px">
+      <strong style="font-size:15px;color:#0f4c81">${hospName}</strong><br>
+      <span style="font-size:12px">এটেন্ডেন্স শিট — ${months[month-1]}, ${year}</span><br>
+      <span style="font-size:10px;color:#888">✓ = উপস্থিত | CL = নৈমিত্তিক | SL = অসুস্থতা | AL = বার্ষিক | UP = বিনা বেতনে</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr style="background:#0f4c81;color:white">
+          <th style="padding:6px 8px;text-align:left">নাম</th>
+          <th style="padding:6px 8px;text-align:left">পদবি</th>
+          ${dayHeaders}
+          <th style="padding:6px 8px;min-width:32px">দিন</th>
+          <th style="padding:6px 8px;min-width:36px">ঘন্টা</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table></div>`,
+    `এটেন্ডেন্স শিট — ${months[month-1]} ${year}`);
 }
 
 // ===== SHAREHOLDER MODULE =====
@@ -7690,9 +8028,10 @@ function printSalarySlips() {
           <img src="${LOGO_B64}" style="height:28px;object-fit:contain" />
         </div>
         <table style="width:100%;font-size:12px;border-collapse:collapse">
-          <tr><td style="padding:2px 0;color:#666">নাম</td><td style="font-weight:700">${s.name}</td><td style="color:#666">পদবি</td><td>${s.desig}</td></tr>
+          <tr><td style="padding:2px 0;color:#666">নাম</td><td style="font-weight:700">${s.name}</td><td style="color:#666">পদবি</td><td>${s.desig||'—'}</td></tr>
           <tr><td style="padding:2px 0;color:#666">বেসিক</td><td>৳ ${fmt(s.basic)}</td><td style="color:#666">বোনাস</td><td style="color:#2ecc71">৳ ${fmt(sal.bonus||0)}</td></tr>
           <tr><td style="padding:2px 0;color:#666">কাটা</td><td style="color:#e74c3c">৳ ${fmt(sal.cut||0)}</td><td style="color:#666;font-weight:700">নেট বেতন</td><td style="font-weight:800;color:#0f4c81;font-size:14px">৳ ${fmt(net)}</td></tr>
+          <tr><td style="padding:2px 0;color:#666">কর্মদিবস</td><td style="font-weight:600">${calcWorkDays(s.id,month,year)} দিন</td><td style="color:#666">কর্মঘন্টা</td><td style="font-weight:600">${calcWorkHours(s.id,month,year)} ঘন্টা</td></tr>
         </table>
         <div style="border-top:1px dashed #ccc;margin-top:10px;padding-top:8px;display:flex;justify-content:space-between;align-items:flex-end">
           <div style="font-size:10px;color:#888">গ্রহণের তারিখ: ___________</div>
@@ -7888,14 +8227,14 @@ function addServiceRow() {
     <input type="text" placeholder="সার্ভিস / পণ্যের নাম" id="sName-${id}" oninput="updateSummary()" list="stockSuggestions-${id}" />
     <datalist id="stockSuggestions-${id}"></datalist>
     <select id="sType-${id}" onchange="onServiceTypeChange(${id})">
-      <option value="service">OPD ভিজিট ফি</option>
+      <option value="opd">OPD ভিজিট ফি</option>
       <option value="surgical">অপারেশন / সার্জিক্যাল ফি</option>
       <option value="med">ওষুধ বিক্রি</option>
       <option value="glass">চশমা বিক্রি</option>
       <option value="test">টেস্ট / রিপোর্ট ফি</option>
-      <option value="service">ভর্তি ফি</option>
-      <option value="test">ল্যাব পরীক্ষা</option>
-      <option value="service">অন্যান্য</option>
+      <option value="lab">ল্যাব পরীক্ষা</option>
+      <option value="admit">ভর্তি ফি</option>
+      <option value="service">অন্যান্য সেবা</option>
     </select>
     <input type="number" placeholder="১" id="sQty-${id}" value="1" min="1" oninput="updateSummary()" />
     <input type="number" placeholder="০.০০" id="sPrice-${id}" min="0" oninput="updateSummary()" />
@@ -7914,9 +8253,22 @@ function addServiceRow() {
 
 function onServiceTypeChange(id) {
   const type = document.getElementById('sType-'+id)?.value;
-  // clear price when type changes
   document.getElementById('sPrice-'+id).value='';
   document.getElementById('sName-'+id).value='';
+  // স্টক-সংযুক্ত ধরন: med, glass → stock lookup; বাকিগুলো manual
+  const needsStock = (type==='med'||type==='glass');
+  const priceEl = document.getElementById('sPrice-'+id);
+  priceEl.readOnly = false;
+  priceEl.style.background = '#f8fafc';
+  // সার্ভিস ফি preset করো settings থেকে
+  if (type==='opd') {
+    const fee = (appData.settings.serviceFees||[]).find(f=>f.type==='opd');
+    if (fee) document.getElementById('sPrice-'+id).value = fee.amount||0;
+  }
+  if (type==='surgical') {
+    const fee = (appData.settings.serviceFees||[]).find(f=>f.type==='surgical');
+    if (fee) document.getElementById('sPrice-'+id).value = fee.amount||0;
+  }
   updateSummary();
 }
 
