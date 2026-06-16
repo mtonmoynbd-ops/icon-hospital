@@ -288,6 +288,7 @@ function openPrintWindow(htmlContent, title) {
 
       <div class="nav-item" data-page="stock"><span class="nav-icon">📦</span> স্টক ম্যানেজমেন্ট</div>
       <div class="nav-item" data-page="salary"><span class="nav-icon">👨‍⚕️</span> স্যালারি শিট</div>
+      <div class="nav-item" data-page="attendance"><span class="nav-icon">🕐</span> এটেন্ডেন্স শিট</div>
       <div class="nav-item" data-page="demand"><span class="nav-icon">📝</span> ডিমান্ড নোট <span class="nbadge" id="demandBadge" style="display:none">0</span></div>
       <div class="nav-item admin-only" data-page="adminbill"><span class="nav-icon">🧾</span> নতুন বিল (অ্যাডমিন)</div>
       <div class="nav-item" data-page="patients"><span class="nav-icon">🏥</span> রোগীর ডেটাবেস</div>
@@ -924,6 +925,54 @@ function openPrintWindow(htmlContent, title) {
     </div>
 
     <!-- SALARY -->
+    <div id="pg-attendance" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🕐 এটেন্ডেন্স ট্র্যাকার</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="date" id="attendDateMain" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="renderAttendanceMain()">
+            <button class="btn btn-outline btn-sm" onclick="renderAttendanceMain()">🔄 রিফ্রেশ</button>
+            <button class="btn btn-primary btn-sm" onclick="printAttendanceSheetMain()">🖨️ মাসিক শিট</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="attendancePanelMain"></div>
+        </div>
+      </div>
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">🗓️ ছুটি মঞ্জুর</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleLeaveFormMain()">➕ ছুটি দিন</button>
+        </div>
+        <div class="panel-body" id="leaveFormBodyMain" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>কর্মী *</label>
+              <select id="lfStaffMain" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+                <option value="">-- কর্মী বেছে নিন --</option>
+              </select>
+            </div>
+            <div class="field"><label>ছুটির তারিখ *</label><input type="date" id="lfDateMain"></div>
+            <div class="field"><label>ছুটির ধরন *</label>
+              <select id="lfTypeMain" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+                <option value="casual">নৈমিত্তিক ছুটি (CL)</option>
+                <option value="sick">অসুস্থতাজনিত ছুটি (SL)</option>
+                <option value="annual">বার্ষিক ছুটি (AL)</option>
+                <option value="unpaid">বিনা বেতনে ছুটি</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>কারণ / নোট</label><input type="text" id="lfNoteMain" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="toggleLeaveFormMain()">বাতিল</button>
+            <button class="btn btn-success" onclick="saveLeaveMain()">✅ ছুটি মঞ্জুর করুন</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0"><div id="leaveListPanelMain"></div></div>
+      </div>
+    </div>
+
     <div id="pg-salary" class="page-view">
       <div class="panel admin-only" id="staffFormPanel">
         <div class="panel-header">
@@ -1783,6 +1832,9 @@ function openPrintWindow(htmlContent, title) {
           <input type="checkbox" data-role="moderator" data-feature="salary" checked="" style="width:14px;height:14px">
           স্যালারি শিট
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="moderator" data-feature="attendance" checked="" style="width:14px;height:14px">
+          এটেন্ডেন্স শিট
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="moderator" data-feature="demand" checked="" style="width:14px;height:14px">
           ডিমান্ড নোট
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
@@ -1826,6 +1878,9 @@ function openPrintWindow(htmlContent, title) {
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="owner" data-feature="salary" style="width:14px;height:14px">
           স্যালারি শিট
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="owner" data-feature="attendance" style="width:14px;height:14px">
+          এটেন্ডেন্স শিট
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="owner" data-feature="demand" style="width:14px;height:14px">
           ডিমান্ড নোট
@@ -2451,15 +2506,21 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>মেমো নং</label><input type="text" id="rMemoNo" placeholder="অটো"></div>
           </div>
           <hr class="divider">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <p style="font-weight:700;font-size:14px;color:var(--primary)">💊 সার্ভিস / পণ্য</p>
-            <button class="btn btn-primary btn-sm" onclick="addServiceRow()">+ যোগ করুন</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+            <p style="font-weight:700;font-size:14px;color:var(--primary);margin:0">💊 পণ্য ও সার্ভিস</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="addRow('med','')">💊 মেডিসিন</button>
+              <button class="btn btn-primary btn-sm" onclick="addRow('glass','')">👓 চশমা</button>
+              <button class="btn btn-primary btn-sm" onclick="addRow('surgical','')">🩺 সার্জিক্যাল</button>
+              <button class="btn btn-outline btn-sm" onclick="addRow('service','')">🔬 টেস্ট/অপারেশন</button>
+              <button class="btn btn-outline btn-sm" onclick="addRow('manual','')">✏️ ম্যানুয়াল</button>
+            </div>
           </div>
-          <div style="display:grid;grid-template-columns:2fr 1.5fr 0.7fr 1fr auto;gap:10px;margin-bottom:6px">
-            <span style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase">সার্ভিস/পণ্য</span>
-            <span style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase">ধরন</span>
-            <span style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase">পরিমাণ</span>
-            <span style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase">মূল্য (৳)</span>
+          <div style="display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:4px;padding:0 4px">
+            <span style="font-size:11px;font-weight:700;color:var(--text-light)">পণ্য / সার্ভিস</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text-light)">পরিমাণ</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text-light)">একক মূল্য</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text-light)">সাবটোটাল</span>
             <span></span>
           </div>
           <div id="serviceRows"></div>
@@ -2645,7 +2706,7 @@ function rebuildUsers() {
 
 // Feature access defaults per role
 const DEFAULT_FEATURE_ACCESS = {
-  moderator:   ['dashboard','income','expense','camp','due','stock','salary','demand','report'],
+  moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report'],
   receptionist:['billing'],
   owner:       ['dashboard','report','shareholders'],
   campaigner:  ['camp'],
@@ -3152,6 +3213,7 @@ const pageMap = {
   loan:         { title:'💳 লোন ট্র্যাকিং', sub:'লোন গ্রহণ ও পরিশোধের রেকর্ড' },
   shareholders: { title:'👥 শেয়ারহোল্ডার', sub:'মালিকানা ও লাভ বন্টন' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
+  attendance:{ title:'🕐 এটেন্ডেন্স শিট', sub:'কর্মীদের উপস্থিতি ব্যবস্থাপনা' },
   stock:    { title:'📦 স্টক ম্যানেজমেন্ট', sub:'ওষুধ ও চশমার স্টক' },
   demand:   { title:'📝 ডিমান্ড নোট', sub:'স্টক চাহিদার তালিকা' },
   report:   { title:'📊 মাসিক রিপোর্ট', sub:'আয়-ব্যয়ের মাসিক সারসংক্ষেপ' },
@@ -3176,6 +3238,7 @@ function showPage(name) {
   if (name === 'dashboard') refreshDashboard();
   if (name === 'report') { initReportFilters(); renderReport(); }
   if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); }
+  if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); }
   if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); }
   if (name === 'demand')       { initDemandForm(); renderDemandList(); }
@@ -4830,6 +4893,32 @@ function confirmCashSubmit(role) {
 }
 
 
+function _buildAttendRow(s, date, extraBtns) {
+  var recs=getAttendanceForDate(s.id,date);
+  var lastIn=recs.filter(function(r){return r.type==='in';}).sort(function(a,b){return b.ts-a.ts;})[0];
+  var lastOut=recs.filter(function(r){return r.type==='out';}).sort(function(a,b){return b.ts-a.ts;})[0];
+  var isIn=lastIn&&(!lastOut||lastIn.ts>lastOut.ts);
+  var totalMins=calcDayMinutes(s.id,date);
+  var hrs=Math.floor(totalMins/60),mins=totalMins%60;
+  var leave=getLeaveForDate(s.id,date);
+  var leaveTypes={casual:'নৈমিত্তিক (CL)',sick:'অসুস্থতাজনিত (SL)',annual:'বার্ষিক (AL)',unpaid:'বিনা বেতনে'};
+  var bg=leave?'#fff7ed':isIn?'#f0fff4':'#f8fafc';
+  var border=leave?'#fb923c':isIn?'#86efac':'#e2e8f0';
+  var timeInfo='';
+  if(leave) timeInfo='<div style="font-size:11px;color:#ea580c;font-weight:600">🗓️ '+(leaveTypes[leave.type]||'ছুটি')+'</div>';
+  else if(lastIn) timeInfo='<div style="font-size:10px;color:#888">ইন: '+formatTime(lastIn.ts)+(lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):' | এখনো কর্মরত')+'</div>';
+  var hoursInfo=(!leave&&totalMins>0)?'<div style="font-size:11px;color:#16a34a">⏱️ '+hrs+'ঘ '+mins+'মি</div>':'';
+  var rightSide='';
+  if(leave) rightSide='<div style="font-size:11px;color:#ea580c;background:#fff;border:1px solid #fb923c;border-radius:6px;padding:4px 10px">ছুটিতে</div>';
+  else if(extraBtns) rightSide=extraBtns(s,isIn,lastOut,date);
+  return '<div style="display:flex;align-items:center;gap:10px;background:'+bg+';border:1.5px solid '+border+';border-radius:10px;padding:10px 12px">'
+    +'<div style="flex:1;min-width:0">'
+    +'<div style="font-weight:700;font-size:14px;color:var(--primary)">'+s.name+'</div>'
+    +'<div style="font-size:11px;color:#888">'+(s.desig||'')+'</div>'
+    +timeInfo+hoursInfo+'</div>'
+    +rightSide+'</div>';
+}
+
 // ===== ATTENDANCE MODULE =====
 
 function initAttendancePage() {
@@ -4848,40 +4937,19 @@ function initAttendancePage() {
 }
 
 function renderAttendancePanel() {
-  const date = document.getElementById('attendDate')?.value || todayStr();
-  const panel = document.getElementById('attendancePanel');
+  var date = document.getElementById('attendDate')&&document.getElementById('attendDate').value || todayStr();
+  var panel = document.getElementById('attendancePanel');
   if (!panel) return;
-  const staff = (appData.staff||[]).filter(s=>s.status==='active');
+  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
   if (!staff.length) { panel.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'; return; }
-
-  panel.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${staff.map(s => {
-        const recs = getAttendanceForDate(s.id, date);
-        const lastIn  = recs.filter(r=>r.type==='in').sort((a,b)=>b.ts-a.ts)[0];
-        const lastOut = recs.filter(r=>r.type==='out').sort((a,b)=>b.ts-a.ts)[0];
-        const isIn = lastIn && (!lastOut || lastIn.ts > lastOut.ts);
-        const totalMins = calcDayMinutes(s.id, date);
-        const hrs = Math.floor(totalMins/60), mins = totalMins%60;
-        const leave = getLeaveForDate(s.id, date);
-        const leaveTypes = {casual:'নৈমিত্তিক (CL)',sick:'অসুস্থতাজনিত (SL)',annual:'বার্ষিক (AL)',unpaid:'বিনা বেতনে'};
-        return `
-        <div style="display:flex;align-items:center;gap:10px;background:${leave?'#fff7ed':isIn?'#f0fff4':'#f8fafc'};border:1.5px solid ${leave?'#fb923c':isIn?'#86efac':'#e2e8f0'};border-radius:10px;padding:10px 12px">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:14px;color:var(--primary)">${s.name}</div>
-            <div style="font-size:11px;color:#888">${s.desig||''}</div>
-            ${leave?`<div style="font-size:11px;color:#ea580c;font-weight:600">🗓️ ${leaveTypes[leave.type]||'ছুটি'}</div>`:
-              totalMins>0?`<div style="font-size:11px;color:#16a34a">⏱️ আজ ${hrs}ঘ ${mins}মি</div>`:''}
-            ${lastIn?`<div style="font-size:10px;color:#888">ইন: ${formatTime(lastIn.ts)}${lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):' | এখনো কর্মরত'}</div>`:''}
-          </div>
-          ${leave ? `<div style="font-size:11px;color:#ea580c;background:#fff;border:1px solid #fb923c;border-radius:6px;padding:4px 10px">ছুটিতে</div>` :
-          `<button onclick="markAttendance('${s.id}','in','${date}')" style="background:${isIn?'#dcfce7':'white'};color:${isIn?'#16a34a':'#666'};border:1.5px solid ${isIn?'#86efac':'#d1d5db'};border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>
-           <button onclick="markAttendance('${s.id}','out','${date}')" style="background:${!isIn&&lastOut?'#fee2e2':'white'};color:${!isIn&&lastOut?'#dc2626':'#666'};border:1.5px solid ${!isIn&&lastOut?'#fca5a5':'#d1d5db'};border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>`}
-        </div>`;
-      }).join('')}
-    </div>`;
+  function btns(s,isIn,lastOut,date) {
+    var inBg=isIn?'#dcfce7':'white', inColor=isIn?'#16a34a':'#666', inBorder=isIn?'#86efac':'#d1d5db';
+    var outBg=(!isIn&&lastOut)?'#fee2e2':'white', outColor=(!isIn&&lastOut)?'#dc2626':'#666', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
+    return '<button onclick="markAttendance(''+s.id+'','in',''+date+'');renderAttendancePanel()" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(''+s.id+'','out',''+date+'');renderAttendancePanel()" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+  }
+  panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
 }
-
 function markAttendance(staffId, type, date) {
   if (!appData.attendance) appData.attendance = [];
   const now = Date.now();
@@ -5007,53 +5075,36 @@ function renderLeaveList() {
 
 // ===== ATTENDANCE MODAL (Rec / Campaigner access) =====
 function showAttendanceModal() {
-  const today = todayStr();
-  const staff = (appData.staff||[]).filter(s=>s.status==='active');
+  var today = todayStr();
+  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
   if (!staff.length) { showToast('⚠️ কোনো কর্মী নেই!'); return; }
-
-  const wrap = document.createElement('div');
+  var existing = document.getElementById('attendModalWrap');
+  if (existing) existing.remove();
+  var wrap = document.createElement('div');
   wrap.id = 'attendModalWrap';
   wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
-
-  const buildRows = () => staff.map(s => {
-    const recs = getAttendanceForDate(s.id, today);
-    const lastIn  = recs.filter(r=>r.type==='in').sort((a,b)=>b.ts-a.ts)[0];
-    const lastOut = recs.filter(r=>r.type==='out').sort((a,b)=>b.ts-a.ts)[0];
-    const isIn = lastIn && (!lastOut || lastIn.ts > lastOut.ts);
-    const leave = getLeaveForDate(s.id, today);
-    const totalMins = calcDayMinutes(s.id, today);
-    const hrs = Math.floor(totalMins/60), mins = totalMins%60;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #f0f0f0;background:${leave?'#fff7ed':isIn?'#f0fff4':'white'};border-radius:8px;margin-bottom:4px">
-      <div style="flex:1">
-        <div style="font-weight:700;font-size:14px">${s.name}</div>
-        <div style="font-size:11px;color:#888">${s.desig||''}</div>
-        ${leave?'<div style="font-size:11px;color:#ea580c">🗓️ ছুটিতে</div>':
-          `<div style="font-size:11px;color:${isIn?'#16a34a':'#888'}">
-            ${lastIn?`ইন: ${formatTime(lastIn.ts)}${lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):''}`:
-              totalMins>0?`${hrs}ঘ ${mins}মি`:'আজ রেকর্ড নেই'}
-          </div>`}
-      </div>
-      ${leave?`<span style="font-size:11px;color:#ea580c;background:white;border:1px solid #fb923c;padding:4px 10px;border-radius:6px">ছুটি</span>`:
-      `<button onclick="markAttendance('${s.id}','in','${today}');rebuildAttendModal()" style="background:${isIn?'#dcfce7':'#f1f5f9'};color:${isIn?'#16a34a':'#555'};border:1.5px solid ${isIn?'#86efac':'#d1d5db'};border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">✅ IN</button>
-       <button onclick="markAttendance('${s.id}','out','${today}');rebuildAttendModal()" style="background:${!isIn&&lastOut?'#fee2e2':'#f1f5f9'};color:${!isIn&&lastOut?'#dc2626':'#555'};border:1.5px solid ${!isIn&&lastOut?'#fca5a5':'#d1d5db'};border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">🚪 OUT</button>`}
-    </div>`;
-  }).join('');
-
-  wrap.innerHTML = `<div style="background:white;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h3 style="margin:0;color:var(--primary);font-size:16px">🕐 এটেন্ডেন্স — ${today}</h3>
-      <button onclick="document.getElementById('attendModalWrap').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>
-    </div>
-    <div id="attendModalBody" style="overflow-y:auto;flex:1">${buildRows()}</div>
-  </div>`;
-
+  function btns(s,isIn,lastOut,date) {
+    var inBg=isIn?'#dcfce7':'#f1f5f9', inColor=isIn?'#16a34a':'#555', inBorder=isIn?'#86efac':'#d1d5db';
+    var outBg=(!isIn&&lastOut)?'#fee2e2':'#f1f5f9', outColor=(!isIn&&lastOut)?'#dc2626':'#555', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
+    return '<button onclick="markAttendance(''+s.id+'','in',''+today+'');rebuildAttendModal()" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(''+s.id+'','out',''+today+'');rebuildAttendModal()" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+  }
+  function buildRows() {
+    return '<div style="display:flex;flex-direction:column;gap:6px">'+staff.map(function(s){return _buildAttendRow(s,today,btns);}).join('')+'</div>';
+  }
+  wrap.innerHTML = '<div style="background:white;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<h3 style="margin:0;color:var(--primary);font-size:16px">🕐 এটেন্ডেন্স — '+today+'</h3>'
+    +'<button onclick="document.getElementById('attendModalWrap').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>'
+    +'</div>'
+    +'<div id="attendModalBody" style="overflow-y:auto;flex:1">'+buildRows()+'</div>'
+    +'</div>';
   document.body.appendChild(wrap);
-  window._rebuildAttendModal = () => {
-    const body = document.getElementById('attendModalBody');
+  window._rebuildAttendModal = function() {
+    var body = document.getElementById('attendModalBody');
     if (body) body.innerHTML = buildRows();
   };
 }
-
 function rebuildAttendModal() {
   if (window._rebuildAttendModal) window._rebuildAttendModal();
 }
@@ -5113,6 +5164,89 @@ function printAttendanceSheet() {
       <tbody>${rows}</tbody>
     </table></div>`,
     `এটেন্ডেন্স শিট — ${months[month-1]} ${year}`);
+}
+
+
+function initAttendanceStandalonePage() {
+  const el = document.getElementById('attendDateMain');
+  if (el && !el.value) el.value = todayStr();
+  renderAttendanceMain();
+  renderLeaveListMain();
+  const sel = document.getElementById('lfStaffMain');
+  if (sel) {
+    sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
+    (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
+      sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
+    });
+  }
+}
+
+function renderAttendanceMain() {
+  var date = document.getElementById('attendDateMain')&&document.getElementById('attendDateMain').value || todayStr();
+  var panel = document.getElementById('attendancePanelMain');
+  if (!panel) return;
+  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
+  if (!staff.length) { panel.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'; return; }
+  function btns(s,isIn,lastOut,date) {
+    var inBg=isIn?'#dcfce7':'white', inColor=isIn?'#16a34a':'#666', inBorder=isIn?'#86efac':'#d1d5db';
+    var outBg=(!isIn&&lastOut)?'#fee2e2':'white', outColor=(!isIn&&lastOut)?'#dc2626':'#666', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
+    return '<button onclick="markAttendance(''+s.id+'','in',''+date+'');renderAttendanceMain()" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(''+s.id+'','out',''+date+'');renderAttendanceMain()" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+  }
+  panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
+}
+function toggleLeaveFormMain() {
+  const b = document.getElementById('leaveFormBodyMain');
+  if (!b) return;
+  b.style.display = b.style.display==='none' ? 'block' : 'none';
+  if (b.style.display==='block') {
+    document.getElementById('lfDateMain').value = todayStr();
+    const sel = document.getElementById('lfStaffMain');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
+      (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
+        sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
+      });
+    }
+  }
+}
+
+function saveLeaveMain() {
+  const staffId = document.getElementById('lfStaffMain')?.value;
+  const date    = document.getElementById('lfDateMain')?.value;
+  const type    = document.getElementById('lfTypeMain')?.value;
+  const note    = document.getElementById('lfNoteMain')?.value.trim()||'';
+  if (!staffId||!date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
+  const exists = (appData.leaveRecords||[]).find(l=>String(l.staffId)===String(staffId)&&l.date===date);
+  if (exists) { showToast('⚠️ এই তারিখে ইতিমধ্যে ছুটি দেওয়া আছে!'); return; }
+  if (!appData.leaveRecords) appData.leaveRecords = [];
+  const staff = (appData.staff||[]).find(s=>String(s.id)===staffId);
+  appData.leaveRecords.push({ id:Date.now(), staffId:parseInt(staffId)||staffId, staffName:staff?.name||'—', date, type, note, by:currentUser?.name||'অ্যাডমিন' });
+  saveData(); toggleLeaveFormMain(); renderLeaveListMain(); renderAttendanceMain();
+  showToast(`✅ ${staff?.name||'কর্মী'} — ছুটি মঞ্জুর (${date})`);
+}
+
+function renderLeaveListMain() {
+  const panel = document.getElementById('leaveListPanelMain');
+  if (!panel) return;
+  const recs = (appData.leaveRecords||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'বিনা বেতনে'};
+  if (!recs.length) { panel.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa">কোনো ছুটির রেকর্ড নেই</div>'; return; }
+  panel.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>তারিখ</th><th>কর্মীর নাম</th><th>ছুটির ধরন</th><th>কারণ</th><th></th></tr></thead>
+    <tbody>${recs.map(l=>`<tr>
+      <td>${l.date}</td><td style="font-weight:600">${l.staffName||'—'}</td>
+      <td><span style="background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">${leaveTypes[l.type]||l.type}</span></td>
+      <td>${l.note||'—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteLeave(${l.id});renderLeaveListMain()">🗑️</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function printAttendanceSheetMain() {
+  const month = parseInt(document.getElementById('salMonth')?.value) || (new Date().getMonth()+1);
+  const year  = parseInt(document.getElementById('salYear')?.value)  || new Date().getFullYear();
+  printAttendanceSheet();
 }
 
 // ===== SHAREHOLDER MODULE =====
@@ -5254,6 +5388,7 @@ const ALL_FEATURES = [
   { id:'due',       label:'বাকি তালিকা' },
   { id:'stock',     label:'স্টক ম্যানেজমেন্ট' },
   { id:'salary',    label:'স্যালারি শিট' },
+  { id:'attendance', label:'এটেন্ডেন্স শিট' },
   { id:'demand',    label:'ডিমান্ড নোট' },
   { id:'report',    label:'মাসিক রিপোর্ট' },
   { id:'vendor',    label:'সরবরাহকারী' },
@@ -5264,8 +5399,8 @@ const ALL_FEATURES = [
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','demand','report','vendor','bank','loan','shareholders'],
-  campaigner: ['dashboard','income','expense','camp','due','stock','salary','demand','report','vendor','bank','loan','shareholders']
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders'],
+  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders']
 };
 
 function featureInfo(id) {
@@ -6073,6 +6208,34 @@ function buildReadOnlyHTML(feature) {
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ব্যক্তি/প্রতিষ্ঠান</th><th style="${thStyle}">ধরন</th><th style="${thStyle}">পরিমাণ</th></tr>
         ${rows.length ? rows.map(l=>`<tr><td style="${tdStyle}">${formatDate(l.date)}</td><td style="${tdStyle};font-weight:600">${l.party||'—'}</td><td style="${tdStyle}">${l.type||'—'}</td><td style="${tdStyle}">৳ ${fmt2(l.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
+  }
+  if (feature === 'attendance') {
+    const today2 = todayStr();
+    const staff2 = (appData.staff||[]).filter(s=>s.status==='active');
+    const rows2 = staff2.map(function(s) {
+      const recs=getAttendanceForDate(s.id,today2);
+      const lastIn=recs.filter(function(r){return r.type==='in';}).sort(function(a,b){return b.ts-a.ts;})[0];
+      const lastOut=recs.filter(function(r){return r.type==='out';}).sort(function(a,b){return b.ts-a.ts;})[0];
+      const isIn=lastIn&&(!lastOut||lastIn.ts>lastOut.ts);
+      const mins=calcDayMinutes(s.id,today2);
+      const hrs=Math.floor(mins/60),mn=mins%60;
+      const lv=getLeaveForDate(s.id,today2);
+      const bg=lv?'#fff7ed':isIn?'#f0fff4':'#f8fafc';
+      const border=lv?'#fb923c':isIn?'#86efac':'#e2e8f0';
+      const statusColor=lv?'#ea580c':isIn?'#16a34a':'#94a3b8';
+      const statusText=lv?'ছুটি':isIn?'কর্মরত':'অনুপস্থিত';
+      let timeInfo='<div style="font-size:11px;color:#aaa">রেকর্ড নেই</div>';
+      if(lastIn) timeInfo='<div style="font-size:11px;color:#16a34a">ইন: '+formatTime(lastIn.ts)+(lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):' | কর্মরত')+'</div>';
+      if(lv) timeInfo='<div style="font-size:11px;color:#ea580c">🗓️ ছুটিতে</div>';
+      const hoursInfo=mins>0?'<div style="font-size:11px;color:#059669">⏱ '+hrs+'ঘ '+mn+'মি</div>':'';
+      return '<div style="display:flex;align-items:center;gap:10px;background:'+bg+';border:1.5px solid '+border+';border-radius:10px;padding:10px 12px">'
+        +'<div style="flex:1"><div style="font-weight:700">'+s.name+'</div><div style="font-size:11px;color:#888">'+(s.desig||'')+'</div>'
+        +timeInfo+hoursInfo+'</div>'
+        +'<span style="font-size:12px;font-weight:700;color:'+statusColor+'">'+statusText+'</span>'
+        +'</div>';
+    });
+    return '<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🕐 আজকের এটেন্ডেন্স '+badge+'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:8px">'+rows2.join('')+'</div>';
   }
   // Default
   const f = ALL_FEATURES.find(x=>x.id===feature);
@@ -8019,24 +8182,62 @@ function printSalarySlips() {
     const sal = appData.salaries&&appData.salaries[key] ? appData.salaries[key] : {bonus:0,cut:0,paid:false};
     const net = s.basic + (sal.bonus||0) - (sal.cut||0);
     return `
-      <div style="border:1.5px solid #333;border-radius:6px;padding:12px 14px;page-break-inside:avoid;background:white">
-        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ddd;padding-bottom:8px;margin-bottom:8px">
+      <div style="border:2px solid #0f4c81;border-radius:8px;padding:0;page-break-inside:avoid;background:white;width:190mm;min-height:80mm;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12)">
+        <!-- Header strip -->
+        <div style="background:linear-gradient(135deg,#0f4c81,#1a6db5);padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
           <div>
-            <div style="font-size:13px;font-weight:800;color:#0f4c81">${hospName}</div>
-            <div style="font-size:10px;color:#666">বেতন স্লিপ — ${months[month-1]}, ${year}</div>
+            <div style="font-size:14px;font-weight:800;color:white;letter-spacing:0.5px">${hospName}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.8);margin-top:1px">বেতন স্লিপ — ${months[month-1]}, ${year}</div>
           </div>
-          <img src="${LOGO_B64}" style="height:28px;object-fit:contain" />
+          <img src="${LOGO_B64}" style="height:36px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9" onerror="this.style.display='none'" />
         </div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse">
-          <tr><td style="padding:2px 0;color:#666">নাম</td><td style="font-weight:700">${s.name}</td><td style="color:#666">পদবি</td><td>${s.desig||'—'}</td></tr>
-          <tr><td style="padding:2px 0;color:#666">বেসিক</td><td>৳ ${fmt(s.basic)}</td><td style="color:#666">বোনাস</td><td style="color:#2ecc71">৳ ${fmt(sal.bonus||0)}</td></tr>
-          <tr><td style="padding:2px 0;color:#666">কাটা</td><td style="color:#e74c3c">৳ ${fmt(sal.cut||0)}</td><td style="color:#666;font-weight:700">নেট বেতন</td><td style="font-weight:800;color:#0f4c81;font-size:14px">৳ ${fmt(net)}</td></tr>
-          <tr><td style="padding:2px 0;color:#666">কর্মদিবস</td><td style="font-weight:600">${calcWorkDays(s.id,month,year)} দিন</td><td style="color:#666">কর্মঘন্টা</td><td style="font-weight:600">${calcWorkHours(s.id,month,year)} ঘন্টা</td></tr>
-        </table>
-        <div style="border-top:1px dashed #ccc;margin-top:10px;padding-top:8px;display:flex;justify-content:space-between;align-items:flex-end">
-          <div style="font-size:10px;color:#888">গ্রহণের তারিখ: ___________</div>
-          <div style="text-align:center">
-            <div style="border-top:1px solid #333;width:120px;margin:0 auto;padding-top:4px;font-size:10px;color:#666">প্রাপকের স্বাক্ষর</div>
+        <!-- Employee info bar -->
+        <div style="background:#f0f7ff;padding:8px 16px;display:flex;gap:20px;border-bottom:1px solid #dbeafe">
+          <div><span style="font-size:10px;color:#64748b;display:block">কর্মীর নাম</span><span style="font-size:13px;font-weight:800;color:#0f4c81">${s.name}</span></div>
+          <div><span style="font-size:10px;color:#64748b;display:block">পদবি</span><span style="font-size:12px;font-weight:600;color:#334155">${s.desig||'—'}</span></div>
+          <div><span style="font-size:10px;color:#64748b;display:block">যোগদান</span><span style="font-size:11px;color:#334155">${s.joinDate||'—'}</span></div>
+        </div>
+        <!-- Salary details -->
+        <div style="padding:10px 16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+            <div style="background:#f0fff4;border:1px solid #86efac;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:10px;color:#166534;font-weight:600;text-transform:uppercase">বেসিক বেতন</div>
+              <div style="font-size:16px;font-weight:800;color:#166534;margin-top:2px">৳ ${fmt(s.basic)}</div>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:10px;color:#166534;font-weight:600;text-transform:uppercase">বোনাস</div>
+              <div style="font-size:16px;font-weight:800;color:#2ecc71;margin-top:2px">৳ ${fmt(sal.bonus||0)}</div>
+            </div>
+            <div style="background:#fff0f0;border:1px solid #fca5a5;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:10px;color:#991b1b;font-weight:600;text-transform:uppercase">কাটা</div>
+              <div style="font-size:16px;font-weight:800;color:#e74c3c;margin-top:2px">৳ ${fmt(sal.cut||0)}</div>
+            </div>
+          </div>
+          <!-- Net pay highlight -->
+          <div style="background:linear-gradient(135deg,#0f4c81,#1a6db5);border-radius:8px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="color:rgba(255,255,255,0.85);font-size:12px;font-weight:600">নেট প্রদেয় বেতন</div>
+            <div style="color:white;font-size:22px;font-weight:900">৳ ${fmt(net)}</div>
+          </div>
+          <!-- Attendance row -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:7px 10px;display:flex;align-items:center;gap:8px">
+              <span style="font-size:18px">📅</span>
+              <div><div style="font-size:10px;color:#64748b">কর্মদিবস</div><div style="font-size:14px;font-weight:700;color:#0f4c81">${calcWorkDays(s.id,month,year)} দিন</div></div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:7px 10px;display:flex;align-items:center;gap:8px">
+              <span style="font-size:18px">⏱️</span>
+              <div><div style="font-size:10px;color:#64748b">কর্মঘন্টা</div><div style="font-size:14px;font-weight:700;color:#0f4c81">${calcWorkHours(s.id,month,year)} ঘন্টা</div></div>
+            </div>
+          </div>
+          <!-- Signature -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-top:8px;border-top:1px dashed #cbd5e1">
+            <div style="font-size:10px;color:#94a3b8">গ্রহণের তারিখ: _____________</div>
+            <div style="text-align:center">
+              <div style="width:130px;border-top:1.5px solid #334155;padding-top:4px;font-size:10px;color:#64748b">প্রাপকের স্বাক্ষর</div>
+            </div>
+            <div style="text-align:center">
+              <div style="width:100px;border-top:1.5px solid #334155;padding-top:4px;font-size:10px;color:#64748b">কর্তৃপক্ষের স্বাক্ষর</div>
+            </div>
           </div>
         </div>
       </div>`;
@@ -8044,11 +8245,8 @@ function printSalarySlips() {
 
   // ৪ কলামে সাজাই
   let gridRows = '';
-  for (let i=0; i<slips.length; i+=4) {
-    const chunk = slips.slice(i, i+4);
-    gridRows += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;page-break-inside:avoid">
-      ${chunk.join('')}
-    </div>`;
+  for (let i=0; i<slips.length; i++) {
+    gridRows += `<div style="margin-bottom:16px;page-break-inside:avoid">${slips[i]}</div>`;
   }
 
   openPrintWindow(`
@@ -8214,8 +8412,9 @@ function switchRecTab(name, btn) {
 
 function initServiceRows() {
   document.getElementById('serviceRows').innerHTML='';
-  serviceCount=0;
-  addServiceRow();
+  if(!_rowCount) window._rowCount={};
+  _rowCount['']=0;
+  addRow('manual','');
 }
 function addServiceRow() {
   serviceCount++;
