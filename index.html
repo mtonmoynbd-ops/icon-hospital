@@ -1219,7 +1219,7 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>সরবরাহকারী *</label>
               <select id="vcVendor"><option value="">-- সরবরাহকারী --</option></select>
             </div>
-            <div class="field"><label>ভাউচার নং</label><input type="text" id="vcVoucher" placeholder="VCH-001"></div>
+            <div class="field"><label>ভাউচার নং</label><input type="text" id="vcVoucher" placeholder="অটো (এডিট করা যাবে)"></div>
             <div class="field"><label>তারিখ *</label><input type="date" id="vcDate"></div>
           </div>
           <div class="form-row three">
@@ -1555,6 +1555,21 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>ঠিকানা</label><input type="text" id="settAddress" placeholder="ঠিকানা"></div>
             <div class="field"><label>ফোন</label><input type="text" id="settPhone" placeholder="০১XXXXXXXXX"></div>
             <div class="field"><label>ইমেইল</label><input type="text" id="settEmail" placeholder="email@icon.com"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- নম্বর সিরিজ সেটিংস -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🔢 শুরুর নম্বর (Memo / Rcpt / Voucher)</div></div>
+        <div class="panel-body">
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;background:#f0f9ff;padding:10px;border-radius:8px">
+            💡 পূর্বের রেকর্ডের চেয়ে বড় নম্বর না দিলে কোনো প্রভাব পড়বে না। নতুন সিস্টেমে শুরু করতে চাইলে এখানে সেট করুন।
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>মেমো শুরুর নম্বর</label><input type="number" id="settStartMemoNum" placeholder="যেমন: 1001" min="1"></div>
+            <div class="field"><label>রিসিট শুরুর নম্বর</label><input type="number" id="settStartRcptNum" placeholder="যেমন: 1001" min="1"></div>
+            <div class="field"><label>ভাউচার শুরুর নম্বর (দৈনিক)</label><input type="number" id="settStartVoucherNum" placeholder="যেমন: 1" min="1"></div>
           </div>
         </div>
       </div>
@@ -2378,9 +2393,10 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="rPatPhone" placeholder="০১XXXXXXXXX"></div>
             <div class="field"><label>তারিখ *</label><input type="date" id="rBillDate"></div>
           </div>
-          <div class="form-row">
+          <div class="form-row three">
             <div class="field"><label>বয়স</label><input type="text" id="rPatAge" placeholder="যেমন: ৩৫ বছর"></div>
             <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="rPatDoc" placeholder="ডাক্তারের নাম"></div>
+            <div class="field"><label>মেমো নং</label><input type="text" id="rMemoNo" placeholder="অটো"></div>
           </div>
           <hr class="divider">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2854,6 +2870,9 @@ function saveSettings() {
   appData.settings.recDiscount    = parseFloat(document.getElementById('settRecDiscount').value)||10;
   appData.settings.modDiscount    = parseFloat(document.getElementById('settModDiscount')?.value)||15;
   appData.settings.adminDiscount  = parseFloat(document.getElementById('settAdminDiscount').value)||30;
+  const smn=document.getElementById('settStartMemoNum'); if(smn&&smn.value) appData.settings.startMemoNum=parseInt(smn.value)||1;
+  const srn=document.getElementById('settStartRcptNum'); if(srn&&srn.value) appData.settings.startRcptNum=parseInt(srn.value)||1;
+  const svn=document.getElementById('settStartVoucherNum'); if(svn&&svn.value) appData.settings.startVoucherNum=parseInt(svn.value)||1;
   saveData(); showToast('✅ সেটিংস সেভ হয়েছে!');
 }
 
@@ -2995,6 +3014,7 @@ function startApp() {
     const recLogo = document.getElementById('recLogoImg');
     if (recLogo) recLogo.src = LOGO_B64;
     initServiceRows(); renderRecDue(); renderRecHistory();
+    const rMemoInit=document.getElementById('rMemoNo'); if(rMemoInit) rMemoInit.value=generateNextMemoNo();
     const limit = getDiscountLimit();
     const el = document.getElementById('rDiscountLimit');
     if (el) el.textContent = `সর্বোচ্চ ${limit}% পর্যন্ত দিতে পারবেন`;
@@ -3243,6 +3263,24 @@ function getVoucherDate(dateStr) {
   return dd + mm + yy;
 }
 
+function generateNextMemoNo() {
+  // সব visits ও adminBills থেকে সর্বোচ্চ memo নম্বর বের করো
+  const start = appData.settings.startMemoNum || 1;
+  const allMemos = [
+    ...(appData.visits||[]).map(v => v.memoNo||v.rcptNo||''),
+    ...(appData.adminBills||[]).map(b => b.memoNo||''),
+  ].map(m => parseInt((m+'').replace(/\D/g,''))||0);
+  const maxNum = allMemos.length ? Math.max(...allMemos) : 0;
+  const next = Math.max(maxNum + 1, start);
+  return 'Memo-' + String(next).padStart(4,'0');
+}
+function generateNextRcptNo() {
+  const start = appData.settings.startRcptNum || 1;
+  const allNums = (appData.visits||[]).map(v => parseInt((v.rcptNo||'0').replace(/\D/g,''))||0);
+  const maxNum = allNums.length ? Math.max(...allNums) : 0;
+  const next = Math.max(maxNum + 1, start);
+  return 'Rcpt-' + String(next).padStart(4,'0');
+}
 function generateNextVoucherNo(dateStr) {
   const vDate = getVoucherDate(dateStr);
   const prefix = 'VN' + vDate + '-';
@@ -4358,7 +4396,12 @@ function toggleVendorForm() {
 }
 function toggleVoucherForm() {
   const b=document.getElementById('voucherFormBody');
-  b.style.display=b.style.display==='none'?'block':'none';
+  const isHidden = b.style.display==='none'||b.style.display==='';
+  b.style.display=isHidden?'block':'none';
+  if(isHidden){
+    document.getElementById('vcDate').value=todayStr();
+    const vcEl=document.getElementById('vcVoucher'); if(vcEl&&!vcEl.value) vcEl.value=generateNextVoucherNo(todayStr());
+  }
 }
 function saveVendor() {
   const name=document.getElementById('vnName').value.trim();
@@ -4442,9 +4485,9 @@ function saveVoucher() {
   if(!vendorId||!date||!amount){showToast('⚠️ সরবরাহকারী, তারিখ ও পরিমাণ আবশ্যক!');return;}
   const vendor=(appData.vendors||[]).find(v=>v.id===vendorId);
   if(!appData.vouchers) appData.vouchers=[];
-  // VN prefix সহ ভাউচার নম্বর অটো
-  const vnNum = (appData.vouchers.length+1).toString().padStart(4,'0');
-  const voucher = 'VN-' + vnNum;
+  // ম্যানুয়াল ইনপুট অথবা অটো ভাউচার নম্বর (ব্যয় ভাউচারের মতো)
+  const vcEl=document.getElementById('vcVoucher');
+  const voucher = (vcEl&&vcEl.value.trim()) ? vcEl.value.trim() : generateNextVoucherNo(date);
   appData.vouchers.push({id:Date.now(),vendorId,vendorName:vendor?.name||'—',voucher,date,amount,type,note,paid:type==='paid'});
   // শুধু পরিশোধ হলে ব্যয়ে যাবে (বাকি থাকলে শুধু দেনায় থাকবে)
   if(type==='paid'){
@@ -4456,9 +4499,10 @@ function saveVoucher() {
   saveData(); clearVoucherForm(); renderVoucherList(); renderVendorList(); refreshDashboard();
 }
 function clearVoucherForm() {
-  ['vcVendor','vcVoucher','vcAmount','vcNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['vcVendor','vcAmount','vcNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('vcDate').value=todayStr();
   document.getElementById('vcType').value='payable';
+  const vcEl=document.getElementById('vcVoucher'); if(vcEl) vcEl.value=generateNextVoucherNo(todayStr());
   document.getElementById('voucherFormBody').style.display='none';
 }
 function renderVoucherList() {
@@ -5048,6 +5092,9 @@ function loadUserList() {
   if(document.getElementById('settAddress'))  document.getElementById('settAddress').value=s.address||'';
   if(document.getElementById('settPhone'))    document.getElementById('settPhone').value=s.phone||'';
   if(document.getElementById('settEmail'))    document.getElementById('settEmail').value=s.email||'';
+  if(document.getElementById('settStartMemoNum')&&s.startMemoNum) document.getElementById('settStartMemoNum').value=s.startMemoNum;
+  if(document.getElementById('settStartRcptNum')&&s.startRcptNum) document.getElementById('settStartRcptNum').value=s.startRcptNum;
+  if(document.getElementById('settStartVoucherNum')&&s.startVoucherNum) document.getElementById('settStartVoucherNum').value=s.startVoucherNum;
   if(document.getElementById('settRent'))           document.getElementById('settRent').value=s.rent||0;
   if(document.getElementById('settUtility'))        document.getElementById('settUtility').value=s.utility||0;
   if(document.getElementById('settOtherFixed'))     document.getElementById('settOtherFixed').value=s.otherFixed||0;
@@ -7842,12 +7889,12 @@ function addServiceRow() {
     <datalist id="stockSuggestions-${id}"></datalist>
     <select id="sType-${id}" onchange="onServiceTypeChange(${id})">
       <option value="service">OPD ভিজিট ফি</option>
-      <option value="service">অপারেশন ফি</option>
+      <option value="surgical">অপারেশন / সার্জিক্যাল ফি</option>
       <option value="med">ওষুধ বিক্রি</option>
       <option value="glass">চশমা বিক্রি</option>
-      <option value="service">টেস্ট / রিপোর্ট ফি</option>
+      <option value="test">টেস্ট / রিপোর্ট ফি</option>
       <option value="service">ভর্তি ফি</option>
-      <option value="service">ল্যাব পরীক্ষা</option>
+      <option value="test">ল্যাব পরীক্ষা</option>
       <option value="service">অন্যান্য</option>
     </select>
     <input type="number" placeholder="১" id="sQty-${id}" value="1" min="1" oninput="updateSummary()" />
@@ -8039,17 +8086,13 @@ function saveBill() {
   const due     = Math.max(0, netBill - cashPaid);
   // অটো রিসিট নম্বর Rcpt prefix সহ
   const lastVisit = [...(appData.visits||[])].sort((a,b)=>b.id-a.id)[0];
-  let rcptNum = 1;
-  if (lastVisit && lastVisit.rcptNo) {
-    const lastNum = parseInt((lastVisit.rcptNo+'').replace(/\D/g,''))||0;
-    rcptNum = lastNum + 1;
-  } else {
-    rcptNum = (appData.visits||[]).length + 1;
-  }
-  const rcptNo = 'Rcpt-' + rcptNum.toString().padStart(4,'0');
+  const rcptNo = generateNextRcptNo();
+  // memo নম্বর — ইনপুট থেকে অথবা অটো
+  const memoEl = document.getElementById('rMemoNo');
+  const memoNo = (memoEl&&memoEl.value.trim()) ? memoEl.value.trim() : generateNextMemoNo();
   const visit   = {
     id:Date.now(), date, patName, patPhone, patAge, patDoc,
-    services, total, discAmt, netBill, cashPaid, due, note, rcptNo,
+    services, total, discAmt, netBill, cashPaid, due, note, rcptNo, memoNo,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
   };
   appData.visits.push(visit);
@@ -8059,18 +8102,19 @@ function saveBill() {
       id:Date.now()+1, date,
       category:'রিসেপশন আয়',
       amount:cashPaid, ref:patName,
-      note:`${rcptNo} — ${patName}`,
+      note:`${memoNo||rcptNo} — ${patName}`,
       by:currentUser.name, visitId:visit.id
     });
   }
   saveData();
-  showToast(`✅ বিল সেভ! রিসিট: ${rcptNo}`);
+  showToast(`✅ বিল সেভ! মেমো: ${memoNo} | রিসিট: ${rcptNo}`);
   clearBillForm();
   renderRecDue();
   renderRecHistory();
 }
 function clearBillForm() {
   ['rPatName','rPatPhone','rPatAge','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt'].forEach(id=>document.getElementById(id).value='');
+  const rMemo=document.getElementById('rMemoNo'); if(rMemo) rMemo.value=generateNextMemoNo();
   document.getElementById('rBillDate').value=todayStr();
   document.getElementById('rDiscountRow').style.display='none';
   initServiceRows();
@@ -8207,9 +8251,7 @@ let adminBillRowCount = 0;
 function initAdminBillPage() {
   document.getElementById('abBillDate').value = todayStr();
   // অটো মেমো নম্বর
-  const allBills = [...(appData.adminBills||[])];
-  const lastNum = allBills.length > 0 ? Math.max(...allBills.map(b=>parseInt((b.memoNo+'').replace(/\D/g,''))||0)) : 0;
-  document.getElementById('abMemoNo').value = 'Memo-' + (lastNum+1).toString().padStart(4,'0');
+  document.getElementById('abMemoNo').value = generateNextMemoNo();
   document.getElementById('abDiscLimit').textContent = `সর্বোচ্চ ${appData.settings.adminDiscount||30}% পর্যন্ত`;
   if (!adminBillRowCount) addAdminBillRow();
   renderDraftBills();
@@ -8296,8 +8338,7 @@ function clearAdminBillForm() {
   updateAdminBillSummary();
   // নতুন মেমো নম্বর
   const allBills=[...(appData.adminBills||[])];
-  const lastNum=allBills.length>0?Math.max(...allBills.map(b=>parseInt((b.memoNo+'').replace(/\D/g,''))||0)):0;
-  document.getElementById('abMemoNo').value='Memo-'+(lastNum+1).toString().padStart(4,'0');
+  document.getElementById('abMemoNo').value=generateNextMemoNo();
 }
 function renderAdminBillHistory() {
   const fd=document.getElementById('abHistDate')?.value||'';
@@ -8981,9 +9022,7 @@ function _billSave(p) {
     }
   });
 
-  const allV=appData.visits||[];
-  const lastNum=allV.length?Math.max(...allV.map(v=>parseInt((v.rcptNo||'0').replace(/\D/g,''))||0)):0;
-  const rcptNo='Rcpt-'+(lastNum+1).toString().padStart(4,'0');
+  const rcptNo=generateNextRcptNo();
 
   const isReturnedDraft=!nb&&!!window._returnedDraftId;
   const isAdminDraft=nb&&!!window._adminDraftId;
@@ -9132,8 +9171,7 @@ function adminSaveDraftDirect(draftId) {
   const discAmt=d.adminDiscAmt||d.recDiscAmt||0;
   const netBill=Math.max(0,total-discAmt);
   const allV=appData.visits||[];
-  const lastNum=allV.length?Math.max(...allV.map(v=>parseInt((v.rcptNo||'0').replace(/\D/g,''))||0)):0;
-  const rcptNo='Rcpt-'+(lastNum+1).toString().padStart(4,'0');
+  const rcptNo=generateNextRcptNo();
   appData.visits.push({id:Date.now(),date:d.date||todayStr(),patName:d.patName,patPhone:d.patPhone||'',patAge:d.patAge||'',patDoc:d.patDoc||'',services:d.services,total,discAmt,netBill,cashPaid:netBill,due:0,note:d.note||'',rcptNo,by:`${d.by} (অ্যাডমিন অনুমোদিত)`,time:new Date().toLocaleTimeString('bn-BD'),adminApproved:true});
   if(netBill>0) appData.income.push({id:Date.now()+1,date:d.date||todayStr(),category:'রিসেপশন আয়',amount:netBill,ref:d.patName,note:`${rcptNo} — ${d.patName} (অ্যাডমিন অনুমোদিত)`,by:currentUser.name});
   appData.draftBills=(appData.draftBills||[]).filter(x=>x.id!==draftId);
