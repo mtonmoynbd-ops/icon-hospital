@@ -290,7 +290,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="nav-item" data-page="salary"><span class="nav-icon">👨‍⚕️</span> স্যালারি শিট</div>
       <div class="nav-item" data-page="attendance"><span class="nav-icon">🕐</span> এটেন্ডেন্স শিট</div>
       <div class="nav-item" data-page="demand"><span class="nav-icon">📝</span> ডিমান্ড নোট <span class="nbadge" id="demandBadge" style="display:none">0</span></div>
-      <div class="nav-item admin-only" data-page="adminbill"><span class="nav-icon">🧾</span> নতুন বিল (অ্যাডমিন)</div>
+
       <div class="nav-item" data-page="patients"><span class="nav-icon">🏥</span> রোগীর ডেটাবেস</div>
     </div>
     <div class="nav-section">
@@ -4892,6 +4892,223 @@ function confirmCashSubmit(role) {
   showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
 }
 
+
+function closeAttendModal() {
+  var el = document.getElementById('attendModalWrap');
+  if (el) el.remove();
+}
+
+function rebuildAttendModal() {
+  var body = document.getElementById('attendModalBody');
+  if (body && window._rebuildAttendModal) body.innerHTML = window._rebuildAttendModal();
+}
+
+function getAttendanceForDate(staffId, date) {
+  return (appData.attendance||[]).filter(function(r){ return String(r.staffId)===String(staffId) && r.date===date; });
+}
+
+function getLeaveForDate(staffId, date) {
+  return (appData.leaveRecords||[]).find(function(l){ return String(l.staffId)===String(staffId) && l.date===date; });
+}
+
+function calcDayMinutes(staffId, date) {
+  var recs = getAttendanceForDate(staffId, date).sort(function(a,b){return a.ts-b.ts;});
+  var total = 0, lastIn = null;
+  recs.forEach(function(r){
+    if (r.type==='in') lastIn = r.ts;
+    else if (r.type==='out' && lastIn) { total += (r.ts - lastIn); lastIn = null; }
+  });
+  return Math.round(total/60000);
+}
+
+function calcWorkDays(staffId, month, year) {
+  var prefix = year+'-'+String(month).padStart(2,'0');
+  var days = {};
+  (appData.attendance||[]).forEach(function(r){
+    if (String(r.staffId)===String(staffId) && r.date.startsWith(prefix) && r.type==='in') days[r.date]=1;
+  });
+  return Object.keys(days).length;
+}
+
+function calcWorkHours(staffId, month, year) {
+  var prefix = year+'-'+String(month).padStart(2,'0');
+  var dates = {};
+  (appData.attendance||[]).forEach(function(r){
+    if (String(r.staffId)===String(staffId) && r.date.startsWith(prefix)) dates[r.date]=1;
+  });
+  var totalMins = 0;
+  Object.keys(dates).forEach(function(d){ totalMins += calcDayMinutes(staffId, d); });
+  return (totalMins/60).toFixed(1);
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function markAttendance(staffId, type, date) {
+  staffId = staffId || '';
+  if (!appData.attendance) appData.attendance = [];
+  var now = Date.now();
+  appData.attendance.push({
+    id: now,
+    staffId: staffId,
+    date: date,
+    type: type,
+    ts: now,
+    time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    by: currentUser ? currentUser.name : 'সিস্টেম'
+  });
+  saveData();
+  var staff = (appData.staff||[]).find(function(s){ return String(s.id)===String(staffId); });
+  showToast('✅ '+(staff?staff.name:'কর্মী')+' — '+(type==='in'?'ইন':'আউট')+' রেকর্ড হয়েছে');
+}
+
+function renderAttendancePanel() {
+  var date = (document.getElementById('attendDate') && document.getElementById('attendDate').value) || todayStr();
+  var panel = document.getElementById('attendancePanel');
+  if (!panel) return;
+  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
+  if (!staff.length) { panel.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'; return; }
+  function btns(s,isIn,lastOut,d) {
+    var sid=s.id;
+    var inBg=isIn?'#dcfce7':'white',inColor=isIn?'#16a34a':'#666',inBorder=isIn?'#86efac':'#d1d5db';
+    var outBg=(!isIn&&lastOut)?'#fee2e2':'white',outColor=(!isIn&&lastOut)?'#dc2626':'#666',outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
+    return '<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendancePanel()" data-sid="'+sid+'" data-type="in" data-date="'+d+'" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendancePanel()" data-sid="'+sid+'" data-type="out" data-date="'+d+'" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+  }
+  panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
+}
+
+function renderAttendanceMain() {
+  var date = (document.getElementById('attendDateMain') && document.getElementById('attendDateMain').value) || todayStr();
+  var panel = document.getElementById('attendancePanelMain');
+  if (!panel) return;
+  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
+  if (!staff.length) { panel.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'; return; }
+  function btns(s,isIn,lastOut,d) {
+    var sid=s.id;
+    var inBg=isIn?'#dcfce7':'white',inColor=isIn?'#16a34a':'#666',inBorder=isIn?'#86efac':'#d1d5db';
+    var outBg=(!isIn&&lastOut)?'#fee2e2':'white',outColor=(!isIn&&lastOut)?'#dc2626':'#666',outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
+    return '<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendanceMain()" data-sid="'+sid+'" data-type="in" data-date="'+d+'" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendanceMain()" data-sid="'+sid+'" data-type="out" data-date="'+d+'" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+  }
+  panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
+}
+
+function toggleLeaveForm() {
+  var b = document.getElementById('leaveFormBody');
+  if (!b) return;
+  b.style.display = b.style.display==='none'||b.style.display==='' ? 'block' : 'none';
+  if (b.style.display==='block') {
+    document.getElementById('lfDate').value = todayStr();
+    var sel = document.getElementById('lfStaff');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
+      (appData.staff||[]).filter(function(s){return s.status==='active';}).forEach(function(s){
+        sel.innerHTML += '<option value="'+s.id+'">'+s.name+' — '+(s.desig||'')+'</option>';
+      });
+    }
+  }
+}
+
+function saveLeave() {
+  var staffId = document.getElementById('lfStaff')&&document.getElementById('lfStaff').value;
+  var date    = document.getElementById('lfDate')&&document.getElementById('lfDate').value;
+  var type    = document.getElementById('lfType')&&document.getElementById('lfType').value;
+  var note    = (document.getElementById('lfNote')&&document.getElementById('lfNote').value)||'';
+  if (!staffId||!date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
+  if (!appData.leaveRecords) appData.leaveRecords = [];
+  var exists = appData.leaveRecords.find(function(l){return String(l.staffId)===String(staffId)&&l.date===date;});
+  if (exists) { showToast('⚠️ এই তারিখে ছুটি আগেই দেওয়া আছে!'); return; }
+  var staff = (appData.staff||[]).find(function(s){return String(s.id)===staffId;});
+  appData.leaveRecords.push({id:Date.now(),staffId:staffId,staffName:staff?staff.name:'—',date:date,type:type,note:note.trim(),by:currentUser?currentUser.name:'অ্যাডমিন'});
+  saveData(); toggleLeaveForm(); renderLeaveList(); renderAttendancePanel();
+  showToast('✅ '+(staff?staff.name:'কর্মী')+' — ছুটি অনুমোদন করা হয়েছে ('+date+')');
+}
+
+function deleteLeave(id) {
+  if (!confirm('এই ছুটির রেকর্ড মুছে ফেলবেন?')) return;
+  appData.leaveRecords = (appData.leaveRecords||[]).filter(function(l){return l.id!==id;});
+  saveData(); renderLeaveList(); renderAttendancePanel();
+  showToast('🗑️ ছুটি বাতিল করা হয়েছে');
+}
+
+function renderLeaveList() {
+  var panel = document.getElementById('leaveListPanel');
+  if (!panel) return;
+  var recs = (appData.leaveRecords||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,30);
+  var leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'বিনা বেতনে'};
+  if (!recs.length) { panel.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa">কোনো ছুটির রেকর্ড নেই</div>'; return; }
+  panel.innerHTML = '<div class="table-wrap"><table><thead><tr><th>তারিখ</th><th>কর্মীর নাম</th><th>ছুটির ধরন</th><th>কারণ</th><th></th></tr></thead><tbody>'
+    +recs.map(function(l){
+      return '<tr><td>'+l.date+'</td><td style="font-weight:600">'+(l.staffName||'—')+'</td>'
+        +'<td><span style="background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">'+(leaveTypes[l.type]||l.type)+'</span></td>'
+        +'<td>'+(l.note||'—')+'</td>'
+        +'<td><button class="btn btn-danger btn-sm" onclick="deleteLeave('+l.id+')">🗑️</button></td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+function toggleLeaveFormMain() {
+  var b = document.getElementById('leaveFormBodyMain');
+  if (!b) return;
+  b.style.display = b.style.display==='none'||b.style.display==='' ? 'block' : 'none';
+  if (b.style.display==='block') {
+    document.getElementById('lfDateMain').value = todayStr();
+    var sel = document.getElementById('lfStaffMain');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
+      (appData.staff||[]).filter(function(s){return s.status==='active';}).forEach(function(s){
+        sel.innerHTML += '<option value="'+s.id+'">'+s.name+' — '+(s.desig||'')+'</option>';
+      });
+    }
+  }
+}
+
+function saveLeaveMain() {
+  var staffId = document.getElementById('lfStaffMain')&&document.getElementById('lfStaffMain').value;
+  var date    = document.getElementById('lfDateMain')&&document.getElementById('lfDateMain').value;
+  var type    = document.getElementById('lfTypeMain')&&document.getElementById('lfTypeMain').value;
+  var note    = (document.getElementById('lfNoteMain')&&document.getElementById('lfNoteMain').value)||'';
+  if (!staffId||!date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
+  if (!appData.leaveRecords) appData.leaveRecords = [];
+  var exists = appData.leaveRecords.find(function(l){return String(l.staffId)===String(staffId)&&l.date===date;});
+  if (exists) { showToast('⚠️ এই তারিখে ছুটি আগেই দেওয়া আছে!'); return; }
+  var staff = (appData.staff||[]).find(function(s){return String(s.id)===staffId;});
+  appData.leaveRecords.push({id:Date.now(),staffId:staffId,staffName:staff?staff.name:'—',date:date,type:type,note:note.trim(),by:currentUser?currentUser.name:'অ্যাডমিন'});
+  saveData(); toggleLeaveFormMain(); renderLeaveListMain(); renderAttendanceMain();
+  showToast('✅ '+(staff?staff.name:'কর্মী')+' — ছুটি অনুমোদন করা হয়েছে ('+date+')');
+}
+
+function renderLeaveListMain() {
+  var panel = document.getElementById('leaveListPanelMain');
+  if (!panel) return;
+  var recs = (appData.leaveRecords||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,30);
+  var leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'বিনা বেতনে'};
+  if (!recs.length) { panel.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa">কোনো ছুটির রেকর্ড নেই</div>'; return; }
+  panel.innerHTML = '<div class="table-wrap"><table><thead><tr><th>তারিখ</th><th>কর্মীর নাম</th><th>ছুটির ধরন</th><th>কারণ</th><th></th></tr></thead><tbody>'
+    +recs.map(function(l){
+      return '<tr><td>'+l.date+'</td><td style="font-weight:600">'+(l.staffName||'—')+'</td>'
+        +'<td><span style="background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">'+(leaveTypes[l.type]||l.type)+'</span></td>'
+        +'<td>'+(l.note||'—')+'</td>'
+        +'<td><button class="btn btn-danger btn-sm" onclick="deleteLeave('+l.id+');renderLeaveListMain()">🗑️</button></td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+function initAttendanceStandalonePage() {
+  var el = document.getElementById('attendDateMain');
+  if (el && !el.value) el.value = todayStr();
+  renderAttendanceMain();
+  renderLeaveListMain();
+  var sel = document.getElementById('lfStaffMain');
+  if (sel) {
+    sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
+    (appData.staff||[]).filter(function(s){return s.status==='active';}).forEach(function(s){
+      sel.innerHTML += '<option value="'+s.id+'">'+s.name+' — '+(s.desig||'')+'</option>';
+    });
+  }
+}
+
+function printAttendanceSheetMain() { printAttendanceSheet(); }
 
 function _buildAttendRow(s, date, extraBtns) {
   var recs=getAttendanceForDate(s.id,date);
@@ -9526,7 +9743,7 @@ function showAttendanceModal() {
   wrap.innerHTML = '<div style="background:white;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     +'<h3 style="margin:0;color:var(--primary);font-size:16px">🕐 এটেন্ডেন্স — '+today+'</h3>'
-    +'<button onclick="document.getElementById(\'attendModalWrap\').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>'
+    +'<button onclick="closeAttendModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>'
     +'</div>'
     +'<div id="attendModalBody" style="overflow-y:auto;flex:1">'+buildRows()+'</div>'
     +'</div>';
