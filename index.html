@@ -932,6 +932,13 @@ function openPrintWindow(htmlContent, title) {
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input type="date" id="attendDateMain" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="renderAttendanceMain()">
             <button class="btn btn-outline btn-sm" onclick="renderAttendanceMain()">🔄 রিফ্রেশ</button>
+            <select id="attendMonthMain" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option>
+              <option value="4">এপ্রিল</option><option value="5">মে</option><option value="6">জুন</option>
+              <option value="7">জুলাই</option><option value="8">আগস্ট</option><option value="9">সেপ্টেম্বর</option>
+              <option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+            </select>
+            <input type="number" id="attendYearMain" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:80px" placeholder="বছর">
             <button class="btn btn-primary btn-sm" onclick="printAttendanceSheetMain()">🖨️ মাসিক শিট</button>
           </div>
         </div>
@@ -941,7 +948,7 @@ function openPrintWindow(htmlContent, title) {
       </div>
       <div class="panel admin-only">
         <div class="panel-header">
-          <div class="panel-title">🗓️ ছুটি মঞ্জুর</div>
+          <div class="panel-title">🗓️ ছুটি অনুমোদন</div>
           <button class="btn btn-primary btn-sm" onclick="toggleLeaveFormMain()">➕ ছুটি দিন</button>
         </div>
         <div class="panel-body" id="leaveFormBodyMain" style="display:none">
@@ -966,7 +973,7 @@ function openPrintWindow(htmlContent, title) {
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="toggleLeaveFormMain()">বাতিল</button>
-            <button class="btn btn-success" onclick="saveLeaveMain()">✅ ছুটি মঞ্জুর করুন</button>
+            <button class="btn btn-success" onclick="saveLeaveMain()">✅ ছুটি অনুমোদন করুন</button>
           </div>
         </div>
         <div class="panel-body" style="padding-top:0"><div id="leaveListPanelMain"></div></div>
@@ -1066,10 +1073,10 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
-      <!-- মঞ্জুরকৃত ছুটি -->
+      <!-- অনুমোদিত ছুটি -->
       <div class="panel admin-only">
         <div class="panel-header">
-          <div class="panel-title">🗓️ ছুটি মঞ্জুর</div>
+          <div class="panel-title">🗓️ ছুটি অনুমোদন</div>
           <button class="btn btn-primary btn-sm" onclick="toggleLeaveForm()">➕ ছুটি দিন</button>
         </div>
         <div class="panel-body" id="leaveFormBody" style="display:none">
@@ -1094,7 +1101,7 @@ function openPrintWindow(htmlContent, title) {
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="toggleLeaveForm()">বাতিল</button>
-            <button class="btn btn-success" onclick="saveLeave()">✅ ছুটি মঞ্জুর করুন</button>
+            <button class="btn btn-success" onclick="saveLeave()">✅ ছুটি অনুমোদন করুন</button>
           </div>
         </div>
         <div class="panel-body" style="padding-top:0">
@@ -3247,6 +3254,7 @@ function showPage(name) {
   if (name === 'loan')         { initLoanPage(); }
   if (name === 'shareholders') { renderShareholderTable(); renderDividendHistory(); }
   if (name === 'officialpad')  { initOfficialPad(); }
+  if (name === 'newbill')      { initNewBillPage(); }
   if (name === 'adminbill')    { initAdminBillPage(); renderDraftBills(); }
   if (name === 'patients')     { renderPatientDB(); }
   if (name === 'settings')     { renderCategoryLists(); updateCategorySelects(); }
@@ -5097,6 +5105,11 @@ function renderLeaveListMain() {
 function initAttendanceStandalonePage() {
   var el = document.getElementById('attendDateMain');
   if (el && !el.value) el.value = todayStr();
+  var now = new Date();
+  var mEl = document.getElementById('attendMonthMain');
+  var yEl = document.getElementById('attendYearMain');
+  if (mEl && !mEl.value) mEl.value = String(now.getMonth()+1);
+  if (yEl && !yEl.value) yEl.value = String(now.getFullYear());
   renderAttendanceMain();
   renderLeaveListMain();
   var sel = document.getElementById('lfStaffMain');
@@ -5108,7 +5121,13 @@ function initAttendanceStandalonePage() {
   }
 }
 
-function printAttendanceSheetMain() { printAttendanceSheet(); }
+function printAttendanceSheetMain() {
+  var mEl = document.getElementById('attendMonthMain');
+  var yEl = document.getElementById('attendYearMain');
+  var month = mEl ? parseInt(mEl.value) : (new Date().getMonth()+1);
+  var year  = yEl ? parseInt(yEl.value)  : new Date().getFullYear();
+  printAttendanceSheetForPeriod(month, year);
+}
 
 function _buildAttendRow(s, date, extraBtns) {
   var recs=getAttendanceForDate(s.id,date);
@@ -8170,9 +8189,9 @@ function printSalarySlips() {
   const slips = activeStaff.map(s=>{
     const key = getSalaryKey(s.id, month, year);
     const sal = appData.salaries&&appData.salaries[key] ? appData.salaries[key] : {bonus:0,cut:0,paid:false};
-    const net = s.basic + (sal.bonus||0) - (sal.cut||0);
+    const net = s.basic + (sal.bonus||0) - (sal.cut||0) - (sal.absentCut||0);
     return `
-      <div style="border:2px solid #0f4c81;border-radius:8px;padding:0;page-break-inside:avoid;background:white;width:190mm;min-height:80mm;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12)">
+      <div style="border:2px solid #0f4c81;border-radius:8px;padding:0;page-break-inside:avoid;background:white;width:170mm;min-height:69mm;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12)">
         <!-- Header strip -->
         <div style="background:linear-gradient(135deg,#0f4c81,#1a6db5);padding:10px 16px;display:flex;align-items:center;justify-content:space-between">
           <div>
@@ -8189,24 +8208,28 @@ function printSalarySlips() {
         </div>
         <!-- Salary details -->
         <div style="padding:10px 16px">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-            <div style="background:#f0fff4;border:1px solid #86efac;border-radius:6px;padding:8px;text-align:center">
-              <div style="font-size:10px;color:#166534;font-weight:600;text-transform:uppercase">বেসিক বেতন</div>
-              <div style="font-size:16px;font-weight:800;color:#166534;margin-top:2px">৳ ${fmt(s.basic)}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+            <div style="background:#f0fff4;border:1px solid #86efac;border-radius:6px;padding:6px;text-align:center">
+              <div style="font-size:9px;color:#166534;font-weight:700;text-transform:uppercase">বেসিক বেতন</div>
+              <div style="font-size:14px;font-weight:800;color:#166534;margin-top:1px">৳ ${fmt(s.basic)}</div>
             </div>
-            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;text-align:center">
-              <div style="font-size:10px;color:#166534;font-weight:600;text-transform:uppercase">বোনাস</div>
-              <div style="font-size:16px;font-weight:800;color:#2ecc71;margin-top:2px">৳ ${fmt(sal.bonus||0)}</div>
+            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px;text-align:center">
+              <div style="font-size:9px;color:#166534;font-weight:700;text-transform:uppercase">বোনাস</div>
+              <div style="font-size:14px;font-weight:800;color:#2ecc71;margin-top:1px">৳ ${fmt(sal.bonus||0)}</div>
             </div>
-            <div style="background:#fff0f0;border:1px solid #fca5a5;border-radius:6px;padding:8px;text-align:center">
-              <div style="font-size:10px;color:#991b1b;font-weight:600;text-transform:uppercase">কাটা</div>
-              <div style="font-size:16px;font-weight:800;color:#e74c3c;margin-top:2px">৳ ${fmt(sal.cut||0)}</div>
+            <div style="background:#fff0f0;border:1px solid #fca5a5;border-radius:6px;padding:6px;text-align:center">
+              <div style="font-size:9px;color:#991b1b;font-weight:700;text-transform:uppercase">সাধারণ কাটা</div>
+              <div style="font-size:14px;font-weight:800;color:#e74c3c;margin-top:1px">৳ ${fmt(sal.cut||0)}</div>
+            </div>
+            <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:6px;text-align:center">
+              <div style="font-size:9px;color:#9a3412;font-weight:700;text-transform:uppercase">অনুপস্থিতি কাটা</div>
+              <div style="font-size:14px;font-weight:800;color:#ea580c;margin-top:1px">৳ ${fmt(sal.absentCut||0)}</div>
             </div>
           </div>
           <!-- Net pay highlight -->
           <div style="background:linear-gradient(135deg,#0f4c81,#1a6db5);border-radius:8px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div style="color:rgba(255,255,255,0.85);font-size:12px;font-weight:600">নেট প্রদেয় বেতন</div>
-            <div style="color:white;font-size:22px;font-weight:900">৳ ${fmt(net)}</div>
+            <div style="color:white;font-size:18px;font-weight:900">৳ ${fmt(net)}</div>
           </div>
           <!-- Attendance row -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
@@ -8220,13 +8243,21 @@ function printSalarySlips() {
             </div>
           </div>
           <!-- Signature -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-top:8px;border-top:1px dashed #cbd5e1">
-            <div style="font-size:10px;color:#94a3b8">গ্রহণের তারিখ: _____________</div>
-            <div style="text-align:center">
-              <div style="width:130px;border-top:1.5px solid #334155;padding-top:4px;font-size:10px;color:#64748b">প্রাপকের স্বাক্ষর</div>
+          <div style="border-top:1px dashed #cbd5e1;padding-top:6px;margin-top:4px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div>
+                <div style="font-size:9px;color:#94a3b8">গ্রহণের তারিখ: ___________</div>
+                <div style="font-size:9px;color:#94a3b8;margin-top:2px">প্রাপ্তি স্বীকার: আমি নিম্নস্বাক্ষরকারী স্বীকার করছি যে আমি</div>
+                <div style="font-size:9px;color:#0f4c81;font-weight:700">৳ ${fmt(net)} (${numberToWords(net)}) টাকা বুঝে পেয়েছি।</div>
+              </div>
             </div>
-            <div style="text-align:center">
-              <div style="width:100px;border-top:1.5px solid #334155;padding-top:4px;font-size:10px;color:#64748b">কর্তৃপক্ষের স্বাক্ষর</div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px">
+              <div style="text-align:center">
+                <div style="width:140px;border-top:1.5px solid #334155;padding-top:3px;font-size:9px;color:#64748b">কর্মীর স্বাক্ষর ও তারিখ</div>
+              </div>
+              <div style="text-align:center">
+                <div style="width:110px;border-top:1.5px solid #334155;padding-top:3px;font-size:9px;color:#64748b">কর্তৃপক্ষের স্বাক্ষর</div>
+              </div>
             </div>
           </div>
         </div>
@@ -8245,6 +8276,82 @@ function printSalarySlips() {
       <div style="font-size:11px;color:#888;margin-top:2px">✂️ ছিঁড়ে প্রতিটি কর্মীকে দিন</div>
     </div>
     ${gridRows}`, `বেতন স্লিপ — ${months[month-1]} ${year}`);
+}
+
+
+function printAttendanceSheet() {
+  var month = parseInt((document.getElementById('salMonth')||{}).value) || (new Date().getMonth()+1);
+  var year  = parseInt((document.getElementById('salYear')||{}).value)  || new Date().getFullYear();
+  printAttendanceSheetForPeriod(month, year);
+}
+
+function printAttendanceSheetForPeriod(month, year) {
+  var months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  var hospName = appData.settings.hospName||'ICON Eye Hospital';
+  var daysInMonth = new Date(year, month, 0).getDate();
+  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
+  if (!staff.length) { showToast('⚠️ কোনো কর্মী নেই!'); return; }
+  var leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'UP'};
+  var dayHeaders = '';
+  for (var d2=1;d2<=daysInMonth;d2++) dayHeaders += '<th style="min-width:22px;font-size:9px;text-align:center">'+d2+'</th>';
+  var rows = staff.map(function(s, idx) {
+    var cells = '';
+    for (var d2=1;d2<=daysInMonth;d2++) {
+      var dd = year+'-'+String(month).padStart(2,'0')+'-'+String(d2).padStart(2,'0');
+      var leave = getLeaveForDate(s.id, dd);
+      if (leave) { cells += '<td style="text-align:center;background:#fff7ed;font-size:9px;color:#ea580c;font-weight:700">'+(leaveTypes[leave.type]||'L')+'</td>'; continue; }
+      var recs = getAttendanceForDate(s.id, dd);
+      var hasIn = recs.some(function(r){return r.type==='in';});
+      var mins = calcDayMinutes(s.id, dd);
+      if (hasIn) cells += '<td style="text-align:center;background:#f0fff4;font-size:9px;font-weight:700;color:#16a34a">'+(mins>0?Math.round(mins/60)+'h':'✓')+'</td>';
+      else cells += '<td style="text-align:center;color:#ddd;font-size:9px">—</td>';
+    }
+    var workDays = calcWorkDays(s.id, month, year);
+    var workHrs  = calcWorkHours(s.id, month, year);
+    return '<tr style="background:'+(idx%2===0?'white':'#fafafa')+'">'
+      +'<td style="padding:4px 6px;font-weight:700;white-space:nowrap;font-size:11px">'+s.name+'</td>'
+      +'<td style="padding:4px 6px;font-size:10px;color:#666;white-space:nowrap">'+(s.desig||'—')+'</td>'
+      +cells
+      +'<td style="text-align:center;font-weight:700;color:#0f4c81;padding:4px 6px">'+workDays+'</td>'
+      +'<td style="text-align:center;font-weight:700;color:#059669;padding:4px 6px">'+workHrs+'</td>'
+      +'</tr>';
+  }).join('');
+  openPrintWindow(
+    '<div style="text-align:center;margin-bottom:10px">'
+    +'<strong style="font-size:14px;color:#0f4c81">'+hospName+'</strong><br>'
+    +'<span style="font-size:12px">এটেন্ডেন্স শিট — '+months[month-1]+', '+year+'</span><br>'
+    +'<span style="font-size:10px;color:#888">✓ = উপস্থিত | CL = নৈমিত্তিক | SL = অসুস্থতা | AL = বার্ষিক | UP = বিনা বেতনে</span>'
+    +'</div>'
+    +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
+    +'<thead><tr style="background:#0f4c81;color:white">'
+    +'<th style="padding:5px 6px;text-align:left">নাম</th>'
+    +'<th style="padding:5px 6px;text-align:left">পদবি</th>'
+    +dayHeaders
+    +'<th style="padding:5px 6px;min-width:30px">দিন</th>'
+    +'<th style="padding:5px 6px;min-width:34px">ঘন্টা</th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table></div>',
+    'এটেন্ডেন্স শিট — '+months[month-1]+' '+year
+  );
+}
+
+function numberToWords(n) {
+  n = Math.round(n||0);
+  if (n===0) return 'শূন্য';
+  var ones=['','এক','দুই','তিন','চার','পাঁচ','ছয়','সাত','আট','নয়','দশ','এগারো','বারো','তেরো','চৌদ্দ','পনেরো','ষোলো','সতেরো','আঠারো','উনিশ'];
+  var tens=['','','বিশ','ত্রিশ','চল্লিশ','পঞ্চাশ','ষাট','সত্তর','আশি','নব্বই'];
+  function t(n) {
+    if(n<20) return ones[n];
+    return tens[Math.floor(n/10)]+(n%10?' '+ones[n%10]:'');
+  }
+  var parts=[], rem=n;
+  if(rem>=10000000){parts.push(t(Math.floor(rem/10000000))+'কোটি');rem%=10000000;}
+  if(rem>=100000){parts.push(t(Math.floor(rem/100000))+'লক্ষ');rem%=100000;}
+  if(rem>=1000){parts.push(t(Math.floor(rem/1000))+'হাজার');rem%=1000;}
+  if(rem>=100){parts.push(ones[Math.floor(rem/100)]+'শত');rem%=100;}
+  if(rem>0) parts.push(t(rem));
+  return parts.join(' ');
 }
 
 function getSalaryKey(staffId, month, year) {
