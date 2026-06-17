@@ -4937,264 +4937,37 @@ function initAttendancePage() {
 }
 
 function renderAttendancePanel() {
-  var date = document.getElementById('attendDate')&&document.getElementById('attendDate').value || todayStr();
+  var date = (document.getElementById('attendDate')&&document.getElementById('attendDate').value) || todayStr();
   var panel = document.getElementById('attendancePanel');
   if (!panel) return;
   var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
   if (!staff.length) { panel.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'; return; }
-  function btns(s,isIn,lastOut,date) {
+  function btns(s,isIn,lastOut,d) {
+    var sid=s.id;
     var inBg=isIn?'#dcfce7':'white', inColor=isIn?'#16a34a':'#666', inBorder=isIn?'#86efac':'#d1d5db';
     var outBg=(!isIn&&lastOut)?'#fee2e2':'white', outColor=(!isIn&&lastOut)?'#dc2626':'#666', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
-    return '<button onclick="markAttendance(''+s.id+'','in',''+date+'');renderAttendancePanel()" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
-      +'<button onclick="markAttendance(''+s.id+'','out',''+date+'');renderAttendancePanel()" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+    return '<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendancePanel()" data-sid="'+sid+'" data-type="in" data-date="'+d+'" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendancePanel()" data-sid="'+sid+'" data-type="out" data-date="'+d+'" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
   }
   panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
 }
-function markAttendance(staffId, type, date) {
-  if (!appData.attendance) appData.attendance = [];
-  const now = Date.now();
-  appData.attendance.push({
-    id: now,
-    staffId: parseInt(staffId)||staffId,
-    date: date,
-    type: type,  // 'in' or 'out'
-    ts: now,
-    time: new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'}),
-    by: currentUser?.name || 'সিস্টেম'
-  });
-  saveData();
-  renderAttendancePanel();
-  const staff = (appData.staff||[]).find(s=>String(s.id)===String(staffId));
-  showToast(`✅ ${staff?.name||'কর্মী'} — ${type==='in'?'ইন':'আউট'} রেকর্ড হয়েছে (${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})})`);
-}
-
-function getAttendanceForDate(staffId, date) {
-  return (appData.attendance||[]).filter(r=>String(r.staffId)===String(staffId) && r.date===date);
-}
-
-function getLeaveForDate(staffId, date) {
-  return (appData.leaveRecords||[]).find(l=>String(l.staffId)===String(staffId) && l.date===date);
-}
-
-function calcDayMinutes(staffId, date) {
-  const recs = getAttendanceForDate(staffId, date).sort((a,b)=>a.ts-b.ts);
-  let total = 0, lastIn = null;
-  recs.forEach(r=>{
-    if (r.type==='in') lastIn = r.ts;
-    else if (r.type==='out' && lastIn) { total += (r.ts - lastIn); lastIn = null; }
-  });
-  return Math.round(total/60000);
-}
-
-function calcWorkDays(staffId, month, year) {
-  const prefix = `${year}-${String(month).padStart(2,'0')}`;
-  const days = new Set(
-    (appData.attendance||[])
-      .filter(r=>String(r.staffId)===String(staffId) && r.date.startsWith(prefix) && r.type==='in')
-      .map(r=>r.date)
-  );
-  return days.size;
-}
-
-function calcWorkHours(staffId, month, year) {
-  const prefix = `${year}-${String(month).padStart(2,'0')}`;
-  const datesInMonth = [...new Set(
-    (appData.attendance||[])
-      .filter(r=>String(r.staffId)===String(staffId) && r.date.startsWith(prefix))
-      .map(r=>r.date)
-  )];
-  let totalMins = 0;
-  datesInMonth.forEach(d=>{ totalMins += calcDayMinutes(staffId, d); });
-  return (totalMins/60).toFixed(1);
-}
-
-function formatTime(ts) {
-  return new Date(ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-}
-
-// ===== LEAVE MODULE =====
-function toggleLeaveForm() {
-  const b = document.getElementById('leaveFormBody');
-  if (!b) return;
-  b.style.display = b.style.display==='none' ? 'block' : 'none';
-  if (b.style.display==='block') {
-    document.getElementById('lfDate').value = todayStr();
-    // staff dropdown refresh
-    const sel = document.getElementById('lfStaff');
-    if (sel) {
-      sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
-      (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
-        sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
-      });
-    }
-  }
-}
-
-function saveLeave() {
-  const staffId = document.getElementById('lfStaff')?.value;
-  const date    = document.getElementById('lfDate')?.value;
-  const type    = document.getElementById('lfType')?.value;
-  const note    = document.getElementById('lfNote')?.value.trim()||'';
-  if (!staffId||!date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
-  // duplicate check
-  const exists = (appData.leaveRecords||[]).find(l=>String(l.staffId)===String(staffId)&&l.date===date);
-  if (exists) { showToast('⚠️ এই তারিখে ইতিমধ্যে ছুটি দেওয়া আছে!'); return; }
-  if (!appData.leaveRecords) appData.leaveRecords = [];
-  const staff = (appData.staff||[]).find(s=>String(s.id)===staffId);
-  appData.leaveRecords.push({ id:Date.now(), staffId:parseInt(staffId)||staffId, staffName:staff?.name||'—', date, type, note, by:currentUser?.name||'অ্যাডমিন' });
-  saveData();
-  toggleLeaveForm();
-  renderLeaveList();
-  renderAttendancePanel();
-  showToast(`✅ ${staff?.name||'কর্মী'} — ছুটি মঞ্জুর (${date})`);
-}
-
-function deleteLeave(id) {
-  if (!confirm('এই ছুটির রেকর্ড মুছে ফেলবেন?')) return;
-  appData.leaveRecords = (appData.leaveRecords||[]).filter(l=>l.id!==id);
-  saveData(); renderLeaveList(); renderAttendancePanel();
-  showToast('🗑️ ছুটি বাতিল করা হয়েছে');
-}
-
-function renderLeaveList() {
-  const panel = document.getElementById('leaveListPanel');
-  if (!panel) return;
-  const recs = (appData.leaveRecords||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  const leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'বিনা বেতনে'};
-  if (!recs.length) { panel.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa">কোনো ছুটির রেকর্ড নেই</div>'; return; }
-  panel.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>তারিখ</th><th>কর্মীর নাম</th><th>ছুটির ধরন</th><th>কারণ</th><th></th></tr></thead>
-    <tbody>${recs.map(l=>`<tr>
-      <td>${l.date}</td><td style="font-weight:600">${l.staffName||'—'}</td>
-      <td><span style="background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">${leaveTypes[l.type]||l.type}</span></td>
-      <td>${l.note||'—'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteLeave(${l.id})">🗑️</button></td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-
-// ===== ATTENDANCE MODAL (Rec / Campaigner access) =====
-function showAttendanceModal() {
-  var today = todayStr();
-  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
-  if (!staff.length) { showToast('⚠️ কোনো কর্মী নেই!'); return; }
-  var existing = document.getElementById('attendModalWrap');
-  if (existing) existing.remove();
-  var wrap = document.createElement('div');
-  wrap.id = 'attendModalWrap';
-  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
-  function btns(s,isIn,lastOut,date) {
-    var inBg=isIn?'#dcfce7':'#f1f5f9', inColor=isIn?'#16a34a':'#555', inBorder=isIn?'#86efac':'#d1d5db';
-    var outBg=(!isIn&&lastOut)?'#fee2e2':'#f1f5f9', outColor=(!isIn&&lastOut)?'#dc2626':'#555', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
-    return '<button onclick="markAttendance(''+s.id+'','in',''+today+'');rebuildAttendModal()" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">✅ IN</button>'
-      +'<button onclick="markAttendance(''+s.id+'','out',''+today+'');rebuildAttendModal()" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">🚪 OUT</button>';
-  }
-  function buildRows() {
-    return '<div style="display:flex;flex-direction:column;gap:6px">'+staff.map(function(s){return _buildAttendRow(s,today,btns);}).join('')+'</div>';
-  }
-  wrap.innerHTML = '<div style="background:white;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<h3 style="margin:0;color:var(--primary);font-size:16px">🕐 এটেন্ডেন্স — '+today+'</h3>'
-    +'<button onclick="document.getElementById('attendModalWrap').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>'
-    +'</div>'
-    +'<div id="attendModalBody" style="overflow-y:auto;flex:1">'+buildRows()+'</div>'
-    +'</div>';
-  document.body.appendChild(wrap);
-  window._rebuildAttendModal = function() {
-    var body = document.getElementById('attendModalBody');
-    if (body) body.innerHTML = buildRows();
-  };
-}
-function rebuildAttendModal() {
-  if (window._rebuildAttendModal) window._rebuildAttendModal();
-}
-
-// ===== PRINT ATTENDANCE SHEET =====
-function printAttendanceSheet() {
-  const month = parseInt(document.getElementById('salMonth')?.value) || (new Date().getMonth()+1);
-  const year  = parseInt(document.getElementById('salYear')?.value)  || new Date().getFullYear();
-  const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
-  const hospName = appData.settings.hospName||'ICON Eye Hospital';
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const staff = (appData.staff||[]).filter(s=>s.status==='active');
-  if (!staff.length) { showToast('⚠️ কোনো কর্মী নেই!'); return; }
-
-  const dayHeaders = Array.from({length:daysInMonth},(_,i)=>`<th style="min-width:26px;font-size:10px;text-align:center">${i+1}</th>`).join('');
-  const leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'UP'};
-
-  const rows = staff.map((s,idx) => {
-    const cells = Array.from({length:daysInMonth},(_,i)=>{
-      const d = `${year}-${String(month).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
-      const leave = getLeaveForDate(s.id, d);
-      if (leave) return `<td style="text-align:center;background:#fff7ed;font-size:9px;color:#ea580c;font-weight:700">${leaveTypes[leave.type]||'L'}</td>`;
-      const recs = getAttendanceForDate(s.id, d);
-      const hasIn = recs.some(r=>r.type==='in');
-      const mins = calcDayMinutes(s.id, d);
-      if (hasIn) return `<td style="text-align:center;background:#f0fff4;font-size:9px;font-weight:700;color:#16a34a">${mins>0?Math.round(mins/60)+'h':'✓'}</td>`;
-      return `<td style="text-align:center;color:#ddd;font-size:10px">—</td>`;
-    }).join('');
-    const workDays = calcWorkDays(s.id, month, year);
-    const workHrs  = calcWorkHours(s.id, month, year);
-    return `<tr style="background:${idx%2===0?'white':'#fafafa'}">
-      <td style="padding:5px 8px;font-weight:700;white-space:nowrap">${s.name}</td>
-      <td style="padding:5px 8px;font-size:11px;color:#666;white-space:nowrap">${s.desig||'—'}</td>
-      ${cells}
-      <td style="text-align:center;font-weight:700;color:#0f4c81;padding:5px 8px">${workDays}</td>
-      <td style="text-align:center;font-weight:700;color:#059669;padding:5px 8px">${workHrs}h</td>
-    </tr>`;
-  }).join('');
-
-  openPrintWindow(`
-    <div style="text-align:center;margin-bottom:12px">
-      <strong style="font-size:15px;color:#0f4c81">${hospName}</strong><br>
-      <span style="font-size:12px">এটেন্ডেন্স শিট — ${months[month-1]}, ${year}</span><br>
-      <span style="font-size:10px;color:#888">✓ = উপস্থিত | CL = নৈমিত্তিক | SL = অসুস্থতা | AL = বার্ষিক | UP = বিনা বেতনে</span>
-    </div>
-    <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead>
-        <tr style="background:#0f4c81;color:white">
-          <th style="padding:6px 8px;text-align:left">নাম</th>
-          <th style="padding:6px 8px;text-align:left">পদবি</th>
-          ${dayHeaders}
-          <th style="padding:6px 8px;min-width:32px">দিন</th>
-          <th style="padding:6px 8px;min-width:36px">ঘন্টা</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table></div>`,
-    `এটেন্ডেন্স শিট — ${months[month-1]} ${year}`);
-}
-
-
-function initAttendanceStandalonePage() {
-  const el = document.getElementById('attendDateMain');
-  if (el && !el.value) el.value = todayStr();
-  renderAttendanceMain();
-  renderLeaveListMain();
-  const sel = document.getElementById('lfStaffMain');
-  if (sel) {
-    sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
-    (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
-      sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
-    });
-  }
-}
 
 function renderAttendanceMain() {
-  var date = document.getElementById('attendDateMain')&&document.getElementById('attendDateMain').value || todayStr();
+  var date = (document.getElementById('attendDateMain')&&document.getElementById('attendDateMain').value) || todayStr();
   var panel = document.getElementById('attendancePanelMain');
   if (!panel) return;
   var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
   if (!staff.length) { panel.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'; return; }
-  function btns(s,isIn,lastOut,date) {
+  function btns(s,isIn,lastOut,d) {
+    var sid=s.id;
     var inBg=isIn?'#dcfce7':'white', inColor=isIn?'#16a34a':'#666', inBorder=isIn?'#86efac':'#d1d5db';
     var outBg=(!isIn&&lastOut)?'#fee2e2':'white', outColor=(!isIn&&lastOut)?'#dc2626':'#666', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
-    return '<button onclick="markAttendance(''+s.id+'','in',''+date+'');renderAttendanceMain()" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
-      +'<button onclick="markAttendance(''+s.id+'','out',''+date+'');renderAttendanceMain()" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+    return '<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendanceMain()" data-sid="'+sid+'" data-type="in" data-date="'+d+'" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);renderAttendanceMain()" data-sid="'+sid+'" data-type="out" data-date="'+d+'" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
   }
   panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
 }
+
 function toggleLeaveFormMain() {
   const b = document.getElementById('leaveFormBodyMain');
   if (!b) return;
@@ -9728,6 +9501,37 @@ function adminSaveDraftDirect(draftId) {
   appData.draftBills=(appData.draftBills||[]).filter(x=>x.id!==draftId);
   saveData(); renderNewBillDrafts(); updateDraftBadge(); refreshDashboard();
   showToast(`✅ বিল সেভ! ${rcptNo}`);
+}
+
+
+function showAttendanceModal() {
+  var today = todayStr();
+  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
+  if (!staff.length) { showToast('⚠️ কোনো কর্মী নেই!'); return; }
+  var existing = document.getElementById('attendModalWrap');
+  if (existing) existing.remove();
+  var wrap = document.createElement('div');
+  wrap.id = 'attendModalWrap';
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
+  function btns(s,isIn,lastOut,d) {
+    var sid=s.id;
+    var inBg=isIn?'#dcfce7':'#f1f5f9', inColor=isIn?'#16a34a':'#555', inBorder=isIn?'#86efac':'#d1d5db';
+    var outBg=(!isIn&&lastOut)?'#fee2e2':'#f1f5f9', outColor=(!isIn&&lastOut)?'#dc2626':'#555', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
+    return '<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);rebuildAttendModal()" data-sid="'+sid+'" data-type="in" data-date="'+d+'" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">✅ IN</button>'
+      +'<button onclick="markAttendance(this.dataset.sid,this.dataset.type,this.dataset.date);rebuildAttendModal()" data-sid="'+sid+'" data-type="out" data-date="'+d+'" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:7px;padding:7px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">🚪 OUT</button>';
+  }
+  function buildRows() {
+    return '<div style="display:flex;flex-direction:column;gap:6px">'+staff.map(function(s){return _buildAttendRow(s,today,btns);}).join('')+'</div>';
+  }
+  wrap.innerHTML = '<div style="background:white;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<h3 style="margin:0;color:var(--primary);font-size:16px">🕐 এটেন্ডেন্স — '+today+'</h3>'
+    +'<button onclick="document.getElementById(\'attendModalWrap\').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>'
+    +'</div>'
+    +'<div id="attendModalBody" style="overflow-y:auto;flex:1">'+buildRows()+'</div>'
+    +'</div>';
+  document.body.appendChild(wrap);
+  window._rebuildAttendModal = buildRows;
 }
 
 </script>
