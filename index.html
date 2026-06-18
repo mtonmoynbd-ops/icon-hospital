@@ -648,12 +648,23 @@ function openPrintWindow(htmlContent, title) {
         <div class="panel-header"><div class="panel-title">🧾 নতুন বিল তৈরি করুন</div></div>
         <div class="panel-body">
           <div class="form-row three">
+            <div class="field"><label>মেমো নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label><input type="text" id="nb_MemoNo" placeholder="যেমন: Memo-0001" style="font-weight:600;color:var(--accent)"></div>
             <div class="field"><label>রোগীর নাম *</label><input type="text" id="nb_PatName" placeholder="পূর্ণ নাম"></div>
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="nb_PatPhone" placeholder="০১XXXXXXXXX"></div>
-            <div class="field"><label>তারিখ *</label><input type="date" id="nb_BillDate"></div>
           </div>
-          <div class="form-row">
+          <div class="form-row three">
+            <div class="field"><label>তারিখ *</label><input type="date" id="nb_BillDate"></div>
             <div class="field"><label>বয়স</label><input type="text" id="nb_PatAge" placeholder="যেমন: ৩৫ বছর"></div>
+            <div class="field"><label>লিঙ্গ</label>
+              <select id="nb_PatGender">
+                <option value="">-- নির্বাচন করুন --</option>
+                <option value="পুরুষ">পুরুষ</option>
+                <option value="নারী">নারী</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row three">
+            <div class="field" style="grid-column:span 2"><label>ঠিকানা</label><input type="text" id="nb_PatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
             <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="ডাক্তারের নাম"></div>
           </div>
           <hr class="divider">
@@ -712,6 +723,7 @@ function openPrintWindow(htmlContent, title) {
             <button class="btn btn-outline" onclick="nbClearForm()">🔄 রিসেট</button>
             <button class="btn btn-warning" onclick="nbPrint()">🖨️ প্রিন্ট মেমো</button>
             <button class="btn btn-warning" id="nbSendBackBtn" style="display:none" onclick="nbSendBackToRec()">↩️ রিসেপশনিস্টকে ফেরত পাঠান</button>
+            <button class="btn btn-outline" style="border-color:var(--warning);color:var(--warning)" onclick="nbSendToReception()">📨 রিসেপশনিস্টে পাঠান</button>
             <button class="btn btn-success" onclick="nbSaveBill()">✅ সেভ করুন</button>
           </div>
         </div>
@@ -2554,8 +2566,18 @@ function openPrintWindow(htmlContent, title) {
           </div>
           <div class="form-row three">
             <div class="field"><label>বয়স</label><input type="text" id="rPatAge" placeholder="যেমন: ৩৫ বছর"></div>
+            <div class="field"><label>লিঙ্গ</label>
+              <select id="rPatGender">
+                <option value="">-- নির্বাচন করুন --</option>
+                <option value="পুরুষ">পুরুষ</option>
+                <option value="নারী">নারী</option>
+              </select>
+            </div>
             <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="rPatDoc" placeholder="ডাক্তারের নাম"></div>
-            <div class="field"><label>মেমো নং</label><input type="text" id="rMemoNo" placeholder="অটো"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field" style="grid-column:span 2"><label>ঠিকানা</label><input type="text" id="rPatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
+            <div class="field"><label>মেমো নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label><input type="text" id="rMemoNo" placeholder="যেমন: Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
           <hr class="divider">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
@@ -8917,6 +8939,8 @@ function saveBill() {
   const patName   = document.getElementById('rPatName').value.trim();
   const patPhone  = document.getElementById('rPatPhone').value.trim();
   const patAge    = document.getElementById('rPatAge').value.trim();
+  const patGender = (document.getElementById('rPatGender')||{}).value||'';
+  const patAddress= (document.getElementById('rPatAddress')||{}).value?.trim()||'';
   const patDoc    = document.getElementById('rPatDoc').value.trim();
   const date      = document.getElementById('rBillDate').value;
   const note      = document.getElementById('rNote').value.trim();
@@ -8933,7 +8957,7 @@ function saveBill() {
   const memoEl = document.getElementById('rMemoNo');
   const memoNo = (memoEl&&memoEl.value.trim()) ? memoEl.value.trim() : generateNextMemoNo();
   const visit   = {
-    id:Date.now(), date, patName, patPhone, patAge, patDoc,
+    id:Date.now(), date, patName, patPhone, patAge, patGender, patAddress, patDoc,
     services, total, discAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
   };
@@ -8950,15 +8974,26 @@ function saveBill() {
   }
   saveData();
   showToast(`✅ বিল সেভ! মেমো: ${memoNo}`);
+  // returned draft ছিল হলে তা মুছে ফেলি যাতে নোটিফিকেশন আর না দেখায়
+  if (window._returnedDraftId) {
+    appData.draftBills = (appData.draftBills||[]).filter(d=>d.id!==window._returnedDraftId);
+    window._returnedDraftId = null;
+    saveData();
+  }
   clearBillForm();
   renderRecDue();
   renderRecHistory();
 }
 function clearBillForm() {
-  ['rPatName','rPatPhone','rPatAge','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt'].forEach(id=>document.getElementById(id).value='');
+  ['rPatName','rPatPhone','rPatAge','rPatAddress','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt'].forEach(id=>{
+    const el=document.getElementById(id); if(el){ el.value=''; el.readOnly=false; el.style.background=''; }
+  });
+  const genderEl=document.getElementById('rPatGender'); if(genderEl) genderEl.value='';
   const rMemo=document.getElementById('rMemoNo'); if(rMemo) rMemo.value=generateNextMemoNo();
   document.getElementById('rBillDate').value=todayStr();
   document.getElementById('rDiscountRow').style.display='none';
+  const limEl=document.getElementById('rDiscountLimit'); if(limEl) limEl.textContent='';
+  window._returnedDraftId=null;
   initServiceRows();
   updateSummary();
 }
@@ -9021,12 +9056,12 @@ function printCurrentReceipt() {
   const due=Math.max(0,netBill-cashPaid);
   const memoEl=document.getElementById('rMemoNo');
   const memoNo=(memoEl&&memoEl.value.trim())?memoEl.value.trim():generateNextMemoNo();
-  showPrint({patName,services:items,total,discAmt,netBill,cashPaid,due,date:document.getElementById('rBillDate').value,patDoc:(document.getElementById('rPatDoc')||{}).value?.trim(),note:(document.getElementById('rNote')||{}).value?.trim(),billNo:memoNo});
+  showPrint({patName,services:items,total,discAmt,netBill,cashPaid,due,date:document.getElementById('rBillDate').value,patAge:(document.getElementById('rPatAge')||{}).value?.trim(),patGender:(document.getElementById('rPatGender')||{}).value||'',patAddress:(document.getElementById('rPatAddress')||{}).value?.trim(),patDoc:(document.getElementById('rPatDoc')||{}).value?.trim(),note:(document.getElementById('rNote')||{}).value?.trim(),billNo:memoNo});
 }
 function printVisitReceipt(id) {
   const v=appData.visits.find(v=>v.id===id);
   if (!v) return;
-  showPrint({ patName:v.patName, services:v.services, total:v.total, discAmt:v.discAmt||0, netBill:v.netBill||v.total, cashPaid:v.cashPaid, due:v.due, date:v.date, patDoc:v.patDoc, note:v.note, billNo:v.memoNo||v.rcptNo||('REC-'+v.id.toString().slice(-6)) });
+  showPrint({ patName:v.patName, services:v.services, total:v.total, discAmt:v.discAmt||0, netBill:v.netBill||v.total, cashPaid:v.cashPaid, due:v.due, date:v.date, patAge:v.patAge, patGender:v.patGender, patAddress:v.patAddress, patDoc:v.patDoc, note:v.note, billNo:v.memoNo||v.rcptNo||('REC-'+v.id.toString().slice(-6)) });
 }
 function showPrint(d) {
   const hospName = appData.settings.hospName||'ICON Eye Hospital';
@@ -9042,8 +9077,9 @@ function showPrint(d) {
       </div>
       <hr style="border-color:#0f4c81;margin:10px 0">
       <table style="width:100%;font-size:13px;margin-bottom:6px">
-        <tr><td><strong>রোগী:</strong> ${d.patName}</td><td style="text-align:right"><strong>মেমো নং:</strong> ${d.billNo}</td></tr>
+        <tr><td><strong>রোগী:</strong> ${d.patName}${d.patGender?' ('+d.patGender+')':''}${d.patAge?', '+d.patAge:''}</td><td style="text-align:right"><strong>মেমো নং:</strong> ${d.billNo}</td></tr>
         <tr><td><strong>তারিখ:</strong> ${formatDate(d.date)}</td><td style="text-align:right">${d.patDoc?'ডাক্তার: '+d.patDoc:''}</td></tr>
+        ${d.patAddress?`<tr><td colspan="2"><strong>ঠিকানা:</strong> ${d.patAddress}</td></tr>`:''}
       </table>
       <hr style="border-color:#ddd;margin:8px 0">
       <table style="width:100%;font-size:13px;border-collapse:collapse">
@@ -9364,6 +9400,8 @@ function loadReturnedDraft() {
   document.getElementById('rPatName').value=d.patName||'';
   document.getElementById('rPatPhone').value=d.patPhone||'';
   document.getElementById('rPatAge').value=d.patAge||'';
+  const genderEl=document.getElementById('rPatGender'); if(genderEl) genderEl.value=d.patGender||'';
+  const addrEl=document.getElementById('rPatAddress'); if(addrEl) addrEl.value=d.patAddress||'';
   document.getElementById('rPatDoc').value=d.patDoc||'';
   document.getElementById('rNote').value=d.note||'';
   document.getElementById('rBillDate').value=d.date||todayStr();
@@ -9523,6 +9561,7 @@ function editTestFee(id) {
 
 function initNewBillPage() {
   if(document.getElementById('nb_BillDate')) document.getElementById('nb_BillDate').value=todayStr();
+  if(document.getElementById('nb_MemoNo'))   document.getElementById('nb_MemoNo').value=generateNextMemoNo();
   document.getElementById('nb_serviceRows').innerHTML=''; _rowCount['nb_']=0;
   addRow('service','nb_'); nbUpdateSummary();
   renderNewBillDrafts(); updateDraftBadge(); renderNewBillHistory();
@@ -9540,10 +9579,12 @@ function nbClearDisc() {
 }
 
 function nbClearForm() {
-  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt'].forEach(id=>{
+  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatAddress','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt'].forEach(id=>{
     const el=document.getElementById(id);if(el){el.value='';el.readOnly=false;el.style.background='';}
   });
+  const genderEl=document.getElementById('nb_PatGender'); if(genderEl) genderEl.value='';
   document.getElementById('nb_BillDate').value=todayStr();
+  if(document.getElementById('nb_MemoNo')) document.getElementById('nb_MemoNo').value=generateNextMemoNo();
   if(document.getElementById('nb_DiscountRow')) document.getElementById('nb_DiscountRow').style.display='none';
   window._adminDraftId=null;
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
@@ -9562,7 +9603,9 @@ function nbPrint() {
   const netBill=Math.max(0,total-discAmt);
   const cashPaid=parseFloat(document.getElementById('nb_CashPaid').value)||0;
   const due=Math.max(0,netBill-cashPaid);
-  showPrint({patName,services:items,total,discAmt,netBill,cashPaid,due,date:document.getElementById('nb_BillDate').value,patDoc:(document.getElementById('nb_PatDoc')||{}).value?.trim(),note:(document.getElementById('nb_Note')||{}).value?.trim(),billNo:generateNextMemoNo()});
+  const memoElN=document.getElementById('nb_MemoNo');
+  const memoNoN=(memoElN&&memoElN.value.trim())?memoElN.value.trim():generateNextMemoNo();
+  showPrint({patName,services:items,total,discAmt,netBill,cashPaid,due,date:document.getElementById('nb_BillDate').value,patAge:(document.getElementById('nb_PatAge')||{}).value?.trim(),patGender:(document.getElementById('nb_PatGender')||{}).value||'',patAddress:(document.getElementById('nb_PatAddress')||{}).value?.trim(),patDoc:(document.getElementById('nb_PatDoc')||{}).value?.trim(),note:(document.getElementById('nb_Note')||{}).value?.trim(),billNo:memoNoN});
 }
 
 function nbSaveBill() { _billSave('nb_'); }
@@ -9578,11 +9621,45 @@ function nbSendBackToRec() {
   const discPct=parseFloat(document.getElementById('nb_DiscountPct')?.value)||0;
   d.services=items.map(i=>({name:i.name,qty:i.qty,price:i.price,subtotal:i.subtotal,type:i.type||'manual',sellMin:i.sellMin||0}));
   d.total=total; d.adminDiscAmt=discAmt; d.adminDiscPct=discPct;
+  d.patName=(document.getElementById('nb_PatName')||{}).value?.trim()||d.patName;
+  d.patPhone=(document.getElementById('nb_PatPhone')||{}).value?.trim()||'';
+  d.patAge=(document.getElementById('nb_PatAge')||{}).value?.trim()||'';
+  d.patGender=(document.getElementById('nb_PatGender')||{}).value||'';
+  d.patAddress=(document.getElementById('nb_PatAddress')||{}).value?.trim()||'';
+  d.patDoc=(document.getElementById('nb_PatDoc')||{}).value?.trim()||'';
+  d.note=(document.getElementById('nb_Note')||{}).value?.trim()||'';
   d.status='returned'; d.returnedAt=new Date().toLocaleTimeString('bn-BD');
   saveData(); window._adminDraftId=null;
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   nbClearForm(); renderNewBillDrafts(); updateDraftBadge();
   showToast('↩️ রিসেপশনিস্টকে ফেরত পাঠানো হয়েছে!');
+}
+
+function nbSendToReception() {
+  const patName=(document.getElementById('nb_PatName')||{}).value?.trim();
+  if(!patName){showToast('⚠️ রোগীর নাম দিন!');return;}
+  const items=_getItems('nb_');
+  if(!items.length){showToast('⚠️ কমপক্ষে একটি আইটেম দিন!');return;}
+  const total=items.reduce((s,i)=>s+i.subtotal,0);
+  const discAmt=parseFloat(document.getElementById('nb_DiscountAmt')?.value)||0;
+  const discPct=parseFloat(document.getElementById('nb_DiscountPct')?.value)||0;
+  const date=document.getElementById('nb_BillDate').value;
+  if(!appData.draftBills) appData.draftBills=[];
+  appData.draftBills.push({
+    id:Date.now(), status:'returned', date,
+    patName, patPhone:(document.getElementById('nb_PatPhone')||{}).value?.trim()||'',
+    patAge:(document.getElementById('nb_PatAge')||{}).value?.trim()||'',
+    patGender:(document.getElementById('nb_PatGender')||{}).value||'',
+    patAddress:(document.getElementById('nb_PatAddress')||{}).value?.trim()||'',
+    patDoc:(document.getElementById('nb_PatDoc')||{}).value?.trim()||'',
+    note:(document.getElementById('nb_Note')||{}).value?.trim()||'',
+    services:items.map(i=>({name:i.name,qty:i.qty,price:i.price,subtotal:i.subtotal,type:i.type||'manual',sellMin:i.sellMin||0})),
+    total, adminDiscAmt:discAmt, adminDiscPct:discPct,
+    by:currentUser.name, sentAt:new Date().toLocaleTimeString('bn-BD'), returnedAt:new Date().toLocaleTimeString('bn-BD')
+  });
+  saveData(); updateDraftBadge();
+  showToast('📨 রিসেপশনিস্টে পাঠানো হয়েছে!');
+  nbClearForm();
 }
 
 function nbUpdateSummary() { _renderSummary('nb_'); }
@@ -9866,7 +9943,8 @@ function _billSave(p) {
     }
   });
 
-  const memoNo=generateNextMemoNo();
+  const memoEl=nb?document.getElementById('nb_MemoNo'):null;
+  const memoNo=(memoEl&&memoEl.value.trim())?memoEl.value.trim():generateNextMemoNo();
 
   const isReturnedDraft=!nb&&!!window._returnedDraftId;
   const isAdminDraft=nb&&!!window._adminDraftId;
@@ -9875,9 +9953,11 @@ function _billSave(p) {
 
   const patPhone=(document.getElementById(p+'PatPhone')||{}).value?.trim()||'';
   const patAge=(document.getElementById(p+'PatAge')||{}).value?.trim()||'';
+  const patGender=(document.getElementById(p+'PatGender')||{}).value||'';
+  const patAddress=(document.getElementById(p+'PatAddress')||{}).value?.trim()||'';
   const patDoc=(document.getElementById(p+'PatDoc')||{}).value?.trim()||'';
 
-  appData.visits.push({id:Date.now(),date,patName,patPhone,patAge,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
+  appData.visits.push({id:Date.now(),date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
   if(cashPaid>0) appData.income.push({id:Date.now()+1,date,category:'রিসেপশন আয়',amount:cashPaid,ref:patName,note:`${memoNo} — ${patName}`,by:byLabel});
 
   // draft সাফ
