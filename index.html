@@ -306,6 +306,9 @@ function openPrintWindow(htmlContent, title) {
       <div class="nav-item admin-only" data-page="bank"><span class="nav-icon">🏦</span> ব্যাংক / ক্যাশ</div>
       <div class="nav-item admin-only" data-page="loan"><span class="nav-icon">💳</span> লোন ট্র্যাকিং</div>
       <div class="nav-item admin-only" data-page="shareholders"><span class="nav-icon">👥</span> শেয়ারহোল্ডার</div>
+      <div class="nav-item" data-page="recdeposit"><span class="nav-icon">🏦</span> রিসেপশন রেকর্ড</div>
+      <div class="nav-item" data-page="balancesheet"><span class="nav-icon">📊</span> ব্যালেন্স শিট</div>
+      <div class="nav-item" data-page="delivery"><span class="nav-icon">🚚</span> ডেলিভারি শিডিউল</div>
     </div>
     <div class="sidebar-footer">
       <button class="btn-logout" onclick="doLogout()">🚪 লগআউট</button>
@@ -413,7 +416,14 @@ function openPrintWindow(htmlContent, title) {
       </div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 আয়ের তালিকা</div>
-          <input type="date" id="incFilterDate" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="incViewMode" onchange="incViewModeChanged()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="day">দিনওয়াইজ</option>
+              <option value="month">মাসওয়াইজ</option>
+            </select>
+            <input type="date" id="incFilterDate" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+            <input type="month" id="incFilterMonth" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;display:none">
+          </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>মেমো নং</th><th>খাত</th><th>রোগী/রেফ</th><th>বিবরণ</th><th>পরিমাণ</th><th>সোর্স</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
@@ -454,7 +464,14 @@ function openPrintWindow(htmlContent, title) {
       </div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 ব্যয়ের তালিকা</div>
-          <input type="date" id="expFilterDate" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="expViewMode" onchange="expViewModeChanged()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="day">দিনওয়াইজ</option>
+              <option value="month">মাসওয়াইজ</option>
+            </select>
+            <input type="date" id="expFilterDate" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+            <input type="month" id="expFilterMonth" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;display:none">
+          </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>খাত</th><th>রেফারেন্স</th><th>বিবরণ</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
@@ -586,6 +603,94 @@ function openPrintWindow(htmlContent, title) {
           <thead><tr><th>তারিখ</th><th>রোগীর নাম</th><th>ফোন</th><th>মোট বিল</th><th>পরিশোধিত</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="dueTable"><tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">কোনো বাকি নেই</td></tr></tbody>
         </table></div></div>
+      </div>
+    </div>
+
+    <!-- RECEPTION DEPOSIT RECORDS -->
+    <div id="pg-recdeposit" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🏦 রিসেপশন ক্যাশ জমার রেকর্ড</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="recDepViewMode" onchange="renderRecDepositList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="day">দিনওয়াইজ</option>
+              <option value="month">মাসওয়াইজ</option>
+            </select>
+            <input type="month" id="recDepFilterMonth" onchange="renderRecDepositList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="recDepositListContainer">
+            <p style="color:#aaa;text-align:center;padding:30px">লোড হচ্ছে...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BALANCE SHEET -->
+    <div id="pg-balancesheet" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📊 ব্যালেন্স শিট</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="bsViewMode" onchange="renderBalanceSheet()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="day">দিনওয়াইজ</option>
+              <option value="month">মাসওয়াইজ</option>
+            </select>
+            <input type="month" id="bsFilterMonth" onchange="renderBalanceSheet()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="balanceSheetContainer">
+            <p style="color:#aaa;text-align:center;padding:30px">লোড হচ্ছে...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELIVERY SCHEDULE -->
+    <div id="pg-delivery" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🚚 ডেলিভারি শিডিউল</div>
+          <button class="btn btn-primary btn-sm" onclick="showDeliveryForm()">➕ নতুন অর্ডার</button>
+        </div>
+        <div class="panel-body" id="deliveryFormArea" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>রোগী/ব্যক্তির নাম *</label><input type="text" id="dlvName" placeholder="পূর্ণ নাম"></div>
+            <div class="field"><label>ফোন নম্বর</label><input type="text" id="dlvPhone" placeholder="০১XXXXXXXXX"></div>
+            <div class="field"><label>অর্ডারের তারিখ *</label><input type="date" id="dlvOrderDate"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>আইটেম বিবরণ *</label><input type="text" id="dlvItem" placeholder="যেমন: চশমা (পাওয়ার +২.৫)"></div>
+            <div class="field"><label>মোট মূল্য (৳) *</label><input type="number" id="dlvTotal" placeholder="০.০০" min="0" oninput="calcDlvDue()"></div>
+            <div class="field"><label>অগ্রিম প্রদান (৳)</label><input type="number" id="dlvAdvance" placeholder="০.০০" min="0" oninput="calcDlvDue()"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>প্রত্যাশিত ডেলিভারি তারিখ *</label><input type="date" id="dlvDeliveryDate"></div>
+            <div class="field"><label>বাকি পরিমাণ (৳)</label><input type="number" id="dlvDue" placeholder="০.০০" readonly style="background:#f9fafb"></div>
+            <div class="field"><label>মন্তব্য</label><input type="text" id="dlvNote" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="document.getElementById('deliveryFormArea').style.display='none'">বাতিল</button>
+            <button class="btn btn-success" onclick="saveDeliveryOrder()">✅ সেভ করুন</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="filterDelivery('all')" id="dlvF-all" style="background:var(--primary);color:white">সব</button>
+            <button class="btn btn-outline btn-sm" onclick="filterDelivery('pending')" id="dlvF-pending">⏳ অপেক্ষমান</button>
+            <button class="btn btn-outline btn-sm" onclick="filterDelivery('today')" id="dlvF-today">📅 আজকের ডেলিভারি</button>
+            <button class="btn btn-outline btn-sm" onclick="filterDelivery('overdue')" id="dlvF-overdue">🔴 তারিখ পেরিয়ে গেছে</button>
+            <button class="btn btn-outline btn-sm" onclick="filterDelivery('delivered')" id="dlvF-delivered">✅ ডেলিভারি হয়েছে</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>অর্ডার তারিখ</th><th>নাম</th><th>ফোন</th><th>আইটেম</th><th>মোট</th><th>অগ্রিম</th><th>বাকি</th><th>ডেলিভারি তারিখ</th><th>অবস্থা</th><th>অ্যাকশন</th></tr></thead>
+              <tbody id="deliveryTable"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2550,6 +2655,7 @@ function openPrintWindow(htmlContent, title) {
       <button class="rec-tab" id="rtab-due" onclick="switchRecTab(&#39;due&#39;,this)">⏳ বাকি তালিকা</button>
       <button class="rec-tab" id="rtab-history" onclick="switchRecTab(&#39;history&#39;,this)">📋 আজকের এন্ট্রি</button>
       <button class="rec-tab" id="rtab-lookup" onclick="switchRecTab(&#39;lookup&#39;,this)">🔍 দাম খুঁজুন</button>
+      <button class="rec-tab" id="rtab-delivery" onclick="switchRecTab('delivery',this)">🚚 ডেলিভারি</button>
     </div>
 
     <!-- NEW BILL -->
@@ -2667,8 +2773,7 @@ function openPrintWindow(htmlContent, title) {
       </div>
     </div>
 
-    <!-- HISTORY TAB -->
-    <div id="rec-history" class="rec-tab-view">
+    <!-- HISTORY TAB -->\n    <div id="rec-history" class="rec-tab-view">
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">📋 এন্ট্রির ইতিহাস</div>
@@ -2678,6 +2783,51 @@ function openPrintWindow(htmlContent, title) {
           <thead><tr><th>সময়</th><th>রোগীর নাম</th><th>ফোন</th><th>সার্ভিস</th><th>মোট</th><th>পরিশোধিত</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="recHistTable"></tbody>
         </table></div></div>
+      </div>
+    </div>
+    <!-- DELIVERY TAB (RECEPTION) -->
+    <div id="rec-delivery" class="rec-tab-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🚚 ডেলিভারি শিডিউল</div>
+          <button class="btn btn-primary btn-sm" onclick="showRecDeliveryForm()">➕ নতুন অর্ডার</button>
+        </div>
+        <div class="panel-body" id="recDeliveryFormArea" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>রোগী/ব্যক্তির নাম *</label><input type="text" id="rdlvName" placeholder="পূর্ণ নাম"></div>
+            <div class="field"><label>ফোন নম্বর</label><input type="text" id="rdlvPhone" placeholder="০১XXXXXXXXX"></div>
+            <div class="field"><label>অর্ডারের তারিখ *</label><input type="date" id="rdlvOrderDate"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>আইটেম বিবরণ *</label><input type="text" id="rdlvItem" placeholder="যেমন: চশমা (পাওয়ার +২.৫)"></div>
+            <div class="field"><label>মোট মূল্য (৳) *</label><input type="number" id="rdlvTotal" placeholder="০.০০" min="0" oninput="calcRDlvDue()"></div>
+            <div class="field"><label>অগ্রিম প্রদান (৳)</label><input type="number" id="rdlvAdvance" placeholder="০.০০" min="0" oninput="calcRDlvDue()"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>প্রত্যাশিত ডেলিভারি তারিখ *</label><input type="date" id="rdlvDeliveryDate"></div>
+            <div class="field"><label>বাকি পরিমাণ (৳)</label><input type="number" id="rdlvDue" placeholder="০.০০" readonly style="background:#f9fafb"></div>
+            <div class="field"><label>মন্তব্য</label><input type="text" id="rdlvNote" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="document.getElementById('recDeliveryFormArea').style.display='none'">বাতিল</button>
+            <button class="btn btn-success" onclick="saveRecDeliveryOrder()">✅ সেভ করুন</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="filterRecDelivery('all')" id="rdlvF-all" style="background:var(--primary);color:white">সব</button>
+            <button class="btn btn-outline btn-sm" onclick="filterRecDelivery('pending')" id="rdlvF-pending">⏳ অপেক্ষমান</button>
+            <button class="btn btn-outline btn-sm" onclick="filterRecDelivery('today')" id="rdlvF-today">📅 আজকের ডেলিভারি</button>
+            <button class="btn btn-outline btn-sm" onclick="filterRecDelivery('overdue')" id="rdlvF-overdue">🔴 তারিখ পেরিয়ে গেছে</button>
+            <button class="btn btn-outline btn-sm" onclick="filterRecDelivery('delivered')" id="rdlvF-delivered">✅ ডেলিভারি হয়েছে</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>অর্ডার তারিখ</th><th>নাম</th><th>ফোন</th><th>আইটেম</th><th>মোট</th><th>অগ্রিম</th><th>বাকি</th><th>ডেলিভারি তারিখ</th><th>অবস্থা</th><th>অ্যাকশন</th></tr></thead>
+              <tbody id="recDeliveryTable"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2780,7 +2930,7 @@ function rebuildUsers() {
 
 // Feature access defaults per role
 const DEFAULT_FEATURE_ACCESS = {
-  moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report'],
+  moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','recdeposit','delivery','balancesheet'],
   receptionist:['billing'],
   owner:       ['dashboard','report','shareholders'],
   campaigner:  ['camp'],
@@ -2793,7 +2943,7 @@ function canAccess(role, feature) {
 }
 
 let currentUser = null;
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -3363,7 +3513,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -3424,6 +3574,9 @@ const pageMap = {
   memorandum:   { title:'📜 মেমোরেন্ডাম ও TOR', sub:'হাসপাতালের মেমোরেন্ডাম ও টার্মস অফ রেফারেন্স' },
   adminbill:{ title:'🧾 নতুন বিল (অ্যাডমিন)', sub:'অ্যাডমিন বিলিং ও ড্রাফট অ্যাপ্রুভাল' },
   patients: { title:'🏥 রোগীর ডেটাবেস', sub:'সকল রোগীর তথ্য ও ইতিহাস' },
+  recdeposit:   { title:'🏦 রিসেপশন ক্যাশ জমার রেকর্ড', sub:'রিসেপশনিস্টের দৈনিক ক্যাশ জমার বিস্তারিত' },
+  balancesheet: { title:'📊 ব্যালেন্স শিট', sub:'দিনওয়াইজ ও মাসওয়াইজ ক্যাশ ব্যালেন্স' },
+  delivery:     { title:'🚚 ডেলিভারি শিডিউল', sub:'চশমা ও অন্যান্য অর্ডারের ডেলিভারি ট্র্যাকিং' },
 };
 function showPage(name) {
   if ((name === 'settings'||name==='adminbill') && currentUser.role !== 'admin') return;
@@ -3456,6 +3609,9 @@ function showPage(name) {
   if (name === 'adminbill')    { initAdminBillPage(); renderDraftBills(); }
   if (name === 'patients')     { renderPatientDB(); }
   if (name === 'settings')     { renderCategoryLists(); updateCategorySelects(); }
+  if (name === 'recdeposit')   { renderRecDepositList(); }
+  if (name === 'balancesheet') { renderBalanceSheet(); }
+  if (name === 'delivery')     { renderDeliveryTable('all'); }
   closeSidebar();
 }
 
@@ -3639,21 +3795,61 @@ function clearIncomeForm() {
 }
 function renderIncomeTable() {
   const fd=document.getElementById('incFilterDate').value;
-  let data = fd ? appData.income.filter(e=>e.date===fd) : [...appData.income];
+  const fm=document.getElementById('incFilterMonth')?document.getElementById('incFilterMonth').value:'';
+  const vm=document.getElementById('incViewMode')?document.getElementById('incViewMode').value:'day';
+  let data = [...appData.income];
+  if (vm==='day' && fd) data=data.filter(e=>e.date===fd);
+  else if (vm==='month' && fm) data=data.filter(e=>e.date&&e.date.startsWith(fm));
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('incomeTable');
-  if (!data.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
-  tbody.innerHTML=data.map(e=>`<tr>
-    <td>${formatDate(e.date)}</td>
-    <td style="color:var(--accent);font-weight:600;font-size:12px">${e.memo||'—'}</td>
-    <td>${e.category}</td>
-    <td style="color:var(--text-light)">${e.ref||'—'}</td>
-    <td style="color:var(--text-light)">${e.note||'—'}</td>
-    <td style="font-weight:700;color:var(--success)">৳ ${fmt(e.amount)}</td>
-    <td><span class="badge badge-income">ম্যানুয়াল</span></td>
-    <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
-    <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteIncome(${e.id})">🗑️</button>`:'—'}</td>
-  </tr>`).join('');
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+
+  // Group by day or month
+  const groups = {};
+  data.forEach(e => {
+    const key = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
+    if (!groups[key]) groups[key]=[];
+    groups[key].push(e);
+  });
+  const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+
+  let html='';
+  sortedKeys.forEach(key => {
+    const items = groups[key];
+    const total = items.reduce((s,e)=>s+e.amount,0);
+    const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
+    // Get opening/closing cash for this period
+    const openCash = getOpeningCash(key, vm);
+    const closingCash = openCash + total - getPeriodExpense(key, vm);
+    html += `<tr style="background:var(--primary);cursor:pointer" onclick="toggleIncGroup('${key}')">
+      <td colspan="6" style="color:white;font-weight:700;padding:10px 14px">
+        📅 ${label} &nbsp;—&nbsp; মোট আয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+        &nbsp;&nbsp;<span style="font-size:11px;opacity:0.8">প্রারম্ভিক ক্যাশ: ৳ ${fmt(openCash)} → সমাপনি: ৳ ${fmt(closingCash)}</span>
+      </td>
+      <td style="color:white;text-align:right;padding:10px 14px" colspan="3"><span id="incGrpIcon-${key}">▼</span></td>
+    </tr>`;
+    html += `<tbody id="incGrp-${key}">`;
+    items.forEach(e => {
+      html += `<tr>
+        <td>${formatDate(e.date)}</td>
+        <td style="color:var(--accent);font-weight:600;font-size:12px">${e.memo||'—'}</td>
+        <td>${e.category}</td>
+        <td style="color:var(--text-light)">${e.ref||'—'}</td>
+        <td style="color:var(--text-light)">${e.note||'—'}</td>
+        <td style="font-weight:700;color:var(--success)">৳ ${fmt(e.amount)}</td>
+        <td><span class="badge badge-income">ম্যানুয়াল</span></td>
+        <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
+        <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteIncome(${e.id})">🗑️</button>`:'—'}</td>
+      </tr>`;
+    });
+    html += `</tbody>`;
+  });
+  tbody.innerHTML=html;
+}
+function toggleIncGroup(key) {
+  const g=document.getElementById('incGrp-'+key);
+  const ic=document.getElementById('incGrpIcon-'+key);
+  if(g){const hidden=g.style.display==='none';g.style.display=hidden?'':'none';if(ic)ic.textContent=hidden?'▼':'▶';}
 }
 function deleteIncome(id) {
   if (!confirm('এই এন্ট্রি মুছবেন?')) return;
@@ -3689,25 +3885,494 @@ function clearExpenseForm() {
 }
 function renderExpenseTable() {
   const fd=document.getElementById('expFilterDate').value;
-  let data = fd ? appData.expense.filter(e=>e.date===fd) : [...appData.expense];
+  const fm=document.getElementById('expFilterMonth')?document.getElementById('expFilterMonth').value:'';
+  const vm=document.getElementById('expViewMode')?document.getElementById('expViewMode').value:'day';
+  let data = [...(appData.expense||[])];
+  if (vm==='day' && fd) data=data.filter(e=>e.date===fd);
+  else if (vm==='month' && fm) data=data.filter(e=>e.date&&e.date.startsWith(fm));
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('expenseTable');
-  if (!data.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
-  tbody.innerHTML=data.map(e=>`<tr>
-    <td>${formatDate(e.date)}</td>
-    <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
-    <td>${e.category}</td>
-    <td style="color:var(--text-light)">${e.ref||'—'}</td>
-    <td style="color:var(--text-light)">${e.note||'—'}</td>
-    <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
-    <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
-    <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">🗑️</button>`:'—'}</td>
-  </tr>`).join('');
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+
+  const groups = {};
+  data.forEach(e => {
+    const key = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
+    if (!groups[key]) groups[key]=[];
+    groups[key].push(e);
+  });
+  const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+
+  let html='';
+  sortedKeys.forEach(key => {
+    const items = groups[key];
+    const total = items.reduce((s,e)=>s+e.amount,0);
+    const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
+    const openCash = getOpeningCash(key, vm);
+    const closingCash = openCash + getPeriodIncome(key,vm) - total;
+    html += `<tr style="background:#dc2626;cursor:pointer" onclick="toggleExpGroup('${key}')">
+      <td colspan="5" style="color:white;font-weight:700;padding:10px 14px">
+        📅 ${label} &nbsp;—&nbsp; মোট ব্যয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+        &nbsp;&nbsp;<span style="font-size:11px;opacity:0.8">প্রারম্ভিক ক্যাশ: ৳ ${fmt(openCash)} → সমাপনি: ৳ ${fmt(closingCash)}</span>
+      </td>
+      <td style="color:white;text-align:right;padding:10px 14px" colspan="3"><span id="expGrpIcon-${key}">▼</span></td>
+    </tr>`;
+    html += `<tbody id="expGrp-${key}">`;
+    items.forEach(e => {
+      html += `<tr>
+        <td>${formatDate(e.date)}</td>
+        <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
+        <td>${e.category}</td>
+        <td style="color:var(--text-light)">${e.ref||'—'}</td>
+        <td style="color:var(--text-light)">${e.note||'—'}</td>
+        <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
+        <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
+        <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">🗑️</button>`:'—'}</td>
+      </tr>`;
+    });
+    html += `</tbody>`;
+  });
+  tbody.innerHTML=html;
+}
+function toggleExpGroup(key) {
+  const g=document.getElementById('expGrp-'+key);
+  const ic=document.getElementById('expGrpIcon-'+key);
+  if(g){const hidden=g.style.display==='none';g.style.display=hidden?'':'none';if(ic)ic.textContent=hidden?'▼':'▶';}
 }
 function deleteExpense(id) {
   if (!confirm('এই এন্ট্রি মুছবেন?')) return;
   appData.expense=appData.expense.filter(e=>e.id!==id);
   saveData(); renderExpenseTable(); refreshDashboard(); showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+
+// ===== BALANCE HELPERS =====
+function getAllDatesWithActivity() {
+  const dates = new Set();
+  (appData.income||[]).forEach(e=>{ if(e.date) dates.add(e.date); });
+  (appData.expense||[]).forEach(e=>{ if(e.date) dates.add(e.date); });
+  (appData.visits||[]).forEach(v=>{ if(v.date) dates.add(v.date); });
+  (appData.camps||[]).forEach(c=>{ if(c.date) dates.add(c.date); });
+  (appData.bankTx||[]).forEach(t=>{ if(t.date) dates.add(t.date); });
+  return [...dates].sort();
+}
+function getDayIncome(date) {
+  const manualInc = (appData.income||[]).filter(e=>e.date===date).reduce((s,e)=>s+e.amount,0);
+  const recInc = (appData.visits||[]).filter(v=>v.date===date).reduce((s,v)=>s+v.cashPaid,0);
+  const campInc = (appData.camps||[]).filter(c=>c.date===date).reduce((s,c)=>s+(c.totalIncome||0),0);
+  return manualInc + recInc + campInc;
+}
+function getDayExpense(date) {
+  return (appData.expense||[]).filter(e=>e.date===date).reduce((s,e)=>s+e.amount,0);
+}
+function getMonthIncome(month) { // month = 'YYYY-MM'
+  const manualInc = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
+  const recInc = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(month)).reduce((s,v)=>s+v.cashPaid,0);
+  const campInc = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(month)).reduce((s,c)=>s+(c.totalIncome||0),0);
+  return manualInc + recInc + campInc;
+}
+function getMonthExpense(month) {
+  return (appData.expense||[]).filter(e=>e.date&&e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
+}
+function getPeriodIncome(key, vm) { return vm==='month' ? getMonthIncome(key) : getDayIncome(key); }
+function getPeriodExpense(key, vm) { return vm==='month' ? getMonthExpense(key) : getDayExpense(key); }
+
+function getOpeningCash(key, vm) {
+  // Opening cash = settings initial + all prior days/months net
+  const initCash = parseFloat((appData.settings||{}).cashBalance)||0;
+  const allDates = getAllDatesWithActivity();
+  if (vm === 'day') {
+    const priorDates = allDates.filter(d => d < key);
+    return priorDates.reduce((bal, d) => bal + getDayIncome(d) - getDayExpense(d), initCash);
+  } else {
+    const allMonths = [...new Set(allDates.map(d=>d.substring(0,7)))].sort();
+    const priorMonths = allMonths.filter(m => m < key);
+    return priorMonths.reduce((bal, m) => bal + getMonthIncome(m) - getMonthExpense(m), initCash);
+  }
+}
+
+// ===== VIEW MODE TOGGLE (income/expense filter date/month inputs) =====
+function incViewModeChanged() {
+  const vm = (document.getElementById('incViewMode')||{}).value||'day';
+  const dateEl = document.getElementById('incFilterDate');
+  const monthEl = document.getElementById('incFilterMonth');
+  if(dateEl) dateEl.style.display = vm==='day' ? '' : 'none';
+  if(monthEl) monthEl.style.display = vm==='month' ? '' : 'none';
+  renderIncomeTable();
+}
+function expViewModeChanged() {
+  const vm = (document.getElementById('expViewMode')||{}).value||'day';
+  const dateEl = document.getElementById('expFilterDate');
+  const monthEl = document.getElementById('expFilterMonth');
+  if(dateEl) dateEl.style.display = vm==='day' ? '' : 'none';
+  if(monthEl) monthEl.style.display = vm==='month' ? '' : 'none';
+  renderExpenseTable();
+}
+
+// ===== RECEPTION DEPOSIT (cash submit enhanced) =====
+function confirmCashSubmit(role) {
+  const amt = parseFloat(document.getElementById('cashSubmitAmt').value)||0;
+  const note = document.getElementById('cashSubmitNote').value.trim();
+  if (amt === 0) { showToast('⚠️ পরিমাণ দিন!'); return; }
+  if (!appData.bankTx) appData.bankTx = [];
+  if (!appData.recDeposits) appData.recDeposits = [];
+  const roleLabel = role === 'receptionist' ? 'রিসেপশনিস্ট' : 'ক্যাম্পেইনার';
+  const now = new Date();
+  const timeStr = now.toTimeString().substring(0,5);
+  const today = todayStr();
+
+  // Bank TX record
+  appData.bankTx.push({
+    id: Date.now(),
+    type: 'cash_in',
+    amount: amt,
+    date: today,
+    note: note || `${roleLabel} ডিউটি শেষে ক্যাশ জমা — ${currentUser.name}`,
+    ref: 'duty-submit',
+    by: currentUser.name
+  });
+
+  if (role === 'receptionist') {
+    // Build today's reception summary
+    const todayVisits = (appData.visits||[]).filter(v=>v.date===today);
+    const totalRec = todayVisits.reduce((s,v)=>s+v.cashPaid,0);
+    const totalDue = todayVisits.reduce((s,v)=>s+(v.due||0),0);
+    const duePatients = todayVisits.filter(v=>(v.due||0)>0).map(v=>({name:v.patName, due:v.due}));
+    // memo range
+    const memos = todayVisits.map(v=>v.memoNo||v.rcptNo||'').filter(Boolean).sort();
+    const memoFrom = memos[0]||'—'; const memTo = memos[memos.length-1]||'—';
+    // stock consumed today
+    const stockLog = (appData.stockLog||[]).filter(l=>l.date===today && l.type==='out');
+    const stockSummary = stockLog.map(l=>`${l.itemName||l.itemId}: ${Math.abs(l.qty||0)}`).join(', ') || '—';
+
+    const recDeposit = {
+      id: Date.now()+1,
+      date: today,
+      time: timeStr,
+      by: currentUser.name,
+      amount: amt,
+      note: note,
+      visitCount: todayVisits.length,
+      totalRecIncome: totalRec,
+      totalDue: totalDue,
+      duePatients: duePatients,
+      memoFrom: memoFrom,
+      memoTo: memTo,
+      stockConsumed: stockSummary,
+    };
+    appData.recDeposits.push(recDeposit);
+  }
+
+  saveData();
+  updateBankBalances();
+  document.getElementById('cashSubmitModalWrap').remove();
+  if (role==='receptionist') renderRecDepositList();
+  showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
+}
+
+// ===== REC DEPOSIT LIST =====
+function renderRecDepositList() {
+  const container = document.getElementById('recDepositListContainer');
+  if (!container) return;
+  const vm = (document.getElementById('recDepViewMode')||{}).value||'day';
+  const fm = (document.getElementById('recDepFilterMonth')||{}).value||'';
+  const deposits = (appData.recDeposits||[]).slice().sort((a,b)=>b.id-a.id);
+
+  if (!deposits.length) {
+    container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">এখনো কোনো রিসেপশন ক্যাশ জমার রেকর্ড নেই।</p>';
+    return;
+  }
+
+  // Group
+  const groups = {};
+  deposits.forEach(d => {
+    const key = vm==='month' ? (d.date||'').substring(0,7) : (d.date||'');
+    if (!groups[key]) groups[key]=[];
+    groups[key].push(d);
+  });
+  const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+
+  let html='';
+  sortedKeys.forEach(key => {
+    if (fm && !key.startsWith(fm)) return;
+    const items = groups[key];
+    const totalAmt = items.reduce((s,d)=>s+(d.amount||0),0);
+    const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
+    html += `<div style="background:var(--primary);color:white;border-radius:8px;padding:12px 16px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleRecDepGrp('${key}')">
+      <span style="font-weight:700">📅 ${label} &nbsp;—&nbsp; মোট জমা: ৳ ${fmt(totalAmt)} &nbsp;|&nbsp; ${items.length}টি এন্ট্রি</span>
+      <span id="recDepGrpIcon-${key}">▼</span>
+    </div>
+    <div id="recDepGrp-${key}" style="margin-bottom:12px">`;
+    items.forEach(d => {
+      html += `<div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:6px;cursor:pointer" onclick="showRecDepositDetail(${d.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-weight:700;color:var(--success)">৳ ${fmt(d.amount||0)}</span>
+            <span style="color:var(--text-light);font-size:12px;margin-left:8px">জমা দিয়েছেন: ${d.by||'—'} | সময়: ${d.time||'—'}</span>
+          </div>
+          <button class="btn btn-primary btn-sm">বিস্তারিত দেখুন</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px">
+          রোগী: ${d.visitCount||0}জন &nbsp;|&nbsp; মেমো: ${d.memoFrom}–${d.memoTo} &nbsp;|&nbsp; মোট বাকি: ৳ ${fmt(d.totalDue||0)}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  container.innerHTML = html || '<p style="color:#aaa;text-align:center;padding:40px">নির্বাচিত সময়ে কোনো রেকর্ড নেই।</p>';
+}
+function toggleRecDepGrp(key) {
+  const g=document.getElementById('recDepGrp-'+key);
+  const ic=document.getElementById('recDepGrpIcon-'+key);
+  if(g){const h=g.style.display==='none';g.style.display=h?'':'none';if(ic)ic.textContent=h?'▼':'▶';}
+}
+function showRecDepositDetail(id) {
+  const d = (appData.recDeposits||[]).find(r=>r.id===id);
+  if (!d) return;
+  const dueHtml = (d.duePatients||[]).length
+    ? d.duePatients.map(p=>`<li>${p.name}: ৳ ${fmt(p.due)}</li>`).join('')
+    : '<li>কোনো বাকি নেই</li>';
+  const modal = document.createElement('div');
+  modal.className='modal-overlay';
+  modal.style.display='flex';
+  modal.innerHTML=`<div class="modal" style="max-width:520px">
+    <div class="modal-title">🏦 রিসেপশন ক্যাশ জমার বিস্তারিত — ${formatDate(d.date)}</div>
+    <div style="padding:4px 0;line-height:2">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:#666">জমাকৃত পরিমাণ</div>
+          <div style="font-size:22px;font-weight:700;color:var(--success)">৳ ${fmt(d.amount||0)}</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:#666">রোগী সংখ্যা</div>
+          <div style="font-size:22px;font-weight:700;color:var(--primary)">${d.visitCount||0} জন</div>
+        </div>
+      </div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr><td style="padding:6px 0;color:#666;width:180px">জমা দেওয়ার সময়</td><td style="font-weight:600">${d.time||'—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#666">জমাদানকারী</td><td style="font-weight:600">${d.by||'—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#666">মেমো ব্যবহার</td><td style="font-weight:600">${d.memoFrom||'—'} থেকে ${d.memoTo||'—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#666">মোট রিসেপশন আয়</td><td style="font-weight:600;color:var(--success)">৳ ${fmt(d.totalRecIncome||0)}</td></tr>
+        <tr><td style="padding:6px 0;color:#666">মোট বাকি</td><td style="font-weight:600;color:#9b59b6">৳ ${fmt(d.totalDue||0)}</td></tr>
+        <tr><td style="padding:6px 0;color:#666">স্টক ব্যবহার</td><td style="font-size:12px;color:var(--text-light)">${d.stockConsumed||'—'}</td></tr>
+        ${d.note?`<tr><td style="padding:6px 0;color:#666">মন্তব্য</td><td>${d.note}</td></tr>`:''}
+      </table>
+      ${(d.duePatients||[]).length?`<div style="margin-top:12px"><div style="font-weight:700;color:#9b59b6;margin-bottom:6px">বাকি রোগীর তালিকা:</div><ul style="margin:0;padding-left:20px;font-size:13px">${dueHtml}</ul></div>`:''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+// ===== BALANCE SHEET =====
+function renderBalanceSheet() {
+  const container = document.getElementById('balanceSheetContainer');
+  if (!container) return;
+  const vm = (document.getElementById('bsViewMode')||{}).value||'day';
+  const fm = (document.getElementById('bsFilterMonth')||{}).value||'';
+  const allDates = getAllDatesWithActivity();
+  const initCash = parseFloat((appData.settings||{}).cashBalance)||0;
+
+  if (vm==='day') {
+    let runningCash = initCash;
+    const rows = allDates
+      .filter(d => !fm || d.startsWith(fm))
+      .map(d => {
+        const inc = getDayIncome(d);
+        const exp = getDayExpense(d);
+        const opening = runningCash;
+        runningCash = opening + inc - exp;
+        return { date:d, opening, income:inc, expense:exp, closing:runningCash };
+      }).reverse();
+
+    if (!rows.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">কোনো তথ্য নেই।</p>'; return; }
+    container.innerHTML=`<div class="table-wrap"><table>
+      <thead><tr><th>তারিখ</th><th style="text-align:right">প্রারম্ভিক ক্যাশ (৳)</th><th style="text-align:right">আয় (৳)</th><th style="text-align:right">ব্যয় (৳)</th><th style="text-align:right">সমাপনি ক্যাশ (৳)</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td style="font-weight:600">${formatDate(r.date)}</td>
+        <td style="text-align:right">${fmt(r.opening)}</td>
+        <td style="text-align:right;color:var(--success);font-weight:600">${fmt(r.income)}</td>
+        <td style="text-align:right;color:var(--danger);font-weight:600">${fmt(r.expense)}</td>
+        <td style="text-align:right;font-weight:700;color:${r.closing>=0?'var(--primary)':'var(--danger)'}">${fmt(r.closing)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  } else {
+    const allMonths = [...new Set(allDates.map(d=>d.substring(0,7)))].sort();
+    let runningCash = initCash;
+    const rows = allMonths
+      .filter(m => !fm || m === fm)
+      .map(m => {
+        const inc = getMonthIncome(m);
+        const exp = getMonthExpense(m);
+        const opening = runningCash;
+        runningCash = opening + inc - exp;
+        const [y,mn] = m.split('-');
+        return { label:`${mn}/${y}`, opening, income:inc, expense:exp, closing:runningCash };
+      }).reverse();
+
+    if (!rows.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">কোনো তথ্য নেই।</p>'; return; }
+    container.innerHTML=`<div class="table-wrap"><table>
+      <thead><tr><th>মাস</th><th style="text-align:right">প্রারম্ভিক ক্যাশ (৳)</th><th style="text-align:right">আয় (৳)</th><th style="text-align:right">ব্যয় (৳)</th><th style="text-align:right">সমাপনি ক্যাশ (৳)</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td style="font-weight:600">${r.label}</td>
+        <td style="text-align:right">${fmt(r.opening)}</td>
+        <td style="text-align:right;color:var(--success);font-weight:600">${fmt(r.income)}</td>
+        <td style="text-align:right;color:var(--danger);font-weight:600">${fmt(r.expense)}</td>
+        <td style="text-align:right;font-weight:700;color:${r.closing>=0?'var(--primary)':'var(--danger)'}">${fmt(r.closing)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+}
+
+// ===== DELIVERY SCHEDULE =====
+let _dlvFilter = 'all';
+function calcDlvDue() {
+  const t=parseFloat(document.getElementById('dlvTotal').value)||0;
+  const a=parseFloat(document.getElementById('dlvAdvance').value)||0;
+  document.getElementById('dlvDue').value=Math.max(0,t-a).toFixed(2);
+}
+function calcRDlvDue() {
+  const t=parseFloat(document.getElementById('rdlvTotal').value)||0;
+  const a=parseFloat(document.getElementById('rdlvAdvance').value)||0;
+  document.getElementById('rdlvDue').value=Math.max(0,t-a).toFixed(2);
+}
+function showDeliveryForm() {
+  const f=document.getElementById('deliveryFormArea');
+  if(f){f.style.display='';document.getElementById('dlvOrderDate').value=todayStr();}
+}
+function showRecDeliveryForm() {
+  const f=document.getElementById('recDeliveryFormArea');
+  if(f){f.style.display='';document.getElementById('rdlvOrderDate').value=todayStr();}
+}
+function saveDeliveryOrder() {
+  const name=document.getElementById('dlvName').value.trim();
+  const phone=document.getElementById('dlvPhone').value.trim();
+  const orderDate=document.getElementById('dlvOrderDate').value;
+  const item=document.getElementById('dlvItem').value.trim();
+  const total=parseFloat(document.getElementById('dlvTotal').value)||0;
+  const advance=parseFloat(document.getElementById('dlvAdvance').value)||0;
+  const deliveryDate=document.getElementById('dlvDeliveryDate').value;
+  const due=Math.max(0,total-advance);
+  const note=document.getElementById('dlvNote').value.trim();
+  if(!name||!orderDate||!item||!deliveryDate) { showToast('⚠️ নাম, আইটেম, অর্ডার তারিখ ও ডেলিভারি তারিখ আবশ্যক!'); return; }
+  if(!appData.deliveryOrders) appData.deliveryOrders=[];
+  appData.deliveryOrders.push({ id:Date.now(), name, phone, orderDate, item, total, advance, due, deliveryDate, note, status:'pending', by:currentUser.name, createdAt:todayStr() });
+  saveData();
+  document.getElementById('deliveryFormArea').style.display='none';
+  ['dlvName','dlvPhone','dlvItem','dlvTotal','dlvAdvance','dlvDue','dlvNote','dlvDeliveryDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderDeliveryTable('all');
+  showToast('✅ ডেলিভারি অর্ডার সেভ হয়েছে!');
+}
+function saveRecDeliveryOrder() {
+  const name=document.getElementById('rdlvName').value.trim();
+  const phone=document.getElementById('rdlvPhone').value.trim();
+  const orderDate=document.getElementById('rdlvOrderDate').value;
+  const item=document.getElementById('rdlvItem').value.trim();
+  const total=parseFloat(document.getElementById('rdlvTotal').value)||0;
+  const advance=parseFloat(document.getElementById('rdlvAdvance').value)||0;
+  const deliveryDate=document.getElementById('rdlvDeliveryDate').value;
+  const due=Math.max(0,total-advance);
+  const note=document.getElementById('rdlvNote').value.trim();
+  if(!name||!orderDate||!item||!deliveryDate) { showToast('⚠️ নাম, আইটেম, অর্ডার তারিখ ও ডেলিভারি তারিখ আবশ্যক!'); return; }
+  if(!appData.deliveryOrders) appData.deliveryOrders=[];
+  appData.deliveryOrders.push({ id:Date.now(), name, phone, orderDate, item, total, advance, due, deliveryDate, note, status:'pending', by:currentUser.name, createdAt:todayStr() });
+  saveData();
+  document.getElementById('recDeliveryFormArea').style.display='none';
+  ['rdlvName','rdlvPhone','rdlvItem','rdlvTotal','rdlvAdvance','rdlvDue','rdlvNote','rdlvDeliveryDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderRecDeliveryTable('all');
+  showToast('✅ ডেলিভারি অর্ডার সেভ হয়েছে!');
+}
+function filterDelivery(f) {
+  _dlvFilter=f;
+  ['all','pending','today','overdue','delivered'].forEach(k=>{
+    const b=document.getElementById('dlvF-'+k);
+    if(b){b.style.background=k===f?'var(--primary)':'';b.style.color=k===f?'white':'';b.className=k===f?'btn btn-sm':'btn btn-outline btn-sm';}
+  });
+  renderDeliveryTable(f);
+}
+function filterRecDelivery(f) {
+  ['all','pending','today','overdue','delivered'].forEach(k=>{
+    const b=document.getElementById('rdlvF-'+k);
+    if(b){b.style.background=k===f?'var(--primary)':'';b.style.color=k===f?'white':'';b.className=k===f?'btn btn-sm':'btn btn-outline btn-sm';}
+  });
+  renderRecDeliveryTable(f);
+}
+function getFilteredDeliveries(filter) {
+  const today=todayStr();
+  let data=[...(appData.deliveryOrders||[])];
+  if(filter==='pending') data=data.filter(d=>d.status==='pending'&&d.deliveryDate>=today);
+  else if(filter==='today') data=data.filter(d=>d.deliveryDate===today&&d.status==='pending');
+  else if(filter==='overdue') data=data.filter(d=>d.status==='pending'&&d.deliveryDate<today);
+  else if(filter==='delivered') data=data.filter(d=>d.status==='delivered');
+  return data.sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||''));
+}
+function deliveryRowHtml(d, isRec) {
+  const today=todayStr();
+  const overdue = d.status==='pending' && d.deliveryDate<today;
+  const isToday = d.deliveryDate===today && d.status==='pending';
+  const statusBadge = d.status==='delivered'
+    ? '<span class="badge badge-income">✅ ডেলিভারি</span>'
+    : overdue ? '<span class="badge badge-expense" style="background:#dc2626">🔴 অতিরিক্ত</span>'
+    : isToday ? '<span class="badge badge-warning">📅 আজকে</span>'
+    : '<span class="badge badge-rec">⏳ অপেক্ষমান</span>';
+  const markBtn = d.status==='pending'
+    ? `<button class="btn btn-success btn-sm" onclick="markDelivered(${d.id})">✅ ডেলিভারি দিন</button>`
+    : '';
+  const editBtn = `<button class="btn btn-outline btn-sm" onclick="editDeliveryDue(${d.id})">💰 বাকি নিন</button>`;
+  return `<tr style="${overdue?'background:#fff5f5':''}${isToday?'background:#f0fdf4':''}">
+    <td style="font-size:12px">${formatDate(d.orderDate)}</td>
+    <td style="font-weight:600">${d.name}</td>
+    <td style="color:var(--text-light)">${d.phone||'—'}</td>
+    <td style="font-size:12px">${d.item}</td>
+    <td style="font-weight:700">৳ ${fmt(d.total)}</td>
+    <td style="color:var(--success)">৳ ${fmt(d.advance)}</td>
+    <td style="color:${(d.due||0)>0?'#9b59b6':'var(--success)'};font-weight:600">৳ ${fmt(d.due||0)}</td>
+    <td style="font-weight:600">${formatDate(d.deliveryDate)}</td>
+    <td>${statusBadge}</td>
+    <td style="display:flex;gap:4px;flex-wrap:wrap">${markBtn}${(d.due||0)>0&&d.status==='pending'?editBtn:''}</td>
+  </tr>`;
+}
+function renderDeliveryTable(filter) {
+  const tbody=document.getElementById('deliveryTable');
+  if(!tbody) return;
+  const data=getFilteredDeliveries(filter||_dlvFilter);
+  if(!data.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:30px">কোনো অর্ডার নেই</td></tr>';return;}
+  tbody.innerHTML=data.map(d=>deliveryRowHtml(d,false)).join('');
+}
+function renderRecDeliveryTable(filter) {
+  const tbody=document.getElementById('recDeliveryTable');
+  if(!tbody) return;
+  const data=getFilteredDeliveries(filter||'all');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:30px">কোনো অর্ডার নেই</td></tr>';return;}
+  tbody.innerHTML=data.map(d=>deliveryRowHtml(d,true)).join('');
+}
+function markDelivered(id) {
+  const d=(appData.deliveryOrders||[]).find(o=>o.id===id);
+  if(!d) return;
+  if(!confirm(`"${d.name}" এর অর্ডার ডেলিভারি দেওয়া হয়েছে?`)) return;
+  d.status='delivered'; d.deliveredAt=todayStr();
+  // Collect remaining due if any
+  if((d.due||0)>0) {
+    const extra=parseFloat(prompt(`বাকি ছিল ৳ ${fmt(d.due)}। এখন কত নেওয়া হলো?`,d.due)||0);
+    if(extra>0) {
+      if(!appData.income) appData.income=[];
+      appData.income.push({id:Date.now(),date:todayStr(),category:'চশমা বিক্রি',amount:extra,ref:d.name,note:`ডেলিভারি বাকি পরিশোধ — ${d.item}`,by:currentUser.name});
+      d.due=Math.max(0,d.due-extra); d.advance=(d.advance||0)+extra;
+    }
+  }
+  saveData(); renderDeliveryTable(_dlvFilter); renderRecDeliveryTable('all');
+  showToast('✅ ডেলিভারি সম্পন্ন হয়েছে!');
+}
+function editDeliveryDue(id) {
+  const d=(appData.deliveryOrders||[]).find(o=>o.id===id);
+  if(!d) return;
+  const extra=parseFloat(prompt(`"${d.name}" এর বাকি: ৳ ${fmt(d.due)}। কত পরিশোধ করলেন?`,d.due)||0);
+  if(isNaN(extra)||extra<=0) return;
+  if(!appData.income) appData.income=[];
+  appData.income.push({id:Date.now(),date:todayStr(),category:'চশমা বিক্রি',amount:extra,ref:d.name,note:`ডেলিভারি আংশিক বাকি পরিশোধ — ${d.item}`,by:currentUser.name});
+  d.due=Math.max(0,(d.due||0)-extra); d.advance=(d.advance||0)+extra;
+  saveData(); renderDeliveryTable(_dlvFilter); renderRecDeliveryTable('all');
+  showToast(`✅ ৳ ${fmt(extra)} গ্রহণ করা হয়েছে!`);
 }
 
 // ===== ADMIN DUE =====
@@ -5083,27 +5748,6 @@ function showRecCashSubmitModal() {
 function showCamperCashSubmitModal() {
   buildCashSubmitModal('campaigner');
 }
-function confirmCashSubmit(role) {
-  const amt = parseFloat(document.getElementById('cashSubmitAmt').value)||0;
-  const note = document.getElementById('cashSubmitNote').value.trim();
-  if (amt === 0) { showToast('⚠️ পরিমাণ দিন!'); return; }
-  if (!appData.bankTx) appData.bankTx = [];
-  // এটি শুধু অ্যাডজাস্টমেন্ট ট্র্যাক করার জন্য — note-এ উল্লেখ করা হবে
-  const roleLabel = role === 'receptionist' ? 'রিসেপশনিস্ট' : 'ক্যাম্পেইনার';
-  appData.bankTx.push({
-    id: Date.now(),
-    type: 'cash_in',
-    amount: amt,
-    date: todayStr(),
-    note: note || `${roleLabel} ডিউটি শেষে ক্যাশ জমা — ${currentUser.name}`,
-    ref: 'duty-submit',
-    by: currentUser.name
-  });
-  saveData();
-  updateBankBalances();
-  document.getElementById('cashSubmitModalWrap').remove();
-  showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
-}
 
 
 function closeAttendModal() {
@@ -5610,12 +6254,15 @@ const ALL_FEATURES = [
   { id:'loan',      label:'লোন ট্র্যাকিং' },
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
   { id:'memorandum', label:'মেমোরেন্ডাম ও TOR' },
+  { id:'recdeposit', label:'রিসেপশন রেকর্ড' },
+  { id:'delivery',  label:'ডেলিভারি শিডিউল' },
+  { id:'balancesheet', label:'ব্যালেন্স শিট' },
 ];
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders','memorandum'],
-  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders','memorandum']
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders','memorandum','recdeposit','delivery','balancesheet'],
+  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders','memorandum','recdeposit','delivery','balancesheet']
 };
 
 function featureInfo(id) {
@@ -8724,6 +9371,7 @@ function switchRecTab(name, btn) {
   btn.classList.add('active');
   if (name==='due') renderRecDue();
   if (name==='history') renderRecHistory();
+  if (name==='delivery') renderRecDeliveryTable('all');
 }
 
 function initServiceRows() {
