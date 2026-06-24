@@ -6977,13 +6977,16 @@ function openRoleMoreSheet(roleKey) {
   const cfg = ROLE_TAB_CONFIG[roleKey];
   const allowed = getAllowedFeatures(cfg.accessRole);
   const tabs = getRoleTabConfig(roleKey);
+  // বর্তমানে active feature কোনটা
+  const currentActive = roleKey === 'owner' ? (currentOwnerActiveFeature || 'dashboard')
+    : roleKey === 'camper' ? (currentCamperActiveFeature || 'camp')
+    : (currentActivePage || 'dashboard');
   const list = document.getElementById(roleKey + 'MoreSheetList');
   if (list) {
     list.innerHTML = allowed.map(id => {
       const f = featureInfo(id);
       const icon = FEATURE_ICONS[id] || '•';
-      const isCurrentlyInTabs = tabs.includes(id);
-      return `<button type="button" class="${id===activeFeature?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
+      return `<button type="button" class="${id===currentActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
     }).join('');
   }
   document.getElementById(roleKey + 'SheetBackdrop').classList.add('open');
@@ -7131,14 +7134,23 @@ function applyOwnerFeatureVisibility(activeFeature) {
   const show = (id, visible) => { const el=document.getElementById(id); if(el) el.style.display = visible ? '' : 'none'; };
   const cards = document.getElementById('ownerCards');
   if (cards) cards.style.display = activeFeature === 'dashboard' ? 'grid' : 'none';
+
   // চার্ট শুধু dashboard-এ দেখাবে
-  show('ownerChartSection', activeFeature === 'dashboard');
+  const ocs = document.getElementById('ownerChartSection');
+  if (ocs) {
+    if (activeFeature === 'dashboard') {
+      ocs.style.display = 'block';
+      setTimeout(() => { renderOwnerPieChart(); renderOwnerBarChart(); }, 80);
+    } else {
+      ocs.style.display = 'none';
+    }
+  }
+
   const monthly = document.getElementById('ownerMonthlySummary');
   if (monthly && monthly.parentElement) monthly.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
   const recent = document.getElementById('ownerRecentList');
   if (recent && recent.parentElement) recent.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
   show('ownerShareBlock', activeFeature === 'shareholders');
-  // Read-only sections for other features
   show('ownerReadOnlySection', !['dashboard','report','shareholders'].includes(activeFeature));
   if (!['dashboard','report','shareholders'].includes(activeFeature)) {
     renderOwnerReadOnlySection(activeFeature);
@@ -7397,18 +7409,7 @@ function initOwnerPage() {
     </div>
   </div>`).join('');
 
-  // Show charts if access granted
-  if (canAccess('owner','chart')) {
-    const ocs = document.getElementById('ownerChartSection');
-    if (ocs) {
-      ocs.style.display = 'block';
-      // browser-কে reflow করার সময় দাও, তারপর draw করো
-      setTimeout(() => {
-        renderOwnerPieChart();
-        renderOwnerBarChart();
-      }, 50);
-    }
-  }
+  // চার্ট দেখানো এবং render করা applyOwnerFeatureVisibility-তে হবে
 
   // Monthly summary
   const ms = document.getElementById('ownerMonthlySummary');
