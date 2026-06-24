@@ -25,7 +25,7 @@
   #loginPage::before { content:'👁️'; position:absolute; font-size:300px; opacity:0.04; top:50%; left:50%; transform:translate(-50%,-50%); }
   .login-card { background:white; border-radius:20px; padding:48px 40px; width:400px; max-width:90vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative; z-index:1; animation:slideUp 0.5s ease; }
   @keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
-  .login-logo { text-align:center; margin-bottom:28px; }
+  .login-logo { text-align:center; margin-bottom:28px; display:flex; flex-direction:column; align-items:center; }
   .login-logo .eye-icon { font-size:52px; display:block; margin-bottom:8px; }
   .login-logo .en-name { font-size:16px; font-weight:800; color:var(--primary); letter-spacing:1px; }
   .login-logo h1 { font-family:'Tiro Bangla',serif; font-size:15px; color:var(--text-light); font-weight:400; margin-top:4px; }
@@ -328,8 +328,6 @@ function openPrintWindow(htmlContent, title) {
   <div class="login-card">
     <div class="login-logo">
       <img src="" id="loginLogoImg" style="height:80px;object-fit:contain;margin-bottom:4px">
-      <div class="en-name">ICON EYE HOSPITAL</div>
-      
     </div>
     <div class="login-error" id="loginError">❌ ইউজারনেম বা পাসওয়ার্ড ভুল</div>
     <div class="form-group">
@@ -2571,10 +2569,7 @@ function openPrintWindow(htmlContent, title) {
   <div style="background:linear-gradient(135deg,#0a2540,#0f4c81);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,0.2)">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="" id="camperLogoImg" style="height:52px;object-fit:contain">
-      <div>
-        <div style="color:var(--accent);font-size:14px;font-weight:700">ICON EYE HOSPITAL</div>
-        <div style="color:rgba(255,255,255,0.7);font-size:11px">ক্যাম্পেইনার প্যানেল</div>
-      </div>
+      <div style="color:var(--accent);font-size:14px;font-weight:700">ICON EYE HOSPITAL</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <button onclick="showCamperCashSubmitModal()" style="background:rgba(255,255,255,0.15);color:white;border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px">💵 ক্যাশ জমা</button>
@@ -3201,6 +3196,8 @@ function canAccess(role, feature) {
 
 let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
+let currentCamperActiveFeature = 'camp';
+let currentActivePage = 'dashboard';
 let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
 let activeDueId = null;
 let serviceCount = 0;
@@ -3846,11 +3843,15 @@ function startApp() {
       el.style.display = role==='admin' ? '' : 'none';
     });
     // Moderator feature access
+    document.body.classList.remove('role-moderator');
     if (role === 'moderator') {
+      document.body.classList.add('role-moderator');
       document.querySelectorAll('.nav-item[data-page]').forEach(el=>{
         const feat = el.getAttribute('data-page');
         el.style.display = canAccess('moderator', feat) ? '' : 'none';
       });
+      currentActivePage = getPreferredRoleFeature('moderator');
+      renderRoleBottomTabs('mod', currentActivePage);
     }
     refreshDashboard(); loadUserList(); updateDemandBadge(); updateCategorySelects();
   }
@@ -3885,6 +3886,7 @@ function startFirebaseSync() {
             const feat = el.getAttribute('data-page');
             el.style.display = canAccess('moderator', feat) ? '' : 'none';
           });
+          renderRoleBottomTabs('mod', currentActivePage || 'dashboard');
         }
         if (currentUser.role === 'owner' || currentUser.role === 'campaigner') {
           openRoleFeature(getPreferredRoleFeature(currentUser.role));
@@ -3930,6 +3932,7 @@ const pageMap = {
 function showPage(name) {
   if ((name === 'settings'||name==='adminbill') && currentUser.role !== 'admin') return;
   if (name === 'memorandum' && currentUser.role !== 'admin' && !canAccess(currentUser.role, 'memorandum')) return;
+  currentActivePage = name;
   document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('pg-' + name).classList.add('active');
@@ -3962,6 +3965,7 @@ function showPage(name) {
   if (name === 'due')          { renderAdminDue(); }
   if (name === 'balancesheet') { renderBalanceSheet(); }
   if (name === 'delivery')     { renderDeliveryTable('all'); }
+  if (currentUser && currentUser.role === 'moderator') renderRoleBottomTabs('mod', name);
   closeSidebar();
 }
 
@@ -6908,7 +6912,7 @@ function renderRoleFeatureBars(activeFeature) {
 const ROLE_TAB_CONFIG = {
   owner:  { accessRole:'owner',      storageKey:'hms_owner_tabs', onSelect:(id)=>openRoleFeature(id) },
   camper: { accessRole:'campaigner', storageKey:'hms_camper_tabs', onSelect:(id)=>openRoleFeature(id) },
-  mod:    { accessRole:'moderator',  storageKey:'hms_mod_tabs',   onSelect:(id)=>{ showPage(id); renderRoleBottomTabs('mod', id); } }
+  mod:    { accessRole:'moderator',  storageKey:'hms_mod_tabs',   onSelect:(id)=>showPage(id) }
 };
 
 function getRoleTabConfig(roleKey) {
@@ -7017,7 +7021,9 @@ function saveRoleTabCustomizer(roleKey) {
   saveRoleTabConfigList(roleKey, checked);
   closeRoleTabCustomizer(roleKey);
   closeRoleMoreSheet(roleKey);
-  const activeFeature = roleKey === 'owner' ? (currentOwnerActiveFeature || 'dashboard') : (currentActivePage || 'dashboard');
+  const activeFeature = roleKey === 'owner' ? (currentOwnerActiveFeature || 'dashboard')
+    : roleKey === 'camper' ? (currentCamperActiveFeature || 'camp')
+    : (currentActivePage || 'dashboard');
   renderRoleBottomTabs(roleKey, activeFeature);
   showToast('✅ ট্যাব আপডেট হয়েছে!');
 }
@@ -7040,6 +7046,11 @@ function applySidebarAccess(role) {
     else if (adminOnly && !['bank','loan','shareholders'].includes(page)) el.style.display = 'none';
     else el.style.display = canAccess(role, page) ? '' : 'none';
   });
+  document.body.classList.remove('role-moderator');
+  if (role === 'moderator') {
+    document.body.classList.add('role-moderator');
+    renderRoleBottomTabs('mod', currentActivePage || 'dashboard');
+  }
 }
 
 function applyOwnerFeatureVisibility(activeFeature) {
@@ -7068,18 +7079,19 @@ function openRoleFeature(feature) {
     setPageVisible('ownerPage');
     initOwnerPage();
     applyOwnerFeatureVisibility(feature);
-    renderOwnerBottomTabs(feature);
+    renderRoleBottomTabs('owner', feature);
     return;
   }
   if (role === 'campaigner') {
     // Campaigner সর্বদা camperPage-এ থাকবে, কখনো sidebar/appPage-এ যাবে না
+    currentCamperActiveFeature = feature;
     setPageVisible('camperPage');
     if (feature === 'camp') {
       initCamperPage();
     } else {
       initCamperReadOnlySection(feature);
     }
-    renderRoleFeatureBars(feature);
+    renderRoleBottomTabs('camper', feature);
     return;
   }
   setPageVisible('appPage');
