@@ -6983,7 +6983,7 @@ function openRoleMoreSheet(roleKey) {
       const f = featureInfo(id);
       const icon = FEATURE_ICONS[id] || '•';
       const isCurrentlyInTabs = tabs.includes(id);
-      return `<button type="button" class="${isCurrentlyInTabs?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
+      return `<button type="button" class="${id===activeFeature?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
     }).join('');
   }
   document.getElementById(roleKey + 'SheetBackdrop').classList.add('open');
@@ -6995,6 +6995,57 @@ function closeRoleMoreSheet(roleKey) {
   document.getElementById(roleKey + 'MoreSheet').classList.remove('open');
   closeRoleTabCustomizer(roleKey);
 }
+
+// ===== SWIPE DOWN TO CLOSE SHEETS =====
+(function() {
+  function addSwipeClose(sheetId, roleKey) {
+    const sheet = document.getElementById(sheetId);
+    if (!sheet) return;
+    let startY = 0, currentY = 0, dragging = false;
+    const handle = sheet.querySelector('.rtab-sheet-handle');
+    const dragTarget = handle || sheet;
+
+    dragTarget.addEventListener('touchstart', e => {
+      startY = e.touches[0].clientY;
+      currentY = startY;
+      dragging = true;
+      sheet.style.transition = 'none';
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      currentY = e.touches[0].clientY;
+      const dy = Math.max(0, currentY - startY);
+      sheet.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.style.transition = 'transform 0.25s ease';
+      const dy = currentY - startY;
+      if (dy > 80) {
+        sheet.style.transform = 'translateY(100%)';
+        setTimeout(() => {
+          sheet.style.transform = '';
+          closeRoleMoreSheet(roleKey);
+          closeRoleTabCustomizer(roleKey);
+        }, 250);
+      } else {
+        sheet.style.transform = 'translateY(0)';
+      }
+    });
+  }
+
+  // শিটগুলো DOM লোড হওয়ার পরে attach করো
+  document.addEventListener('DOMContentLoaded', () => {
+    ['owner','mod','camper'].forEach(role => {
+      addSwipeClose(role + 'MoreSheet', role);
+      addSwipeClose(role + 'TabCustomizerSheet', role);
+    });
+  });
+})();
+// ===== END SWIPE =====
 
 function openRoleTabCustomizer(roleKey) {
   const cfg = ROLE_TAB_CONFIG[roleKey];
@@ -7328,15 +7379,15 @@ function initOwnerPage() {
 
   const cards = document.getElementById('ownerCards');
   if (cards) cards.innerHTML = [
-    { icon:'💰', label:'আজকের আয়', value:'৳ '+fmt(todayInc), color:'#2ecc71', bg:'#d1fae5', sub:'আজকের মোট' },
+    { icon:'💰', label:'আজকের আয়', value:'৳ '+fmt(todayInc), color:'#16a34a', bg:'#d1fae5', sub:'আজকের মোট' },
     { icon:'💸', label:'আজকের ব্যয়', value:'৳ '+fmt(todayExp), color:'#e74c3c', bg:'#fee2e2', sub:'আজকের মোট' },
-    { icon:'📈', label:'আজকের লাভ/লস', value:(todayProfit2>=0?'':'- ')+'৳ '+fmt(Math.abs(todayProfit2)), color:todayProfit2>=0?'#2ecc71':'#e74c3c', bg:todayProfit2>=0?'#d1fae5':'#fff0f0', sub:todayProfit2>=0?'✅ লাভজনক':'⚠️ লোকসান' },
+    { icon:'📈', label:'আজকের লাভ/লস', value:(todayProfit2>=0?'':'- ')+'৳ '+fmt(Math.abs(todayProfit2)), color:todayProfit2>=0?'#16a34a':'#e74c3c', bg:todayProfit2>=0?'#d1fae5':'#fff0f0', sub:todayProfit2>=0?'✅ লাভজনক':'⚠️ লোকসান' },
     { icon:'📅', label:'মাসিক লাভ/লস', value:(mProfit>=0?'':'- ')+'৳ '+fmt(Math.abs(mProfit)), color:mProfit>=0?'#8e44ad':'#e74c3c', bg:'#f3e8ff', sub:mProfit>=0?'✅ লাভজনক মাস':'⚠️ লোকসানের মাস' },
-    { icon:'🏕️', label:'ক্যাম্প আয় (এই মাস)', value:'৳ '+fmt(campMonthInc2), color:'#e67e22', bg:'#fff7ed', sub:'ক্যাম্প: '+campCount2+'টি' },
-    { icon:'⏳', label:'মোট বাকি', value:'৳ '+fmt(totalDue2), color:'#f59e0b', bg:'#fffbeb', sub:'রোগী: '+dueVisits2.length+'জন' },
+    { icon:'🏕️', label:'ক্যাম্প আয় (এই মাস)', value:'৳ '+fmt(campMonthInc2), color:'#b45309', bg:'#fff7ed', sub:'ক্যাম্প: '+campCount2+'টি' },
+    { icon:'⏳', label:'মোট বাকি', value:'৳ '+fmt(totalDue2), color:'#b45309', bg:'#fffbeb', sub:'রোগী: '+dueVisits2.length+'জন' },
     { icon:'🔴', label:'মোট দেনা', value:'৳ '+fmt(totalDebt2), color:'#c0392b', bg:'#fff0f0', sub:'লোন + সরবরাহকারী' },
-    { icon:'💵', label:'ক্যাশ ব্যালেন্স', value:'৳ '+fmt(oCash), color:'#2ecc71', bg:'#d1fae5', sub:'হাতে নগদ মজুদ', id:'ownerDashCashBalance' },
-    { icon:'🏦', label:'ব্যাংক ব্যালেন্স', value:'৳ '+fmt(oBank), color:'#3498db', bg:'#dbeafe', sub:appData.settings.bankName||'ব্যাংক একাউন্ট', id:'ownerDashBankBalance' },
+    { icon:'💵', label:'ক্যাশ ব্যালেন্স', value:'৳ '+fmt(oCash), color:'#16a34a', bg:'#d1fae5', sub:'হাতে নগদ মজুদ', id:'ownerDashCashBalance' },
+    { icon:'🏦', label:'ব্যাংক ব্যালেন্স', value:'৳ '+fmt(oBank), color:'#1d4ed8', bg:'#dbeafe', sub:appData.settings.bankName||'ব্যাংক একাউন্ট', id:'ownerDashBankBalance' },
   ].map(c=>`<div style="background:${c.bg};border-radius:8px;padding:5px 7px;display:flex;align-items:center;gap:5px;border-left:3px solid ${c.color}">
     <div style="font-size:15px;flex-shrink:0;line-height:1">${c.icon}</div>
     <div style="min-width:0;flex:1;overflow:hidden">
