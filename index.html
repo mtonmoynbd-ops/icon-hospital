@@ -239,7 +239,7 @@
   /* OWNER PANEL MOBILE RESPONSIVE */
   @media(max-width:768px) {
     #ownerPage > div[style*="padding:16px 16px 84px"] { padding:16px 12px 84px !important; }
-    #ownerCards { grid-template-columns:repeat(3,1fr) !important; gap:5px !important; }
+    #ownerCards { grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:5px !important; }
     #ownerCards > div { min-height:auto; }
     #ownerPieCanvas, #ownerBarCanvas { display:block; width:100% !important; max-width:100%; }
   }
@@ -2487,7 +2487,10 @@ function openPrintWindow(htmlContent, title) {
     <div class="rtab-sheet-handle"></div>
     <div class="rtab-sheet-header">
       <h3>সব ফিচার</h3>
-      <button type="button" onclick="openRoleTabCustomizer('mod')">⚙️ ট্যাব কাস্টমাইজ</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button type="button" onclick="openRoleTabCustomizer('mod')">⚙️ ট্যাব কাস্টমাইজ</button>
+        <button type="button" onclick="closeRoleMoreSheet('mod')" style="background:#fee2e2;color:#e74c3c;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;font-weight:700">✕</button>
+      </div>
     </div>
     <div id="modMoreSheetList" class="rtab-sheet-list"></div>
   </div>
@@ -2516,7 +2519,10 @@ function openPrintWindow(htmlContent, title) {
     <div class="rtab-sheet-handle"></div>
     <div class="rtab-sheet-header">
       <h3>সব ফিচার</h3>
-      <button type="button" onclick="openRoleTabCustomizer('owner')">⚙️ ট্যাব কাস্টমাইজ</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button type="button" onclick="openRoleTabCustomizer('owner')">⚙️ ট্যাব কাস্টমাইজ</button>
+        <button type="button" onclick="closeRoleMoreSheet('owner')" style="background:#fee2e2;color:#e74c3c;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;font-weight:700">✕</button>
+      </div>
     </div>
     <div id="ownerMoreSheetList" class="rtab-sheet-list"></div>
   </div>
@@ -2533,7 +2539,7 @@ function openPrintWindow(htmlContent, title) {
     <!-- নতুন পাবলিশ করা মেমোরেন্ডাম/TOR notification -->
     <div id="ownerMemoPublishNotif" style="display:none"></div>
     <!-- Summary Cards -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px" id="ownerCards"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px" id="ownerCards"></div>
     <div id="ownerChartSection" style="display:none;margin-bottom:10px">
       <div style="background:white;border-radius:10px;padding:10px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px;flex-wrap:wrap">
@@ -2605,7 +2611,10 @@ function openPrintWindow(htmlContent, title) {
     <div class="rtab-sheet-handle"></div>
     <div class="rtab-sheet-header">
       <h3>সব ফিচার</h3>
-      <button type="button" onclick="openRoleTabCustomizer('camper')">⚙️ ট্যাব কাস্টমাইজ</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button type="button" onclick="openRoleTabCustomizer('camper')">⚙️ ট্যাব কাস্টমাইজ</button>
+        <button type="button" onclick="closeRoleMoreSheet('camper')" style="background:#fee2e2;color:#e74c3c;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;font-weight:700">✕</button>
+      </div>
     </div>
     <div id="camperMoreSheetList" class="rtab-sheet-list"></div>
   </div>
@@ -7140,7 +7149,7 @@ function applyOwnerFeatureVisibility(activeFeature) {
   if (ocs) {
     if (activeFeature === 'dashboard') {
       ocs.style.display = 'block';
-      setTimeout(() => { renderOwnerPieChart(); renderOwnerBarChart(); }, 80);
+      setTimeout(() => { renderOwnerPieChart(); renderOwnerBarChart(); }, 200);
     } else {
       ocs.style.display = 'none';
     }
@@ -12132,9 +12141,9 @@ function renderOwnerPieChart(){
   const canvas=document.getElementById('ownerPieCanvas');
   const leg=document.getElementById('ownerPieLegend');
   if(!canvas) return;
-  // force canvas physical size যদি layout এখনো 0 হয়
   if(canvas.getBoundingClientRect().width === 0){
-    canvas.style.width='100%'; canvas.style.height='130px';
+    setTimeout(renderOwnerPieChart, 150);
+    return;
   }
   const map=buildPieData(_oPieType,_oPiePeriod);
   drawDonut(canvas,leg,map,'');
@@ -12149,7 +12158,8 @@ function setOwnerBarMode(m){
 function renderOwnerBarChart(){
   const canvas=document.getElementById('ownerBarCanvas'); if(!canvas) return;
   if(canvas.getBoundingClientRect().width === 0){
-    canvas.style.width='100%'; canvas.style.height='120px';
+    setTimeout(renderOwnerBarChart, 150);
+    return;
   }
   const {labels,inc,exp}=getBarData(_oBarMode);
   drawBarChart(canvas,inc,exp,labels);
