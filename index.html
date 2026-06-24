@@ -7149,7 +7149,8 @@ function applyOwnerFeatureVisibility(activeFeature) {
   if (ocs) {
     if (activeFeature === 'dashboard') {
       ocs.style.display = 'block';
-      setTimeout(() => { renderOwnerPieChart(); renderOwnerBarChart(); }, 200);
+      renderOwnerPieChart();
+      renderOwnerBarChart();
     } else {
       ocs.style.display = 'none';
     }
@@ -11817,8 +11818,8 @@ function buildPieData(type, period) {
 function setupHiDPICanvas(canvas, logicalW, logicalH){
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  // rect.width=0 মানে এখনো layout হয়নি — parent বা fallback ব্যবহার করো
-  const cssW = rect.width  > 0 ? rect.width  : (canvas.parentElement ? canvas.parentElement.clientWidth || logicalW : logicalW);
+  // rect.width=0 হলে canvas attribute-এর size ব্যবহার করো (সবসময় সঠিক থাকে)
+  const cssW = rect.width  > 0 ? rect.width  : logicalW;
   const cssH = rect.height > 0 ? rect.height : logicalH;
   const pxW = Math.round(cssW*dpr), pxH = Math.round(cssH*dpr);
   if (canvas._lastPxW !== pxW || canvas._lastPxH !== pxH) {
@@ -12141,10 +12142,6 @@ function renderOwnerPieChart(){
   const canvas=document.getElementById('ownerPieCanvas');
   const leg=document.getElementById('ownerPieLegend');
   if(!canvas) return;
-  if(canvas.getBoundingClientRect().width === 0){
-    setTimeout(renderOwnerPieChart, 150);
-    return;
-  }
   const map=buildPieData(_oPieType,_oPiePeriod);
   drawDonut(canvas,leg,map,'');
 }
@@ -12157,10 +12154,6 @@ function setOwnerBarMode(m){
 }
 function renderOwnerBarChart(){
   const canvas=document.getElementById('ownerBarCanvas'); if(!canvas) return;
-  if(canvas.getBoundingClientRect().width === 0){
-    setTimeout(renderOwnerBarChart, 150);
-    return;
-  }
   const {labels,inc,exp}=getBarData(_oBarMode);
   drawBarChart(canvas,inc,exp,labels);
 }
