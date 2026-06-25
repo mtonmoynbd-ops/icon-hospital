@@ -425,6 +425,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="nav-label">অ্যাকাউন্টস</div>
       <div class="nav-item" data-page="vendor"><span class="nav-icon">🏢</span> সরবরাহকারী</div>
       <div class="nav-item admin-only" data-page="bank"><span class="nav-icon">🏦</span> ব্যাংক / ক্যাশ</div>
+      <div class="nav-item admin-only" data-page="checkbook"><span class="nav-icon">📒</span> চেক বই</div>
       <div class="nav-item admin-only" data-page="loan"><span class="nav-icon">💳</span> লোন ট্র্যাকিং</div>
       <div class="nav-item admin-only" data-page="shareholders"><span class="nav-icon">👥</span> শেয়ারহোল্ডার</div>
       <div class="nav-item" data-page="balancesheet"><span class="nav-icon">📊</span> ব্যালেন্স শিট</div>
@@ -1773,6 +1774,39 @@ function openPrintWindow(htmlContent, title) {
       </div>
     </div>
 
+    <!-- CHECKBOOK -->
+    <div id="pg-checkbook" class="page-view">
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">➕ নতুন চেক বই যোগ</div></div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px">ব্যাংক থেকে ব্যয় করলে চেক নম্বর অটো আসবে। নতুন চেক বই শুরু করতে এখানে যোগ করুন।</p>
+          <div class="form-row three">
+            <div class="field"><label>চেক বইয়ের নাম / লেবেল</label><input type="text" id="cbName" placeholder="যেমন: DBBL চেক বই ২০২৬"></div>
+            <div class="field"><label>শুরুর চেক নম্বর *</label><input type="number" id="cbStart" placeholder="যেমন: 100001" min="1"></div>
+            <div class="field"><label>শেষের চেক নম্বর *</label><input type="number" id="cbEnd" placeholder="যেমন: 100050" min="1"></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-primary" onclick="saveCheckbook()">💾 চেক বই সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📒 চেক বইয়ের তালিকা</div></div>
+        <div class="panel-body">
+          <div id="checkbookListContainer"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🔍 চেক-অনুযায়ী লেনদেনের বিস্তারিত</div></div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px">প্রতিটি চেক বইয়ের কোন চেক নম্বরে কত টাকার লেনদেন হয়েছে — তার বিস্তারিত তালিকা।</p>
+          <div id="checkbookDetailContainer"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- LOAN -->
     <div id="pg-loan" class="page-view">
       <div class="stats-grid">
@@ -2429,23 +2463,12 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
-      <!-- চেক বই ব্যবস্থাপনা -->
+      <!-- চেক বই ব্যবস্থাপনা — এখন এটি একটি আলাদা ফিচার (সাইডবারে "📒 চেক বই" দেখুন) -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">🏦 চেক বই ব্যবস্থাপনা</div></div>
+        <div class="panel-header"><div class="panel-title">📒 চেক বই ব্যবস্থাপনা</div></div>
         <div class="panel-body">
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px">ব্যাংক থেকে ব্যয় করলে চেক নম্বর অটো আসবে। নতুন চেক বই শুরু করতে এখানে যোগ করুন।</p>
-          <div id="checkbookAddForm" style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:14px">
-            <p style="font-weight:600;font-size:13px;color:var(--primary);margin-bottom:10px">➕ নতুন চেক বই যোগ</p>
-            <div class="form-row three">
-              <div class="field"><label>চেক বইয়ের নাম / লেবেল</label><input type="text" id="cbName" placeholder="যেমন: DBBL চেক বই ২০২৬"></div>
-              <div class="field"><label>শুরুর চেক নম্বর *</label><input type="number" id="cbStart" placeholder="যেমন: 100001" min="1"></div>
-              <div class="field"><label>শেষের চেক নম্বর *</label><input type="number" id="cbEnd" placeholder="যেমন: 100050" min="1"></div>
-            </div>
-            <div style="display:flex;justify-content:flex-end">
-              <button class="btn btn-primary" onclick="saveCheckbook()">💾 চেক বই সেভ করুন</button>
-            </div>
-          </div>
-          <div id="checkbookListContainer"></div>
+          <p style="font-size:13px;color:var(--text-light)">চেক বই যোগ করা এবং প্রতিটি চেকের লেনদেনের বিস্তারিত দেখার জন্য সাইডবার থেকে <strong style="color:var(--primary)">"📒 চেক বই"</strong> মেনুতে যান।</p>
+          <button class="btn btn-outline btn-sm" onclick="showPage('checkbook')">📒 চেক বই পেজে যান</button>
         </div>
       </div>
 
@@ -3337,9 +3360,9 @@ function rebuildUsers() {
 
 // Feature access defaults per role
 const DEFAULT_FEATURE_ACCESS = {
-  moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','recdeposit','delivery','balancesheet'],
+  moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet'],
   receptionist:['billing'],
-  owner:       ['dashboard','report','shareholders','chart'],
+  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart'],
   campaigner:  ['camp'],
 };
 
@@ -4068,6 +4091,7 @@ const pageMap = {
   due:      { title:'⏳ বাকি খাতা', sub:'বাকি রোগীর তালিকা' },
   vendor:       { title:'🏢 সরবরাহকারী', sub:'ভেন্ডর তালিকা ও ভাউচার ব্যবস্থাপনা' },
   bank:         { title:'🏦 ব্যাংক / ক্যাশ', sub:'ব্যাংক একাউন্ট ও ক্যাশ ব্যবস্থাপনা' },
+  checkbook:    { title:'📒 চেক বই', sub:'চেক বই ও প্রতিটি চেকের লেনদেনের বিস্তারিত' },
   loan:         { title:'💳 লোন ট্র্যাকিং', sub:'লোন গ্রহণ ও পরিশোধের রেকর্ড' },
   shareholders: { title:'👥 শেয়ারহোল্ডার', sub:'মালিকানা ও লাভ বন্টন' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
@@ -4108,6 +4132,7 @@ function showPage(name) {
   if (name === 'demand')       { initDemandForm(); renderDemandList(); }
   if (name === 'vendor')       { initVendorPage(); }
   if (name === 'bank')         { initBankPage(); }
+  if (name === 'checkbook')    { initCheckbookPage(); }
   if (name === 'loan')         { initLoanPage(); }
   if (name === 'shareholders') { renderShareholderTable(); renderDividendHistory(); }
   if (name === 'officialpad')  { initOfficialPad(); }
@@ -4408,7 +4433,7 @@ function saveExpense() {
     }
   }
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
-  appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, by:currentUser.name });
+  appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, by:currentUser.name });
   saveData(); clearExpenseForm(); renderExpenseTable(); refreshDashboard();
   showToast('✅ ব্যয় এন্ট্রি সেভ! ভাউচার: ' + voucher);
 }
@@ -4533,12 +4558,12 @@ function saveCheckbook() {
   appData.checkbooks.push({ id:Date.now(), name, start, end, lastUsed:start-1, active:true });
   saveData();
   document.getElementById('cbName').value=''; document.getElementById('cbStart').value=''; document.getElementById('cbEnd').value='';
-  renderCheckbookList(); populateCheckbookSelect(); showToast('✅ চেক বই সংরক্ষিত!');
+  renderCheckbookList(); renderCheckbookDetail(); populateCheckbookSelect(); showToast('✅ চেক বই সংরক্ষিত!');
 }
 function removeCheckbook(id) {
   if (!confirm('এই চেক বই মুছবেন?')) return;
   appData.checkbooks=(appData.checkbooks||[]).filter(b=>b.id!=id);
-  saveData(); renderCheckbookList(); populateCheckbookSelect(); showToast('🗑️ মুছে ফেলা হয়েছে');
+  saveData(); renderCheckbookList(); renderCheckbookDetail(); populateCheckbookSelect(); showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 function renderCheckbookList() {
   const c=document.getElementById('checkbookListContainer'); if(!c) return;
@@ -4550,6 +4575,40 @@ function renderCheckbookList() {
     const rem=b.end-(b.lastUsed>=b.start?b.lastUsed:b.start-1);
     return `<tr><td style="font-weight:600">${b.name}</td><td>${b.start}</td><td>${b.end}</td><td style="color:var(--warning);font-weight:600">${used}</td><td style="color:var(--success);font-weight:700">${next} <span style="color:var(--text-light);font-weight:400;font-size:11px">(বাকি: ${rem})</span></td><td><button class="btn btn-danger btn-sm" onclick="removeCheckbook(${b.id})">🗑️</button></td></tr>`;
   }).join('')+`</tbody></table></div>`;
+}
+// প্রতিটি চেক বইয়ের প্রতিটি চেক নম্বরে কত লেনদেন হয়েছে — বিস্তারিত ভিউ
+function renderCheckbookDetail() {
+  const c = document.getElementById('checkbookDetailContainer'); if (!c) return;
+  const books = appData.checkbooks||[];
+  if (!books.length) { c.innerHTML = '<p style="color:var(--text-light);font-size:13px">কোনো চেক বই যোগ করা হয়নি।</p>'; return; }
+  const checkExpenses = (appData.expense||[]).filter(e=>e.payMode==='bank' && e.checkNo);
+  c.innerHTML = books.map(b => {
+    // নতুন এন্ট্রিতে checkbookId সংরক্ষিত থাকে; পুরোনো এন্ট্রির জন্য নম্বর-রেঞ্জ দিয়ে মিলানো হয়
+    const used = checkExpenses.filter(e => String(e.checkbookId)===String(b.id) || (!e.checkbookId && parseInt(e.checkNo)>=b.start && parseInt(e.checkNo)<=b.end));
+    const totalSpent = used.reduce((s,e)=>s+(e.amount||0),0);
+    const next = b.lastUsed<b.end ? b.lastUsed+1 : '—';
+    const rem = b.end-(b.lastUsed>=b.start?b.lastUsed:b.start-1);
+    return `<div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px">
+      <div style="background:#f8fafc;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><strong style="color:var(--primary)">${b.name}</strong> <span style="font-size:11px;color:#888">(চেক নং ${b.start}–${b.end})</span></div>
+        <div style="font-size:12px;color:#666">পরবর্তী চেক: <strong style="color:var(--success)">${next}</strong> &nbsp;|&nbsp; বাকি: ${rem}টি &nbsp;|&nbsp; মোট খরচ: <strong style="color:var(--danger)">৳ ${fmt(totalSpent)}</strong></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>চেক নং</th><th>তারিখ</th><th>খাত</th><th>বিবরণ</th><th>পরিমাণ</th></tr></thead>
+        <tbody>${used.length ? used.slice().sort((a,b2)=>(parseInt(a.checkNo)||0)-(parseInt(b2.checkNo)||0)).map(e=>`<tr>
+          <td style="font-weight:700;color:var(--primary)">${e.checkNo}</td>
+          <td>${formatDate(e.date)}</td>
+          <td>${e.category||'—'}</td>
+          <td>${e.note||'—'}</td>
+          <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
+        </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:#aaa;padding:14px">এই চেক বই থেকে এখনো কোনো লেনদেন হয়নি</td></tr>`}</tbody>
+      </table></div>
+    </div>`;
+  }).join('');
+}
+function initCheckbookPage() {
+  renderCheckbookList();
+  renderCheckbookDetail();
 }
 function populateCheckbookSelect() {
   const sel=document.getElementById('expCheckbook'); if(!sel) return;
@@ -7269,6 +7328,7 @@ const ALL_FEATURES = [
   { id:'report',    label:'মাসিক রিপোর্ট' },
   { id:'vendor',    label:'সরবরাহকারী' },
   { id:'bank',      label:'ব্যাংক/ক্যাশ' },
+  { id:'checkbook', label:'চেক বই' },
   { id:'loan',      label:'লোন ট্র্যাকিং' },
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
   { id:'memorandum', label:'মেমোরেন্ডাম ও TOR' },
@@ -7280,13 +7340,13 @@ const ALL_FEATURES = [
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders','memorandum','recdeposit','delivery','balancesheet'],
-  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','loan','shareholders','memorandum','recdeposit','delivery','balancesheet']
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet'],
+  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet']
 };
 const FEATURE_ICONS = {
   dashboard:'🏠', income:'💰', expense:'🧾', camp:'⛺', due:'⏳', stock:'📦',
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
-  bank:'🏦', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
+  bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
   delivery:'🚛', balancesheet:'⚖️', chart:'📊'
 };
 const OWNER_TAB_CONFIG_KEY = 'hms_owner_tabs';
@@ -7520,7 +7580,7 @@ function applySidebarAccess(role) {
     const page = el.getAttribute('data-page');
     const adminOnly = el.classList.contains('admin-only');
     if (role === 'admin') el.style.display = '';
-    else if (adminOnly && !['bank','loan','shareholders'].includes(page)) el.style.display = 'none';
+    else if (adminOnly && !['bank','checkbook','loan','shareholders'].includes(page)) el.style.display = 'none';
     else el.style.display = canAccess(role, page) ? '' : 'none';
   });
   document.body.classList.remove('role-moderator');
@@ -8287,14 +8347,6 @@ function buildReadOnlyHTML(feature) {
         ${rows.length ? rows.map(v=>`<tr><td style="${tdStyle};font-weight:600">${v.name||'—'}</td><td style="${tdStyle}">${v.phone||'—'}</td><td style="${tdStyle}">${v.address||'—'}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px;text-align:center;color:#aaa">কোনো সরবরাহকারী নেই</td></tr>`}
       </table></div>`;
   }
-  if (feature === 'bank') {
-    const rows = (appData.bankTx||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏦 ব্যাংক/ক্যাশ তালিকা ${badge}</div>
-      <div style="overflow-x:auto"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">ধরন</th><th style="${thStyle}">পরিমাণ</th></tr>
-        ${rows.length ? rows.map(tx=>`<tr><td style="${tdStyle}">${formatDate(tx.date)}</td><td style="${tdStyle}">${tx.note||'—'}</td><td style="${tdStyle}">${tx.type||'—'}</td><td style="${tdStyle};font-weight:700;color:${tx.type==='in'?'#2ecc71':'#e74c3c'}">৳ ${fmt2(tx.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
-      </table></div>`;
-  }
   if (feature === 'loan') {
     const rows = (appData.loans||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🤝 লোন তালিকা ${badge}</div>
@@ -8350,6 +8402,91 @@ function buildReadOnlyHTML(feature) {
           <div id="memoBody-${d.id}" style="display:none;padding:14px;white-space:pre-wrap;font-size:12px;line-height:1.8;color:#1a2a3a;border-top:1px solid #e2e8f0;max-height:320px;overflow-y:auto">${d.text.replace(/</g,'&lt;')}</div>
         </div>`).join('')}
       </div>`;
+  }
+  if (feature === 'bank') {
+    const rows = (appData.bankTx||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    const typeLabel = { cash_in:'ক্যাশ যোগ', bank_in:'ব্যাংক যোগ', cash_to_bank:'ক্যাশ→ব্যাংক', bank_to_cash:'ব্যাংক→ক্যাশ', cash_out:'ক্যাশ ব্যয়', bank_out:'ব্যাংক ব্যয়' };
+    const { cash, bank } = (typeof calcCashBankBalance==='function') ? calcCashBankBalance() : {cash:0,bank:0};
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏦 ব্যাংক/ক্যাশ লেনদেন ${badge}</div>
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="background:#d1fae5;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;text-align:center"><div style="font-size:11px;color:#065f46">ক্যাশ ব্যালেন্স</div><div style="font-size:18px;font-weight:800;color:#059669">৳ ${fmt2(cash)}</div></div>
+        <div style="background:#dbeafe;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;text-align:center"><div style="font-size:11px;color:#1e40af">ব্যাংক ব্যালেন্স</div><div style="font-size:18px;font-weight:800;color:#1d4ed8">৳ ${fmt2(bank)}</div></div>
+      </div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ধরন</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(tx=>`<tr><td style="${tdStyle}">${formatDate(tx.date)}</td><td style="${tdStyle}">${typeLabel[tx.type]||tx.type||'—'}</td><td style="${tdStyle}">${tx.note||'—'}</td><td style="${tdStyle};font-weight:700;color:${['cash_in','bank_in','bank_to_cash','cash_to_bank'].includes(tx.type)?'#2ecc71':'#e74c3c'}">৳ ${fmt2(tx.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'checkbook') {
+    const books = (appData.checkbooks||[]).slice();
+    if (!books.length) {
+      return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📒 চেক বই ${badge}</div>
+        <div style="text-align:center;color:#aaa;padding:30px">কোনো চেক বই যোগ করা হয়নি</div>`;
+    }
+    const checkExpenses = (appData.expense||[]).filter(e=>e.payMode==='bank' && e.checkNo);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📒 চেক বইয়ের লেনদেন বিবরণ ${badge}</div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        ${books.map(b=>{
+          const used = checkExpenses.filter(e=>String(e.checkbookId)===String(b.id) || (!e.checkbookId && parseInt(e.checkNo)>=b.start && parseInt(e.checkNo)<=b.end));
+          const totalSpent = used.reduce((s,e)=>s+(e.amount||0),0);
+          const next = b.lastUsed<b.end ? b.lastUsed+1 : '—';
+          const rem = b.end-(b.lastUsed>=b.start?b.lastUsed:b.start-1);
+          return `<div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden">
+            <div style="background:#f8fafc;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div><strong style="color:var(--primary)">${b.name}</strong> <span style="font-size:11px;color:#888">(চেক নং ${b.start}–${b.end})</span></div>
+              <div style="font-size:12px;color:#666">পরবর্তী চেক: <strong style="color:var(--success)">${next}</strong> &nbsp;|&nbsp; বাকি: ${rem}টি &nbsp;|&nbsp; মোট খরচ: <strong style="color:#e74c3c">৳ ${fmt2(totalSpent)}</strong></div>
+            </div>
+            <div style="overflow-x:auto"><table style="${tableStyle}">
+              <tr><th style="${thStyle}">চেক নং</th><th style="${thStyle}">তারিখ</th><th style="${thStyle}">খাত</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
+              ${used.length ? used.slice().sort((a,b2)=>(parseInt(a.checkNo)||0)-(parseInt(b2.checkNo)||0)).map(e=>`<tr><td style="${tdStyle};font-weight:700;color:#0f4c81">${e.checkNo}</td><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.note||'—'}</td><td style="${tdStyle};font-weight:700;color:#e74c3c">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#aaa">এই চেক বই থেকে এখনো কোনো লেনদেন হয়নি</td></tr>`}
+            </table></div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+  if (feature === 'balancesheet') {
+    const vm = 'day';
+    const allDates = (typeof getAllDatesWithActivity==='function') ? getAllDatesWithActivity() : [];
+    const initCash = parseFloat((appData.settings||{}).cashBalance)||0;
+    const initBank = parseFloat((appData.settings||{}).bankBalance)||0;
+    let runningCash = initCash, runningBank = initBank;
+    const rows = allDates.map(d => {
+      const inc = getDayIncome(d), exp = getDayExpense(d), bankNet = getDayNetBank(d);
+      const openingCash = runningCash, openingBank = runningBank;
+      runningCash = openingCash + getDayNetCash(d);
+      runningBank = openingBank + bankNet;
+      return { date:d, openingCash, openingBank, income:inc, expense:exp, closingCash:runningCash, closingBank:runningBank };
+    }).reverse().slice(0,30);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">⚖️ ব্যালেন্স শিট ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">প্রারম্ভিক ক্যাশ</th><th style="${thStyle}">প্রারম্ভিক ব্যাংক</th><th style="${thStyle}">আয়</th><th style="${thStyle}">ব্যয়</th><th style="${thStyle}">সমাপনি ক্যাশ</th><th style="${thStyle}">সমাপনি ব্যাংক</th></tr>
+        ${rows.length ? rows.map(r=>`<tr>
+          <td style="${tdStyle};font-weight:600">${formatDate(r.date)}</td>
+          <td style="${tdStyle}">৳ ${fmt2(r.openingCash)}</td>
+          <td style="${tdStyle}">৳ ${fmt2(r.openingBank)}</td>
+          <td style="${tdStyle};color:#2ecc71">৳ ${fmt2(r.income)}</td>
+          <td style="${tdStyle};color:#e74c3c">৳ ${fmt2(r.expense)}</td>
+          <td style="${tdStyle};font-weight:700">৳ ${fmt2(r.closingCash)}</td>
+          <td style="${tdStyle};font-weight:700">৳ ${fmt2(r.closingBank)}</td>
+        </tr>`).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">কোনো তথ্য নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'recdeposit') {
+    const rows = (appData.recDeposits||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🧰 রিসেপশন রেকর্ড (ক্যাশ জমা) ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">সময়</th><th style="${thStyle}">জমা দিয়েছেন</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">মেমো রেঞ্জ</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle}">${d.time||'—'}</td><td style="${tdStyle}">${d.by||'—'}</td><td style="${tdStyle};text-align:center">${d.visitCount||0}জন</td><td style="${tdStyle}">${d.memoFrom||''}–${d.memoTo||''}</td><td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(d.amount)}</td></tr>`).join('') : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+      </table></div>`;
+  }
+  if (feature === 'delivery') {
+    const rows = (appData.deliveryOrders||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    const statusLabel = d => d.status==='delivered' ? '✅ ডেলিভারি' : 'অপেক্ষমান';
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🚛 ডেলিভারি শিডিউল ${badge}</div>
+      <div style="overflow-x:auto"><table style="${tableStyle}">
+        <tr><th style="${thStyle}">অর্ডার তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">আইটেম</th><th style="${thStyle}">মোট</th><th style="${thStyle}">বাকি</th><th style="${thStyle}">ডেলিভারি তারিখ</th><th style="${thStyle}">স্ট্যাটাস</th></tr>
+        ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.orderDate)}</td><td style="${tdStyle};font-weight:600">${d.name}</td><td style="${tdStyle}">${d.item}</td><td style="${tdStyle}">৳ ${fmt2(d.total)}</td><td style="${tdStyle};color:${(d.due||0)>0?'#e74c3c':'inherit'}">৳ ${fmt2(d.due||0)}</td><td style="${tdStyle}">${formatDate(d.deliveryDate)}</td><td style="${tdStyle}">${statusLabel(d)}</td></tr>`).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">কোনো অর্ডার নেই</td></tr>`}
+      </table></div>`;
   }
   // Default
   const f = ALL_FEATURES.find(x=>x.id===feature);
