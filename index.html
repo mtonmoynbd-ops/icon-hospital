@@ -2474,10 +2474,23 @@ function openPrintWindow(htmlContent, title) {
 
       <!-- Firebase Sync Info -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">🔥 Firebase রিয়েল-টাইম সিঙ্ক</div></div>
+        <div class="panel-header"><div class="panel-title">🔥 Firebase রিয়েল-টাইম সিঙ্ক ও ব্যাকআপ রিস্টোর</div></div>
         <div class="panel-body">
-          <div style="background:#f0fff4;border:1.5px solid #86efac;border-radius:8px;padding:14px;font-size:13px;color:#166534">
-            ✅ Firebase Realtime Database সক্রিয় আছে। যেকোনো ডিভাইস থেকে এন্ট্রি দিলে সাথে সাথে সব ডিভাইসে আপডেট হবে। কোনো সেটআপের দরকার নেই।
+          <div style="background:#f0fff4;border:1.5px solid #86efac;border-radius:8px;padding:14px;font-size:13px;color:#166534;margin-bottom:16px">
+            ✅ Firebase Realtime Database সক্রিয় আছে। যেকোনো ডিভাইস থেকে এন্ট্রি দিলে সাথে সাথে সব ডিভাইসে আপডেট হবে।<br>
+            🛡️ <strong>দৈনিক স্বয়ংক্রিয় ব্যাকআপ চালু আছে</strong> — প্রতিদিন একবার Firebase এ আলাদা snapshot সেভ হয়।
+          </div>
+          <!-- Firebase Backup Restore -->
+          <div style="background:#f0f4ff;border:1.5px solid #a5b4fc;border-radius:10px;padding:16px">
+            <p style="font-weight:700;font-size:14px;color:#3730a3;margin-bottom:4px">🗄️ পুরনো ব্যাকআপ থেকে রিস্টোর করুন</p>
+            <p style="font-size:12px;color:#6366f1;margin-bottom:12px">Firebase এ সংরক্ষিত দৈনিক ব্যাকআপ লোড করুন (তারিখ বেছে নিন)</p>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <input type="date" id="fbBackupDate" style="padding:8px 12px;border:1.5px solid #a5b4fc;border-radius:8px;font-family:inherit;font-size:14px;color:var(--text)">
+              <button class="btn btn-primary" onclick="restoreFromFirebaseBackup()">♻️ এই তারিখের ব্যাকআপ লোড করুন</button>
+              <button class="btn btn-outline btn-sm" onclick="listFirebaseBackups()">📋 সব ব্যাকআপ দেখুন</button>
+            </div>
+            <div id="fbBackupList" style="margin-top:12px;display:none"></div>
+            <div id="fbBackupStatus" style="margin-top:10px;font-size:13px;color:var(--text-light)"></div>
           </div>
         </div>
       </div>
@@ -3309,8 +3322,8 @@ function openPrintWindow(htmlContent, title) {
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
+import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDp7p042YlfRS8VZ5EVJnLhExJTOSmbD2o",
@@ -3324,9 +3337,17 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
+const auth = getAuth(firebaseApp);
+
+// পর্দার আড়ালে Firebase এ login — ডাটা সুরক্ষিত রাখতে
+signInWithEmailAndPassword(auth, "m.tonmoy.nbd@gmail.com", "iconeyehospital1320")
+  .then(() => { console.log('[HMS] Firebase Auth সফল'); })
+  .catch(e => { console.warn('[HMS] Firebase Auth ব্যর্থ:', e.message); });
+
 window._fbDb = db;
 window._fbRef = ref;
 window._fbSet = set;
+window._fbGet = get;
 window._fbOnValue = onValue;
 window._fbDBREF = 'hms_data';
 </script>
@@ -3384,7 +3405,7 @@ let serviceCount = 0;
 function init() {
   loadData();
   const today = todayStr();
-  ['incDate','expDate','incFilterDate','expFilterDate','rBillDate','recHistDate'].forEach(id => {
+  ['incDate','expDate','incFilterDate','expFilterDate','rBillDate','recHistDate','fbBackupDate'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
@@ -3565,6 +3586,78 @@ async function loadFromGitHub() {
 
 // Auto-sync on saveData (optional — silent background sync)
 const _origSaveData = saveData;
+
+// ===== FIREBASE BACKUP RESTORE =====
+async function listFirebaseBackups() {
+  const statusEl = document.getElementById('fbBackupStatus');
+  const listEl   = document.getElementById('fbBackupList');
+  if (!window._fbDb || !window._fbRef || !window._fbGet) {
+    if (statusEl) statusEl.textContent = '❌ Firebase সংযুক্ত নয়।'; return;
+  }
+  if (statusEl) statusEl.textContent = '⏳ ব্যাকআপ তালিকা লোড হচ্ছে...';
+  if (listEl) listEl.style.display = 'none';
+
+  try {
+    const backupRef = window._fbRef(window._fbDb, 'hms_backups');
+    const snap = await window._fbGet(backupRef);
+    if (!snap.exists()) {
+      if (statusEl) statusEl.textContent = '⚠️ কোনো ব্যাকআপ পাওয়া যায়নি।'; return;
+    }
+    const dates = Object.keys(snap.val()).sort().reverse();
+    if (listEl) {
+      listEl.style.display = 'block';
+      listEl.innerHTML = `<div style="font-size:12px;font-weight:700;color:#3730a3;margin-bottom:8px">📅 পাওয়া গেছে ${dates.length}টি ব্যাকআপ:</div>` +
+        dates.map(d => {
+          const val = snap.val()[d];
+          const inc = (val.income||[]).length;
+          const exp = (val.expense||[]).length;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:1px solid #e0e7ff;border-radius:8px;margin-bottom:6px">
+            <div>
+              <span style="font-weight:700;color:#3730a3">${d}</span>
+              <span style="font-size:11px;color:#6b7280;margin-left:8px">আয়: ${inc}টি | ব্যয়: ${exp}টি</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="restoreSpecificBackup('${d}')">♻️ রিস্টোর</button>
+          </div>`;
+        }).join('');
+    }
+    if (statusEl) statusEl.textContent = '';
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ ব্যাকআপ লোড ব্যর্থ: ' + e.message;
+  }
+}
+
+async function restoreFromFirebaseBackup() {
+  const dateVal = document.getElementById('fbBackupDate').value;
+  if (!dateVal) { showToast('⚠️ আগে তারিখ বেছে নিন!'); return; }
+  await restoreSpecificBackup(dateVal);
+}
+
+async function restoreSpecificBackup(dateStr) {
+  if (!confirm(`${dateStr} তারিখের ব্যাকআপ লোড করলে বর্তমান ডেটা রিপ্লেস হবে। নিশ্চিত?`)) return;
+  const statusEl = document.getElementById('fbBackupStatus');
+  if (statusEl) statusEl.textContent = '⏳ রিস্টোর হচ্ছে...';
+  if (!window._fbDb || !window._fbRef || !window._fbGet) {
+    if (statusEl) statusEl.textContent = '❌ Firebase সংযুক্ত নয়।'; return;
+  }
+  try {
+    const backupRef = window._fbRef(window._fbDb, 'hms_backups/' + dateStr);
+    const snap = await window._fbGet(backupRef);
+    if (!snap.exists()) {
+      if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
+      showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
+    }
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+    appData = { ...def, ...snap.val() };
+    rebuildUsers();
+    saveData();
+    refreshDashboard();
+    if (statusEl) statusEl.textContent = `✅ ${dateStr} তারিখের ব্যাকআপ সফলভাবে রিস্টোর হয়েছে!`;
+    showToast(`✅ ${dateStr} তারিখের ব্যাকআপ রিস্টোর হয়েছে!`);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ রিস্টোর ব্যর্থ: ' + e.message;
+    showToast('❌ রিস্টোর ব্যর্থ!');
+  }
+}
 
 // ===== PASSWORD CHANGE =====
 function changePassword() {
@@ -4047,12 +4140,32 @@ function loadData() {
   rebuildUsers();
   setTimeout(startFirebaseSync, 1000);
 }
+// ===== DATA INTEGRITY CHECK =====
+function isDataSuspectEmpty(data) {
+  // Firebase থেকে আসা ডাটা সন্দেহজনকভাবে খালি কিনা চেক করে
+  // যদি income, expense, visits, visits সব [] হয় এবং বর্তমান appData তে ডাটা থাকে
+  const fbEmpty = (!data.income || data.income.length === 0) &&
+                  (!data.expense || data.expense.length === 0) &&
+                  (!data.visits || data.visits.length === 0) &&
+                  (!data.camps || data.camps.length === 0);
+  const localHasData = (appData.income && appData.income.length > 0) ||
+                       (appData.expense && appData.expense.length > 0) ||
+                       (appData.visits && appData.visits.length > 0);
+  return fbEmpty && localHasData;
+}
+
 function startFirebaseSync() {
   if (!window._fbDb || !window._fbRef || !window._fbOnValue) { setTimeout(startFirebaseSync, 500); return; }
   const dataRef = window._fbRef(window._fbDb, window._fbDBREF);
   window._fbOnValue(dataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
+      // ✅ সুরক্ষা: Firebase থেকে সন্দেহজনক খালি ডাটা আসলে overwrite করবে না
+      if (isDataSuspectEmpty(data)) {
+        console.warn('[HMS] Firebase ডাটা সন্দেহজনকভাবে খালি — overwrite বন্ধ রাখা হয়েছে। localStorage ডাটা সুরক্ষিত।');
+        showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
+        return;
+      }
       const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
       appData = { ...def, ...data };
       rebuildUsers();
@@ -4077,8 +4190,40 @@ function startFirebaseSync() {
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
   if (window._fbDb && window._fbRef && window._fbSet) {
+    // ✅ মূল ডাটা সেভ
     window._fbSet(window._fbRef(window._fbDb, window._fbDBREF), appData)
       .catch(e => console.error('Firebase save error:', e));
+    // ✅ দৈনিক snapshot backup (Firebase এ আলাদা node এ)
+    const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    const backupKey = 'hms_last_backup_' + today;
+    if (!localStorage.getItem(backupKey)) {
+      const backupRef = window._fbRef(window._fbDb, 'hms_backups/' + today);
+      window._fbSet(backupRef, appData)
+        .then(() => {
+          localStorage.setItem(backupKey, '1');
+          console.log('[HMS] দৈনিক Firebase backup সম্পন্ন:', today);
+          // ✅ ৩৬৫ দিনের বেশি পুরনো backup auto-delete
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - 365);
+          const cutoffStr = cutoff.toISOString().slice(0,10);
+          const oldKey = 'hms_last_cleanup';
+          const lastCleanup = localStorage.getItem(oldKey);
+          if (!lastCleanup || lastCleanup < cutoffStr) {
+            window._fbGet(window._fbRef(window._fbDb, 'hms_backups')).then(snap => {
+              if (!snap.exists()) return;
+              Object.keys(snap.val()).forEach(dateKey => {
+                if (dateKey < cutoffStr) {
+                  window._fbSet(window._fbRef(window._fbDb, 'hms_backups/' + dateKey), null)
+                    .then(() => console.log('[HMS] পুরনো backup মুছা হয়েছে:', dateKey))
+                    .catch(()=>{});
+                }
+              });
+              localStorage.setItem(oldKey, today);
+            }).catch(()=>{});
+          }
+        })
+        .catch(e => console.warn('Firebase backup error:', e));
+    }
   }
 }
 
