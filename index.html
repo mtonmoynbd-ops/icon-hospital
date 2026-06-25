@@ -3599,6 +3599,28 @@ async function loadFromGitHub() {
 const _origSaveData = saveData;
 
 // ===== FIREBASE BACKUP RESTORE =====
+async function takeManualBackup() {
+  const statusEl = document.getElementById('manualBackupStatus');
+  if (!window._fbDb || !window._fbRef || !window._fbSet) {
+    if (statusEl) statusEl.textContent = '❌ Firebase সংযুক্ত নয়।'; return;
+  }
+  if (statusEl) statusEl.textContent = '⏳ ব্যাকআপ নেওয়া হচ্ছে...';
+  const today = new Date().toISOString().slice(0,10);
+  try {
+    const backupRef = window._fbRef(window._fbDb, 'hms_backups/' + today);
+    await window._fbSet(backupRef, appData);
+    // localStorage এ flag আপডেট করি
+    localStorage.setItem('hms_last_backup_' + today, '1');
+    const now = new Date().toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
+    if (statusEl) statusEl.innerHTML = `✅ <strong>${today}</strong> তারিখের ব্যাকআপ সফল (${now})`;
+    showToast('✅ ব্যাকআপ সফলভাবে নেওয়া হয়েছে!');
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ ব্যাকআপ ব্যর্থ: ' + e.message;
+    showToast('❌ ব্যাকআপ ব্যর্থ!');
+  }
+}
+
+
 async function listFirebaseBackups() {
   const statusEl = document.getElementById('fbBackupStatus');
   const listEl   = document.getElementById('fbBackupList');
