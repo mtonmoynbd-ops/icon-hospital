@@ -307,6 +307,17 @@ function openPrintWindow(htmlContent, title) {
   const hospName = (typeof appData !== 'undefined' && appData.settings && appData.settings.hospName)
     ? appData.settings.hospName : 'ICON Eye Hospital';
 
+  // কিছু কলার ফুল <html><head><style>...</style></head><body>...</body></html> পাঠায়।
+  // সেটা সরাসরি innerHTML-এ বসালে স্ক্রল/লেআউট ভেঙে যায়, তাই style ও body বিচ্ছিন্ন করে নেওয়া হলো।
+  let extraStyle = '';
+  let bodyContent = htmlContent;
+  if (/<html[\s>]/i.test(htmlContent)) {
+    const styleMatches = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+    extraStyle = styleMatches.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+    const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    bodyContent = bodyMatch ? bodyMatch[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  }
+
   const overlay = document.createElement('div');
   overlay.id = 'printPreviewOverlay';
   overlay.style.cssText = `
@@ -316,16 +327,17 @@ function openPrintWindow(htmlContent, title) {
   `;
 
   overlay.innerHTML = `
-    <div style="background:white;max-width:720px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
-      <div class="print-toolbar" style="background:#0f4c81;padding:12px 20px;display:flex;align-items:center;justify-content:space-between">
+    <div style="background:white;max-width:720px;width:100%;border-radius:12px;overflow:visible;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+      <div class="print-toolbar" style="background:#0f4c81;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0">
         <div style="color:white;font-weight:700;font-size:14px">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
         <div style="display:flex;gap:8px">
           <button onclick="window.print()" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:8px 18px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:600">🖨️ প্রিন্ট করুন</button>
           <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer">✕ বন্ধ</button>
         </div>
       </div>
-      <div id="printPreviewBody" style="padding:24px;font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;line-height:1.6">
-        ${htmlContent}
+      <div id="printPreviewBody" style="padding:24px;font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;line-height:1.6;border-radius:0 0 12px 12px">
+        ${extraStyle ? `<style>${extraStyle}</style>` : ''}
+        ${bodyContent}
       </div>
     </div>`;
 
@@ -5903,8 +5915,8 @@ function printReport() {
   const totalInc  = document.getElementById('rpTotalIncome').textContent;
   const totalExp  = document.getElementById('rpTotalExpense').textContent;
   const netProfit = document.getElementById('rpNetProfit').textContent;
-  const dailyRows = document.getElementById('rpDailyTable').innerHTML;
-  const dailyFoot = document.getElementById('rpDailyFoot').innerHTML;
+  const detailHtml = document.getElementById('rpDetailTable').innerHTML;
+  const groupLabel = _rpGroupMode==='inccat' ? 'আয়-ক্যাটাগরি ওয়াইজ' : _rpGroupMode==='expcat' ? 'ব্যয়-ক্যাটাগরি ওয়াইজ' : 'দৈনিক সারসংক্ষেপ';
 
   openPrintWindow(`
     <div style="max-width:720px;margin:0 auto;padding:24px">
@@ -5931,19 +5943,8 @@ function printReport() {
           </td>
         </tr>
       </table>
-      <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:14px">📅 দৈনিক সারসংক্ষেপ</div>
-      <table style="font-size:13px">
-        <thead><tr style="background:#0f4c81;color:white">
-          <th style="padding:8px;text-align:left">তারিখ</th>
-          <th style="padding:8px;text-align:right">আয়</th>
-          <th style="padding:8px;text-align:right">রিসেপশন</th>
-          <th style="padding:8px;text-align:right">মোট আয়</th>
-          <th style="padding:8px;text-align:right">ব্যয়</th>
-          <th style="padding:8px;text-align:right">লাভ/লস</th>
-        </tr></thead>
-        <tbody>${dailyRows}</tbody>
-        <tfoot>${dailyFoot}</tfoot>
-      </table>
+      <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:14px">📅 ${groupLabel}</div>
+      <div style="font-size:13px">${detailHtml}</div>
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;border-top:1px solid #eee;padding-top:10px">
         রিপোর্ট তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
