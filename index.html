@@ -573,22 +573,64 @@ function openPrintWindow(htmlContent, title) {
         <div class="panel-body">
           <div class="form-row three">
             <div class="field"><label>তারিখ *</label><input type="date" id="expDate" onchange="updateExpVoucher()"></div>
-            <div class="field"><label>ব্যয়ের খাত *</label>
-              <select id="expCategory"><option value="">-- খাত নির্বাচন করুন --</option>
-                <option>ওষুধ/সরঞ্জাম কেনা</option><option>কর্মীর বেতন</option><option>বিদ্যুৎ বিল</option>
-                <option>পানির বিল</option><option>ইন্টারনেট/ফোন</option><option>ভাড়া</option>
-                <option>মেরামত/রক্ষণাবেক্ষণ</option><option>অন্যান্য ব্যয়</option>
-              </select>
+            <div class="field"><label>ব্যয়ের ক্যাটাগরি *</label>
+              <select id="expCategory" onchange="updateExpSubCats()"><option value="">-- ক্যাটাগরি নির্বাচন করুন --</option></select>
             </div>
-            <div class="field"><label>পরিমাণ (৳) *</label><input type="number" id="expAmount" placeholder="০.০০" min="0"></div>
+            <div class="field"><label>সাব-ক্যাটাগরি</label>
+              <select id="expSubCategory"><option value="">-- সাব-ক্যাটাগরি --</option></select>
+            </div>
           </div>
           <div class="form-row three">
-            <div class="field">
-              <label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+            <div class="field"><label>পরিমাণ (৳) *</label><input type="number" id="expAmount" placeholder="০.০০" min="0"></div>
+            <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
               <input type="text" id="expVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
             </div>
-            <div class="field"><label>প্রদানকারী / রেফারেন্স</label><input type="text" id="expRef" placeholder="ঐচ্ছিক"></div>
             <div class="field"><label>বিবরণ</label><input type="text" id="expNote" placeholder="সংক্ষিপ্ত বিবরণ"></div>
+          </div>
+          <!-- পেমেন্ট মাধ্যম -->
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="field">
+              <label>পেমেন্ট মাধ্যম *</label>
+              <div style="display:flex;gap:10px;margin-top:6px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="expPayMode" value="cash" id="expPayCash" onchange="onExpPayModeChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="expPayMode" value="bank" id="expPayBank" onchange="onExpPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক
+                </label>
+              </div>
+            </div>
+          </div>
+          <!-- ক্যাশ: ব্যক্তি নির্বাচন -->
+          <div id="expCashPersonRow" class="form-row" style="margin-bottom:10px">
+            <div class="field">
+              <label>পরিশোধকারী ব্যক্তি</label>
+              <div style="display:flex;gap:6px">
+                <select id="expCashPerson" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc">
+                  <option value="">-- ব্যক্তি নির্বাচন করুন --</option>
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" onclick="toggleExpAddPerson()" title="নতুন ব্যক্তি যোগ করুন" style="padding:8px 12px">➕</button>
+              </div>
+              <div id="expAddPersonRow" style="display:none;margin-top:6px;display:none">
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="expNewPersonName" placeholder="নতুন ব্যক্তির নাম" style="flex:1;padding:9px 12px;border:1.5px solid var(--accent);border-radius:6px;font-family:inherit;font-size:13px">
+                  <button type="button" class="btn btn-success btn-sm" onclick="addExpPerson()">✅ যোগ</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="toggleExpAddPerson()">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- ব্যাংক: চেক নম্বর -->
+          <div id="expBankRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field">
+              <label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো — পূর্বের পরের চেক)</span></label>
+              <input type="text" id="expCheckNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+            </div>
+            <div class="field"><label>চেক বই</label>
+              <select id="expCheckbook" onchange="updateNextCheckNo()" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                <option value="">-- চেক বই নির্বাচন করুন --</option>
+              </select>
+            </div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="clearExpenseForm()">🔄 রিসেট</button>
@@ -603,12 +645,20 @@ function openPrintWindow(htmlContent, title) {
               <option value="day">ডে ওয়াইজ</option>
               <option value="month">মান্থ ওয়াইজ</option>
             </select>
+            <select id="expGroupBy" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="date">তারিখ অনুযায়ী</option>
+              <option value="category">ক্যাটাগরি অনুযায়ী</option>
+              <option value="paymode">পেমেন্ট মাধ্যম</option>
+            </select>
+            <select id="expFilterCat" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব ক্যাটাগরি</option>
+            </select>
             <input type="date" id="expFilterDate" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
             <input type="month" id="expFilterMonth" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;display:none">
           </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>খাত</th><th>রেফারেন্স</th><th>বিবরণ</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>ক্যাটাগরি</th><th>সাব-ক্যাটাগরি</th><th>পেমেন্ট</th><th>ব্যক্তি/চেক</th><th>বিবরণ</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="expenseTable"></tbody>
         </table></div></div>
       </div>
@@ -1524,22 +1574,26 @@ function openPrintWindow(htmlContent, title) {
           <div class="panel-header"><div class="panel-title">💸 ব্যয়ের খাতভিত্তিক বিশ্লেষণ</div></div>
           <div class="panel-body">
             <div class="table-wrap"><table>
-              <thead><tr><th>খাত</th><th>এন্ট্রি</th><th>পরিমাণ</th><th>%</th></tr></thead>
+              <thead><tr><th>খাত</th><th>সাব-ক্যাট</th><th>এন্ট্রি</th><th>পরিমাণ</th><th>%</th></tr></thead>
               <tbody id="rpExpenseCatTable"></tbody>
             </table></div>
           </div>
         </div>
       </div>
 
-      <!-- Daily summary table -->
+      <!-- Detail table with grouping toggle -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">📅 দৈনিক সারসংক্ষেপ</div></div>
+        <div class="panel-header">
+          <div class="panel-title">📅 বিস্তারিত সারসংক্ষেপ</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:13px;font-weight:600;color:var(--text-light)">গ্রুপ করুন:</label>
+            <button id="rpGroupDayBtn" class="btn btn-primary btn-sm" onclick="setRpGroupMode('day')">📅 ডে ওয়াইজ</button>
+            <button id="rpGroupIncCatBtn" class="btn btn-outline btn-sm" onclick="setRpGroupMode('inccat')">💰 আয়-ক্যাটাগরি</button>
+            <button id="rpGroupExpCatBtn" class="btn btn-outline btn-sm" onclick="setRpGroupMode('expcat')">💸 ব্যয়-ক্যাটাগরি</button>
+          </div>
+        </div>
         <div class="panel-body">
-          <div class="table-wrap"><table>
-            <thead><tr><th>তারিখ</th><th>আয়</th><th>রিসেপশন আয়</th><th>মোট আয়</th><th>ব্যয়</th><th>লাভ/লস</th></tr></thead>
-            <tbody id="rpDailyTable"></tbody>
-            <tfoot id="rpDailyFoot"></tfoot>
-          </table></div>
+          <div id="rpDetailTable"></div>
         </div>
       </div>
     </div>
@@ -2323,6 +2377,63 @@ function openPrintWindow(htmlContent, title) {
               <div id="expCatList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- ব্যয়ের সাব-ক্যাটাগরি ব্যবস্থাপনা -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📋 ব্যয়ের সাব-ক্যাটাগরি ব্যবস্থাপনা</div></div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px">প্রতিটি ব্যয়ের খাতের অধীনে সাব-ক্যাটাগরি সেট করুন। ব্যয় এন্ট্রিতে ক্যাটাগরি সিলেক্ট করলে সাব-ক্যাটাগরি অটো লোড হবে।</p>
+          <div class="form-row" style="grid-template-columns:auto 1fr auto;gap:10px;align-items:end;margin-bottom:14px">
+            <div class="field" style="min-width:200px">
+              <label>ক্যাটাগরি নির্বাচন করুন</label>
+              <select id="subCatParent" onchange="renderSubCatList()" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+                <option value="">-- ক্যাটাগরি --</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>নতুন সাব-ক্যাটাগরির নাম</label>
+              <input type="text" id="newSubCatName" placeholder="যেমন: মেডিকেল সরঞ্জাম, অ্যাম্বুলেন্স বিল..." style="padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%">
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="addExpSubCat()" style="margin-bottom:1px">+ যোগ করুন</button>
+          </div>
+          <div id="subCatListContainer" style="min-height:40px">
+            <p style="color:var(--text-light);font-size:13px">উপরে একটি ক্যাটাগরি নির্বাচন করুন।</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ক্যাশ পেমেন্টের ব্যক্তি তালিকা -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">👤 ক্যাশ পেমেন্টের ব্যক্তি তালিকা</div></div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px">ব্যয় এন্ট্রিতে ক্যাশ মাধ্যমে পরিশোধ করলে এই তালিকা থেকে ব্যক্তি নির্বাচন করা যাবে।</p>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input type="text" id="newExpPersonName" placeholder="ব্যক্তির নাম যোগ করুন" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <button class="btn btn-success btn-sm" onclick="addExpPersonFromSettings()">+ যোগ করুন</button>
+          </div>
+          <div id="expPersonListContainer" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px"></div>
+        </div>
+      </div>
+
+      <!-- চেক বই ব্যবস্থাপনা -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🏦 চেক বই ব্যবস্থাপনা</div></div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px">ব্যাংক থেকে ব্যয় করলে চেক নম্বর অটো আসবে। নতুন চেক বই শুরু করতে এখানে যোগ করুন।</p>
+          <div id="checkbookAddForm" style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:14px">
+            <p style="font-weight:600;font-size:13px;color:var(--primary);margin-bottom:10px">➕ নতুন চেক বই যোগ</p>
+            <div class="form-row three">
+              <div class="field"><label>চেক বইয়ের নাম / লেবেল</label><input type="text" id="cbName" placeholder="যেমন: DBBL চেক বই ২০২৬"></div>
+              <div class="field"><label>শুরুর চেক নম্বর *</label><input type="number" id="cbStart" placeholder="যেমন: 100001" min="1"></div>
+              <div class="field"><label>শেষের চেক নম্বর *</label><input type="number" id="cbEnd" placeholder="যেমন: 100050" min="1"></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" onclick="saveCheckbook()">💾 চেক বই সেভ করুন</button>
+            </div>
+          </div>
+          <div id="checkbookListContainer"></div>
         </div>
       </div>
 
@@ -4265,59 +4376,244 @@ function updateExpVoucher() {
 
 function saveExpense() {
   const date=document.getElementById('expDate').value, cat=document.getElementById('expCategory').value;
+  const subCat=(document.getElementById('expSubCategory')||{}).value||'';
   const amt=parseFloat(document.getElementById('expAmount').value);
   let voucher=document.getElementById('expVoucher').value.trim();
   if (!voucher) voucher = generateNextVoucherNo(date);
-  const ref=document.getElementById('expRef').value.trim(), note=document.getElementById('expNote').value.trim();
-  if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, খাত ও পরিমাণ আবশ্যক!'); return; }
-  appData.expense.push({ id:Date.now(), date, category:cat, amount:amt, voucher, ref, note, by:currentUser.name });
+  const note=document.getElementById('expNote').value.trim();
+  // পেমেন্ট মাধ্যম
+  const payMode = document.querySelector('input[name="expPayMode"]:checked')?.value || 'cash';
+  let payPerson='', checkNo='', checkbookId='';
+  if (payMode==='cash') {
+    payPerson = (document.getElementById('expCashPerson')||{}).value || '';
+  } else {
+    checkNo = (document.getElementById('expCheckNo')||{}).value.trim() || '';
+    checkbookId = (document.getElementById('expCheckbook')||{}).value || '';
+    // ব্যবহৃত চেক আপডেট
+    if (checkbookId && checkNo) {
+      const cb = (appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      if (cb) { cb.lastUsed = parseInt(checkNo); }
+    }
+  }
+  if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
+  appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, by:currentUser.name });
   saveData(); clearExpenseForm(); renderExpenseTable(); refreshDashboard();
   showToast('✅ ব্যয় এন্ট্রি সেভ! ভাউচার: ' + voucher);
 }
 function clearExpenseForm() {
   document.getElementById('expDate').value = todayStr();
-  ['expCategory','expAmount','expRef','expNote'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  // পরবর্তী ভাউচার নম্বর অটো সেট
+  const els = ['expAmount','expNote'];
+  els.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const catEl=document.getElementById('expCategory'); if(catEl) catEl.value='';
+  const subEl=document.getElementById('expSubCategory'); if(subEl){ subEl.innerHTML='<option value="">-- সাব-ক্যাটাগরি --</option>'; }
+  const cashRadio=document.getElementById('expPayCash'); if(cashRadio){ cashRadio.checked=true; onExpPayModeChange(); }
+  const personEl=document.getElementById('expCashPerson'); if(personEl) personEl.value='';
   const vEl = document.getElementById('expVoucher');
   if (vEl) vEl.value = generateNextVoucherNo(todayStr());
 }
+// পেমেন্ট মাধ্যম পরিবর্তন
+function onExpPayModeChange() {
+  const mode = document.querySelector('input[name="expPayMode"]:checked')?.value || 'cash';
+  const cashRow=document.getElementById('expCashPersonRow');
+  const bankRow=document.getElementById('expBankRow');
+  if (cashRow) cashRow.style.display = mode==='cash' ? '' : 'none';
+  if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (mode==='bank') updateNextCheckNo();
+}
+// ব্যক্তি যোগ টগল
+function toggleExpAddPerson() {
+  const row=document.getElementById('expAddPersonRow');
+  if (!row) return;
+  row.style.display = row.style.display==='none' ? '' : 'none';
+  if (row.style.display!=='none') document.getElementById('expNewPersonName').focus();
+}
+// নতুন ব্যক্তি যোগ (ফর্ম থেকে তাৎক্ষণিক)
+function addExpPerson() {
+  const inp=document.getElementById('expNewPersonName');
+  const name=inp.value.trim();
+  if (!name) { showToast('⚠️ নাম লিখুন!'); return; }
+  if (!appData.settings.expPersons) appData.settings.expPersons=[];
+  if (appData.settings.expPersons.includes(name)) { showToast('এই নাম আগে থেকেই আছে!'); return; }
+  appData.settings.expPersons.push(name);
+  saveData(); inp.value='';
+  toggleExpAddPerson();
+  populateExpPersonSelect();
+  // নতুন যোগ করা ব্যক্তি সিলেক্ট করুন
+  const sel=document.getElementById('expCashPerson'); if(sel) sel.value=name;
+  showToast('✅ ব্যক্তি যোগ হয়েছে: '+name);
+}
+// settings থেকে ব্যক্তি যোগ
+function addExpPersonFromSettings() {
+  const inp=document.getElementById('newExpPersonName');
+  const name=inp.value.trim();
+  if (!name) { showToast('⚠️ নাম লিখুন!'); return; }
+  if (!appData.settings.expPersons) appData.settings.expPersons=[];
+  if (appData.settings.expPersons.includes(name)) { showToast('এই নাম আগে থেকেই আছে!'); return; }
+  appData.settings.expPersons.push(name);
+  saveData(); inp.value='';
+  populateExpPersonSelect(); renderExpPersonSettings();
+  showToast('✅ '+name+' যোগ হয়েছে!');
+}
+function removeExpPerson(name) {
+  if (!confirm(`"${name}" মুছবেন?`)) return;
+  appData.settings.expPersons=(appData.settings.expPersons||[]).filter(p=>p!==name);
+  saveData(); populateExpPersonSelect(); renderExpPersonSettings();
+  showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+function populateExpPersonSelect() {
+  const sel=document.getElementById('expCashPerson'); if(!sel) return;
+  const persons=appData.settings.expPersons||[];
+  sel.innerHTML='<option value="">-- ব্যক্তি নির্বাচন করুন --</option>'+persons.map(p=>`<option value="${p}">${p}</option>`).join('');
+}
+function renderExpPersonSettings() {
+  const c=document.getElementById('expPersonListContainer'); if(!c) return;
+  const persons=appData.settings.expPersons||[];
+  if (!persons.length) { c.innerHTML='<p style="color:var(--text-light);font-size:13px">কোনো ব্যক্তি নেই।</p>'; return; }
+  c.innerHTML=persons.map(p=>`<span style="background:#dbeafe;color:#1e40af;padding:5px 12px;border-radius:20px;font-size:13px;display:inline-flex;align-items:center;gap:6px">${p}<button onclick="removeExpPerson('${p}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1;padding:0">×</button></span>`).join('');
+}
+// সাব-ক্যাটাগরি লোড
+function updateExpSubCats() {
+  const cat=document.getElementById('expCategory')?.value||'';
+  const subSel=document.getElementById('expSubCategory'); if(!subSel) return;
+  const subs=(appData.settings.expSubCats||{})[cat]||[];
+  subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি (ঐচ্ছিক) --</option>'+subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+// সাব-ক্যাট সেটিংস
+function addExpSubCat() {
+  const cat=document.getElementById('subCatParent')?.value||'';
+  const name=document.getElementById('newSubCatName')?.value.trim()||'';
+  if (!cat) { showToast('⚠️ আগে ক্যাটাগরি নির্বাচন করুন!'); return; }
+  if (!name) { showToast('⚠️ সাব-ক্যাটাগরির নাম লিখুন!'); return; }
+  if (!appData.settings.expSubCats) appData.settings.expSubCats={};
+  if (!appData.settings.expSubCats[cat]) appData.settings.expSubCats[cat]=[];
+  if (appData.settings.expSubCats[cat].includes(name)) { showToast('এই সাব-ক্যাটাগরি আগে থেকেই আছে!'); return; }
+  appData.settings.expSubCats[cat].push(name);
+  saveData(); document.getElementById('newSubCatName').value='';
+  renderSubCatList(); showToast('✅ সাব-ক্যাটাগরি যোগ হয়েছে!');
+}
+function removeExpSubCat(cat, name) {
+  if (!confirm(`"${name}" মুছবেন?`)) return;
+  if (appData.settings.expSubCats?.[cat]) {
+    appData.settings.expSubCats[cat]=appData.settings.expSubCats[cat].filter(s=>s!==name);
+  }
+  saveData(); renderSubCatList(); showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+function renderSubCatList() {
+  const cat=document.getElementById('subCatParent')?.value||'';
+  const c=document.getElementById('subCatListContainer'); if(!c) return;
+  if (!cat) { c.innerHTML='<p style="color:var(--text-light);font-size:13px">উপরে একটি ক্যাটাগরি নির্বাচন করুন।</p>'; return; }
+  const subs=(appData.settings.expSubCats||{})[cat]||[];
+  if (!subs.length) { c.innerHTML='<p style="color:var(--text-light);font-size:13px">এই ক্যাটাগরিতে কোনো সাব-ক্যাটাগরি নেই।</p>'; return; }
+  c.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px">`+subs.map(s=>`<span style="background:#fee2e2;color:#991b1b;padding:5px 12px;border-radius:20px;font-size:13px;display:inline-flex;align-items:center;gap:6px">${s}<button onclick="removeExpSubCat('${cat}','${s}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1;padding:0">×</button></span>`).join('')+`</div>`;
+}
+function populateSubCatParentSelect() {
+  const sel=document.getElementById('subCatParent'); if(!sel) return;
+  const expCats=[...DEFAULT_EXP_CATS,...(appData.settings.customExpCats||[])];
+  sel.innerHTML='<option value="">-- ক্যাটাগরি --</option>'+expCats.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+// চেক বই সেভ
+function saveCheckbook() {
+  const name=document.getElementById('cbName')?.value.trim()||'চেক বই';
+  const start=parseInt(document.getElementById('cbStart')?.value)||0;
+  const end=parseInt(document.getElementById('cbEnd')?.value)||0;
+  if (!start||!end||start>end) { showToast('⚠️ সঠিক চেক নম্বর রেঞ্জ দিন!'); return; }
+  if (!appData.checkbooks) appData.checkbooks=[];
+  appData.checkbooks.push({ id:Date.now(), name, start, end, lastUsed:start-1, active:true });
+  saveData();
+  document.getElementById('cbName').value=''; document.getElementById('cbStart').value=''; document.getElementById('cbEnd').value='';
+  renderCheckbookList(); populateCheckbookSelect(); showToast('✅ চেক বই সংরক্ষিত!');
+}
+function removeCheckbook(id) {
+  if (!confirm('এই চেক বই মুছবেন?')) return;
+  appData.checkbooks=(appData.checkbooks||[]).filter(b=>b.id!=id);
+  saveData(); renderCheckbookList(); populateCheckbookSelect(); showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+function renderCheckbookList() {
+  const c=document.getElementById('checkbookListContainer'); if(!c) return;
+  const books=appData.checkbooks||[];
+  if (!books.length) { c.innerHTML='<p style="color:var(--text-light);font-size:13px">কোনো চেক বই যোগ করা হয়নি।</p>'; return; }
+  c.innerHTML=`<div class="table-wrap"><table><thead><tr><th>নাম</th><th>শুরু</th><th>শেষ</th><th>সর্বশেষ ব্যবহৃত</th><th>পরবর্তী</th><th>অ্যাকশন</th></tr></thead><tbody>`+books.map(b=>{
+    const next=b.lastUsed<b.end ? b.lastUsed+1 : '—';
+    const used=b.lastUsed>=b.start ? b.lastUsed : '—';
+    const rem=b.end-(b.lastUsed>=b.start?b.lastUsed:b.start-1);
+    return `<tr><td style="font-weight:600">${b.name}</td><td>${b.start}</td><td>${b.end}</td><td style="color:var(--warning);font-weight:600">${used}</td><td style="color:var(--success);font-weight:700">${next} <span style="color:var(--text-light);font-weight:400;font-size:11px">(বাকি: ${rem})</span></td><td><button class="btn btn-danger btn-sm" onclick="removeCheckbook(${b.id})">🗑️</button></td></tr>`;
+  }).join('')+`</tbody></table></div>`;
+}
+function populateCheckbookSelect() {
+  const sel=document.getElementById('expCheckbook'); if(!sel) return;
+  const books=(appData.checkbooks||[]).filter(b=>b.lastUsed<b.end);
+  sel.innerHTML='<option value="">-- চেক বই নির্বাচন করুন --</option>'+books.map(b=>`<option value="${b.id}">${b.name} (${b.start}–${b.end})</option>`).join('');
+  if (books.length===1) { sel.value=books[0].id; updateNextCheckNo(); }
+}
+function updateNextCheckNo() {
+  const sel=document.getElementById('expCheckbook'); if(!sel) return;
+  const id=sel.value;
+  const noEl=document.getElementById('expCheckNo'); if(!noEl) return;
+  if (!id) { noEl.value=''; return; }
+  const cb=(appData.checkbooks||[]).find(b=>b.id==id);
+  if (!cb) { noEl.value=''; return; }
+  const next=cb.lastUsed+1;
+  noEl.value = next<=cb.end ? next : '';
+  if (next>cb.end) showToast('⚠️ এই চেক বইয়ের চেক শেষ!');
+}
 function renderExpenseTable() {
-  const fd=document.getElementById('expFilterDate').value;
-  const fm=document.getElementById('expFilterMonth')?document.getElementById('expFilterMonth').value:'';
-  const vm=document.getElementById('expViewMode')?document.getElementById('expViewMode').value:'day';
+  const fd=document.getElementById('expFilterDate')?.value||'';
+  const fm=document.getElementById('expFilterMonth')?.value||'';
+  const vm=document.getElementById('expViewMode')?.value||'day';
+  const groupBy=document.getElementById('expGroupBy')?.value||'date';
+  const filterCat=document.getElementById('expFilterCat')?.value||'';
   let data = [...(appData.expense||[])];
   if (vm==='day' && fd) data=data.filter(e=>e.date===fd);
   else if (vm==='month' && fm) data=data.filter(e=>e.date&&e.date.startsWith(fm));
+  if (filterCat) data=data.filter(e=>e.category===filterCat);
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('expenseTable');
-  if (!data.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+
+  // গ্রুপিং কী নির্ধারণ
+  const getKey = e => {
+    if (groupBy==='category') return e.category||'অজানা';
+    if (groupBy==='paymode') return e.payMode==='bank' ? '🏦 ব্যাংক' : '💵 ক্যাশ';
+    // date (default)
+    const k = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
+    return k;
+  };
+  const getGroupLabel = key => {
+    if (groupBy==='category'||groupBy==='paymode') return key;
+    return vm==='month' ? (()=>{const[y,m]=key.split('-');return`${m}/${y}`;})() : formatDate(key);
+  };
+  const groupColor = groupBy==='category' ? '#7c3aed' : groupBy==='paymode' ? '#0369a1' : '#dc2626';
 
   const groups = {};
-  data.forEach(e => {
-    const key = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
-    if (!groups[key]) groups[key]=[];
-    groups[key].push(e);
-  });
+  data.forEach(e => { const k=getKey(e); if(!groups[k])groups[k]=[]; groups[k].push(e); });
   const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
 
   let html='';
   sortedKeys.forEach(key => {
     const items = groups[key];
     const total = items.reduce((s,e)=>s+e.amount,0);
-    const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
+    const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
-    html += `<tr style="background:#dc2626;cursor:pointer" onclick="toggleExpGroup('${gid}')">
-      <td colspan="5" style="color:white;font-weight:700;padding:10px 14px">
-        📅 ${label} &nbsp;—&nbsp; মোট ব্যয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+    html += `<tr style="background:${groupColor};cursor:pointer" onclick="toggleExpGroup('${gid}')">
+      <td colspan="7" style="color:white;font-weight:700;padding:10px 14px">
+        ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; মোট ব্যয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
       <td style="color:white;text-align:right;padding:10px 14px" colspan="3"><span id="expGrpIcon-${gid}">▶</span></td>
     </tr>`;
     items.forEach(e => {
+      const payBadge = e.payMode==='bank'
+        ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক</span>`
+        : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">💵 ক্যাশ</span>`;
+      const personOrCheck = e.payMode==='bank'
+        ? (e.checkNo ? `চেক: ${e.checkNo}` : '—')
+        : (e.payPerson || '—');
       html += `<tr class="exp-grp-row" data-grp="${gid}" style="display:none">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
         <td>${e.category}</td>
-        <td style="color:var(--text-light)">${e.ref||'—'}</td>
+        <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
+        <td>${payBadge}</td>
+        <td style="color:var(--text-light);font-size:12px">${personOrCheck}</td>
         <td style="color:var(--text-light)">${e.note||'—'}</td>
         <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
         <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
@@ -4326,6 +4622,12 @@ function renderExpenseTable() {
     });
   });
   tbody.innerHTML=html;
+}
+// expFilterCat সিলেক্ট পপুলেট
+function populateExpFilterCat() {
+  const sel=document.getElementById('expFilterCat'); if(!sel) return;
+  const expCats=[...DEFAULT_EXP_CATS,...(appData.settings.customExpCats||[])];
+  sel.innerHTML='<option value="">সব ক্যাটাগরি</option>'+expCats.map(c=>`<option value="${c}">${c}</option>`).join('');
 }
 function toggleExpGroup(gid) {
   const rows=document.querySelectorAll('.exp-grp-row[data-grp="'+gid+'"]');
@@ -5430,78 +5732,166 @@ function renderReport() {
     </tr>`;
   }
 
-  // Expense category breakdown
+  // Expense category breakdown with sub-categories
   const expCat = {};
-  expenses.forEach(e => { expCat[e.category]=expCat[e.category]||{count:0,total:0}; expCat[e.category].count++; expCat[e.category].total+=e.amount; });
+  expenses.forEach(e => {
+    const cat=e.category||'অজানা';
+    const sub=e.subCategory||'—';
+    if (!expCat[cat]) expCat[cat]={count:0,total:0,subs:{}};
+    expCat[cat].count++; expCat[cat].total+=e.amount;
+    if (!expCat[cat].subs[sub]) expCat[cat].subs[sub]={count:0,total:0};
+    expCat[cat].subs[sub].count++; expCat[cat].subs[sub].total+=e.amount;
+  });
   const expTotal = Object.values(expCat).reduce((s,v)=>s+v.total,0) || 1;
   const expCatBody = document.getElementById('rpExpenseCatTable');
   const expCatSorted = Object.entries(expCat).sort((a,b)=>b[1].total-a[1].total);
   if (!expCatSorted.length) {
-    expCatBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো ডেটা নেই</td></tr>';
+    expCatBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">কোনো ডেটা নেই</td></tr>';
   } else {
-    expCatBody.innerHTML = expCatSorted.map(([cat,d]) => {
+    let expHtml='';
+    expCatSorted.forEach(([cat,d]) => {
       const pct = Math.round(d.total/expTotal*100);
-      return `<tr>
-        <td>${cat}</td>
+      expHtml += `<tr style="background:#fff0f0">
+        <td style="font-weight:700">${cat}</td>
+        <td style="text-align:center;color:var(--text-light);font-size:11px">সব</td>
         <td style="text-align:center;color:var(--text-light)">${d.count}</td>
-        <td style="font-weight:600;color:var(--danger)">৳ ${fmt(d.total)}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div style="flex:1;background:#fef2f2;border-radius:4px;height:8px">
-              <div style="width:${pct}%;background:var(--danger);height:8px;border-radius:4px"></div>
-            </div>
-            <span style="font-size:11px;color:var(--text-light);min-width:28px">${pct}%</span>
+        <td style="font-weight:700;color:var(--danger)">৳ ${fmt(d.total)}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;background:#fef2f2;border-radius:4px;height:7px">
+            <div style="width:${pct}%;background:var(--danger);height:7px;border-radius:4px"></div>
           </div>
-        </td>
+          <span style="font-size:11px;color:var(--text-light);min-width:26px">${pct}%</span>
+        </div></td>
       </tr>`;
-    }).join('') + `<tr style="background:#f0f4f8;font-weight:700">
-      <td>মোট</td><td style="text-align:center">${expCatSorted.reduce((s,v)=>s+v[1].count,0)}</td>
+      // সাব-ক্যাট রো (— বাদে)
+      Object.entries(d.subs).filter(([s])=>s!=='—').sort((a,b)=>b[1].total-a[1].total).forEach(([sub,sd])=>{
+        expHtml+=`<tr>
+          <td style="padding-left:22px;color:var(--text-light);font-size:12px">↳ ${sub}</td>
+          <td style="text-align:center;font-size:11px;color:var(--text-light)">${sub}</td>
+          <td style="text-align:center;color:var(--text-light);font-size:12px">${sd.count}</td>
+          <td style="color:#f87171;font-size:12px">৳ ${fmt(sd.total)}</td>
+          <td></td>
+        </tr>`;
+      });
+    });
+    expHtml += `<tr style="background:#f0f4f8;font-weight:700">
+      <td>মোট</td><td></td><td style="text-align:center">${expCatSorted.reduce((s,v)=>s+v[1].count,0)}</td>
       <td style="color:var(--danger)">৳ ${fmt(expTotal)}</td><td></td>
     </tr>`;
+    expCatBody.innerHTML=expHtml;
   }
 
-  // Daily summary
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const dailyBody = document.getElementById('rpDailyTable');
-  const dailyFoot = document.getElementById('rpDailyFoot');
-  let rows = '', grandManualInc=0, grandRecInc=0, grandTotalInc=0, grandTotalExp=0, grandProfit=0;
-  let hasData = false;
+  // বিস্তারিত টেবিল — বর্তমান groupMode অনুযায়ী
+  renderRpDetailTable(incomes, expenses, visits, year, month, pad);
+}
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${pad(month)}-${pad(d)}`;
-    const dayInc  = incomes.filter(e=>e.date===dateStr).reduce((s,e)=>s+e.amount,0);
-    const dayRec  = visits.filter(v=>v.date===dateStr).reduce((s,v)=>s+v.cashPaid,0);
-    const dayExp  = expenses.filter(e=>e.date===dateStr).reduce((s,e)=>s+e.amount,0);
-    const dayTotal = dayInc + dayRec;
-    const dayProfit = dayTotal - dayExp;
-    if (dayInc===0 && dayRec===0 && dayExp===0) continue;
-    hasData = true;
-    grandManualInc += dayInc; grandRecInc += dayRec;
-    grandTotalInc  += dayTotal; grandTotalExp += dayExp; grandProfit += dayProfit;
-    rows += `<tr>
-      <td style="font-weight:500">${formatDate(dateStr)}</td>
-      <td style="color:var(--success)">৳ ${fmt(dayInc)}</td>
-      <td style="color:#9b59b6">৳ ${fmt(dayRec)}</td>
-      <td style="font-weight:600;color:var(--success)">৳ ${fmt(dayTotal)}</td>
-      <td style="color:var(--danger)">৳ ${fmt(dayExp)}</td>
-      <td style="font-weight:700;color:${dayProfit>=0?'var(--success)':'var(--danger)'}">
-        ${dayProfit>=0?'':'- '}৳ ${fmt(Math.abs(dayProfit))}
-      </td>
-    </tr>`;
-  }
-  if (!hasData) {
-    dailyBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">এই মাসে কোনো ডেটা নেই</td></tr>';
-    dailyFoot.innerHTML = '';
+// গ্রুপ মোড স্টেট
+let _rpGroupMode = 'day';
+function setRpGroupMode(mode) {
+  _rpGroupMode = mode;
+  ['day','inccat','expcat'].forEach(m=>{
+    const b=document.getElementById(`rpGroup${m==='day'?'Day':m==='inccat'?'IncCat':'ExpCat'}Btn`);
+    if(b){ b.className = m===mode ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'; }
+  });
+  // পুনরায় render
+  const month=parseInt(document.getElementById('rpMonth').value);
+  const year=parseInt(document.getElementById('rpYear').value);
+  const pad=n=>String(n).padStart(2,'0');
+  const prefix=`${year}-${pad(month)}`;
+  const incomes=appData.income.filter(e=>e.date&&e.date.startsWith(prefix));
+  const expenses=appData.expense.filter(e=>e.date&&e.date.startsWith(prefix));
+  const visits=appData.visits.filter(e=>e.date&&e.date.startsWith(prefix));
+  renderRpDetailTable(incomes, expenses, visits, year, month, pad);
+}
+
+function renderRpDetailTable(incomes, expenses, visits, year, month, pad) {
+  const c=document.getElementById('rpDetailTable'); if(!c) return;
+  const mode = _rpGroupMode;
+
+  if (mode==='day') {
+    // ডে ওয়াইজ
+    const daysInMonth = new Date(year, month, 0).getDate();
+    let rows='', gManual=0, gRec=0, gTotalInc=0, gExp=0, gProfit=0, hasData=false;
+    for(let d=1;d<=daysInMonth;d++){
+      const dateStr=`${year}-${pad(month)}-${pad(d)}`;
+      const dayInc=incomes.filter(e=>e.date===dateStr).reduce((s,e)=>s+e.amount,0);
+      const dayRec=visits.filter(v=>v.date===dateStr).reduce((s,v)=>s+v.cashPaid,0);
+      const dayExp=expenses.filter(e=>e.date===dateStr).reduce((s,e)=>s+e.amount,0);
+      const dayTotal=dayInc+dayRec, dayProfit=dayTotal-dayExp;
+      if(!dayInc&&!dayRec&&!dayExp) continue;
+      hasData=true; gManual+=dayInc; gRec+=dayRec; gTotalInc+=dayTotal; gExp+=dayExp; gProfit+=dayProfit;
+      rows+=`<tr>
+        <td style="font-weight:500">${formatDate(dateStr)}</td>
+        <td style="color:var(--success)">৳ ${fmt(dayInc)}</td>
+        <td style="color:#9b59b6">৳ ${fmt(dayRec)}</td>
+        <td style="font-weight:600;color:var(--success)">৳ ${fmt(dayTotal)}</td>
+        <td style="color:var(--danger)">৳ ${fmt(dayExp)}</td>
+        <td style="font-weight:700;color:${dayProfit>=0?'var(--success)':'var(--danger)'}">${dayProfit>=0?'':'- '}৳ ${fmt(Math.abs(dayProfit))}</td>
+      </tr>`;
+    }
+    c.innerHTML=`<div class="table-wrap"><table>
+      <thead><tr><th>তারিখ</th><th>আয়</th><th>রিসেপশন আয়</th><th>মোট আয়</th><th>ব্যয়</th><th>লাভ/লস</th></tr></thead>
+      <tbody>${hasData?rows:'<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">এই মাসে কোনো ডেটা নেই</td></tr>'}</tbody>
+      <tfoot>${hasData?`<tr style="background:#0f4c81;color:white;font-weight:700">
+        <td>সর্বমোট</td><td>৳ ${fmt(gManual)}</td><td>৳ ${fmt(gRec)}</td><td>৳ ${fmt(gTotalInc)}</td><td>৳ ${fmt(gExp)}</td>
+        <td style="color:${gProfit>=0?'#7fffd4':'#ff9999'}">${gProfit>=0?'':'- '}৳ ${fmt(Math.abs(gProfit))}</td>
+      </tr>`:''}
+      </tfoot></table></div>`;
+
+  } else if (mode==='inccat') {
+    // আয়-ক্যাটাগরি ওয়াইজ
+    const catMap={};
+    incomes.forEach(e=>{ const k=e.category||'অজানা'; if(!catMap[k]){catMap[k]={total:0,count:0,entries:[]};} catMap[k].total+=e.amount; catMap[k].count++; catMap[k].entries.push(e); });
+    visits.forEach(v=>{ v.services.forEach(s=>{ const k=s.type||'রিসেপশন'; if(!catMap[k]){catMap[k]={total:0,count:0,entries:[]};} catMap[k].total+=s.subtotal||0; catMap[k].count++; }); });
+    const sorted=Object.entries(catMap).sort((a,b)=>b[1].total-a[1].total);
+    const gTotal=sorted.reduce((s,[,v])=>s+v.total,0);
+    let rows=sorted.map(([cat,d])=>{
+      const pct=Math.round(d.total/gTotal*100);
+      return `<tr>
+        <td style="font-weight:700;color:var(--success)">${cat}</td>
+        <td style="text-align:center">${d.count}</td>
+        <td style="font-weight:700;color:var(--success)">৳ ${fmt(d.total)}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;background:#e8f5e9;border-radius:4px;height:8px"><div style="width:${pct}%;background:var(--success);height:8px;border-radius:4px"></div></div>
+          <span style="font-size:11px;color:var(--text-light);min-width:28px">${pct}%</span>
+        </div></td>
+      </tr>`;
+    }).join('');
+    c.innerHTML=`<div class="table-wrap"><table>
+      <thead><tr><th>আয়ের খাত</th><th style="text-align:center">এন্ট্রি</th><th>মোট আয়</th><th>%</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" style="text-align:center;color:#aaa;padding:30px">কোনো ডেটা নেই</td></tr>'}</tbody>
+      <tfoot><tr style="background:#0f4c81;color:white;font-weight:700"><td>সর্বমোট</td><td style="text-align:center">${sorted.reduce((s,[,v])=>s+v.count,0)}</td><td>৳ ${fmt(gTotal)}</td><td></td></tr></tfoot>
+    </table></div>`;
+
   } else {
-    dailyBody.innerHTML = rows;
-    dailyFoot.innerHTML = `<tr style="background:#0f4c81;color:white;font-weight:700">
-      <td>সর্বমোট</td>
-      <td>৳ ${fmt(grandManualInc)}</td>
-      <td>৳ ${fmt(grandRecInc)}</td>
-      <td>৳ ${fmt(grandTotalInc)}</td>
-      <td>৳ ${fmt(grandTotalExp)}</td>
-      <td style="color:${grandProfit>=0?'#7fffd4':'#ff9999'}">${grandProfit>=0?'':'- '}৳ ${fmt(Math.abs(grandProfit))}</td>
-    </tr>`;
+    // ব্যয়-ক্যাটাগরি ওয়াইজ
+    const catMap={};
+    expenses.forEach(e=>{ const k=e.category||'অজানা'; const sub=e.subCategory||'সাধারণ'; if(!catMap[k]){catMap[k]={total:0,count:0,subs:{}};} catMap[k].total+=e.amount; catMap[k].count++; if(!catMap[k].subs[sub]){catMap[k].subs[sub]={total:0,count:0};} catMap[k].subs[sub].total+=e.amount; catMap[k].subs[sub].count++; });
+    const sorted=Object.entries(catMap).sort((a,b)=>b[1].total-a[1].total);
+    const gTotal=sorted.reduce((s,[,v])=>s+v.total,0);
+    let rows='';
+    sorted.forEach(([cat,d])=>{
+      const pct=Math.round(d.total/gTotal*100);
+      rows+=`<tr style="background:#fff0f0">
+        <td style="font-weight:700;color:var(--danger)">${cat}</td>
+        <td style="text-align:center">${d.count}</td>
+        <td style="font-weight:700;color:var(--danger)">৳ ${fmt(d.total)}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;background:#fef2f2;border-radius:4px;height:8px"><div style="width:${pct}%;background:var(--danger);height:8px;border-radius:4px"></div></div>
+          <span style="font-size:11px;color:var(--text-light);min-width:28px">${pct}%</span>
+        </div></td>
+      </tr>`;
+      Object.entries(d.subs).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,sd])=>{
+        rows+=`<tr><td style="padding-left:22px;color:var(--text-light);font-size:12px">↳ ${sub}</td>
+          <td style="text-align:center;font-size:12px;color:var(--text-light)">${sd.count}</td>
+          <td style="color:#f87171;font-size:13px">৳ ${fmt(sd.total)}</td><td></td></tr>`;
+      });
+    });
+    c.innerHTML=`<div class="table-wrap"><table>
+      <thead><tr><th>ব্যয়ের খাত / সাব-ক্যাট</th><th style="text-align:center">এন্ট্রি</th><th>মোট ব্যয়</th><th>%</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" style="text-align:center;color:#aaa;padding:30px">কোনো ডেটা নেই</td></tr>'}</tbody>
+      <tfoot><tr style="background:#0f4c81;color:white;font-weight:700"><td>সর্বমোট</td><td style="text-align:center">${sorted.reduce((s,[,v])=>s+v.count,0)}</td><td>৳ ${fmt(gTotal)}</td><td></td></tr></tfoot>
+    </table></div>`;
   }
 }
 
@@ -11083,10 +11473,22 @@ function updateCategorySelects() {
   const incSel=document.getElementById('incCategory');
   const expSel=document.getElementById('expCategory');
   if(incSel) incSel.innerHTML='<option value="">-- খাত নির্বাচন করুন --</option>'+incCats.map(c=>`<option>${c}</option>`).join('');
-  if(expSel) expSel.innerHTML='<option value="">-- খাত নির্বাচন করুন --</option>'+expCats.map(c=>`<option>${c}</option>`).join('');
+  if(expSel) expSel.innerHTML='<option value="">-- ক্যাটাগরি নির্বাচন করুন --</option>'+expCats.map(c=>`<option>${c}</option>`).join('');
+  populateExpFilterCat();
+  populateSubCatParentSelect();
 }
 
 init();
+// নতুন ফাংশন ইনিশিয়ালাইজেশন
+(function initNewExpFeatures() {
+  populateExpPersonSelect();
+  populateCheckbookSelect();
+  renderExpPersonSettings();
+  renderCheckbookList();
+  populateSubCatParentSelect();
+  // ডিফল্ট মোড
+  const cashRadio=document.getElementById('expPayCash'); if(cashRadio&&!document.querySelector('input[name="expPayMode"]:checked')) cashRadio.checked=true;
+})();
 
 
 // ===== SHARED BILL ENGINE =====
