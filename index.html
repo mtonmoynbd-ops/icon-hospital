@@ -2484,11 +2484,23 @@ function openPrintWindow(htmlContent, title) {
           <!-- ম্যানুয়াল ব্যাকআপ -->
           <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:16px;margin-bottom:16px">
             <p style="font-weight:700;font-size:14px;color:#9a3412;margin-bottom:4px">📸 এখনই ব্যাকআপ নিন</p>
-            <p style="font-size:12px;color:#c2410c;margin-bottom:12px">দিন শেষে একবার চাপুন — সারাদিনের সব ডেটা Firebase এ সেভ হবে</p>
+            <p style="font-size:12px;color:#c2410c;margin-bottom:12px">দিন শেষে একবার চাপুন — Firebase ও Google Drive উভয়তেই সেভ হবে</p>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
               <button class="btn btn-success" onclick="takeManualBackup()">💾 আজকের ব্যাকআপ নিন</button>
               <span id="manualBackupStatus" style="font-size:13px;color:var(--text-light)"></span>
             </div>
+          </div>
+
+          <!-- Google Drive ব্যাকআপ -->
+          <div style="background:#f0f9ff;border:1.5px solid #7dd3fc;border-radius:10px;padding:16px;margin-bottom:16px">
+            <p style="font-weight:700;font-size:14px;color:#0369a1;margin-bottom:4px">🗂️ Google Drive ব্যাকআপ</p>
+            <p style="font-size:12px;color:#0284c7;margin-bottom:12px">প্রতিদিন স্বয়ংক্রিয়ভাবে এবং ম্যানুয়ালি Google Drive এ JSON ব্যাকআপ আপলোড হবে</p>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+              <button class="btn btn-primary" id="gdrivLoginBtn" onclick="gdriveLogin()">🔐 Google Drive সংযুক্ত করুন</button>
+              <button class="btn btn-success" id="gdrivUploadBtn" onclick="gdriveManualBackup()" style="display:none">📤 Drive এ ব্যাকআপ দিন</button>
+              <button class="btn btn-outline btn-sm" id="gdrivLogoutBtn" onclick="gdriveLogout()" style="display:none">🔓 Disconnect</button>
+            </div>
+            <div id="gdriveStatus" style="font-size:13px;color:var(--text-light)"></div>
           </div>
 
           <!-- Firebase Backup Restore -->
@@ -3330,11 +3342,13 @@ function openPrintWindow(htmlContent, title) {
 <!-- TOAST -->
 <div id="toast" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:#1a2a3a;color:white;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.3);transform:translateY(80px);opacity:0;transition:all 0.3s ease;pointer-events:none;"></div>
 
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client"></script>
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDp7p042YlfRS8VZ5EVJnLhExJTOSmbD2o",
@@ -3350,9 +3364,9 @@ const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
 const auth = getAuth(firebaseApp);
 
-// পর্দার আড়ালে Firebase এ login — ডাটা সুরক্ষিত রাখতে
-signInWithEmailAndPassword(auth, "m.tonmoy.nbd@gmail.com", "iconeyehospital1320")
-  .then(() => { console.log('[HMS] Firebase Auth সফল'); })
+// Anonymous auth — কোনো password কোডে নেই, Firebase Rules এ auth != null দিয়ে সুরক্ষিত
+signInAnonymously(auth)
+  .then(() => { console.log('[HMS] Firebase Anonymous Auth সফল'); })
   .catch(e => { console.warn('[HMS] Firebase Auth ব্যর্থ:', e.message); });
 
 window._fbDb = db;
@@ -3599,6 +3613,155 @@ async function loadFromGitHub() {
 const _origSaveData = saveData;
 
 // ===== FIREBASE BACKUP RESTORE =====
+// ===== GOOGLE DRIVE BACKUP =====
+const GDRIVE_CLIENT_ID = '949604125816-gr4i29isj88pbns9dvd31aiachtg64b7.apps.googleusercontent.com';
+const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const GDRIVE_FOLDER_NAME = 'ICON Hospital Backup';
+let gdriveToken = null;
+let gdriveFolderId = null;
+
+function gdriveUpdateUI() {
+  const loginBtn  = document.getElementById('gdrivLoginBtn');
+  const uploadBtn = document.getElementById('gdrivUploadBtn');
+  const logoutBtn = document.getElementById('gdrivLogoutBtn');
+  const status    = document.getElementById('gdriveStatus');
+  if (!loginBtn) return;
+  if (gdriveToken) {
+    loginBtn.style.display  = 'none';
+    uploadBtn.style.display = '';
+    logoutBtn.style.display = '';
+    if (status) status.textContent = '✅ Google Drive সংযুক্ত আছে — অটো ব্যাকআপ চালু';
+  } else {
+    loginBtn.style.display  = '';
+    uploadBtn.style.display = 'none';
+    logoutBtn.style.display = 'none';
+    if (status) status.textContent = '';
+  }
+}
+
+function gdriveLogin() {
+  const statusEl = document.getElementById('gdriveStatus');
+  if (typeof google === 'undefined' || !google.accounts) {
+    if (statusEl) statusEl.textContent = '❌ Google API লোড হয়নি — পেজ রিলোড করুন';
+    showToast('❌ Google API লোড হয়নি!'); return;
+  }
+  if (statusEl) statusEl.textContent = '⏳ Google লগইন হচ্ছে...';
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPE,
+    callback: (resp) => {
+      if (resp.error) {
+        if (statusEl) statusEl.textContent = '❌ লগইন ব্যর্থ: ' + resp.error;
+        return;
+      }
+      gdriveToken = resp.access_token;
+      localStorage.setItem('gdrive_token', gdriveToken);
+      gdriveUpdateUI();
+      showToast('✅ Google Drive সংযুক্ত হয়েছে!');
+      gdriveEnsureFolder().then(() => gdriveAutoBackup());
+    }
+  });
+  client.requestAccessToken();
+}
+
+function gdriveLogout() {
+  gdriveToken = null;
+  gdriveFolderId = null;
+  localStorage.removeItem('gdrive_token');
+  localStorage.removeItem('gdrive_folder_id');
+  gdriveUpdateUI();
+  showToast('🔓 Google Drive disconnect হয়েছে');
+}
+
+async function gdriveEnsureFolder() {
+  // আগে সেভ করা folder ID আছে কিনা দেখি
+  const saved = localStorage.getItem('gdrive_folder_id');
+  if (saved) { gdriveFolderId = saved; return; }
+
+  // ICON Hospital Backup ফোল্ডার তৈরি বা খুঁজে নাও
+  const searchRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=name='${GDRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    { headers: { Authorization: 'Bearer ' + gdriveToken } }
+  );
+  const searchData = await searchRes.json();
+  if (searchData.files && searchData.files.length > 0) {
+    gdriveFolderId = searchData.files[0].id;
+  } else {
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + gdriveToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: GDRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+    });
+    const created = await createRes.json();
+    gdriveFolderId = created.id;
+  }
+  localStorage.setItem('gdrive_folder_id', gdriveFolderId);
+}
+
+async function gdriveUploadBackup(label) {
+  if (!gdriveToken) return false;
+  try {
+    await gdriveEnsureFolder();
+    const today = new Date().toISOString().slice(0,10);
+    const fileName = `icon_backup_${label || today}.json`;
+    const content  = JSON.stringify(appData, null, 2);
+    const boundary = 'hms_boundary_xyz';
+    const body = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ name: fileName, parents: [gdriveFolderId] })}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
+
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + gdriveToken, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body
+    });
+    if (res.ok) {
+      console.log('[HMS] Google Drive backup সফল:', fileName);
+      return true;
+    } else {
+      const err = await res.json();
+      // Token মেয়াদ শেষ হলে clear করি
+      if (err.error && err.error.code === 401) { gdriveToken = null; localStorage.removeItem('gdrive_token'); gdriveUpdateUI(); }
+      return false;
+    }
+  } catch(e) {
+    console.warn('[HMS] Drive backup error:', e.message);
+    return false;
+  }
+}
+
+async function gdriveAutoBackup() {
+  // প্রতিদিন একবার অটো backup — saveData এ call হয়
+  if (!gdriveToken) return;
+  const today = new Date().toISOString().slice(0,10);
+  const key = 'gdrive_last_backup_' + today;
+  if (localStorage.getItem(key)) return;
+  const ok = await gdriveUploadBackup(today);
+  if (ok) localStorage.setItem(key, '1');
+}
+
+async function gdriveManualBackup() {
+  const statusEl = document.getElementById('gdriveStatus');
+  if (!gdriveToken) { showToast('⚠️ আগে Google Drive সংযুক্ত করুন!'); return; }
+  if (statusEl) statusEl.textContent = '⏳ Drive এ আপলোড হচ্ছে...';
+  const today = new Date().toISOString().slice(0,10);
+  const now   = new Date().toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
+  const label = `${today}_${new Date().toTimeString().slice(0,5).replace(':','-')}`;
+  const ok = await gdriveUploadBackup(label);
+  if (ok) {
+    if (statusEl) statusEl.innerHTML = `✅ Drive এ সফলভাবে আপলোড হয়েছে (${now}) — <strong>ICON Hospital Backup</strong> ফোল্ডারে`;
+    showToast('✅ Google Drive ব্যাকআপ সফল!');
+    localStorage.setItem('gdrive_last_backup_' + today, '1');
+  } else {
+    if (statusEl) statusEl.textContent = '❌ Drive আপলোড ব্যর্থ — আবার লগইন করুন';
+  }
+}
+
+// পেজ লোডে Google API ও সেভ করা token চেক
+function initGDrive() {
+  const saved = localStorage.getItem('gdrive_token');
+  if (saved) { gdriveToken = saved; gdriveFolderId = localStorage.getItem('gdrive_folder_id'); }
+  gdriveUpdateUI();
+}
+
 async function takeManualBackup() {
   const statusEl = document.getElementById('manualBackupStatus');
   if (!window._fbDb || !window._fbRef || !window._fbSet) {
@@ -3607,12 +3770,21 @@ async function takeManualBackup() {
   if (statusEl) statusEl.textContent = '⏳ ব্যাকআপ নেওয়া হচ্ছে...';
   const today = new Date().toISOString().slice(0,10);
   try {
+    // Firebase backup
     const backupRef = window._fbRef(window._fbDb, 'hms_backups/' + today);
     await window._fbSet(backupRef, appData);
-    // localStorage এ flag আপডেট করি
     localStorage.setItem('hms_last_backup_' + today, '1');
     const now = new Date().toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
-    if (statusEl) statusEl.innerHTML = `✅ <strong>${today}</strong> তারিখের ব্যাকআপ সফল (${now})`;
+
+    // Google Drive backup (যদি সংযুক্ত থাকে)
+    let driveMsg = '';
+    if (gdriveToken) {
+      const ok = await gdriveUploadBackup(today + '_' + new Date().toTimeString().slice(0,5).replace(':','-'));
+      driveMsg = ok ? ' + Drive ✅' : ' (Drive ❌)';
+      if (ok) localStorage.setItem('gdrive_last_backup_' + today, '1');
+    }
+
+    if (statusEl) statusEl.innerHTML = `✅ Firebase${driveMsg} — <strong>${today}</strong> (${now})`;
     showToast('✅ ব্যাকআপ সফলভাবে নেওয়া হয়েছে!');
   } catch(e) {
     if (statusEl) statusEl.textContent = '❌ ব্যাকআপ ব্যর্থ: ' + e.message;
@@ -4235,6 +4407,8 @@ function saveData() {
         .then(() => {
           localStorage.setItem(backupKey, '1');
           console.log('[HMS] দৈনিক Firebase backup সম্পন্ন:', today);
+          // Google Drive অটো backup
+          gdriveAutoBackup();
           // ✅ ৩৬৫ দিনের বেশি পুরনো backup auto-delete
           const cutoff = new Date();
           cutoff.setDate(cutoff.getDate() - 365);
@@ -7935,6 +8109,8 @@ function loadUserList() {
   renderFeatureAccessPanel();
   // Camp schedule & service fees
   loadGHSettingsToForm();
+  // Google API লোড হওয়ার জন্য সামান্য অপেক্ষা
+  setTimeout(initGDrive, 1500);
   renderCampScheduleTable();
   renderServiceFeeRows();
 }
