@@ -3342,8 +3342,6 @@ function openPrintWindow(htmlContent, title) {
 <!-- TOAST -->
 <div id="toast" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:#1a2a3a;color:white;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.3);transform:translateY(80px);opacity:0;transition:all 0.3s ease;pointer-events:none;"></div>
 
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client"></script>
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -3641,27 +3639,34 @@ function gdriveUpdateUI() {
 
 function gdriveLogin() {
   const statusEl = document.getElementById('gdriveStatus');
-  if (typeof google === 'undefined' || !google.accounts) {
-    if (statusEl) statusEl.textContent = '❌ Google API লোড হয়নি — পেজ রিলোড করুন';
-    showToast('❌ Google API লোড হয়নি!'); return;
-  }
   if (statusEl) statusEl.textContent = '⏳ Google লগইন হচ্ছে...';
-  const client = google.accounts.oauth2.initTokenClient({
+  // redirect mode — popup এর বদলে
+  const params = new URLSearchParams({
     client_id: GDRIVE_CLIENT_ID,
+    redirect_uri: window.location.origin + window.location.pathname,
+    response_type: 'token',
     scope: GDRIVE_SCOPE,
-    callback: (resp) => {
-      if (resp.error) {
-        if (statusEl) statusEl.textContent = '❌ লগইন ব্যর্থ: ' + resp.error;
-        return;
-      }
-      gdriveToken = resp.access_token;
-      localStorage.setItem('gdrive_token', gdriveToken);
-      gdriveUpdateUI();
-      showToast('✅ Google Drive সংযুক্ত হয়েছে!');
-      gdriveEnsureFolder().then(() => gdriveAutoBackup());
-    }
+    include_granted_scopes: 'true',
+    prompt: 'select_account'
   });
-  client.requestAccessToken();
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+}
+
+function gdriveHandleRedirect() {
+  // redirect এ ফিরে আসলে token পড়ি
+  const hash = window.location.hash;
+  if (!hash) return;
+  const params = new URLSearchParams(hash.substring(1));
+  const token = params.get('access_token');
+  if (token) {
+    gdriveToken = token;
+    localStorage.setItem('gdrive_token', token);
+    // URL থেকে token সরিয়ে দিই
+    window.history.replaceState(null, '', window.location.pathname);
+    gdriveUpdateUI();
+    showToast('✅ Google Drive সংযুক্ত হয়েছে!');
+    gdriveEnsureFolder().then(() => gdriveAutoBackup());
+  }
 }
 
 function gdriveLogout() {
@@ -3757,6 +3762,8 @@ async function gdriveManualBackup() {
 
 // পেজ লোডে Google API ও সেভ করা token চেক
 function initGDrive() {
+  // redirect থেকে ফিরে আসলে token পড়ি
+  gdriveHandleRedirect();
   const saved = localStorage.getItem('gdrive_token');
   if (saved) { gdriveToken = saved; gdriveFolderId = localStorage.getItem('gdrive_folder_id'); }
   gdriveUpdateUI();
