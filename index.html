@@ -275,7 +275,7 @@
     .mobile-logout-header { display:flex; align-items:center; justify-content:space-between; background:#ffffff; padding:8px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.12); border-bottom:1px solid #e2e8f0; }
     .mobile-logout-header img.role-mobile-logo { height:32px; object-fit:contain; }
     #ownerPage .desktop-header, #camperPage .desktop-header { display:none; }
-    body.role-moderator #appPage > .mobile-logout-header { display:flex; }
+
   }
 
   /* OWNER PANEL MOBILE RESPONSIVE */
@@ -416,7 +416,7 @@ function openPrintWindow(htmlContent, title) {
 
 <!-- MAIN APP (admin + moderator) -->
 <div id="appPage" style="display: block;">
-  <div class="mobile-logout-header" style="display:none;background:#ffffff;padding:8px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0;">
+  <div id="modTopBar" style="display:none;background:#ffffff;padding:8px 20px;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0;">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="" id="modLogoImg" class="role-mobile-logo" alt="ICON Eye Hospital" style="height:36px;object-fit:contain;">
     </div>
@@ -2964,20 +2964,14 @@ function openPrintWindow(htmlContent, title) {
 
 <!-- CAMPAIGNER PAGE -->
 <div id="camperPage" style="display:none;width:100%;min-height:100vh;background:var(--bg);flex-direction:column">
-  <div class="mobile-logout-header" style="background:#ffffff;padding:8px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0;">
-    <div style="display:flex;align-items:center;gap:12px">
-      <img src="" id="camperMobileLogoImg" class="role-mobile-logo" alt="ICON Eye Hospital" style="height:36px;object-fit:contain;">
-    </div>
-    <button onclick="doLogout()" class="role-logout-btn" style="font-size:11px;padding:5px 10px;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Logout</button>
-  </div>
-  <div class="desktop-header" style="background:#ffffff;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0">
+  <div style="background:#ffffff;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="" id="camperLogoImg" style="height:36px;object-fit:contain">
     </div>
     <button onclick="doLogout()" class="role-logout-btn" style="font-size:11px;padding:5px 10px;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Logout</button>
   </div>
-  <div style="background:#ffffff;padding:6px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;">
-    <button onclick="showCamperCashSubmitModal()" style="background:rgba(15,76,129,0.08);color:var(--primary);border:1.5px solid rgba(15,76,129,0.2);border-radius:8px;padding:6px 14px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">💵 ক্যাশ জমা</button>
+  <div style="background:#ffffff;padding:6px 20px;border-bottom:1px solid #e2e8f0;">
+    <button onclick="showCamperCashSubmitModal()" style="width:100%;background:rgba(15,76,129,0.08);color:var(--primary);border:1.5px solid rgba(15,76,129,0.2);border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center;">💵 ক্যাশ জমা</button>
   </div>
   <div id="camperBottomTabBar" class="rtab-bottom-tabs" style="display:none"></div>
   <div id="camperSheetBackdrop" class="rtab-sheet-backdrop" onclick="closeRoleMoreSheet('camper')"></div>
@@ -8459,9 +8453,15 @@ function applySidebarAccess(role) {
     else el.style.display = canAccess(role, page) ? '' : 'none';
   });
   document.body.classList.remove('role-moderator');
+  const modTopBar = document.getElementById('modTopBar');
   if (role === 'moderator') {
     document.body.classList.add('role-moderator');
     renderRoleBottomTabs('mod', currentActivePage || 'dashboard');
+    if (modTopBar) { modTopBar.style.display = 'flex'; }
+    const modLogo = document.getElementById('modLogoImg');
+    if (modLogo && LOGO_B64) { modLogo.src = LOGO_B64; }
+  } else {
+    if (modTopBar) modTopBar.style.display = 'none';
   }
 }
 
@@ -9104,8 +9104,7 @@ function savePastCampReturn(campId) {
 function initCamperPage() {
   const cl = document.getElementById('camperLogoImg');
   if (cl && LOGO_B64) { cl.src = LOGO_B64; cl.style.display = 'block'; }
-  const cml = document.getElementById('camperMobileLogoImg');
-  if (cml && LOGO_B64) { cml.src = LOGO_B64; cml.style.display = 'block'; }
+
   const cn = document.getElementById('camperName');
   if (cn) cn.textContent = currentUser.name;
   const dl = document.getElementById('cpDiscLimit');
