@@ -120,6 +120,18 @@
   .field.amt-hl.amt-hl-readonly { background:linear-gradient(135deg,#f0fbfd,#e8f6f8); }
   .field.amt-hl.amt-hl-readonly input { background:#f0fbfd !important; color:#0a6b8f !important; }
 
+  /* এমাউন্ট ফিল্ডকে অন্য দুটি সাধারণ ফিল্ডের পাশে — উঁচু একটা কলামে রাখার জন্য (এলাইনমেন্ট ঠিক রাখতে) */
+  .form-row-amt { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .form-row-amt .field-stack { display:flex; flex-direction:column; gap:14px; }
+  .form-row-amt .field-stack .field { margin-bottom:0; }
+  .form-row-amt > .field.amt-hl { display:flex; flex-direction:column; margin-bottom:0; }
+  .form-row-amt > .field.amt-hl input { flex:1; }
+
+  /* যেখানে স্ট্যাকে শুধু একটাই ফিল্ড থাকে (যেমন: মন্তব্য) — সেটাকে টেক্সট-এরিয়া করে পুরো উচ্চতা ভরে রাখার জন্য */
+  .form-row-amt .field-stack.stack-fill { height:100%; }
+  .form-row-amt .field-stack.stack-fill .field { flex:1; display:flex; flex-direction:column; margin-bottom:0; }
+  .form-row-amt .field-stack.stack-fill .field textarea { flex:1; resize:none; min-height:60px; }
+
   /* TABLE */
   .table-wrap { overflow-x:auto; }
   table { width:100%; border-collapse:collapse; font-size:14px; }
@@ -550,13 +562,15 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">💰 নতুন আয় এন্ট্রি</div></div>
         <div class="panel-body">
-          <div class="form-row three">
-            <div class="field"><label>তারিখ *</label><input type="date" id="incDate" onchange="updateIncMemo()"></div>
-            <div class="field"><label>আয়ের খাত *</label>
-              <select id="incCategory"><option value="">-- খাত নির্বাচন করুন --</option>
-                <option>OPD ভিজিট ফি</option><option>অপারেশন ফি</option><option>ওষুধ বিক্রি</option>
-                <option>চশমা বিক্রি</option><option>টেস্ট / রিপোর্ট ফি</option><option>ভর্তি ফি</option><option>অন্যান্য আয়</option>
-              </select>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>তারিখ *</label><input type="date" id="incDate" onchange="updateIncMemo()"></div>
+              <div class="field"><label>আয়ের খাত *</label>
+                <select id="incCategory"><option value="">-- খাত নির্বাচন করুন --</option>
+                  <option>OPD ভিজিট ফি</option><option>অপারেশন ফি</option><option>ওষুধ বিক্রি</option>
+                  <option>চশমা বিক্রি</option><option>টেস্ট / রিপোর্ট ফি</option><option>ভর্তি ফি</option><option>অন্যান্য আয়</option>
+                </select>
+              </div>
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="incAmount" placeholder="০.০০" min="0"></div>
           </div>
@@ -603,12 +617,14 @@ function openPrintWindow(htmlContent, title) {
               <select id="expSubCategory"><option value="">-- সাব-ক্যাটাগরি --</option></select>
             </div>
           </div>
-          <div class="form-row three">
-            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="expAmount" placeholder="০.০০" min="0"></div>
-            <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
-              <input type="text" id="expVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+                <input type="text" id="expVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
+              </div>
+              <div class="field"><label>বিবরণ</label><input type="text" id="expNote" placeholder="সংক্ষিপ্ত বিবরণ"></div>
             </div>
-            <div class="field"><label>বিবরণ</label><input type="text" id="expNote" placeholder="সংক্ষিপ্ত বিবরণ"></div>
+            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="expAmount" placeholder="০.০০" min="0"></div>
           </div>
           <!-- পেমেন্ট মাধ্যম -->
           <div class="form-row" style="margin-bottom:8px">
@@ -868,15 +884,19 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="dlvPhone" placeholder="০১XXXXXXXXX"></div>
             <div class="field"><label>অর্ডারের তারিখ *</label><input type="date" id="dlvOrderDate"></div>
           </div>
-          <div class="form-row three">
+          <div class="form-row" style="grid-template-columns:1fr">
             <div class="field"><label>আইটেম বিবরণ *</label><input type="text" id="dlvItem" placeholder="যেমন: চশমা (পাওয়ার +২.৫)"></div>
+          </div>
+          <div class="form-row">
             <div class="field amt-hl"><label>মোট মূল্য (৳) *</label><input type="number" id="dlvTotal" placeholder="০.০০" min="0" oninput="calcDlvDue()"></div>
             <div class="field amt-hl"><label>অগ্রিম প্রদান (৳)</label><input type="number" id="dlvAdvance" placeholder="০.০০" min="0" oninput="calcDlvDue()"></div>
           </div>
-          <div class="form-row three">
-            <div class="field"><label>প্রত্যাশিত ডেলিভারি তারিখ *</label><input type="date" id="dlvDeliveryDate"></div>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>প্রত্যাশিত ডেলিভারি তারিখ *</label><input type="date" id="dlvDeliveryDate"></div>
+              <div class="field"><label>মন্তব্য</label><input type="text" id="dlvNote" placeholder="ঐচ্ছিক"></div>
+            </div>
             <div class="field amt-hl amt-hl-readonly"><label>বাকি পরিমাণ (৳)</label><input type="number" id="dlvDue" placeholder="০.০০" readonly></div>
-            <div class="field"><label>মন্তব্য</label><input type="text" id="dlvNote" placeholder="ঐচ্ছিক"></div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="document.getElementById('deliveryFormArea').style.display='none'">বাতিল</button>
@@ -999,9 +1019,11 @@ function openPrintWindow(htmlContent, title) {
           </div>
           <div id="nb_serviceRows"></div>
           <hr class="divider">
-          <div class="form-row">
+          <div class="form-row-amt">
+            <div class="field-stack stack-fill">
+              <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="nb_Note" placeholder="ঐচ্ছিক" rows="3"></textarea></div>
+            </div>
             <div class="field amt-hl"><label>নগদ প্রদান (৳) *</label><input type="number" id="nb_CashPaid" placeholder="০.০০" min="0" oninput="nbUpdateSummary()"></div>
-            <div class="field"><label>বিবরণ / মন্তব্য</label><input type="text" id="nb_Note" placeholder="ঐচ্ছিক"></div>
           </div>
           <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:14px;margin-bottom:12px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -1508,12 +1530,14 @@ function openPrintWindow(htmlContent, title) {
               </select>
             </div>
           </div>
-          <div class="form-row three">
-            <div class="field"><label>সার্জন *</label>
-              <select id="opSurgeon" onchange="calcOpProfit()"><option value="">-- সার্জন নির্বাচন --</option></select>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>সার্জন *</label>
+                <select id="opSurgeon" onchange="calcOpProfit()"><option value="">-- সার্জন নির্বাচন --</option></select>
+              </div>
+              <div class="field"><label>সার্জন পারিশ্রমিক (৳)</label><input type="text" id="opSurgeonFee" readonly="" style="background:#f0f4f8;font-weight:700;color:var(--danger)"></div>
             </div>
             <div class="field amt-hl"><label>অপারেশন ফি (৳) *</label><input type="number" id="opFee" placeholder="০.০০" min="0" oninput="calcOpProfit()"></div>
-            <div class="field"><label>সার্জন পারিশ্রমিক (৳)</label><input type="text" id="opSurgeonFee" readonly="" style="background:#f0f4f8;font-weight:700;color:var(--danger)"></div>
           </div>
           <!-- সেশন ফিক্সড হলে -->
           <div id="opSessionFeeRow" style="display:none;margin-bottom:10px">
@@ -1668,15 +1692,17 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>ভাউচার নং</label><input type="text" id="vcVoucher" placeholder="অটো (এডিট করা যাবে)"></div>
             <div class="field"><label>তারিখ *</label><input type="date" id="vcDate"></div>
           </div>
-          <div class="form-row three">
-            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="vcAmount" placeholder="০.০০" min="0"></div>
-            <div class="field"><label>ধরন</label>
-              <select id="vcType">
-                <option value="payable">পরিশোধযোগ্য (বাকি)</option>
-                <option value="paid">নগদ পরিশোধ</option>
-              </select>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>ধরন</label>
+                <select id="vcType">
+                  <option value="payable">পরিশোধযোগ্য (বাকি)</option>
+                  <option value="paid">নগদ পরিশোধ</option>
+                </select>
+              </div>
+              <div class="field"><label>বিবরণ</label><input type="text" id="vcNote" placeholder="পণ্য/সার্ভিসের বিবরণ"></div>
             </div>
-            <div class="field"><label>বিবরণ</label><input type="text" id="vcNote" placeholder="পণ্য/সার্ভিসের বিবরণ"></div>
+            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="vcAmount" placeholder="০.০০" min="0"></div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="clearVoucherForm()">🔄 রিসেট</button>
@@ -1733,19 +1759,21 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🔄 ট্রান্সফার / এন্ট্রি</div></div>
         <div class="panel-body">
-          <div class="form-row three">
-            <div class="field"><label>ধরন *</label>
-              <select id="bankTxType" onchange="onBankTxTypeChange()">
-                <option value="cash_in">💵 ক্যাশ যোগ (প্রারম্ভিক/আয়)</option>
-                <option value="bank_in">🏦 ব্যাংক যোগ (প্রারম্ভিক/আয়)</option>
-                <option value="cash_to_bank">ক্যাশ → ব্যাংক ট্রান্সফার</option>
-                <option value="bank_to_cash">ব্যাংক → ক্যাশ ট্রান্সফার</option>
-                <option value="cash_out">💸 ক্যাশ থেকে ব্যয়</option>
-                <option value="bank_out">🏦 ব্যাংক থেকে ব্যয়</option>
-              </select>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>ধরন *</label>
+                <select id="bankTxType" onchange="onBankTxTypeChange()">
+                  <option value="cash_in">💵 ক্যাশ যোগ (প্রারম্ভিক/আয়)</option>
+                  <option value="bank_in">🏦 ব্যাংক যোগ (প্রারম্ভিক/আয়)</option>
+                  <option value="cash_to_bank">ক্যাশ → ব্যাংক ট্রান্সফার</option>
+                  <option value="bank_to_cash">ব্যাংক → ক্যাশ ট্রান্সফার</option>
+                  <option value="cash_out">💸 ক্যাশ থেকে ব্যয়</option>
+                  <option value="bank_out">🏦 ব্যাংক থেকে ব্যয়</option>
+                </select>
+              </div>
+              <div class="field"><label>তারিখ *</label><input type="date" id="bankTxDate"></div>
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="bankTxAmount" placeholder="০.০০" min="0"></div>
-            <div class="field"><label>তারিখ *</label><input type="date" id="bankTxDate"></div>
           </div>
           <!-- ব্যাংক থেকে টাকা বের হলে (ব্যয় বা ক্যাশে ট্রান্সফার) — চেকের মাধ্যমেই হয়, তাই চেক বই ব্যবহার হবে -->
           <div id="bankTxCheckbookRow" class="form-row" style="display:none;margin-bottom:10px">
@@ -1828,14 +1856,16 @@ function openPrintWindow(htmlContent, title) {
         <div class="panel-header"><div class="panel-title">✍️ চেক ইস্যু করুন (বর্তমান বা ভবিষ্যৎ তারিখে)</div></div>
         <div class="panel-body">
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px">ভবিষ্যতের তারিখ দিয়ে কাউকে চেক ইস্যু করলে চেকের পাতা এখনই ব্যবহৃত হিসেবে গণ্য হবে, কিন্তু ব্যাংক ব্যালেন্স থেকে টাকা কাটবে শুধু চেকটি ভাঙ্গানো নিশ্চিত হওয়ার পর।</p>
-          <div class="form-row three">
-            <div class="field"><label>চেক বই *</label>
-              <select id="ciCheckbook" onchange="updateNextCheckNo('ciCheckbook','ciCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
-                <option value="">-- চেক বই নির্বাচন করুন --</option>
-              </select>
-            </div>
-            <div class="field"><label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
-              <input type="text" id="ciCheckNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>চেক বই *</label>
+                <select id="ciCheckbook" onchange="updateNextCheckNo('ciCheckbook','ciCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                  <option value="">-- চেক বই নির্বাচন করুন --</option>
+                </select>
+              </div>
+              <div class="field"><label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+                <input type="text" id="ciCheckNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+              </div>
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="ciAmount" placeholder="০.০০" min="0"></div>
           </div>
@@ -1891,15 +1921,17 @@ function openPrintWindow(htmlContent, title) {
             </div>
             <div class="field"><label>তারিখ *</label><input type="date" id="lnDate"></div>
           </div>
-          <div class="form-row three">
-            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="lnAmount" placeholder="০.০০" min="0"></div>
-            <div class="field"><label>মাধ্যম</label>
-              <select id="lnMedium">
-                <option value="cash">নগদ ক্যাশ</option>
-                <option value="bank">ব্যাংক</option>
-              </select>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>মাধ্যম</label>
+                <select id="lnMedium">
+                  <option value="cash">নগদ ক্যাশ</option>
+                  <option value="bank">ব্যাংক</option>
+                </select>
+              </div>
+              <div class="field"><label>বিবরণ</label><input type="text" id="lnNote" placeholder="কারণ বা শর্ত"></div>
             </div>
-            <div class="field"><label>বিবরণ</label><input type="text" id="lnNote" placeholder="কারণ বা শর্ত"></div>
+            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="lnAmount" placeholder="০.০০" min="0"></div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-success" onclick="saveLoan()">✅ সেভ করুন</button>
@@ -1945,15 +1977,17 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">💰 মাসিক লাভ বন্টন</div></div>
         <div class="panel-body">
-          <div class="form-row three">
-            <div class="field"><label>মাস *</label>
-              <select id="divMonth">
-                <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
-                <option value="5">মে</option><option value="6">জুন</option><option value="7">জুলাই</option><option value="8">আগস্ট</option>
-                <option value="9">সেপ্টেম্বর</option><option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
-              </select>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>মাস *</label>
+                <select id="divMonth">
+                  <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
+                  <option value="5">মে</option><option value="6">জুন</option><option value="7">জুলাই</option><option value="8">আগস্ট</option>
+                  <option value="9">সেপ্টেম্বর</option><option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+                </select>
+              </div>
+              <div class="field"><label>বছর *</label><input type="number" id="divYear" placeholder="২০২৬"></div>
             </div>
-            <div class="field"><label>বছর *</label><input type="number" id="divYear" placeholder="২০২৬"></div>
             <div class="field amt-hl"><label>বন্টনযোগ্য মোট লাভ (৳) *</label><input type="number" id="divTotal" placeholder="০.০০" min="0" oninput="calcDividend()"></div>
           </div>
           <div id="dividendPreview" style="display:none;margin-top:12px"></div>
@@ -3195,9 +3229,11 @@ function openPrintWindow(htmlContent, title) {
           </div>
           <div id="serviceRows"></div>
           <hr class="divider">
-          <div class="form-row">
+          <div class="form-row-amt">
+            <div class="field-stack stack-fill">
+              <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="rNote" placeholder="ঐচ্ছিক" rows="3"></textarea></div>
+            </div>
             <div class="field amt-hl"><label>নগদ প্রদান (৳) *</label><input type="number" id="rCashPaid" placeholder="০.০০" min="0" oninput="updateSummary()"></div>
-            <div class="field"><label>বিবরণ / মন্তব্য</label><input type="text" id="rNote" placeholder="ঐচ্ছিক"></div>
           </div>
           <!-- ডিসকাউন্ট সেকশন -->
           <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:14px;margin-bottom:12px">
@@ -3298,15 +3334,19 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="rdlvPhone" placeholder="০১XXXXXXXXX"></div>
             <div class="field"><label>অর্ডারের তারিখ *</label><input type="date" id="rdlvOrderDate"></div>
           </div>
-          <div class="form-row three">
+          <div class="form-row" style="grid-template-columns:1fr">
             <div class="field"><label>আইটেম বিবরণ *</label><input type="text" id="rdlvItem" placeholder="যেমন: চশমা (পাওয়ার +২.৫)"></div>
+          </div>
+          <div class="form-row">
             <div class="field amt-hl"><label>মোট মূল্য (৳) *</label><input type="number" id="rdlvTotal" placeholder="০.০০" min="0" oninput="calcRDlvDue()"></div>
             <div class="field amt-hl"><label>অগ্রিম প্রদান (৳)</label><input type="number" id="rdlvAdvance" placeholder="০.০০" min="0" oninput="calcRDlvDue()"></div>
           </div>
-          <div class="form-row three">
-            <div class="field"><label>প্রত্যাশিত ডেলিভারি তারিখ *</label><input type="date" id="rdlvDeliveryDate"></div>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>প্রত্যাশিত ডেলিভারি তারিখ *</label><input type="date" id="rdlvDeliveryDate"></div>
+              <div class="field"><label>মন্তব্য</label><input type="text" id="rdlvNote" placeholder="ঐচ্ছিক"></div>
+            </div>
             <div class="field amt-hl amt-hl-readonly"><label>বাকি পরিমাণ (৳)</label><input type="number" id="rdlvDue" placeholder="০.০০" readonly></div>
-            <div class="field"><label>মন্তব্য</label><input type="text" id="rdlvNote" placeholder="ঐচ্ছিক"></div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="document.getElementById('recDeliveryFormArea').style.display='none'">বাতিল</button>
