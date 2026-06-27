@@ -1105,22 +1105,17 @@ function openPrintWindow(htmlContent, title) {
               </select>
             </div>
           </div>
-          <div class="form-row three" id="stSubCatRow" style="display:none">
+          <div class="form-row" id="stSubCatRow" style="display:none">
             <div class="field"><label>সাব-ক্যাটাগরি</label>
               <select id="stSubCat">
                 <option value="">-- সাব-ক্যাটাগরি --</option>
               </select>
             </div>
-            <div class="field"><label>ক্রয় ভাউচার নং</label>
-              <select id="stVoucherRef">
-                <option value="">-- ভাউচার সিলেক্ট করুন --</option>
-              </select>
-            </div>
             <div></div>
           </div>
-          <div class="form-row" id="stVoucherRowNormal">
+          <div class="form-row" id="stVoucherRow" style="display:none">
             <div class="field"><label>ক্রয় ভাউচার নং</label>
-              <select id="stVoucherRefNormal">
+              <select id="stVoucherRef">
                 <option value="">-- ভাউচার সিলেক্ট করুন --</option>
               </select>
             </div>
@@ -10406,7 +10401,7 @@ function onStockCatChange() {
   const hint            = document.getElementById('stPricingHint');
   const s               = appData.settings;
   const subCatRow       = document.getElementById('stSubCatRow');
-  const voucherRowNormal = document.getElementById('stVoucherRowNormal');
+  const voucherRow      = document.getElementById('stVoucherRow');
 
   // সাব-ক্যাটাগরি লোড করি
   const subCats = getStockSubCats(cat);
@@ -10414,22 +10409,20 @@ function onStockCatChange() {
   if (subSel) {
     subSel.innerHTML = '<option value="">-- সাব-ক্যাটাগরি --</option>' + subCats.map(sc=>`<option>${sc}</option>`).join('');
   }
+  if (subCatRow) subCatRow.style.display = (cat && subCats.length) ? 'grid' : 'none';
 
-  // ভাউচার ড্রপডাউন পপুলেট করি (ব্যয়ের ভাউচার নম্বর থেকে)
+  // ভাউচার ড্রপডাউন পপুলেট (সব ব্যয়ের ভাউচার)
   const vouchers = [...new Set((appData.expense||[]).filter(e=>e.voucher).map(e=>e.voucher))].sort().reverse();
   const vOpts = '<option value="">-- ভাউচার সিলেক্ট করুন --</option>' + vouchers.map(v=>`<option>${v}</option>`).join('');
-  const vSelMain = document.getElementById('stVoucherRef');
-  const vSelNorm = document.getElementById('stVoucherRefNormal');
-  if (vSelMain) vSelMain.innerHTML = vOpts;
-  if (vSelNorm) vSelNorm.innerHTML = vOpts;
+  const vSel = document.getElementById('stVoucherRef');
+  if (vSel) vSel.innerHTML = vOpts;
+  if (voucherRow) voucherRow.style.display = cat ? 'grid' : 'none';
 
   if (cat === 'চশমা/লেন্স') {
     sellPriceField.style.display  = 'none';
     sellMinField.style.display    = 'block';
     sellMaxRow.style.display      = 'grid';
     noteRowNormal.style.display   = 'none';
-    if (subCatRow) { subCatRow.style.display = subCats.length ? 'grid' : 'none'; }
-    if (voucherRowNormal) voucherRowNormal.style.display = 'none';
     const minP = s.glassMinProfit||30;
     const maxP = s.glassMaxProfit||80;
     hint.style.display='block';
@@ -10439,8 +10432,6 @@ function onStockCatChange() {
     sellMinField.style.display    = 'none';
     sellMaxRow.style.display      = 'none';
     noteRowNormal.style.display   = 'grid';
-    if (subCatRow) { subCatRow.style.display = subCats.length ? 'grid' : 'none'; }
-    if (voucherRowNormal) voucherRowNormal.style.display = 'grid';
     const medP = s.medProfit||20;
     hint.style.display='block';
     hint.innerHTML = `💊 ওষুধের ডিফল্ট লাভ: <strong>${medP}%</strong> &nbsp;|&nbsp; ক্রয়মূল্য দিলে বিক্রয়মূল্য অটো ক্যালকুলেট হবে (পয়সা বাদ, রাউন্ড ফিগার)`;
@@ -10449,12 +10440,8 @@ function onStockCatChange() {
     sellMinField.style.display    = 'none';
     sellMaxRow.style.display      = 'none';
     noteRowNormal.style.display   = 'grid';
-    if (subCatRow) { subCatRow.style.display = subCats.length ? 'grid' : 'none'; }
-    if (voucherRowNormal) voucherRowNormal.style.display = 'grid';
     hint.style.display='none';
   } else {
-    if (subCatRow) subCatRow.style.display = 'none';
-    if (voucherRowNormal) voucherRowNormal.style.display = 'none';
     hint.style.display='none';
   }
   autoCalcSellPrice();
@@ -10499,7 +10486,7 @@ function saveStockItem() {
   // সাব-ক্যাটাগরি ও ভাউচার
   const subCatEl  = document.getElementById('stSubCat');
   const subCat    = subCatEl ? subCatEl.value : '';
-  const vRefEl    = cat==='চশমা/লেন্স' ? document.getElementById('stVoucherRef') : document.getElementById('stVoucherRefNormal');
+  const vRefEl    = document.getElementById('stVoucherRef');
   const voucherRef = vRefEl ? vRefEl.value : '';
 
   if (!name || !cat || isNaN(qty) || qty < 0) { showToast('⚠️ নাম, ক্যাটাগরি ও স্টক পরিমাণ আবশ্যক!'); return; }
@@ -10539,7 +10526,6 @@ function clearStockForm() {
   const cbEl = document.getElementById('stIsOpening'); if(cbEl) cbEl.checked=false;
   const subSel=document.getElementById('stSubCat'); if(subSel) subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি --</option>';
   const vRef=document.getElementById('stVoucherRef'); if(vRef) vRef.value='';
-  const vRefN=document.getElementById('stVoucherRefNormal'); if(vRefN) vRefN.value='';
   toggleOpeningStock();
   document.getElementById('stCat').value='';
   document.getElementById('stUnit').value='পিস';
@@ -10550,7 +10536,7 @@ function clearStockForm() {
   const sr=document.getElementById('stSellMaxRow');     if(sr) sr.style.display='none';
   const sn=document.getElementById('stNoteRowNormal');  if(sn) sn.style.display='grid';
   const scr=document.getElementById('stSubCatRow'); if(scr) scr.style.display='none';
-  const svr=document.getElementById('stVoucherRowNormal'); if(svr) svr.style.display='none';
+  const svr=document.getElementById('stVoucherRow'); if(svr) svr.style.display='none';
 }
 
 function editStockItem(id) {
@@ -10571,7 +10557,7 @@ function editStockItem(id) {
   // সাব-ক্যাট ভ্যালু সেট
   setTimeout(()=>{
     const subSel=document.getElementById('stSubCat'); if(subSel&&s.subCat) subSel.value=s.subCat;
-    const vRef = s.cat==='চশমা/লেন্স' ? document.getElementById('stVoucherRef') : document.getElementById('stVoucherRefNormal');
+    const vRef = document.getElementById('stVoucherRef');
     if(vRef&&s.voucherRef) vRef.value=s.voucherRef;
   },50);
   if (s.cat==='চশমা/লেন্স') {
