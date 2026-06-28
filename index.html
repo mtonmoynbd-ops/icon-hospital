@@ -9733,17 +9733,35 @@ function initCamperPage() {
   populateCampScheduleDropdown();
   doCamperLookup();
   renderCamperStockList();
-  renderCamperPastCamps();
-  if (!camperSession) {
-    document.getElementById('camperTabsRow').style.display = 'none';
-    document.getElementById('cpActiveBanner').style.display = 'none';
-  }
-  // Camp section দেখান, read-only section লুকান
-  ['campSelectorPanel','cpPastCampsPanel','cpActiveBanner','camperTabsRow',
-   'camper-billing','camper-history','camper-expense','camper-oppatient','camper-returnstock','camper-lookup'
-  ].forEach(id => { const el=document.getElementById(id); if(el) el.style.removeProperty('display'); });
+
   const ros = document.getElementById('camperReadOnlySection');
   if (ros) ros.style.display = 'none';
+
+  if (camperSession) {
+    // ক্যাম্প চলছে → সিলেক্টর ও বিগত রেকর্ড লুকাও, বিলিং দেখাও
+    document.getElementById('campSelectorPanel').style.display = 'none';
+    document.getElementById('cpPastCampsPanel').style.display = 'none';
+    const banner = document.getElementById('cpActiveBanner');
+    banner.style.display = 'flex';
+    document.getElementById('cpActiveName').textContent = camperSession.name;
+    document.getElementById('cpActiveInfo').textContent = `${camperSession.location} | ${formatDate(camperSession.date)}`;
+    document.getElementById('cpReceiptRange').textContent = `${camperSession.receiptStart} থেকে শুরু`;
+    document.getElementById('camperTabsRow').style.display = 'flex';
+    document.getElementById('camper-billing').style.display = 'block';
+    const vfs = document.getElementById('cpVisitFeeShow');
+    if (vfs) vfs.textContent = camperSession.visitFee > 0 ? `৳ ${fmt(camperSession.visitFee)}` : '—';
+    updateReceiptDisplay();
+    renderReturnStockRows();
+    renderCamperOpPatients();
+  } else {
+    // ক্যাম্প নেই → সিলেক্টর + বিগত রেকর্ড দেখাও, বিলিং লুকাও
+    document.getElementById('campSelectorPanel').style.display = 'block';
+    renderCamperPastCamps(); // display নিজেই manage করে (data থাকলে show, না থাকলে none)
+    document.getElementById('cpActiveBanner').style.display = 'none';
+    document.getElementById('camperTabsRow').style.display = 'none';
+    ['camper-billing','camper-history','camper-expense','camper-oppatient','camper-returnstock','camper-lookup']
+      .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  }
 }
 
 // Campaigner read-only section — camp ছাড়া অন্য ফিচারের জন্য
@@ -10131,6 +10149,7 @@ function initCamperSession() {
 
   // Update UI
   document.getElementById('campSelectorPanel').style.display = 'none';
+  document.getElementById('cpPastCampsPanel').style.display = 'none';
   const banner = document.getElementById('cpActiveBanner');
   banner.style.display = 'flex';
   document.getElementById('cpActiveName').textContent = schedule.name;
