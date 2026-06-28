@@ -260,6 +260,7 @@
   }
   /* MODERATOR: responsive sidebar (desktop) <-> bottom-tab (mobile) */
   body.role-moderator #modBottomTabBar { display:none; }
+  body.role-moderator #appTopbarLogoImg { display:none !important; }
   @media(max-width:768px) {
     body.role-moderator .hamburger { display:none; }
     body.role-moderator .sidebar { display:none; }
@@ -2878,7 +2879,7 @@ function openPrintWindow(htmlContent, title) {
 </div>
 
 <!-- OWNER PAGE (Read-only, mobile-friendly) -->
-<div id="ownerPage" style="display:none;width:100%;min-height:100vh;background:#0a2540;flex-direction:column">
+<div id="ownerPage" style="display:none;width:100%;min-height:100vh;background:var(--bg);flex-direction:column">
   <div class="desktop-header" style="background:#ffffff;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="" id="ownerLogoImg" style="height:36px;object-fit:contain">
@@ -2995,7 +2996,7 @@ function openPrintWindow(htmlContent, title) {
     <p class="rtab-customizer-hint">যেকোনো ৪টি ফিচার বেছে নিন — সেগুলো নিচের ট্যাব বারে দেখা যাবে। (<span id="camper-rtab-count">0</span>/4 নির্বাচিত)</p>
     <div id="camperTabCustomizerList" class="rtab-customizer-list"></div>
   </div>
-  <div style="padding:20px 20px 84px;max-width:960px;margin:0 auto;width:100%">
+  <div style="padding:10px 10px 84px;max-width:960px;margin:0 auto;width:100%">
 
     <!-- ক্যাম্প নির্বাচন -->
     <div class="panel" id="campSelectorPanel">
@@ -3612,7 +3613,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -8308,21 +8309,54 @@ function renderRoleBottomTabs(roleKey, activeFeature) {
   }).join('') + `<button type="button" class="${!tabs.includes(activeFeature)?'active':''}" onclick="openRoleMoreSheet('${roleKey}')"><span class="obt-icon">☰</span><span class="obt-label">আরো</span></button>`;
 }
 
+const FEATURE_GROUPS = [
+  { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','report','chart','balancesheet'] },
+  { label:'💰 আয় ও ব্যয়',            ids:['income','expense','bank','checkbook','loan'] },
+  { label:'🏕️ ক্যাম্প ও রোগী',        ids:['camp','due','delivery','recdeposit','demand'] },
+  { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','memorandum'] },
+];
+
 function openRoleMoreSheet(roleKey) {
   const cfg = ROLE_TAB_CONFIG[roleKey];
-  const allowed = getAllowedFeatures(cfg.accessRole);
-  const tabs = getRoleTabConfig(roleKey);
-  // বর্তমানে active feature কোনটা
+  const allowed = new Set(getAllowedFeatures(cfg.accessRole));
   const currentActive = roleKey === 'owner' ? (currentOwnerActiveFeature || 'dashboard')
     : roleKey === 'camper' ? (currentCamperActiveFeature || 'camp')
     : (currentActivePage || 'dashboard');
   const list = document.getElementById(roleKey + 'MoreSheetList');
   if (list) {
-    list.innerHTML = allowed.map(id => {
-      const f = featureInfo(id);
-      const icon = FEATURE_ICONS[id] || '•';
-      return `<button type="button" class="${id===currentActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
-    }).join('');
+    // Owner & camper: গ্রুপ ভাগে দেখাও
+    if (roleKey === 'owner' || roleKey === 'camper') {
+      const groups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups : FEATURE_GROUPS;
+      let html = '';
+      groups.forEach(group => {
+        const groupItems = group.ids.filter(id => allowed.has(id));
+        if (!groupItems.length) return;
+        html += `<div style="grid-column:1/-1;padding:6px 2px 2px;font-size:11px;font-weight:700;color:var(--primary);border-bottom:1.5px solid var(--border);margin-bottom:2px;">${group.label}</div>`;
+        groupItems.forEach(id => {
+          const f = featureInfo(id);
+          const icon = FEATURE_ICONS[id] || '•';
+          html += `<button type="button" class="${id===currentActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
+        });
+      });
+      // Ungrouped fallback
+      const grouped = new Set(groups.flatMap(g => g.ids));
+      const ungrouped = [...allowed].filter(id => !grouped.has(id));
+      if (ungrouped.length) {
+        html += `<div style="grid-column:1/-1;padding:6px 2px 2px;font-size:11px;font-weight:700;color:var(--primary);border-bottom:1.5px solid var(--border);margin-bottom:2px;">🔧 অন্যান্য</div>`;
+        ungrouped.forEach(id => {
+          const f = featureInfo(id);
+          const icon = FEATURE_ICONS[id] || '•';
+          html += `<button type="button" class="${id===currentActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
+        });
+      }
+      list.innerHTML = html;
+    } else {
+      list.innerHTML = [...allowed].map(id => {
+        const f = featureInfo(id);
+        const icon = FEATURE_ICONS[id] || '•';
+        return `<button type="button" class="${id===currentActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
+      }).join('');
+    }
   }
   document.getElementById(roleKey + 'SheetBackdrop').classList.add('open');
   document.getElementById(roleKey + 'MoreSheet').classList.add('open');
@@ -8663,6 +8697,9 @@ function renderFeatureAccessPanel() {
   const access = appData.featureAccess || {};
   const panel = document.getElementById('featureAccessPanel');
   if (!panel) return;
+  const groups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups : FEATURE_GROUPS;
+  const featureGroupMap = {};
+  groups.forEach((g, gi) => g.ids.forEach(id => { featureGroupMap[id] = gi; }));
   panel.innerHTML = roles.map(role=>{
     const current = access[role] || DEFAULT_FEATURE_ACCESS[role] || [];
     return `<div style="margin-bottom:16px">
@@ -8676,7 +8713,34 @@ function renderFeatureAccessPanel() {
         </label>`).join('')}
       </div>
     </div>`;
-  }).join('<hr class="divider">');
+  }).join('<hr class="divider">') + `
+  <hr class="divider">
+  <div style="margin-top:12px">
+    <p style="font-weight:700;font-size:13px;color:var(--primary);margin-bottom:4px">📂 গ্রুপ বিন্যাস ("সব ফিচার" শিটে)</p>
+    <p style="font-size:11px;color:var(--text-light);margin-bottom:10px">প্রতিটি ফিচার কোন গ্রুপে দেখাবে তা নির্ধারণ করুন।</p>
+    <div style="margin-bottom:10px">
+      <p style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:6px">গ্রুপের নাম পরিবর্তন:</p>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${groups.map((g,gi2)=>`<div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:var(--text-light);width:20px">${gi2+1}.</span>
+          <input type="text" data-group-label="${gi2}" value="${g.label}" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;flex:1">
+        </div>`).join('')}
+      </div>
+    </div>
+    <p style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:6px">ফিচার → গ্রুপ নির্ধারণ:</p>
+    <div style="display:flex;flex-direction:column;gap:4px" id="featureGroupAssignList">
+      ${ALL_FEATURES.map(f=>{
+        const gi = featureGroupMap[f.id] !== undefined ? featureGroupMap[f.id] : -1;
+        return `<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f0f4f8">
+          <span style="flex:1">${FEATURE_ICONS[f.id]||'•'} ${f.label}</span>
+          <select data-fg-feature="${f.id}" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+            ${groups.map((g,gi2)=>`<option value="${gi2}" ${gi===gi2?'selected':''}>${g.label}</option>`).join('')}
+            <option value="-1" ${gi===-1?'selected':''}>🔧 অন্যান্য</option>
+          </select>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
 
 function saveFeatureAccess() {
@@ -8689,7 +8753,18 @@ function saveFeatureAccess() {
     });
   });
   appData.featureAccess = access;
-  saveData(); showToast('✅ অ্যাক্সেস সেটিংস সেভ হয়েছে!');
+  const baseGroups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups : FEATURE_GROUPS;
+  const newGroups = baseGroups.map((g, gi) => {
+    const labelEl = document.querySelector(`input[data-group-label="${gi}"]`);
+    return { label: labelEl ? labelEl.value.trim() || g.label : g.label, ids: [] };
+  });
+  document.querySelectorAll('select[data-fg-feature]').forEach(sel => {
+    const fid = sel.getAttribute('data-fg-feature');
+    const gi = parseInt(sel.value);
+    if (gi >= 0 && newGroups[gi]) newGroups[gi].ids.push(fid);
+  });
+  appData.featureGroups = newGroups;
+  saveData(); showToast('✅ অ্যাক্সেস ও গ্রুপ সেটিংস সেভ হয়েছে!');
 }
 
 // ===== OWNER PAGE =====
