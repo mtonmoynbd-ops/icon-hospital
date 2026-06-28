@@ -2773,6 +2773,7 @@ function openPrintWindow(htmlContent, title) {
           <div style="display:flex;gap:8px">
             <button class="btn btn-outline btn-sm" onclick="clearPad()">🔄 ক্লিয়ার</button>
             <button class="btn btn-primary" onclick="printOfficialPad()">🖨️ প্রিন্ট করুন</button>
+            <button class="btn btn-success" onclick="publishPadNotice()">📢 পাবলিশ করুন (বোর্ড বার্তা)</button>
           </div>
         </div>
         <div class="panel-body">
@@ -2837,6 +2838,15 @@ function openPrintWindow(htmlContent, title) {
       </div>
     </div>
 
+    <!-- পাবলিশ করা বোর্ড নোটিস তালিকা -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">📢 পাবলিশ করা বোর্ড বার্তা তালিকা</div></div>
+      <div class="panel-body">
+        <div id="padNoticeList" style="display:flex;flex-direction:column;gap:12px"></div>
+        <div id="padNoticeEmpty" style="display:none;text-align:center;color:#aaa;padding:30px">কোনো বোর্ড বার্তা পাবলিশ করা হয়নি</div>
+      </div>
+    </div>
+
     <!-- MEMORANDUM & TOR -->
     <div id="pg-memorandum" class="page-view">
       <div class="panel" id="memoAddPanel">
@@ -2855,12 +2865,6 @@ function openPrintWindow(htmlContent, title) {
           <div class="field">
             <label>টেক্সট *</label>
             <textarea id="memDocText" placeholder="এখানে মেমোরেন্ডাম / TOR এর সম্পূর্ণ টেক্সট পেস্ট করুন..." style="width:100%;min-height:280px;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;line-height:1.7;resize:vertical"></textarea>
-          </div>
-          <div class="field" style="margin-top:6px">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:var(--primary)">
-              <input type="checkbox" id="memDocPublish" style="width:16px;height:16px">
-              📢 পাবলিশ করুন (ওনার প্যানেলে দেখা যাবে)
-            </label>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
             <button class="btn btn-outline" onclick="clearMemoForm()">🔄 রিসেট</button>
@@ -3638,7 +3642,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -4076,7 +4080,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -4201,6 +4205,7 @@ function initOfficialPad() {
   if (snEl && !snEl.value) snEl.value = currentUser.name;
   const sdEl = document.getElementById('padSignDesig');
   // signature is fixed as ব্যবস্থাপনা পরিচালক
+  renderPadNoticeList();
 }
 
 function clearPad() {
@@ -4276,6 +4281,132 @@ function printOfficialPad() {
   </body></html>`);
 }
 
+// ===== অফিসিয়াল প্যাড — বোর্ড নোটিস পাবলিশ =====
+function publishPadNotice() {
+  if (!currentUser || currentUser.role !== 'admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন পাবলিশ করতে পারবেন!'); return; }
+  const docNo = document.getElementById('padDocNo').value.trim();
+  const to    = document.getElementById('padTo').value.trim();
+  const date  = document.getElementById('padDate').value;
+  const body  = document.getElementById('padBody').value.trim();
+  if (!body) { showToast('⚠️ বার্তা লিখুন, তারপর পাবলিশ করুন!'); return; }
+  if (!appData.padNotices) appData.padNotices = [];
+  appData.padNotices.push({
+    id: Date.now(), docNo, to, date, body,
+    createdAt: new Date().toISOString(), createdBy: currentUser.name,
+    seenByOwner: false
+  });
+  saveData();
+  renderPadNoticeList();
+  showToast('✅ বোর্ড বার্তা পাবলিশ হয়েছে! ওনার প্যানেলে দেখা যাবে।');
+}
+
+function renderPadNoticeList() {
+  const list = document.getElementById('padNoticeList');
+  const empty = document.getElementById('padNoticeEmpty');
+  if (!list) return;
+  const notices = [...(appData.padNotices||[])].sort((a,b)=>b.id-a.id);
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  if (!notices.length) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = notices.map(n => `
+    <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+      <div style="background:#f8fafc;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          ${n.docNo?`<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;margin-right:8px">${n.docNo}</span>`:''}
+          <strong style="font-size:14px;color:var(--primary)">${n.to ? 'প্রাপক: '+n.to : 'বোর্ড বার্তা'}</strong>
+          <div style="font-size:11px;color:var(--text-light);margin-top:3px">${n.createdBy||''} • ${n.date?formatDate(n.date):''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="togglePadNoticeExpand(${n.id})" id="padNoticeToggleBtn-${n.id}">👁️ দেখুন</button>
+          <button class="btn btn-warning btn-sm" onclick="printPadNotice(${n.id})">🖨️ প্রিন্ট</button>
+          ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deletePadNotice(${n.id})">🗑️</button>`:''}
+        </div>
+      </div>
+      <div id="padNoticeBody-${n.id}" style="display:none;padding:16px;white-space:pre-wrap;font-size:13px;line-height:1.8;color:#1a2a3a;border-top:1px solid var(--border);max-height:400px;overflow-y:auto">${n.body.replace(/</g,'&lt;')}</div>
+    </div>`).join('');
+}
+
+function togglePadNoticeExpand(id) {
+  const body = document.getElementById('padNoticeBody-'+id);
+  const btn  = document.getElementById('padNoticeToggleBtn-'+id);
+  if (!body) return;
+  const showing = body.style.display !== 'none';
+  body.style.display = showing ? 'none' : 'block';
+  if (btn) btn.textContent = showing ? '👁️ দেখুন' : '🔽 বন্ধ করুন';
+}
+
+function deletePadNotice(id) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!confirm('এই বোর্ড বার্তাটি মুছে ফেলতে চান?')) return;
+  appData.padNotices = (appData.padNotices||[]).filter(x=>x.id!==id);
+  saveData(); renderPadNoticeList();
+  showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+
+function printPadNotice(id) {
+  const n = (appData.padNotices||[]).find(x=>x.id===id);
+  if (!n) return;
+  const s        = appData.settings;
+  const hospName = s.hospName||'ICON Eye Hospital';
+  const address  = s.address||'';
+  const phone    = s.phone||'';
+  const email    = s.email||'';
+  const tagline  = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
+  const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+
+  openPrintWindow(`
+  <html><head><meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:'Hind Siliguri',Arial,sans-serif;margin:0;padding:0;color:#1a2a3a}
+    .page{max-width:800px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;border:1px solid #e5e7eb}
+    .header{padding:24px 40px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between}
+    .meta{padding:12px 40px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:13px}
+    .body{padding:28px 40px;flex:1;font-size:14px;line-height:2;min-height:450px;position:relative;z-index:1}
+    .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);opacity:0.04;font-size:100px;font-weight:900;color:#1a8fb5;pointer-events:none;z-index:0;white-space:nowrap}
+    .footer{background:#1a8fb5;padding:14px 40px;display:flex;justify-content:space-between;align-items:center;color:white;font-size:12px}
+    .sig{padding:16px 40px 24px;display:flex;justify-content:flex-end}
+    .sig-box{text-align:center;min-width:200px}
+    .sig-line{border-top:1px solid #333;padding-top:8px;margin-top:60px}
+    @media print{body{padding:0}}
+  </style></head><body>
+  <div class="watermark">ICON EYE HOSPITAL</div>
+  <div class="page">
+    <div class="header">
+      <img src="${LOGO_B64}" style="height:90px;object-fit:contain" />
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:800;color:#1a8fb5">${hospName}</div>
+        ${address?`<div style="font-size:12px;color:#6b7280">${address}</div>`:''}
+        <div style="font-size:12px;color:#6b7280">${[phone,email].filter(Boolean).join(' | ')}</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>${n.docNo?`<strong>স্মারক নং:</strong> ${n.docNo}`:''}</div>
+      <div>${n.to?`<strong>প্রাপক:</strong> ${n.to}`:''}</div>
+      <div><strong>তারিখ:</strong> ${formatDate(n.date)}</div>
+    </div>
+    <div class="body">${bodyHtml||'&nbsp;'}</div>
+    <div class="sig">
+      <div class="sig-box">
+        <div class="sig-line">
+          <div style="font-weight:700;font-size:14px">ব্যবস্থাপনা পরিচালক</div>
+          <div style="font-size:12px;color:#6b7280">${hospName}</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div>${phone}</div>
+      <div style="font-weight:600">${tagline}</div>
+      <div>${email}</div>
+    </div>
+  </div>
+  </body></html>`);
+}
+
 // ===== MEMORANDUM & TOR =====
 let editingMemoDocId = null;
 
@@ -4293,7 +4424,6 @@ function clearMemoForm() {
   const t = document.getElementById('memDocTitle'); if (t) t.value = '';
   const ty = document.getElementById('memDocType'); if (ty) ty.value = 'memorandum';
   const bd = document.getElementById('memDocText'); if (bd) bd.value = '';
-  const pb = document.getElementById('memDocPublish'); if (pb) pb.checked = false;
   const btn = document.getElementById('memoSaveBtn'); if (btn) btn.textContent = '✅ সেভ করুন';
 }
 
@@ -4302,7 +4432,6 @@ function saveMemoDoc() {
   const title = document.getElementById('memDocTitle').value.trim();
   const type  = document.getElementById('memDocType').value;
   const text  = document.getElementById('memDocText').value.trim();
-  const publish = document.getElementById('memDocPublish') ? document.getElementById('memDocPublish').checked : false;
   if (!title || !text) { showToast('⚠️ শিরোনাম ও টেক্সট আবশ্যক!'); return; }
   if (!appData.memoDocs) appData.memoDocs = [];
   if (editingMemoDocId) {
@@ -4310,22 +4439,14 @@ function saveMemoDoc() {
     if (doc) {
       doc.title = title; doc.type = type; doc.text = text;
       doc.updatedAt = new Date().toISOString(); doc.updatedBy = currentUser.name;
-      // পাবলিশ স্ট্যাটাস নতুন করে অন করা হলে ওনারকে নতুন নোটিফিকেশন দেখানোর জন্য seenByOwner রিসেট
-      const wasPublished = !!doc.published;
-      doc.published = publish;
-      if (publish && !wasPublished) { doc.publishedAt = new Date().toISOString(); doc.seenByOwner = false; }
-      if (!publish) { doc.seenByOwner = true; }
     }
     showToast('✅ ডকুমেন্ট আপডেট হয়েছে!');
   } else {
     appData.memoDocs.push({
       id: Date.now(), title, type, text,
-      createdAt: new Date().toISOString(), createdBy: currentUser.name,
-      published: publish,
-      publishedAt: publish ? new Date().toISOString() : null,
-      seenByOwner: !publish
+      createdAt: new Date().toISOString(), createdBy: currentUser.name
     });
-    showToast(publish ? '✅ ডকুমেন্ট সংরক্ষিত ও পাবলিশ হয়েছে! ওনার প্যানেলে দেখা যাবে।' : '✅ ডকুমেন্ট সংরক্ষিত হয়েছে!');
+    showToast('✅ ডকুমেন্ট সংরক্ষিত হয়েছে!');
   }
   saveData();
   clearMemoForm();
@@ -4355,15 +4476,13 @@ function renderMemoDocList() {
       <div style="background:#f8fafc;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
           <span class="badge" style="background:${d.type==='tor'?'#e0f2fe':'#f0fdf4'};color:${d.type==='tor'?'#0369a1':'#166534'};font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;margin-right:8px">${memoTypeLabel(d.type)}</span>
-          ${d.published?`<span class="badge" style="background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;margin-right:8px">📢 পাবলিশড</span>`:''}
           <strong style="font-size:14px;color:var(--primary)">${d.title}</strong>
           <div style="font-size:11px;color:var(--text-light);margin-top:3px">${d.createdBy||''} • ${d.createdAt?formatDate(d.createdAt.slice(0,10)):''}${d.updatedAt?' (সম্পাদিত)':''}</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" onclick="toggleMemoExpand(${d.id})" id="memoToggleBtn-${d.id}">👁️ দেখুন</button>
           <button class="btn btn-warning btn-sm" onclick="printMemoDoc(${d.id})">🖨️ প্রিন্ট</button>
-          ${isAdmin?`<button class="btn ${d.published?'btn-outline':'btn-success'} btn-sm" onclick="toggleMemoPublish(${d.id})">${d.published?'🔕 আনপাবলিশ':'📢 পাবলিশ'}</button>
-          <button class="btn btn-primary btn-sm" onclick="editMemoDoc(${d.id})">✏️ এডিট</button>
+          ${isAdmin?`<button class="btn btn-primary btn-sm" onclick="editMemoDoc(${d.id})">✏️ এডিট</button>
           <button class="btn btn-danger btn-sm" onclick="deleteMemoDoc(${d.id})">🗑️</button>`:''}
         </div>
       </div>
@@ -4380,17 +4499,6 @@ function toggleMemoExpand(id) {
   if (btn) btn.textContent = showing ? '👁️ দেখুন' : '🔽 বন্ধ করুন';
 }
 
-function toggleMemoPublish(id) {
-  if (!currentUser || currentUser.role !== 'admin') return;
-  const d = (appData.memoDocs||[]).find(x=>x.id===id);
-  if (!d) return;
-  d.published = !d.published;
-  if (d.published) { d.publishedAt = new Date().toISOString(); d.seenByOwner = false; }
-  else { d.seenByOwner = true; }
-  saveData(); renderMemoDocList();
-  showToast(d.published ? '📢 পাবলিশ করা হয়েছে — ওনার প্যানেলে ভেসে উঠবে' : '🔕 আনপাবলিশ করা হয়েছে');
-}
-
 function editMemoDoc(id) {
   if (!currentUser || currentUser.role !== 'admin') return;
   const d = (appData.memoDocs||[]).find(x=>x.id===id);
@@ -4399,7 +4507,6 @@ function editMemoDoc(id) {
   document.getElementById('memDocTitle').value = d.title;
   document.getElementById('memDocType').value = d.type;
   document.getElementById('memDocText').value = d.text;
-  const pb = document.getElementById('memDocPublish'); if (pb) pb.checked = !!d.published;
   const btn = document.getElementById('memoSaveBtn'); if (btn) btn.textContent = '✅ আপডেট সেভ করুন';
   document.getElementById('memoAddPanel').scrollIntoView({behavior:'smooth'});
 }
@@ -4436,46 +4543,46 @@ function printMemoDoc(id) {
     </div>`, d.title);
 }
 
-// ===== OWNER PANEL — পাবলিশ করা মেমোরেন্ডাম/TOR নোটিফিকেশন =====
+// ===== OWNER PANEL — পাবলিশ করা বোর্ড বার্তা (অফিসিয়াল প্যাড) নোটিফিকেশন =====
 function renderOwnerMemoPublishNotif() {
   const box = document.getElementById('ownerMemoPublishNotif');
   if (!box) return;
-  const newDocs = (appData.memoDocs||[]).filter(d => d.published && !d.seenByOwner);
-  if (!newDocs.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const newNotices = (appData.padNotices||[]).filter(n => !n.seenByOwner);
+  if (!newNotices.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = 'block';
-  const sorted = [...newDocs].sort((a,b)=> b.id - a.id);
+  const sorted = [...newNotices].sort((a,b)=> b.id - a.id);
   box.innerHTML = `
     <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:14px 16px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:${sorted.length>1?'10px':'0'}">
         <span style="font-size:22px">📢</span>
         <div style="flex:1">
-          <div style="font-weight:700;color:#92400e">${sorted.length}টি নতুন পাবলিশ করা ডকুমেন্ট</div>
-          <div style="font-size:12px;color:#b45309">অ্যাডমিন মেমোরেন্ডাম/TOR পাবলিশ করেছেন</div>
+          <div style="font-weight:700;color:#92400e">${sorted.length}টি নতুন বোর্ড বার্তা</div>
+          <div style="font-size:12px;color:#b45309">অ্যাডমিন অফিসিয়াল প্যাড থেকে বার্তা পাবলিশ করেছেন</div>
         </div>
         <button class="btn btn-outline btn-sm" onclick="dismissOwnerMemoNotif()" style="border-color:#f59e0b;color:#92400e">✕ বন্ধ</button>
       </div>
-      ${sorted.map(d=>`
+      ${sorted.map(n=>`
         <div style="background:white;border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;flex-wrap:wrap">
           <div>
-            <span class="badge" style="background:${d.type==='tor'?'#e0f2fe':'#f0fdf4'};color:${d.type==='tor'?'#0369a1':'#166534'};font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;margin-right:6px">${memoTypeLabel(d.type)}</span>
-            <strong style="font-size:13px;color:var(--primary)">${d.title}</strong>
+            ${n.docNo?`<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;margin-right:6px">${n.docNo}</span>`:''}
+            <strong style="font-size:13px;color:var(--primary)">${n.to ? 'প্রাপক: '+n.to : 'বোর্ড বার্তা'}</strong>
           </div>
-          <button class="btn btn-warning btn-sm" onclick="ownerViewMemoDoc(${d.id})">👁️ দেখুন</button>
+          <button class="btn btn-warning btn-sm" onclick="ownerViewPadNotice(${n.id})">👁️ দেখুন</button>
         </div>`).join('')}
     </div>`;
 }
 
 function dismissOwnerMemoNotif() {
-  (appData.memoDocs||[]).forEach(d => { if (d.published) d.seenByOwner = true; });
+  (appData.padNotices||[]).forEach(n => { n.seenByOwner = true; });
   saveData();
   renderOwnerMemoPublishNotif();
 }
 
-function ownerViewMemoDoc(id) {
-  const d = (appData.memoDocs||[]).find(x=>x.id===id);
-  if (d) d.seenByOwner = true;
+function ownerViewPadNotice(id) {
+  const n = (appData.padNotices||[]).find(x=>x.id===id);
+  if (n) n.seenByOwner = true;
   saveData();
-  printMemoDoc(id);
+  printPadNotice(id);
   renderOwnerMemoPublishNotif();
 }
 
@@ -4570,7 +4677,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -4602,7 +4709,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
       appData = { ...def, ...data };
       rebuildUsers();
       if (currentUser) {
