@@ -3015,8 +3015,8 @@ function openPrintWindow(htmlContent, title) {
       <button id="ownerBnStarBtn" onclick="toggleOwnerBnStar()" style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:8px;padding:7px 12px;font-family:inherit;font-size:18px;cursor:pointer;line-height:1" title="স্টার মার্ক করুন">☆</button>
     </div>
     <!-- স্কেল র‍্যাপার: প্যাড 760px চওড়া, A4 অনুপাতে, মাঝে align -->
-    <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px 0 28px;overflow:hidden">
-      <div id="ownerBnScaleInner" style="width:760px;transform-origin:top center">
+    <div style="flex:1;width:100%;padding:16px 0 28px;overflow:hidden;box-sizing:border-box">
+      <div id="ownerBnScaleInner" style="width:760px;margin:0 auto;transform-origin:top center">
         <div id="ownerBoardNoticeContent" style="background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.12);font-family:'Hind Siliguri',Arial,sans-serif;color:#1a2a3a">
           <!-- হেডার -->
           <div style="padding:24px 40px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
@@ -4693,10 +4693,12 @@ function ownerViewPadNotice(id) {
     const margin = 16;
     const scale = Math.min(1, (screenW - margin * 2) / padW);
     inner.style.transform = `scale(${scale})`;
-    inner.style.marginLeft = `${margin}px`;
-    // scale 후 실제 높이를 wrapper에 반영
+    // scale-এর পর আসল উচ্চতা প্যারেন্টে বসাও, যাতে নিচে বাড়তি ফাঁকা জায়গা না থাকে
     inner.parentElement.style.height = (inner.offsetHeight * scale + 24) + 'px';
   });
+
+  // স্টার আইকন আপডেট
+  updateOwnerBnStarBtn(n);
 }
 
 function closeOwnerBoardNoticePage() {
@@ -4709,6 +4711,28 @@ function closeOwnerBoardNoticePage() {
   const scaleWrap = scaleInner ? scaleInner.parentElement : null;
   if (scaleWrap) scaleWrap.style.display = '';
   _ownerCurrentNoticeId = null;
+}
+
+function updateOwnerBnStarBtn(n) {
+  const btn = document.getElementById('ownerBnStarBtn');
+  if (!btn) return;
+  if (n && n.starred) {
+    btn.textContent = '★';
+    btn.style.color = '#fbbf24';
+  } else {
+    btn.textContent = '☆';
+    btn.style.color = 'white';
+  }
+}
+
+function toggleOwnerBnStar() {
+  if (!_ownerCurrentNoticeId) return;
+  const n = (appData.padNotices||[]).find(x=>x.id===_ownerCurrentNoticeId);
+  if (!n) return;
+  n.starred = !n.starred;
+  saveData();
+  updateOwnerBnStarBtn(n);
+  showToast(n.starred ? '⭐ স্টার মার্ক করা হয়েছে' : '☆ স্টার মার্ক তোলা হয়েছে');
 }
 
 function openOwnerBoardNoticeList() {
@@ -4726,6 +4750,7 @@ function openOwnerBoardNoticeList() {
     const ha = document.getElementById('ownerBnAddress'); if(ha) ha.textContent = '';
     const hc = document.getElementById('ownerBnContact'); if(hc) hc.textContent = '';
     const meta = document.getElementById('ownerBnMeta'); if(meta) meta.innerHTML = '';
+    updateOwnerBnStarBtn(null);
     pg.style.display = 'flex'; pg.scrollTop = 0;
     return;
   }
@@ -4750,7 +4775,7 @@ function openOwnerBoardNoticeList() {
     <div onclick="ownerBnListItemClick(${n.id})" style="background:white;border-radius:10px;padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;border-left:4px solid #1a8fb5;display:flex;align-items:center;gap:12px">
       <div style="flex:1;min-width:0">
         ${n.docNo?`<div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:3px">${n.docNo}</div>`:''}
-        <div style="font-size:14px;font-weight:700;color:#0f4c81;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.to||'বোর্ড বার্তা'}</div>
+        <div style="font-size:14px;font-weight:700;color:#0f4c81;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.starred?'⭐ ':''}${n.to||'বোর্ড বার্তা'}</div>
         <div style="font-size:12px;color:#6b7280;margin-top:3px">${n.createdBy||''} • ${n.date?(typeof formatDate==='function'?formatDate(n.date):n.date):''}</div>
         <div style="font-size:12px;color:#374151;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(n.body||'').substring(0,60)}...</div>
       </div>
@@ -4761,6 +4786,7 @@ function openOwnerBoardNoticeList() {
   const titleEl = pg.querySelector('div[style*="font-weight:700"]');
   if (titleEl) titleEl.textContent = '📢 বোর্ড বার্তা তালিকা';
 
+  updateOwnerBnStarBtn(null);
   pg.style.display = 'flex'; pg.scrollTop = 0;
   _ownerCurrentNoticeId = null;
 }
