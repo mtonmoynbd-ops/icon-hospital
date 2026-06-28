@@ -8,7 +8,7 @@
 <style>
   :root {
     --primary:#0f4c81; --primary-light:#1a6bb5; --accent:#00b4d8;
-    --success:#16a34a; --warning:#f39c12; --danger:#e74c3c;
+    --success:#0a6b35; --warning:#f39c12; --danger:#e74c3c;
     --bg:#f0f4f8; --card:#ffffff;
     --sidebar-bg:#0a2540; --sidebar-text:#a8c4e0; --sidebar-hover:#1a3a5c;
     --text:#1a2a3a; --text-light:#5a7a9a; --border:#d0dce8;
@@ -6960,19 +6960,19 @@ function showCampDetail(id) {
 
   const modal = document.createElement('div');
   modal.className = 'camp-modal-wrap';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
-  modal.innerHTML = `<div style="background:white;border-radius:16px;padding:28px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
+  modal.style.cssText = 'position:fixed;inset:0;background:#f0f4f8;z-index:9999;overflow-y:auto;';
+  modal.innerHTML = `<div style="max-width:640px;margin:0 auto;min-height:100vh;background:white;padding:0 0 40px;">
+    <div style="position:sticky;top:0;z-index:10;background:white;border-bottom:1.5px solid #e2e8f0;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <h3 style="color:var(--primary);font-size:18px;margin:0">${c.name}</h3>
-        <div style="color:var(--text-light);font-size:13px;margin-top:4px">📍 ${c.location} &nbsp;|&nbsp; 📅 ${formatDate(c.date)}</div>
-        ${c.doctor?`<div style="font-size:12px;color:#888;margin-top:2px">👨‍⚕️ ${c.doctor}</div>`:''}
+        <div style="font-weight:700;font-size:16px;color:var(--primary)">${c.name}</div>
+        <div style="color:var(--text-light);font-size:12px;">📍 ${c.location} &nbsp;|&nbsp; 📅 ${formatDate(c.date)}${c.doctor?' &nbsp;|&nbsp; 👨‍⚕️ '+c.doctor:''}</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        ${c.rating?`<span style="background:#f0fff4;border:1.5px solid #86efac;border-radius:8px;padding:4px 10px;font-size:13px;font-weight:700">${ratingEmoji[c.rating]||''} ${c.rating}</span>`:''}
-        <button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove())" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa;line-height:1">✕</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${c.rating?`<span style="background:#f0fff4;border:1.5px solid #86efac;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700">${ratingEmoji[c.rating]||''} ${c.rating}</span>`:''}
+        <button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove())" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#e74c3c;">✕ বন্ধ</button>
       </div>
     </div>
+    <div style="padding:14px 16px 0;">
 
     <!-- সারসংক্ষেপ কার্ড -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
@@ -7044,7 +7044,7 @@ function showCampDetail(id) {
     </div>`:''}
 
     <div style="font-size:11px;color:#aaa">বন্ধ: ${c.closedBy||'—'} | ${c.closedAt||''}</div>
-  </div>`;
+  </div></div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
@@ -8326,7 +8326,7 @@ function openRoleMoreSheet(roleKey) {
   if (list) {
     // Owner & camper: গ্রুপ ভাগে দেখাও
     if (roleKey === 'owner' || roleKey === 'camper') {
-      const groups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups : FEATURE_GROUPS;
+      const groups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups.map(g=>({...g, ids: g.ids||[]})) : FEATURE_GROUPS;
       let html = '';
       groups.forEach(group => {
         const groupItems = group.ids.filter(id => allowed.has(id));
@@ -8697,9 +8697,9 @@ function renderFeatureAccessPanel() {
   const access = appData.featureAccess || {};
   const panel = document.getElementById('featureAccessPanel');
   if (!panel) return;
-  const groups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups : FEATURE_GROUPS;
+  const groups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups.map(g=>({...g, ids: g.ids||[]})) : FEATURE_GROUPS;
   const featureGroupMap = {};
-  groups.forEach((g, gi) => g.ids.forEach(id => { featureGroupMap[id] = gi; }));
+  groups.forEach((g, gi) => (g.ids||[]).forEach(id => { featureGroupMap[id] = gi; }));
   panel.innerHTML = roles.map(role=>{
     const current = access[role] || DEFAULT_FEATURE_ACCESS[role] || [];
     return `<div style="margin-bottom:16px">
