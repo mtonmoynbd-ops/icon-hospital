@@ -2810,17 +2810,17 @@ function openPrintWindow(htmlContent, title) {
             <div style="padding:16px 32px 12px;display:flex;justify-content:space-between;align-items:start;border-bottom:1px solid #e5e7eb">
               <div style="display:flex;gap:20px;align-items:end;flex:1">
                 <div>
-                  <label style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase">স্মারক নং</label>
-                  <input type="text" id="padDocNo" placeholder="ICON/২০২৬/০০১" style="display:block;border:none;border-bottom:1.5px solid var(--border);padding:6px 0;font-family:inherit;font-size:14px;font-weight:600;outline:none;background:transparent;color:#1a2a3a;width:220px;margin-top:4px">
+                  <label style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase">স্মারক নং (অটো)</label>
+                  <input type="text" id="padDocNo" readonly placeholder="IEH/২০২৬/০৭/০১" style="display:block;border:none;border-bottom:1.5px solid var(--border);padding:6px 0;font-family:inherit;font-size:14px;font-weight:600;outline:none;background:transparent;color:#1a8fb5;width:220px;margin-top:4px;cursor:default">
                 </div>
                 <div style="flex:1">
-                  <label style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase">প্রাপক</label>
-                  <input type="text" id="padTo" placeholder="যেমন: সকল বোর্ড সদস্যগণ" style="display:block;border:none;border-bottom:1.5px solid var(--border);padding:6px 0;font-family:inherit;font-size:14px;font-weight:600;outline:none;background:transparent;color:#1a2a3a;width:100%;margin-top:4px">
+                  <label style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase">বিষয়</label>
+                  <input type="text" id="padTo" oninput="updatePadSubjectPreview()" placeholder="যেমন: ছুটি সংক্রান্ত নোটিশ" style="display:block;border:none;border-bottom:1.5px solid var(--border);padding:6px 0;font-family:inherit;font-size:14px;font-weight:600;outline:none;background:transparent;color:#1a2a3a;width:100%;margin-top:4px">
                 </div>
               </div>
               <div style="text-align:right;min-width:140px;margin-left:16px">
                 <label style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase">তারিখ</label>
-                <input type="date" id="padDate" style="display:block;border:none;border-bottom:1.5px solid var(--border);padding:6px 0;font-family:inherit;font-size:13px;outline:none;background:transparent;margin-top:4px;color:#1a2a3a">
+                <input type="date" id="padDate" onchange="refreshPadDocNoPreview()" style="display:block;border:none;border-bottom:1.5px solid var(--border);padding:6px 0;font-family:inherit;font-size:13px;outline:none;background:transparent;margin-top:4px;color:#1a2a3a">
               </div>
             </div>
             <!-- hidden subject field for compatibility -->
@@ -2828,6 +2828,13 @@ function openPrintWindow(htmlContent, title) {
 
             <!-- বডি -->
             <div style="padding:20px 32px;min-height:400px">
+              <div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:8px">
+                <label style="font-size:11px;font-weight:700;color:#9ca3af">ফন্ট সাইজ:</label>
+                <button type="button" class="btn btn-outline btn-sm" onclick="adjustPadBodyFontSize(-1)" style="padding:3px 10px;font-size:13px">A−</button>
+                <span id="padBodyFontSizeLabel" style="font-size:12px;color:#6b7280;min-width:34px;text-align:center;display:inline-block">14px</span>
+                <button type="button" class="btn btn-outline btn-sm" onclick="adjustPadBodyFontSize(1)" style="padding:3px 10px;font-size:13px">A+</button>
+              </div>
+              <div id="padSubjectPreview" style="display:none;text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px"></div>
               <textarea id="padBody" placeholder="এখানে আপনার বার্তা / নোটিশ / প্রজ্ঞাপন লিখুন..." style="width:100%;min-height:360px;border:none;resize:vertical;font-family:inherit;font-size:14px;line-height:1.8;color:#1a2a3a;outline:none;background:transparent" oninput="this.style.height=&#39;auto&#39;;this.style.height=this.scrollHeight+&#39;px&#39;"></textarea>
             </div>
 
@@ -2854,7 +2861,15 @@ function openPrintWindow(htmlContent, title) {
 
       <!-- পাবলিশ করা বোর্ড নোটিস তালিকা — শুধু অফিসিয়াল প্যাড পেজে -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">📢 পাবলিশ করা বোর্ড বার্তা তালিকা</div></div>
+        <div class="panel-header">
+          <div class="panel-title">📢 পাবলিশ করা বোর্ড বার্তা তালিকা</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;font-weight:600;color:#6b7280">মাস ফিল্টার:</label>
+            <select id="padNoticeMonthFilter" onchange="renderPadNoticeList()" style="border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13px;background:white;color:#1a2a3a">
+              <option value="all">সব মাস</option>
+            </select>
+          </div>
+        </div>
         <div class="panel-body">
           <div id="padNoticeList" style="display:flex;flex-direction:column;gap:12px"></div>
           <div id="padNoticeEmpty" style="display:none;text-align:center;color:#aaa;padding:30px">কোনো বোর্ড বার্তা পাবলিশ করা হয়নি</div>
@@ -3015,7 +3030,7 @@ function openPrintWindow(htmlContent, title) {
       <button id="ownerBnStarBtn" onclick="toggleOwnerBnStar()" style="background:rgba(255,255,255,0.15);color:white;border:none;border-radius:8px;padding:7px 12px;font-family:inherit;font-size:18px;cursor:pointer;line-height:1" title="স্টার মার্ক করুন">☆</button>
     </div>
     <!-- স্কেল র‍্যাপার: প্যাড 760px চওড়া, A4 অনুপাতে, মাঝে align -->
-    <div style="flex:1;width:100%;padding:16px 0 28px;overflow:hidden;box-sizing:border-box">
+    <div id="ownerBnScaleOuter" style="flex:1;width:100%;position:relative;padding:16px 0 28px;overflow-x:hidden;box-sizing:border-box">
       <div id="ownerBnScaleInner" style="width:760px;margin:0 auto;transform-origin:top center">
         <div id="ownerBoardNoticeContent" style="background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.12);font-family:'Hind Siliguri',Arial,sans-serif;color:#1a2a3a">
           <!-- হেডার -->
@@ -3032,6 +3047,7 @@ function openPrintWindow(htmlContent, title) {
           <!-- বার্তার বডি — watermark: লোগো ইমেজ পুরো বডি জুড়ে, সোজা -->
           <div style="position:relative;padding:28px 40px;min-height:680px">
             <img id="ownerBnWatermark" src="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0.05;pointer-events:none;user-select:none" alt="">
+            <div id="ownerBnSubject" style="position:relative;z-index:1;display:none;text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px"></div>
             <div id="ownerBnBody" style="position:relative;z-index:1;font-size:14px;line-height:2;color:#1a2a3a;white-space:pre-wrap;word-break:break-word"></div>
           </div>
           <!-- স্বাক্ষর -->
@@ -4250,6 +4266,61 @@ function saveSettings() {
 }
 
 // ===== OFFICIAL PAD =====
+// ===== অফিসিয়াল প্যাড — অটো স্মারক নং জেনারেশন =====
+// ফরম্যাট: IEH/বছর/মাস/সেই-বছরের-ক্রমিক  (যেমন: IEH/2026/07/18)
+const PAD_DOC_CODE = 'IEH';
+
+function getNextPadDocNo(forDate) {
+  const d = forDate ? new Date(forDate) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const notices = appData.padNotices || [];
+  // এই বছরের সবচেয়ে বড় ক্রমিক খুঁজে বের করা (docNo থেকে পার্স করে, বছর না মিললে গণনায় আসবে না)
+  let maxSeq = 0;
+  notices.forEach(n => {
+    if (!n.docNo) return;
+    const parts = n.docNo.split('/');
+    if (parts.length === 4 && parts[0] === PAD_DOC_CODE && parseInt(parts[1], 10) === year) {
+      const seq = parseInt(parts[3], 10);
+      if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+    }
+  });
+  const nextSeq = String(maxSeq + 1).padStart(2, '0');
+  return `${PAD_DOC_CODE}/${year}/${month}/${nextSeq}`;
+}
+
+function refreshPadDocNoPreview() {
+  const el = document.getElementById('padDocNo');
+  const dateEl = document.getElementById('padDate');
+  if (!el) return;
+  el.value = getNextPadDocNo(dateEl ? dateEl.value : null);
+}
+
+// ===== বিষয় (subject) লাইভ প্রিভিউ — বডির টপ-সেন্টারে বোল্ড করে দেখানো =====
+function updatePadSubjectPreview() {
+  const toEl = document.getElementById('padTo');
+  const prev = document.getElementById('padSubjectPreview');
+  if (!toEl || !prev) return;
+  const val = toEl.value.trim();
+  if (val) {
+    prev.textContent = val;
+    prev.style.display = 'block';
+  } else {
+    prev.textContent = '';
+    prev.style.display = 'none';
+  }
+}
+
+// ===== বডি টেক্সট ফন্ট সাইজ নিয়ন্ত্রণ =====
+let _padBodyFontSize = 14;
+function adjustPadBodyFontSize(delta) {
+  _padBodyFontSize = Math.min(28, Math.max(10, _padBodyFontSize + delta));
+  const ta = document.getElementById('padBody');
+  if (ta) ta.style.fontSize = _padBodyFontSize + 'px';
+  const lbl = document.getElementById('padBodyFontSizeLabel');
+  if (lbl) lbl.textContent = _padBodyFontSize + 'px';
+}
+
 function initOfficialPad() {
   document.getElementById('padDate').value = todayStr();
   const s = appData.settings;
@@ -4268,14 +4339,19 @@ function initOfficialPad() {
   if (snEl && !snEl.value) snEl.value = currentUser.name;
   const sdEl = document.getElementById('padSignDesig');
   // signature is fixed as ব্যবস্থাপনা পরিচালক
+  refreshPadDocNoPreview();
+  updatePadSubjectPreview();
+  adjustPadBodyFontSize(0);
   renderPadNoticeList();
 }
 
 function clearPad() {
-  ['padSubject','padDocNo','padTo','padBody','padSignName','padSignDesig'].forEach(id=>{
+  ['padSubject','padTo','padBody','padSignName','padSignDesig'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('padDate').value = todayStr();
+  refreshPadDocNoPreview();
+  updatePadSubjectPreview();
 }
 
 function printOfficialPad() {
@@ -4285,13 +4361,11 @@ function printOfficialPad() {
   const phone    = s.phone||'';
   const email    = s.email||'';
   const tagline  = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
-  const subject  = document.getElementById('padSubject').value.trim();
+  const subject  = document.getElementById('padTo').value.trim();
   const date     = document.getElementById('padDate').value;
   const docNo    = document.getElementById('padDocNo').value.trim();
-  const to       = document.getElementById('padTo').value.trim();
   const body     = document.getElementById('padBody').value.trim().replace(/\n/g,'<br>');
-  const signName = document.getElementById('padSignName').value.trim();
-  const signDesig= document.getElementById('padSignDesig').value.trim();
+  const fontSize = _padBodyFontSize || 14;
 
   openPrintWindow(`
   <html><head><meta charset="UTF-8">
@@ -4301,8 +4375,8 @@ function printOfficialPad() {
     .page{max-width:800px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;border:1px solid #e5e7eb}
     .header{padding:24px 40px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between}
     .meta{padding:12px 40px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:13px}
-    .subject{padding:16px 40px;border-bottom:2px solid #e5e7eb;font-size:16px;font-weight:700}
-    .body{padding:28px 40px;flex:1;font-size:14px;line-height:2;min-height:450px;position:relative;z-index:1}
+    .subject-line{text-align:center;font-size:17px;font-weight:800;margin-bottom:16px}
+    .body{padding:28px 40px;flex:1;font-size:${fontSize}px;line-height:2;min-height:450px;position:relative;z-index:1}
     .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);opacity:0.04;font-size:100px;font-weight:900;color:#1a8fb5;pointer-events:none;z-index:0;white-space:nowrap}
     .footer{background:#1a8fb5;padding:14px 40px;display:flex;justify-content:space-between;align-items:center;color:white;font-size:12px}
     .sig{padding:16px 40px 24px;display:flex;justify-content:flex-end}
@@ -4322,11 +4396,13 @@ function printOfficialPad() {
     </div>
     <div class="meta">
       <div>${docNo?`<strong>স্মারক নং:</strong> ${docNo}`:''}</div>
-      <div>${to?`<strong>প্রাপক:</strong> ${to}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(date)}</div>
     </div>
 
-    <div class="body">${body||'&nbsp;'}</div>
+    <div class="body">
+      ${subject?`<div class="subject-line">${subject}</div>`:''}
+      ${body||'&nbsp;'}
+    </div>
     <div class="sig">
       <div class="sig-box">
         <div class="sig-line">
@@ -4347,31 +4423,55 @@ function printOfficialPad() {
 // ===== অফিসিয়াল প্যাড — বোর্ড নোটিস পাবলিশ =====
 function publishPadNotice() {
   if (!currentUser || currentUser.role !== 'admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন পাবলিশ করতে পারবেন!'); return; }
-  const docNo = document.getElementById('padDocNo').value.trim();
-  const to    = document.getElementById('padTo').value.trim();
   const date  = document.getElementById('padDate').value;
+  const docNo = getNextPadDocNo(date); // পাবলিশের ঠিক আগের মুহূর্তে ফ্রেশ ক্রমিক হিসেব করা হচ্ছে
+  const to    = document.getElementById('padTo').value.trim(); // বিষয়
   const body  = document.getElementById('padBody').value.trim();
   if (!body) { showToast('⚠️ বার্তা লিখুন, তারপর পাবলিশ করুন!'); return; }
   if (!appData.padNotices) appData.padNotices = [];
   appData.padNotices.push({
     id: Date.now(), docNo, to, date, body,
+    fontSize: _padBodyFontSize || 14,
     createdAt: new Date().toISOString(), createdBy: currentUser.name,
     seenByOwner: false
   });
   saveData();
   renderPadNoticeList();
+  refreshPadDocNoPreview(); // পরের বার্তার জন্য নতুন ক্রমিক দেখাও
   showToast('✅ বোর্ড বার্তা পাবলিশ হয়েছে! ওনার প্যানেলে দেখা যাবে।');
 }
 
 function renderPadNoticeList() {
   const list = document.getElementById('padNoticeList');
   const empty = document.getElementById('padNoticeEmpty');
+  const filterEl = document.getElementById('padNoticeMonthFilter');
   if (!list) return;
-  const notices = [...(appData.padNotices||[])].sort((a,b)=>b.id-a.id);
+  const all = [...(appData.padNotices||[])].sort((a,b)=>b.id-a.id);
   const isAdmin = currentUser && currentUser.role === 'admin';
+
+  // মাস ফিল্টার ড্রপডাউন পপুলেট করা (docNo-এর YYYY/MM অংশ থেকে, না থাকলে date থেকে)
+  if (filterEl) {
+    const monthKeys = new Set();
+    all.forEach(n => {
+      const ym = padNoticeYearMonth(n);
+      if (ym) monthKeys.add(ym);
+    });
+    const sortedKeys = [...monthKeys].sort().reverse();
+    const prevSelected = filterEl.value || 'all';
+    filterEl.innerHTML = '<option value="all">সব মাস</option>' +
+      sortedKeys.map(k => {
+        const [y, m] = k.split('-');
+        return `<option value="${k}">${BN_MONTHS[parseInt(m,10)-1]} ${y}</option>`;
+      }).join('');
+    if ([...filterEl.options].some(o=>o.value===prevSelected)) filterEl.value = prevSelected;
+  }
+
+  const selectedMonth = filterEl ? filterEl.value : 'all';
+  const notices = selectedMonth === 'all' ? all : all.filter(n => padNoticeYearMonth(n) === selectedMonth);
+
   if (!notices.length) {
     list.innerHTML = '';
-    if (empty) empty.style.display = '';
+    if (empty) { empty.style.display = ''; empty.textContent = all.length ? 'এই মাসে কোনো বোর্ড বার্তা পাবলিশ করা হয়নি' : 'কোনো বোর্ড বার্তা পাবলিশ করা হয়নি'; }
     return;
   }
   if (empty) empty.style.display = 'none';
@@ -4380,7 +4480,7 @@ function renderPadNoticeList() {
       <div style="background:#f8fafc;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
           ${n.docNo?`<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;margin-right:8px">${n.docNo}</span>`:''}
-          <strong style="font-size:14px;color:var(--primary)">${n.to ? 'প্রাপক: '+n.to : 'বোর্ড বার্তা'}</strong>
+          <strong style="font-size:14px;color:var(--primary)">${n.to ? 'বিষয়: '+n.to : 'বোর্ড বার্তা'}</strong>
           <div style="font-size:11px;color:var(--text-light);margin-top:3px">${n.createdBy||''} • ${n.date?formatDate(n.date):''}</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -4389,8 +4489,23 @@ function renderPadNoticeList() {
           ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deletePadNotice(${n.id})">🗑️</button>`:''}
         </div>
       </div>
-      <div id="padNoticeBody-${n.id}" style="display:none;padding:16px;white-space:pre-wrap;font-size:13px;line-height:1.8;color:#1a2a3a;border-top:1px solid var(--border);max-height:400px;overflow-y:auto">${n.body.replace(/</g,'&lt;')}</div>
+      <div id="padNoticeBody-${n.id}" style="display:none;padding:16px;white-space:pre-wrap;font-size:${(n.fontSize||14)}px;line-height:1.8;color:#1a2a3a;border-top:1px solid var(--border);max-height:400px;overflow-y:auto">${n.to?`<div style="text-align:center;font-weight:800;font-size:${(n.fontSize||14)+3}px;margin-bottom:10px;white-space:normal">${n.to.replace(/</g,'&lt;')}</div>`:''}${n.body.replace(/</g,'&lt;')}</div>
     </div>`).join('');
+}
+
+const BN_MONTHS = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+
+function padNoticeYearMonth(n) {
+  // docNo ফরম্যাট: IEH/YYYY/MM/SEQ — থাকলে সেটা থেকে, না থাকলে date ফিল্ড থেকে YYYY-MM বের করা
+  if (n.docNo) {
+    const parts = n.docNo.split('/');
+    if (parts.length === 4) {
+      const y = parseInt(parts[1], 10), m = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m)) return `${y}-${String(m).padStart(2,'0')}`;
+    }
+  }
+  if (n.date) return n.date.slice(0,7);
+  return null;
 }
 
 function togglePadNoticeExpand(id) {
@@ -4419,6 +4534,7 @@ function printPadNotice(id) {
   const phone    = s.phone||'';
   const email    = s.email||'';
   const tagline  = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
+  const fontSize = n.fontSize || 14;
   const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
   openPrintWindow(`
@@ -4429,7 +4545,8 @@ function printPadNotice(id) {
     .page{max-width:800px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;border:1px solid #e5e7eb}
     .header{padding:24px 40px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between}
     .meta{padding:12px 40px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:13px}
-    .body{padding:28px 40px;flex:1;font-size:14px;line-height:2;min-height:450px;position:relative;z-index:1}
+    .subject-line{text-align:center;font-size:17px;font-weight:800;margin-bottom:16px}
+    .body{padding:28px 40px;flex:1;font-size:${fontSize}px;line-height:2;min-height:450px;position:relative;z-index:1}
     .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);opacity:0.04;font-size:100px;font-weight:900;color:#1a8fb5;pointer-events:none;z-index:0;white-space:nowrap}
     .footer{background:#1a8fb5;padding:14px 40px;display:flex;justify-content:space-between;align-items:center;color:white;font-size:12px}
     .sig{padding:16px 40px 24px;display:flex;justify-content:flex-end}
@@ -4449,10 +4566,12 @@ function printPadNotice(id) {
     </div>
     <div class="meta">
       <div>${n.docNo?`<strong>স্মারক নং:</strong> ${n.docNo}`:''}</div>
-      <div>${n.to?`<strong>প্রাপক:</strong> ${n.to}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(n.date)}</div>
     </div>
-    <div class="body">${bodyHtml||'&nbsp;'}</div>
+    <div class="body">
+      ${n.to?`<div class="subject-line">${n.to}</div>`:''}
+      ${bodyHtml||'&nbsp;'}
+    </div>
     <div class="sig">
       <div class="sig-box">
         <div class="sig-line">
@@ -4664,14 +4783,23 @@ function ownerViewPadNotice(id) {
   if (meta) {
     let rows = '';
     if (n.docNo) rows += `<div><strong>স্মারক নং:</strong> ${n.docNo}</div>`;
-    if (n.to)    rows += `<div><strong>প্রাপক:</strong> ${n.to}</div>`;
     if (n.date)  rows += `<div><strong>তারিখ:</strong> ${(typeof formatDate==='function')?formatDate(n.date):n.date}</div>`;
     meta.innerHTML = rows;
   }
 
+  // বিষয় (বোল্ড, সেন্টার)
+  const subjEl = document.getElementById('ownerBnSubject');
+  if (subjEl) {
+    if (n.to) { subjEl.textContent = n.to; subjEl.style.display = 'block'; }
+    else { subjEl.textContent = ''; subjEl.style.display = 'none'; }
+  }
+
   // বডি
   const bodyEl = document.getElementById('ownerBnBody');
-  if (bodyEl) bodyEl.textContent = n.body||'';
+  if (bodyEl) {
+    bodyEl.textContent = n.body||'';
+    bodyEl.style.fontSize = (n.fontSize || 14) + 'px';
+  }
 
   // স্বাক্ষর ও ফুটার
   const sh = document.getElementById('ownerBnSignHosp');   if(sh) sh.textContent = hospName;
@@ -4685,6 +4813,10 @@ function ownerViewPadNotice(id) {
   if (pg) { pg.style.display = 'flex'; pg.scrollTop = 0; }
 
   // scale: প্যাড 760px → স্ক্রিন প্রস্থে ফিট
+  // CSS-এর auto margin নিয়ম: কন্টেন্ট প্যারেন্টের চেয়ে বড় হলে margin:auto সেন্টার করে না (0 হয়ে যায়,
+  // ফলে বক্স ডানে ঢুকে থাকে দেখায়) — তাই scale + সেন্টার নিজে হিসেব করে marginLeft বসাচ্ছি।
+  // transform-origin:top center মানে স্কেলের সময় বক্সের নিজের অনুভূমিক কেন্দ্রবিন্দু স্থির থাকে,
+  // তাই সেই কেন্দ্রবিন্দুকে স্ক্রিনের মাঝখানে (screenW/2) আনতে হবে।
   requestAnimationFrame(() => {
     const inner = document.getElementById('ownerBnScaleInner');
     if (!inner) return;
@@ -4692,6 +4824,10 @@ function ownerViewPadNotice(id) {
     const padW = 760;
     const margin = 16;
     const scale = Math.min(1, (screenW - margin * 2) / padW);
+    // বক্সের (আনস্কেলড) নিজের কেন্দ্র screenW/2-এ আনার জন্য প্রয়োজনীয় marginLeft
+    const centerMarginLeft = (screenW / 2) - (padW / 2);
+    inner.style.margin = '0';
+    inner.style.marginLeft = centerMarginLeft + 'px';
     inner.style.transform = `scale(${scale})`;
     // scale-এর পর আসল উচ্চতা প্যারেন্টে বসাও, যাতে নিচে বাড়তি ফাঁকা জায়গা না থাকে
     inner.parentElement.style.height = (inner.offsetHeight * scale + 24) + 'px';
@@ -4746,6 +4882,7 @@ function openOwnerBoardNoticeList() {
     // কোনো বার্তা নেই — সরাসরি খালি অবস্থায় দেখাও
     if (scaleInner) scaleInner.style.transform = '';
     const bodyEl = document.getElementById('ownerBnBody'); if(bodyEl) bodyEl.textContent = 'কোনো বোর্ড বার্তা পাবলিশ করা হয়নি।';
+    const subjEl = document.getElementById('ownerBnSubject'); if(subjEl) subjEl.style.display = 'none';
     const hn = document.getElementById('ownerBnHospName'); if(hn) hn.textContent = '';
     const ha = document.getElementById('ownerBnAddress'); if(ha) ha.textContent = '';
     const hc = document.getElementById('ownerBnContact'); if(hc) hc.textContent = '';
