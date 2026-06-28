@@ -375,20 +375,35 @@ function openPrintWindow(htmlContent, title) {
   overlay.style.cssText = `
     position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;
     display:flex;flex-direction:column;align-items:center;
-    overflow-y:auto;padding:20px;
+    overflow-y:auto;padding:10px;box-sizing:border-box;
   `;
 
   overlay.innerHTML = `
-    <div style="background:white;max-width:720px;width:100%;border-radius:12px;overflow:visible;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
-      <div class="print-toolbar" style="background:#0f4c81;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0">
-        <div style="color:white;font-weight:700;font-size:14px">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
-        <div style="display:flex;gap:8px">
-          <button onclick="window.print()" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:8px 18px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:600">🖨️ প্রিন্ট করুন</button>
-          <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer">✕ বন্ধ</button>
+    <div style="background:white;max-width:720px;width:100%;border-radius:12px;overflow:visible;box-shadow:0 20px 60px rgba(0,0,0,0.4);box-sizing:border-box">
+      <div class="print-toolbar" style="background:#0f4c81;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;gap:8px;flex-wrap:wrap">
+        <div style="color:white;font-weight:700;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="window.print()" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:7px 12px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap">🖨️ প্রিন্ট</button>
+          <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;padding:7px 10px;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap">✕ বন্ধ</button>
         </div>
       </div>
-      <div id="printPreviewBody" style="padding:24px;font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;line-height:1.6;border-radius:0 0 12px 12px">
+      <div id="printPreviewBody" style="padding:24px;font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;line-height:1.6;border-radius:0 0 12px 12px;overflow-x:hidden">
         ${extraStyle ? `<style>${extraStyle}</style>` : ''}
+        <style>
+          /* মোবাইলে প্যাড/মেমো প্রিন্ট প্রিভিউ রেসপন্সিভ করার জন্য override */
+          @media (max-width:640px){
+            #printPreviewBody{padding:10px}
+            #printPreviewBody .page{max-width:100%!important;border:none!important}
+            #printPreviewBody .header{padding:14px 14px 10px!important;flex-wrap:wrap;gap:10px}
+            #printPreviewBody .header img{height:54px!important}
+            #printPreviewBody .header > div:last-child{text-align:left!important}
+            #printPreviewBody .meta{padding:10px 14px!important;flex-direction:column;gap:4px;font-size:12px!important}
+            #printPreviewBody .body{padding:16px 14px!important;font-size:13px!important;line-height:1.8!important;min-height:0!important}
+            #printPreviewBody .sig{padding:10px 14px 16px!important}
+            #printPreviewBody .footer{padding:10px 14px!important;flex-direction:column;gap:4px;text-align:center;font-size:11px!important}
+            #printPreviewBody .watermark{font-size:48px!important}
+          }
+        </style>
         ${bodyContent}
       </div>
     </div>`;
@@ -4551,24 +4566,16 @@ function renderOwnerMemoPublishNotif() {
   if (!newNotices.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = 'block';
   const sorted = [...newNotices].sort((a,b)=> b.id - a.id);
+  const latest = sorted[0];
+  const label = sorted.length > 1
+    ? `${sorted.length}টি নতুন বোর্ড বার্তা`
+    : (latest.to ? 'প্রাপক: '+latest.to : 'নতুন বোর্ড বার্তা');
   box.innerHTML = `
-    <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:14px 16px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${sorted.length>1?'10px':'0'}">
-        <span style="font-size:22px">📢</span>
-        <div style="flex:1">
-          <div style="font-weight:700;color:#92400e">${sorted.length}টি নতুন বোর্ড বার্তা</div>
-          <div style="font-size:12px;color:#b45309">অ্যাডমিন অফিসিয়াল প্যাড থেকে বার্তা পাবলিশ করেছেন</div>
-        </div>
-        <button class="btn btn-outline btn-sm" onclick="dismissOwnerMemoNotif()" style="border-color:#f59e0b;color:#92400e">✕ বন্ধ</button>
-      </div>
-      ${sorted.map(n=>`
-        <div style="background:white;border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;flex-wrap:wrap">
-          <div>
-            ${n.docNo?`<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;margin-right:6px">${n.docNo}</span>`:''}
-            <strong style="font-size:13px;color:var(--primary)">${n.to ? 'প্রাপক: '+n.to : 'বোর্ড বার্তা'}</strong>
-          </div>
-          <button class="btn btn-warning btn-sm" onclick="ownerViewPadNotice(${n.id})">👁️ দেখুন</button>
-        </div>`).join('')}
+    <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:18px">📢</span>
+      <strong style="flex:1;min-width:0;font-size:13px;color:#92400e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</strong>
+      <button class="btn btn-warning btn-sm" onclick="ownerViewPadNotice(${latest.id})">👁️ দেখুন</button>
+      <button class="btn btn-outline btn-sm" onclick="dismissOwnerMemoNotif()" style="border-color:#f59e0b;color:#92400e">✕</button>
     </div>`;
 }
 
