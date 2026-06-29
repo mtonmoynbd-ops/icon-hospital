@@ -334,16 +334,30 @@
   .dash-cards-col .stat-change { font-size:9.5px; }
   .dash-cards-col .stat-card-bg-icon { --wm-icon-size:205px; }
   .dash-chart-col { display:contents; } /* legacy wrapper kept harmless if present */
-  .pie-chart-wrap, .bar-chart-wrap { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:8px 10px; flex:0.75 1 0; min-width:0; display:flex; flex-direction:column; }
-  .pie-chart-wrap .chart-top-label { font-size:12.5px; font-weight:700; color:var(--primary); margin-bottom:3px; display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap; flex-shrink:0; }
+  .pie-chart-wrap, .bar-chart-wrap { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:5px 6px; flex:0.75 1 0; min-width:0; display:flex; flex-direction:column; }
+  .pie-chart-wrap .chart-top-label { font-size:12.5px; font-weight:700; color:var(--primary); margin-bottom:2px; display:flex; align-items:flex-start; justify-content:space-between; gap:6px; flex-wrap:wrap; flex-shrink:0; }
   .pie-toggle { display:flex; gap:4px; }
   .pie-toggle button { padding:2px 9px; border-radius:6px; border:1.5px solid var(--border); background:white; font-family:inherit; font-size:10.5px; font-weight:600; cursor:pointer; color:var(--text-light); transition:.15s; }
   .pie-toggle button.active { background:var(--primary); color:white; border-color:var(--primary); }
   .pie-period { display:flex; gap:4px; }
   .pie-period button { padding:1px 6px; border-radius:5px; border:1.5px solid var(--border); background:white; font-family:inherit; font-size:9.5px; font-weight:600; cursor:pointer; color:var(--text-light); transition:.15s; }
   .pie-period button.active { background:var(--accent); color:white; border-color:var(--accent); }
-  .pie-chart-wrap canvas { width:100%; height:0; min-height:190px; flex:1 1 auto; display:block; }
+  .pie-chart-wrap canvas { width:100%; height:0; min-height:210px; flex:1 1 auto; display:block; cursor:pointer; }
   .pie-chart-wrap #dashPieLegend { flex-shrink:0; }
+  .pie-detail-panel { display:none; position:absolute; inset:0; background:white; border-radius:var(--radius); z-index:10; flex-direction:column; padding:8px 10px; overflow-y:auto; }
+  .pie-detail-panel.show { display:flex; }
+  .pie-detail-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-shrink:0; }
+  .pie-detail-title { font-size:12px; font-weight:700; color:var(--primary); }
+  .pie-detail-back { font-size:11px; padding:2px 8px; border-radius:6px; border:1.5px solid var(--border); background:white; cursor:pointer; color:var(--text-light); font-family:inherit; font-weight:600; }
+  .pie-detail-list { flex:1; overflow-y:auto; }
+  .pie-detail-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; border-bottom:1px solid #f0f0f0; font-size:11.5px; gap:6px; }
+  .pie-detail-row:last-child { border-bottom:none; }
+  .pie-detail-row .dr-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+  .pie-detail-row .dr-label { flex:1; color:#374151; }
+  .pie-detail-row .dr-amt { font-weight:700; color:#111; white-space:nowrap; }
+  .pie-detail-row .dr-pct { font-size:10px; color:#888; white-space:nowrap; min-width:28px; text-align:right; }
+  .pie-detail-total { font-size:11.5px; font-weight:700; color:var(--primary); margin-top:5px; text-align:right; flex-shrink:0; }
+  .pie-chart-wrap { position:relative; }
   .bar-chart-wrap { position:relative; }
   .bar-chart-wrap .chart-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; gap:6px; flex-shrink:0; }
   .bar-chart-wrap .panel-title { font-size:12.5px; font-weight:700; color:var(--primary); margin:0; }
@@ -670,8 +684,17 @@ function openPrintWindow(htmlContent, title) {
                 </div>
               </div>
             </div>
-            <canvas id="dashPieCanvas" width="280" height="220"></canvas>
-            <div id="dashPieLegend" style="margin-top:5px;font-size:11.5px;display:flex;flex-direction:row;flex-wrap:wrap;gap:5px 14px;row-gap:5px"></div>
+            <canvas id="dashPieCanvas" width="280" height="230"></canvas>
+            <div id="dashPieLegend" style="margin-top:4px;font-size:11.5px;display:flex;flex-direction:row;flex-wrap:wrap;gap:4px 12px;row-gap:4px"></div>
+            <!-- Pie segment detail panel -->
+            <div id="dashPieDetail" class="pie-detail-panel">
+              <div class="pie-detail-header">
+                <span class="pie-detail-title" id="dashPieDetailTitle"></span>
+                <button class="pie-detail-back" onclick="hideDashPieDetail()">← ফিরে যান</button>
+              </div>
+              <div class="pie-detail-list" id="dashPieDetailList"></div>
+              <div class="pie-detail-total" id="dashPieDetailTotal"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -14633,7 +14656,7 @@ function setupHiDPICanvas(canvas, logicalW, logicalH){
   return { ctx, w: cssW, h: cssH };
 }
 
-function drawDonut(canvas, legendEl, map, centerLabel) {
+function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
   const { ctx, w, h } = setupHiDPICanvas(canvas, canvas.width, canvas.height);
   ctx.clearRect(0,0,w,h);
   const labels = Object.keys(map), values = Object.values(map);
@@ -14647,14 +14670,19 @@ function drawDonut(canvas, legendEl, map, centerLabel) {
     return;
   }
 
-  const cx = w/2, cy = h/2, r = Math.min(cx,cy)*0.88, ir = r*0.55;
+  const cx = w/2, cy = h/2, r = Math.min(cx,cy)*0.90, ir = r*0.52;
   let sa = -Math.PI/2;
+  // Store arc geometry for click detection
+  canvas._pieArcs = [];
   values.forEach((v,i)=>{
     const sweep = (v/total)*2*Math.PI;
+    const isHl = highlightIdx === i;
+    const rOuter = isHl ? r*1.04 : r;
     ctx.beginPath(); ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,r,sa,sa+sweep); ctx.closePath();
+    ctx.arc(cx,cy,rOuter,sa,sa+sweep); ctx.closePath();
     ctx.fillStyle = PIE_COLORS[i%PIE_COLORS.length]; ctx.fill();
-    ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke();
+    ctx.strokeStyle='white'; ctx.lineWidth=isHl?2.5:2; ctx.stroke();
+    canvas._pieArcs.push({ sa, ea: sa+sweep, r: rOuter, ir, cx, cy, label: labels[i], value: v, color: PIE_COLORS[i%PIE_COLORS.length], pct: Math.round(v/total*100) });
     sa += sweep;
   });
   // hole
@@ -14669,7 +14697,7 @@ function drawDonut(canvas, legendEl, map, centerLabel) {
     legendEl.innerHTML = labels.map((l,i)=>{
       const pct = Math.round(values[i]/total*100);
       const col = PIE_COLORS[i%PIE_COLORS.length];
-      return `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">
+      return `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer" onclick="showDashPieDetailForIdx(${i})">
           <span style="width:9px;height:9px;border-radius:3px;background:${col};display:inline-block;flex-shrink:0"></span>
           <span style="color:#374151">${l}</span>
           <span style="font-weight:700;color:#111">${pct}%</span>
@@ -14870,6 +14898,7 @@ function setDashPieType(t){
   document.getElementById('pieToggleExp').classList.toggle('active',t==='expense');
   const title = t==='income'?'🥧 আয়ের বিভাজন':'🥧 ব্যয়ের বিভাজন';
   document.getElementById('dashPieTitle').textContent=title;
+  hideDashPieDetail();
   renderDashPieChart();
 }
 function setDashPiePeriod(p){
@@ -14878,6 +14907,7 @@ function setDashPiePeriod(p){
     const btn=document.getElementById('piePeriod'+x);
     if(btn) btn.classList.toggle('active', p===x.toLowerCase());
   });
+  hideDashPieDetail();
   renderDashPieChart();
 }
 function renderDashPieChart(){
@@ -14886,6 +14916,120 @@ function renderDashPieChart(){
   if(!canvas) return;
   const map=buildPieData(_dPieType,_dPiePeriod);
   drawDonut(canvas,leg,map,'');
+  // Attach click once
+  if(!canvas._pieClickAttached){
+    canvas._pieClickAttached=true;
+    canvas.addEventListener('click', function(e){
+      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
+      const rect=canvas.getBoundingClientRect();
+      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+      const {cx,cy,ir}=arcs[0];
+      const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<ir) return; // clicked hole center
+      let angle=Math.atan2(dy,dx);
+      if(angle<-Math.PI/2) angle+=2*Math.PI;
+      // normalize so -π/2 maps to 0
+      const norm=angle+Math.PI/2;
+      const normAngle=norm<0?norm+2*Math.PI:norm;
+      for(let i=0;i<arcs.length;i++){
+        const a=arcs[i];
+        let sa=a.sa+Math.PI/2; if(sa<0) sa+=2*Math.PI;
+        let ea=a.ea+Math.PI/2; if(ea<0) ea+=2*Math.PI;
+        if(ea<sa) ea+=2*Math.PI;
+        const na=normAngle<sa?normAngle+2*Math.PI:normAngle;
+        if(na>=sa && na<=ea && dist<=a.r){
+          showDashPieDetailForIdx(i); return;
+        }
+      }
+    });
+    canvas.addEventListener('mousemove', function(e){
+      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
+      const rect=canvas.getBoundingClientRect();
+      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+      const {cx,cy,ir}=arcs[0];
+      const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<ir){ canvas.style.cursor='default'; return; }
+      canvas.style.cursor='pointer';
+    });
+    canvas.addEventListener('mouseleave', function(){ canvas.style.cursor='default'; });
+  }
+}
+
+function showDashPieDetailForIdx(idx){
+  const canvas=document.getElementById('dashPieCanvas');
+  const arcs=canvas&&canvas._pieArcs;
+  if(!arcs||!arcs[idx]) return;
+  const arc=arcs[idx];
+  const total=arcs.reduce((s,a)=>s+a.value,0);
+
+  // Get itemised entries for this category
+  const map=buildPieData(_dPieType,_dPiePeriod);
+  const catLabel=arc.label;
+
+  const panel=document.getElementById('dashPieDetail');
+  const titleEl=document.getElementById('dashPieDetailTitle');
+  const listEl=document.getElementById('dashPieDetailList');
+  const totalEl=document.getElementById('dashPieDetailTotal');
+
+  titleEl.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:${arc.color};display:inline-block"></span>${catLabel} (${arc.pct}%)</span>`;
+
+  // Build detailed rows from raw data
+  const rows=getDashPieDetailRows(catLabel, _dPieType, _dPiePeriod);
+  if(rows.length){
+    listEl.innerHTML=rows.map(r=>`
+      <div class="pie-detail-row">
+        <span class="dr-label">${r.label}</span>
+        <span class="dr-amt">৳ ${fmt(r.amount)}</span>
+        <span style="font-size:10px;color:#888">${r.date||''}</span>
+      </div>`).join('');
+  } else {
+    listEl.innerHTML=`<div style="color:#aaa;font-size:11px;padding:10px 0;text-align:center">কোনো বিস্তারিত তথ্য নেই</div>`;
+  }
+  totalEl.textContent='মোট: ৳ '+fmt(arc.value);
+
+  // Highlight segment
+  const leg=document.getElementById('dashPieLegend');
+  drawDonut(canvas,leg,map,'',idx);
+
+  panel.classList.add('show');
+}
+
+function hideDashPieDetail(){
+  const panel=document.getElementById('dashPieDetail');
+  if(panel) panel.classList.remove('show');
+  // Redraw without highlight
+  const canvas=document.getElementById('dashPieCanvas');
+  const leg=document.getElementById('dashPieLegend');
+  if(!canvas) return;
+  const map=buildPieData(_dPieType,_dPiePeriod);
+  drawDonut(canvas,leg,map,'');
+}
+
+function getDashPieDetailRows(catLabel, type, period){
+  const now=new Date();
+  const rows=[];
+  function inPeriod(date){
+    if(!date) return false;
+    if(period==='day'){ return date===now.toISOString().split('T')[0]; }
+    if(period==='month'){ return date.startsWith(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`); }
+    if(period==='year'){ return date.startsWith(`${now.getFullYear()}`); }
+    return false;
+  }
+  if(type==='income'){
+    (appData.income||[]).filter(e=>inPeriod(e.date)&&e.category===catLabel).forEach(e=>rows.push({label:e.note||e.category,amount:e.amount,date:e.date}));
+    // visits (OPD/পরামর্শ)
+    if(catLabel==='OPD/পরামর্শ'||(catLabel+'').includes('OPD')||(catLabel+'').includes('পরামর্শ')){
+      (appData.visits||[]).filter(v=>inPeriod(v.date)&&v.cashPaid>0).forEach(v=>rows.push({label:v.patientName||'রোগী',amount:v.cashPaid,date:v.date}));
+    }
+    if((catLabel+'').includes('ক্যাম্প')||(catLabel+'').includes('লামামু')||(catLabel+'').includes('camp')){
+      (appData.camps||[]).filter(c=>inPeriod(c.date)&&c.totalIncome>0).forEach(c=>rows.push({label:c.campName||'ক্যাম্প',amount:c.totalIncome,date:c.date}));
+    }
+  } else {
+    (appData.expense||[]).filter(e=>inPeriod(e.date)&&e.category===catLabel).forEach(e=>rows.push({label:e.note||e.category,amount:e.amount,date:e.date}));
+  }
+  return rows.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
 
 // --- Dashboard bar state ---
