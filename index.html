@@ -3082,7 +3082,24 @@ function openPrintWindow(htmlContent, title) {
   <div id="camperCashBar" style="background:#ffffff;padding:6px 20px;border-bottom:1px solid #e2e8f0;">
     <button onclick="showCamperCashSubmitModal()" style="width:100%;background:rgba(15,76,129,0.08);color:var(--primary);border:1.5px solid rgba(15,76,129,0.2);border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center;">💵 ক্যাশ জমা</button>
   </div>
-  <div id="camperBottomTabBar" class="rtab-bottom-tabs" style="display:none"></div>
+  <!-- ক্যাম্প সেশন বটম বার — hardcoded HTML, JS শুধু display toggle করবে -->
+  <div id="camperBottomTabBar" class="rtab-bottom-tabs" style="display:none">
+    <button type="button" id="cbtab-billing" class="active" onclick="switchCamperSessionTab('billing')">
+      <span class="obt-icon">🧾</span><span class="obt-label">বিল এন্ট্রি</span>
+    </button>
+    <button type="button" id="cbtab-history" onclick="switchCamperSessionTab('history')">
+      <span class="obt-icon">📋</span><span class="obt-label">আজকের এন্ট্রি</span>
+    </button>
+    <button type="button" id="cbtab-expense" onclick="switchCamperSessionTab('expense')">
+      <span class="obt-icon">💸</span><span class="obt-label">ক্যাম্প খরচ</span>
+    </button>
+    <button type="button" id="cbtab-oppatient" onclick="switchCamperSessionTab('oppatient')">
+      <span class="obt-icon">🔪</span><span class="obt-label">অপারেশন</span>
+    </button>
+    <button type="button" id="cbtab-more" onclick="showCamperSessionMoreSheet()">
+      <span class="obt-icon">☰</span><span class="obt-label">আরো</span>
+    </button>
+  </div>
   <div id="camperSheetBackdrop" class="rtab-sheet-backdrop" onclick="closeRoleMoreSheet('camper')"></div>
   <div id="camperMoreSheet" class="rtab-sheet">
     <div class="rtab-sheet-handle"></div>
@@ -10217,40 +10234,27 @@ function initCamperSession() {
   renderCamperSessionBottomBar();
 }
 
-// ===== CAMPER SESSION BOTTOM BAR (ক্যাম্প চলাকালীন বটম বার) =====
-let _camperActiveTab = 'billing';
+// ===== CAMPER SESSION BOTTOM BAR =====
 function renderCamperSessionBottomBar() {
-  const bar = document.getElementById('camperBottomTabBar');
-  if (!bar) return;
-  const tabs = [
-    { id:'billing',   icon:'🧾', label:'বিল এন্ট্রি' },
-    { id:'history',   icon:'📋', label:'আজকের এন্ট্রি' },
-    { id:'expense',   icon:'💸', label:'ক্যাম্প খরচ' },
-    { id:'oppatient', icon:'🔪', label:'অপারেশন' },
-    { id:'more',      icon:'☰',  label:'আরো' },
-  ];
-  bar.style.display = 'flex';
-  bar.innerHTML = tabs.map(t => `
-    <button type="button" class="${_camperActiveTab===t.id?'active':''}" onclick="switchCamperSessionTab('${t.id}')">
-      <span class="obt-icon">${t.icon}</span>
-      <span class="obt-label">${t.label}</span>
-    </button>`).join('');
+  // শুধু দেখাও — innerHTML touch করব না
+  document.getElementById('camperBottomTabBar').style.display = 'flex';
+}
+
+function setCamperBottomActive(tab) {
+  ['billing','history','expense','oppatient','more'].forEach(id => {
+    const btn = document.getElementById('cbtab-' + id);
+    if (btn) btn.classList.toggle('active', id === tab);
+  });
 }
 
 function switchCamperSessionTab(tab) {
   if (!camperSession) return;
-  if (tab === 'more') {
-    // More sheet — ক্যাম্প close ও cash জমা
-    showCamperSessionMoreSheet();
-    return;
-  }
-  _camperActiveTab = tab;
+  if (tab === 'more') { showCamperSessionMoreSheet(); return; }
+  setCamperBottomActive(tab);
   ['billing','history','expense','oppatient','returnstock','lookup'].forEach(id => {
     const el = document.getElementById('camper-' + id);
     if (el) el.style.display = (id === tab) ? 'block' : 'none';
   });
-  renderCamperSessionBottomBar();
-  // Tab-specific init
   if (tab === 'history') renderCamperHistTable();
   if (tab === 'expense') {
     const expInfo = document.getElementById('cpExpCampInfo');
@@ -10258,7 +10262,6 @@ function switchCamperSessionTab(tab) {
     renderCamperExpenseList();
   }
   if (tab === 'oppatient') renderCamperOpPatients();
-  // স্ক্রল টু টপ
   const page = document.getElementById('camperPage');
   if (page) page.scrollTop = 0;
 }
@@ -10476,6 +10479,8 @@ function finalizeCampClose() {
   document.getElementById('cpCampInfoBox').style.display = 'none';
   document.getElementById('cpStockTakeBox').style.display = 'none';
   renderCamperPastCamps();
+  document.getElementById('camperBottomTabBar').style.display = 'none';
+  setCamperBottomActive('billing');
   renderRoleBottomTabs('camper', 'camp');
 
   showToast(`✅ ক্যাম্প ক্লোজ! মোট আয়: ৳${fmt(totalIncome)} | রোগী: ${visits.length} জন | মতামত: ${rating.value}`);
