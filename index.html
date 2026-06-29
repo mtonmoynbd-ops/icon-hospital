@@ -299,9 +299,7 @@
   /* ===== DASHBOARD 3-COLUMN LAYOUT: CARDS | BAR | PIE (same row, equal height) ===== */
   .dash-layout { display:flex; flex-direction:row; gap:10px; align-items:stretch; margin-bottom:12px; }
   .dash-cards-col { flex:1.6 1 0; min-width:0; display:flex; }
-  .dash-cards-col .stats-grid { position:relative; }
-    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:6px; margin-bottom:0; width:100%; height:100%;
-  }
+  .dash-cards-col .stats-grid { position:relative; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:6px; margin-bottom:0; width:100%; height:100%; }
   /* force all stat-cards equal height in grid, compact size */
   .dash-cards-col .stat-card { display:flex; flex-direction:column; justify-content:center; padding:7px 9px; }
   .dash-cards-col .stat-card-header { display:flex; align-items:center; justify-content:space-between; }
@@ -3023,7 +3021,24 @@ function openPrintWindow(htmlContent, title) {
     <!-- নতুন পাবলিশ করা মেমোরেন্ডাম/TOR notification -->
     <div id="ownerMemoPublishNotif" style="display:none"></div>
     <!-- Summary Cards -->
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px" id="ownerCards"></div>
+    <div style="position:relative;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px" id="ownerCards"></div>
+      <!-- কার্ড ডিটেইল মোডাল — ownerCards এরিয়া জুড়ে -->
+      <div id="ownerCardModal" style="display:none;position:absolute;inset:0;background:white;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.15);z-index:10;padding:14px;overflow-y:auto;animation:fadeIn 0.15s ease">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="ownerModalIcon" style="font-size:20px"></span>
+            <div>
+              <div id="ownerModalTitle" style="font-size:14px;font-weight:700;color:var(--primary)"></div>
+              <div id="ownerModalSubtitle" style="font-size:10.5px;color:var(--text-light)"></div>
+            </div>
+          </div>
+          <button onclick="closeDashCardModal('ownerCardModal')" style="background:#f1f5f9;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b">✕</button>
+        </div>
+        <div id="ownerModalAmount" style="font-size:24px;font-weight:800;margin-bottom:10px"></div>
+        <div id="ownerModalBody" style="font-size:12.5px"></div>
+      </div>
+    </div>
     <div id="ownerChartSection" style="display:none;margin-bottom:10px">
       <div style="background:white;border-radius:10px;padding:10px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px;flex-wrap:wrap">
@@ -5433,12 +5448,12 @@ function refreshDashboard() {
 }
 
 // ===== DASHBOARD CARD MODAL =====
-function closeDashCardModal() {
-  const m = document.getElementById('dashCardModal');
+function closeDashCardModal(modalId) {
+  const m = document.getElementById(modalId || 'dashCardModal');
   if (m) m.style.display = 'none';
 }
 
-function showDashCardModal(cardId) {
+function showDashCardModal(cardId, modalId) {
   const today  = todayStr();
   const now    = new Date();
   const prefix = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -5448,12 +5463,15 @@ function showDashCardModal(cardId) {
   const totalMonthlyFixed = monthlyFixed + monthlySalary;
   const dailyFixed = totalMonthlyFixed / 30;
 
-  const modal    = document.getElementById('dashCardModal');
-  const titleEl  = document.getElementById('dashModalTitle');
-  const subEl    = document.getElementById('dashModalSubtitle');
-  const iconEl   = document.getElementById('dashModalIcon');
-  const amtEl    = document.getElementById('dashModalAmount');
-  const bodyEl   = document.getElementById('dashModalBody');
+  const mid = modalId || 'dashCardModal';
+  const pfx = modalId ? modalId.replace('CardModal','') : 'dash';
+  const modal    = document.getElementById(mid);
+  const titleEl  = document.getElementById(pfx+'ModalTitle');
+  const subEl    = document.getElementById(pfx+'ModalSubtitle');
+  const iconEl   = document.getElementById(pfx+'ModalIcon');
+  const amtEl    = document.getElementById(pfx+'ModalAmount');
+  const bodyEl   = document.getElementById(pfx+'ModalBody');
+  if (!modal || !titleEl || !subEl || !iconEl || !amtEl || !bodyEl) return;
 
   const row = (label, value, color='') =>
     `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9">
@@ -9612,16 +9630,16 @@ function initOwnerPage() {
 
   const cards = document.getElementById('ownerCards');
   if (cards) cards.innerHTML = [
-    { icon:'💰', label:'আজকের আয়', value:'৳ '+fmt(todayInc), color:'#16a34a', bg:'#d1fae5', sub:'আজকের মোট' },
-    { icon:'💸', label:'আজকের ব্যয়', value:'৳ '+fmt(todayExp), color:'#e74c3c', bg:'#fee2e2', sub:'আজকের মোট' },
-    { icon:'📈', label:'আজকের লাভ/লস', value:(todayProfit2>=0?'':'- ')+'৳ '+fmt(Math.abs(todayProfit2)), color:todayProfit2>=0?'#16a34a':'#e74c3c', bg:todayProfit2>=0?'#d1fae5':'#fff0f0', sub:todayProfit2>=0?'✅ লাভজনক':'⚠️ লোকসান' },
-    { icon:'📅', label:'মাসিক লাভ/লস', value:(mProfit>=0?'':'- ')+'৳ '+fmt(Math.abs(mProfit)), color:mProfit>=0?'#8e44ad':'#e74c3c', bg:'#f3e8ff', sub:mProfit>=0?'✅ লাভজনক মাস':'⚠️ লোকসানের মাস' },
-    { icon:'🏕️', label:'ক্যাম্প আয় (এই মাস)', value:'৳ '+fmt(campMonthInc2), color:'#b45309', bg:'#fff7ed', sub:'ক্যাম্প: '+campCount2+'টি' },
-    { icon:'⏳', label:'মোট বাকি', value:'৳ '+fmt(totalDue2), color:'#b45309', bg:'#fffbeb', sub:'রোগী: '+dueVisits2.length+'জন' },
-    { icon:'🔴', label:'মোট দেনা', value:'৳ '+fmt(totalDebt2), color:'#c0392b', bg:'#fff0f0', sub:'লোন + সরবরাহকারী' },
-    { icon:'💵', label:'ক্যাশ ব্যালেন্স', value:'৳ '+fmt(oCash), color:'#16a34a', bg:'#d1fae5', sub:'হাতে নগদ মজুদ', id:'ownerDashCashBalance' },
-    { icon:'🏦', label:'ব্যাংক ব্যালেন্স', value:'৳ '+fmt(oBank), color:'#1d4ed8', bg:'#dbeafe', sub:appData.settings.bankName||'ব্যাংক একাউন্ট', id:'ownerDashBankBalance' },
-  ].map(c=>`<div style="background:${c.bg};border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:6px;border-left:3px solid ${c.color}">
+    { icon:'💰', label:'আজকের আয়', value:'৳ '+fmt(todayInc), color:'#16a34a', bg:'#d1fae5', sub:'আজকের মোট', cardId:'todayIncome' },
+    { icon:'💸', label:'আজকের ব্যয়', value:'৳ '+fmt(todayExp), color:'#e74c3c', bg:'#fee2e2', sub:'আজকের মোট', cardId:'todayExpense' },
+    { icon:'📈', label:'আজকের লাভ/লস', value:(todayProfit2>=0?'':'- ')+'৳ '+fmt(Math.abs(todayProfit2)), color:todayProfit2>=0?'#16a34a':'#e74c3c', bg:todayProfit2>=0?'#d1fae5':'#fff0f0', sub:todayProfit2>=0?'✅ লাভজনক':'⚠️ লোকসান', cardId:'todayProfit' },
+    { icon:'📅', label:'মাসিক লাভ/লস', value:(mProfit>=0?'':'- ')+'৳ '+fmt(Math.abs(mProfit)), color:mProfit>=0?'#8e44ad':'#e74c3c', bg:'#f3e8ff', sub:mProfit>=0?'✅ লাভজনক মাস':'⚠️ লোকসানের মাস', cardId:'monthlyProfit' },
+    { icon:'🏕️', label:'ক্যাম্প আয় (এই মাস)', value:'৳ '+fmt(campMonthInc2), color:'#b45309', bg:'#fff7ed', sub:'ক্যাম্প: '+campCount2+'টি', cardId:'campIncome' },
+    { icon:'⏳', label:'মোট বাকি', value:'৳ '+fmt(totalDue2), color:'#b45309', bg:'#fffbeb', sub:'রোগী: '+dueVisits2.length+'জন', cardId:'totalDue' },
+    { icon:'🔴', label:'মোট দেনা', value:'৳ '+fmt(totalDebt2), color:'#c0392b', bg:'#fff0f0', sub:'লোন + সরবরাহকারী', cardId:'totalDebt' },
+    { icon:'💵', label:'ক্যাশ ব্যালেন্স', value:'৳ '+fmt(oCash), color:'#16a34a', bg:'#d1fae5', sub:'হাতে নগদ মজুদ', id:'ownerDashCashBalance', cardId:'dashCashBalance' },
+    { icon:'🏦', label:'ব্যাংক ব্যালেন্স', value:'৳ '+fmt(oBank), color:'#1d4ed8', bg:'#dbeafe', sub:appData.settings.bankName||'ব্যাংক একাউন্ট', id:'ownerDashBankBalance', cardId:'dashBankBalance' },
+  ].map(c=>`<div onclick="showDashCardModal('${c.cardId}','ownerCardModal')" style="cursor:pointer;background:${c.bg};border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:6px;border-left:3px solid ${c.color}">
     <div style="font-size:13px;flex-shrink:0;line-height:1">${c.icon}</div>
     <div style="min-width:0;flex:1;overflow:hidden">
       <div style="font-size:9.5px;font-weight:700;color:#555;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.label}</div>
