@@ -3913,7 +3913,7 @@ let serviceCount = 0;
 function init() {
   loadData();
   const today = todayStr();
-  ['incDate','expDate','incFilterDate','expFilterDate','rBillDate','recHistDate','fbBackupDate'].forEach(id => {
+  ['incDate','expDate','rBillDate','recHistDate','fbBackupDate'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
@@ -6719,16 +6719,16 @@ function renderDashRecentEntries() {
       );
       const campDepAmt = campDeposits.reduce((s,t)=>s+t.amount,0);
 
-      html += `<tr class="dash-grp-row" data-grp="${gid}" style="display:none;background:#f0fdf4;border-top:1px solid #bbf7d0;cursor:pointer" onclick="toggleDashGroup('${cgid}')">
+      html += `<tr class="dash-grp-row" data-grp="${gid}" data-dash-hdr="${cgid}" data-open="1" style="background:#f0fdf4;border-top:1px solid #bbf7d0;cursor:pointer" onclick="toggleDashGroup('${cgid}')">
         <td colspan="5" style="color:#065f46;font-weight:700;padding:6px 12px 6px 28px;font-size:12px">
           🏕️ ${campName} &nbsp;—&nbsp; আয়: ৳ ${fmt(cInc)} &nbsp;|&nbsp; ব্যয়: ৳ ${fmt(cExp)} &nbsp;|&nbsp; নেট: ৳ ${fmt(cNet)}
           ${campDepAmt>0 ? `&nbsp;|&nbsp; <span style="color:#1d4ed8">💵 জমা: ৳ ${fmt(campDepAmt)}</span>` : ''}
         </td>
-        <td colspan="2" style="color:#64748b;text-align:right;padding:6px 12px"><span id="dashGrpIcon-${cgid}">▶</span></td>
+        <td colspan="2" style="color:#64748b;text-align:right;padding:6px 12px"><span id="dashGrpIcon-${cgid}">▼</span></td>
       </tr>`;
       cRows.forEach(e => {
         const amtColor = e.cls==='badge-expense'?'var(--danger)':'var(--success)';
-        html += `<tr class="dash-grp-row" data-grp="${gid} ${cgid}" style="display:none;background:#f0faf0">
+        html += `<tr class="dash-grp-row" data-grp="${gid} ${cgid}" style="background:#f0faf0">
           <td style="white-space:nowrap;padding-left:36px">${formatDate(e.date)}</td>
           <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${e.vouchRef}</td>
           <td><span class="badge ${e.cls}">${e.type}</span></td>
@@ -6743,11 +6743,15 @@ function renderDashRecentEntries() {
   tbody.innerHTML = html;
 }
 function toggleDashGroup(gid) {
-  const escaped = gid.replace(/"/g, '\\"');
-  const rows = document.querySelectorAll('.dash-grp-row[data-grp="' + escaped + '"]');
+  // exact match + compound data-grp (camp sub-rows: "parentGid cgid")
+  const allGrpRows = document.querySelectorAll('.dash-grp-row');
+  const rows = [...allGrpRows].filter(r => {
+    const g = r.getAttribute('data-grp') || '';
+    return g === gid || g.split(' ').includes(gid);
+  });
   const iconId = gid.split(' ').pop();
   const icon = document.getElementById('dashGrpIcon-' + iconId);
-  const hdr = document.querySelector('[data-dash-hdr="' + escaped + '"]');
+  const hdr = document.querySelector('[data-dash-hdr="' + gid + '"]');
   if (!rows.length) return;
   const isOpen = hdr ? hdr.dataset.open === '1' : (rows[0].style.display !== 'none' && rows[0].style.display !== '');
   rows.forEach(r => r.style.display = isOpen ? 'none' : '');
