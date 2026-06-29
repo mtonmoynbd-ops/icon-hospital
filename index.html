@@ -5775,7 +5775,7 @@ function renderIncomeTable() {
     const total = items.reduce((s,e)=>s+e.amount,0);
     const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
-    html += `<tr style="background:#f0fdf4;cursor:pointer;border-top:2px solid #bbf7d0" onclick="toggleIncGroup('${gid}')">
+    html += `<tr style="background:#f0fdf4;cursor:pointer;border-top:2px solid #bbf7d0" data-hdr-gid="inc_${gid}" data-open="1" onclick="toggleIncGroup('${gid}')">
       <td colspan="6" style="color:#166534;font-weight:700;padding:7px 12px;font-size:12.5px">
         📅 ${label} &nbsp;—&nbsp; মোট আয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
@@ -5801,8 +5801,10 @@ function toggleIncGroup(gid) {
   const rows=document.querySelectorAll('.inc-grp-row[data-grp="'+gid+'"]');
   const ic=document.getElementById('incGrpIcon-'+gid);
   if(!rows.length) return;
-  const isOpen=rows[0].style.display!=='none';
+  const hdr=document.querySelector('[data-hdr-gid="inc_'+gid+'"]');
+  const isOpen = hdr ? hdr.dataset.open==='1' : (rows[0].style.display!=='none' && rows[0].style.display!=='');
   rows.forEach(r=>r.style.display=isOpen?'none':'');
+  if(hdr) hdr.dataset.open=isOpen?'0':'1';
   if(ic)ic.textContent=isOpen?'▶':'▼';
 }
 function deleteIncome(id) {
@@ -6210,7 +6212,7 @@ function renderExpenseTable() {
     const total = items.reduce((s,e)=>s+e.amount,0);
     const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
-    html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" onclick="toggleExpGroup('${gid}')">
+    html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" data-hdr-gid="exp_${gid}" data-open="1" onclick="toggleExpGroup('${gid}')">
       <td colspan="7" style="color:${groupText};font-weight:700;padding:7px 12px;font-size:12.5px">
         ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; মোট ব্যয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
@@ -6249,8 +6251,10 @@ function toggleExpGroup(gid) {
   const rows=document.querySelectorAll('.exp-grp-row[data-grp="'+gid+'"]');
   const ic=document.getElementById('expGrpIcon-'+gid);
   if(!rows.length) return;
-  const isOpen=rows[0].style.display!=='none';
+  const hdr=document.querySelector('[data-hdr-gid="exp_'+gid+'"]');
+  const isOpen = hdr ? hdr.dataset.open==='1' : (rows[0].style.display!=='none' && rows[0].style.display!=='');
   rows.forEach(r=>r.style.display=isOpen?'none':'');
+  if(hdr) hdr.dataset.open=isOpen?'0':'1';
   if(ic)ic.textContent=isOpen?'▶':'▼';
 }
 function deleteExpense(id) {
@@ -6661,7 +6665,7 @@ function renderDashRecentEntries() {
     const closingBank = vm==='month' ? openingBank + getMonthNetBank(key) : openingBank + getDayNetBank(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
 
-    html += `<tr style="background:#f1f5f9;cursor:pointer;border-top:2px solid #cbd5e1" onclick="toggleDashGroup('${gid}')">
+    html += `<tr style="background:#f1f5f9;cursor:pointer;border-top:2px solid #cbd5e1" data-dash-hdr="${gid}" data-open="1" onclick="toggleDashGroup('${gid}')">
       <td colspan="5" style="color:#1e3a5f;font-weight:700;padding:7px 12px;font-size:12.5px">
         📅 ${label} &nbsp;—&nbsp; <span style="color:#16a34a">আয়: ৳ ${fmt(inc)}</span> &nbsp;|&nbsp; <span style="color:#dc2626">ব্যয়: ৳ ${fmt(exp)}</span> &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
@@ -6741,12 +6745,13 @@ function renderDashRecentEntries() {
 function toggleDashGroup(gid) {
   const escaped = gid.replace(/"/g, '\\"');
   const rows = document.querySelectorAll('.dash-grp-row[data-grp="' + escaped + '"]');
-  // icon id = last segment of gid (after last space)
   const iconId = gid.split(' ').pop();
   const icon = document.getElementById('dashGrpIcon-' + iconId);
+  const hdr = document.querySelector('[data-dash-hdr="' + escaped + '"]');
   if (!rows.length) return;
-  const isOpen = rows[0].style.display !== 'none';
+  const isOpen = hdr ? hdr.dataset.open === '1' : (rows[0].style.display !== 'none' && rows[0].style.display !== '');
   rows.forEach(r => r.style.display = isOpen ? 'none' : '');
+  if (hdr) hdr.dataset.open = isOpen ? '0' : '1';
   if (icon) icon.textContent = isOpen ? '▶' : '▼';
 }
 
@@ -15137,21 +15142,22 @@ function renderOwnerPieChart(){
   if(!canvas) return;
   const map=buildPieData(_oPieType,_oPiePeriod);
   drawDonut(canvas,leg,map,'');
-  // Attach click once
   if(!canvas._pieClickAttached){
     canvas._pieClickAttached=true;
+    // Prevent blue tap highlight on mobile
+    canvas.style.webkitTapHighlightColor='transparent';
+    canvas.style.outline='none';
     canvas.addEventListener('click', function(e){
       const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
       const rect=canvas.getBoundingClientRect();
-      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
-      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+      // Arc coords are CSS pixels (from setupHiDPICanvas w,h) — use CSS coords directly
+      const mx=e.clientX-rect.left, my=e.clientY-rect.top;
       const {cx,cy,ir}=arcs[0];
       const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
       if(dist<ir) return;
       let angle=Math.atan2(dy,dx);
       if(angle<-Math.PI/2) angle+=2*Math.PI;
-      const norm=angle+Math.PI/2;
-      const normAngle=norm<0?norm+2*Math.PI:norm;
+      const normAngle=angle+Math.PI/2<0?angle+Math.PI/2+2*Math.PI:angle+Math.PI/2;
       for(let i=0;i<arcs.length;i++){
         const a=arcs[i];
         let sa=a.sa+Math.PI/2; if(sa<0) sa+=2*Math.PI;
@@ -15161,11 +15167,6 @@ function renderOwnerPieChart(){
         if(na>=sa && na<=ea && dist<=a.r){ showOwnerPieDetailForIdx(i); return; }
       }
     });
-    canvas.addEventListener('mousemove', function(e){
-      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
-      canvas.style.cursor='pointer';
-    });
-    canvas.addEventListener('mouseleave', function(){ canvas.style.cursor='default'; });
   }
 }
 
