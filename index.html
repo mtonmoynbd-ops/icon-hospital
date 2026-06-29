@@ -95,7 +95,11 @@
   .search-row-flash { animation:searchRowFlash 2s ease-out; }
   .page-title { font-size:22px; font-weight:700; color:var(--primary); }
   .page-sub { font-size:13px; color:var(--text-light); margin-top:2px; }
-  .today-badge { background:white; border:1px solid var(--border); padding:8px 16px; border-radius:20px; font-size:13px; color:var(--text-light); box-shadow:var(--shadow); }
+  .today-badge { background:white; border:1px solid var(--border); padding:0; border-radius:20px; font-size:13px; color:var(--text-light); box-shadow:var(--shadow); display:flex; align-items:center; position:relative; overflow:hidden; cursor:pointer; }
+  .today-badge-label { padding:8px 14px; white-space:nowrap; pointer-events:none; user-select:none; }
+  .today-badge input[type="date"] { position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer; border:none; background:transparent; }
+  .today-badge.date-changed { border-color:var(--accent); color:var(--accent); background:#eff6ff; }
+  .today-badge.date-changed .today-badge-label { color:var(--accent); font-weight:700; }
 
   /* STATS */
   .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-bottom:24px; }
@@ -335,14 +339,14 @@
   .dash-cards-col .stat-card-bg-icon { --wm-icon-size:205px; }
   .dash-chart-col { display:contents; } /* legacy wrapper kept harmless if present */
   .pie-chart-wrap, .bar-chart-wrap { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:5px 6px; flex:0.75 1 0; min-width:0; display:flex; flex-direction:column; }
-  .pie-chart-wrap .chart-top-label { font-size:12.5px; font-weight:700; color:var(--primary); margin-bottom:2px; display:flex; align-items:flex-start; justify-content:space-between; gap:6px; flex-wrap:wrap; flex-shrink:0; }
+  .pie-chart-wrap .chart-top-label { font-size:12.5px; font-weight:700; color:var(--primary); margin-bottom:1px; display:flex; align-items:flex-start; justify-content:space-between; gap:6px; flex-wrap:wrap; flex-shrink:0; }
   .pie-toggle { display:flex; gap:4px; }
   .pie-toggle button { padding:2px 9px; border-radius:6px; border:1.5px solid var(--border); background:white; font-family:inherit; font-size:10.5px; font-weight:600; cursor:pointer; color:var(--text-light); transition:.15s; }
   .pie-toggle button.active { background:var(--primary); color:white; border-color:var(--primary); }
   .pie-period { display:flex; gap:4px; }
   .pie-period button { padding:1px 6px; border-radius:5px; border:1.5px solid var(--border); background:white; font-family:inherit; font-size:9.5px; font-weight:600; cursor:pointer; color:var(--text-light); transition:.15s; }
   .pie-period button.active { background:var(--accent); color:white; border-color:var(--accent); }
-  .pie-chart-wrap canvas { width:100%; height:0; min-height:210px; flex:1 1 auto; display:block; cursor:pointer; }
+  .pie-chart-wrap canvas { width:100%; height:0; min-height:230px; flex:1 1 auto; display:block; cursor:pointer; }
   .pie-chart-wrap #dashPieLegend { flex-shrink:0; }
   .pie-detail-panel { display:none; position:absolute; inset:0; background:white; border-radius:var(--radius); z-index:10; flex-direction:column; padding:8px 10px; overflow-y:auto; }
   .pie-detail-panel.show { display:flex; }
@@ -565,7 +569,10 @@ function openPrintWindow(htmlContent, title) {
         <input type="text" id="dashSearch" placeholder="🔍 রোগীর নাম, ফোন, মেমো/ভাউচার নং, পণ্য বা টাকার পরিমাণ দিয়ে খুঁজুন..." oninput="showDashSearchResults()" onblur="setTimeout(()=&gt;document.getElementById(&#39;dashSearchResults&#39;).style.display=&#39;none&#39;,200)">
         <div id="dashSearchResults" style="display:none;position:absolute;top:42px;right:0;width:360px;background:white;border:1.5px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);z-index:50;max-height:340px;overflow-y:auto"></div>
       </div>
-      <div class="today-badge" id="todayBadge">📅 09 জুন, 2026</div>
+      <div class="today-badge" id="todayBadge" title="তারিখ পরিবর্তন করতে ক্লিক করুন">
+        <span class="today-badge-label" id="todayBadgeLabel">📅 09 জুন, 2026</span>
+        <input type="date" id="dashDatePicker" onchange="onDashDateChange(this.value)" title="তারিখ বাছুন">
+      </div>
     </div>
     <div id="appRoleFeatureBar" class="role-feature-bar" style="display:none"></div>
 
@@ -684,8 +691,8 @@ function openPrintWindow(htmlContent, title) {
                 </div>
               </div>
             </div>
-            <canvas id="dashPieCanvas" width="280" height="230"></canvas>
-            <div id="dashPieLegend" style="margin-top:4px;font-size:11.5px;display:flex;flex-direction:row;flex-wrap:wrap;gap:4px 12px;row-gap:4px"></div>
+            <canvas id="dashPieCanvas" width="280" height="245"></canvas>
+            <div id="dashPieLegend" style="margin-top:2px;font-size:11.5px;display:flex;flex-direction:row;flex-wrap:wrap;gap:3px 10px;row-gap:3px"></div>
             <!-- Pie segment detail panel -->
             <div id="dashPieDetail" class="pie-detail-panel">
               <div class="pie-detail-header">
@@ -3082,7 +3089,7 @@ function openPrintWindow(htmlContent, title) {
     <div style="position:relative;margin-bottom:10px">
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:10px" id="ownerCards"></div>
       <div id="ownerChartSection" style="display:none">
-        <div style="background:white;border-radius:10px;padding:10px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+        <div style="background:white;border-radius:10px;padding:10px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:relative">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px;flex-wrap:wrap">
             <span style="font-size:11px;font-weight:700;color:#0f4c81" id="ownerPieTitle">🥧 আয়ের বিভাজন</span>
             <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
@@ -3097,8 +3104,17 @@ function openPrintWindow(htmlContent, title) {
               </div>
             </div>
           </div>
-          <canvas id="ownerPieCanvas" width="320" height="130" style="width:100%;height:130px;display:block"></canvas>
+          <canvas id="ownerPieCanvas" width="320" height="190" style="width:100%;height:190px;display:block;cursor:pointer"></canvas>
           <div id="ownerPieLegend" style="margin-top:4px;font-size:9px;display:flex;flex-wrap:wrap;gap:3px 6px"></div>
+          <!-- Owner Pie Detail Panel -->
+          <div id="ownerPieDetail" style="display:none;position:absolute;inset:0;background:white;border-radius:10px;z-index:10;flex-direction:column;padding:10px;overflow-y:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0">
+              <span style="font-size:12px;font-weight:700;color:#0f4c81" id="ownerPieDetailTitle"></span>
+              <button onclick="hideOwnerPieDetail()" style="font-size:11px;padding:3px 10px;border-radius:8px;border:1.5px solid #d0dce8;background:white;cursor:pointer;color:#5a7a9a;font-family:inherit;font-weight:600">← ফিরুন</button>
+            </div>
+            <div id="ownerPieDetailList" style="flex:1;overflow-y:auto"></div>
+            <div id="ownerPieDetailTotal" style="font-size:12px;font-weight:700;color:#0f4c81;margin-top:6px;text-align:right;flex-shrink:0"></div>
+          </div>
         </div>
         <div style="background:white;border-radius:10px;padding:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
@@ -3901,7 +3917,9 @@ function init() {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
-  document.getElementById('todayBadge').textContent = '📅 ' + formatDate(today);
+  document.getElementById('todayBadgeLabel').textContent = '📅 ' + formatDate(today);
+  const dp = document.getElementById('dashDatePicker');
+  if (dp) { dp.value = today; dp.max = today; }
 
   // Nav click via data-page (tablet/mobile WebView fix)
   document.querySelectorAll('.nav-item[data-page]').forEach(function(el) {
@@ -5390,8 +5408,8 @@ function renderDashBalanceTable() {
 }
 function refreshDashboard() {
   if (typeof renderCheckReminders === 'function') renderCheckReminders();
-  const today   = todayStr();
-  const now     = new Date();
+  const today   = _dashViewDate || todayStr();
+  const now     = _dashViewDate ? new Date(_dashViewDate+'T12:00:00') : new Date();
   const prefix  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const s       = appData.settings;
 
@@ -5757,14 +5775,14 @@ function renderIncomeTable() {
     const total = items.reduce((s,e)=>s+e.amount,0);
     const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
-    html += `<tr style="background:var(--primary);cursor:pointer" onclick="toggleIncGroup('${gid}')">
-      <td colspan="6" style="color:white;font-weight:700;padding:10px 14px">
+    html += `<tr style="background:#f0fdf4;cursor:pointer;border-top:2px solid #bbf7d0" onclick="toggleIncGroup('${gid}')">
+      <td colspan="6" style="color:#166534;font-weight:700;padding:7px 12px;font-size:12.5px">
         📅 ${label} &nbsp;—&nbsp; মোট আয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
-      <td style="color:white;text-align:right;padding:10px 14px" colspan="3"><span id="incGrpIcon-${gid}">▶</span></td>
+      <td style="color:#64748b;text-align:right;padding:7px 12px" colspan="3"><span id="incGrpIcon-${gid}">▼</span></td>
     </tr>`;
     items.forEach(e => {
-      html += `<tr class="inc-grp-row" data-grp="${gid}" id="inc-row-${e.id}" style="display:none">
+      html += `<tr class="inc-grp-row" data-grp="${gid}" id="inc-row-${e.id}">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--accent);font-weight:600;font-size:12px">${e.memo||'—'}</td>
         <td>${e.category}</td>
@@ -6178,6 +6196,9 @@ function renderExpenseTable() {
     return vm==='month' ? (()=>{const[y,m]=key.split('-');return`${m}/${y}`;})() : formatDate(key);
   };
   const groupColor = groupBy==='category' ? '#7c3aed' : groupBy==='paymode' ? '#0369a1' : '#dc2626';
+  const groupBg    = groupBy==='category' ? '#faf5ff' : groupBy==='paymode' ? '#eff6ff' : '#fef2f2';
+  const groupBorder= groupBy==='category' ? '#e9d5ff' : groupBy==='paymode' ? '#bfdbfe' : '#fecaca';
+  const groupText  = groupBy==='category' ? '#6b21a8' : groupBy==='paymode' ? '#1e40af' : '#991b1b';
 
   const groups = {};
   data.forEach(e => { const k=getKey(e); if(!groups[k])groups[k]=[]; groups[k].push(e); });
@@ -6189,11 +6210,11 @@ function renderExpenseTable() {
     const total = items.reduce((s,e)=>s+e.amount,0);
     const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
-    html += `<tr style="background:${groupColor};cursor:pointer" onclick="toggleExpGroup('${gid}')">
-      <td colspan="7" style="color:white;font-weight:700;padding:10px 14px">
+    html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" onclick="toggleExpGroup('${gid}')">
+      <td colspan="7" style="color:${groupText};font-weight:700;padding:7px 12px;font-size:12.5px">
         ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; মোট ব্যয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
-      <td style="color:white;text-align:right;padding:10px 14px" colspan="3"><span id="expGrpIcon-${gid}">▶</span></td>
+      <td style="color:#64748b;text-align:right;padding:7px 12px" colspan="3"><span id="expGrpIcon-${gid}">▼</span></td>
     </tr>`;
     items.forEach(e => {
       const payBadge = e.payMode==='bank'
@@ -6202,7 +6223,7 @@ function renderExpenseTable() {
       const personOrCheck = e.payMode==='bank'
         ? `${e.checkNo ? `চেক: ${e.checkNo}` : '—'}${e.payPerson ? ` <span style="color:#888">(বাহক: ${e.payPerson})</span>` : ''}`
         : (e.payPerson || '—');
-      html += `<tr class="exp-grp-row" data-grp="${gid}" id="exp-row-${e.id}" style="display:none">
+      html += `<tr class="exp-grp-row" data-grp="${gid}" id="exp-row-${e.id}">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
         <td>${e.category}</td>
@@ -6431,9 +6452,9 @@ function renderRecDepositList() {
     const items = groups[key];
     const totalAmt = items.reduce((s,d)=>s+(d.amount||0),0);
     const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
-    html += `<div style="background:var(--primary);color:white;border-radius:8px;padding:12px 16px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleRecDepGrp('${key}')">
-      <span style="font-weight:700">📅 ${label} &nbsp;—&nbsp; মোট জমা: ৳ ${fmt(totalAmt)} &nbsp;|&nbsp; ${items.length}টি এন্ট্রি</span>
-      <span id="recDepGrpIcon-${key}">▼</span>
+    html += `<div style="background:#f1f5f9;border:2px solid #cbd5e1;border-radius:8px;padding:8px 14px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleRecDepGrp('${key}')">
+      <span style="font-weight:700;font-size:12.5px;color:#1e3a5f">📅 ${label} &nbsp;—&nbsp; মোট জমা: ৳ ${fmt(totalAmt)} &nbsp;|&nbsp; ${items.length}টি এন্ট্রি</span>
+      <span id="recDepGrpIcon-${key}" style="color:#64748b">▼</span>
     </div>
     <div id="recDepGrp-${key}" style="margin-bottom:12px">`;
     items.forEach(d => {
@@ -6623,9 +6644,13 @@ function renderDashRecentEntries() {
     (groups[key] = groups[key]||[]).push(r);
   });
   const sortedKeys = Object.keys(groups).sort().reverse().slice(0, vm==='month'?6:14);
+  // যদি নির্দিষ্ট তারিখ সিলেক্ট করা থাকে এবং day mode, শুধু সেই তারিখ দেখাও
+  const filteredKeys = (_dashViewDate && vm==='day')
+    ? sortedKeys.filter(k => k === _dashViewDate)
+    : sortedKeys;
 
   let html = '';
-  sortedKeys.forEach(key => {
+  filteredKeys.forEach(key => {
     const items = groups[key];
     const inc = items.filter(r=>r.cls==='badge-income').reduce((s,r)=>s+r.amt,0);
     const exp = items.filter(r=>r.cls==='badge-expense').reduce((s,r)=>s+r.amt,0);
@@ -6636,13 +6661,13 @@ function renderDashRecentEntries() {
     const closingBank = vm==='month' ? openingBank + getMonthNetBank(key) : openingBank + getDayNetBank(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
 
-    html += `<tr style="background:var(--primary);cursor:pointer" onclick="toggleDashGroup('${gid}')">
-      <td colspan="5" style="color:white;font-weight:700;padding:10px 14px">
-        📅 ${label} &nbsp;—&nbsp; আয়: ৳ ${fmt(inc)} &nbsp;|&nbsp; ব্যয়: ৳ ${fmt(exp)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+    html += `<tr style="background:#f1f5f9;cursor:pointer;border-top:2px solid #cbd5e1" onclick="toggleDashGroup('${gid}')">
+      <td colspan="5" style="color:#1e3a5f;font-weight:700;padding:7px 12px;font-size:12.5px">
+        📅 ${label} &nbsp;—&nbsp; <span style="color:#16a34a">আয়: ৳ ${fmt(inc)}</span> &nbsp;|&nbsp; <span style="color:#dc2626">ব্যয়: ৳ ${fmt(exp)}</span> &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
-      <td colspan="2" style="color:white;text-align:right;padding:10px 14px"><span id="dashGrpIcon-${gid}">▶</span></td>
+      <td colspan="2" style="color:#64748b;text-align:right;padding:7px 12px"><span id="dashGrpIcon-${gid}">▼</span></td>
     </tr>
-    <tr class="dash-grp-row" data-grp="${gid}" style="display:none;background:#eef6ff">
+    <tr class="dash-grp-row" data-grp="${gid}" style="background:#eef6ff">
       <td colspan="7" style="padding:8px 14px;font-size:12.5px;color:#2c5d8a">
         💵 প্রারম্ভিক ক্যাশ: ৳ ${fmt(openingCash)} → সমাপনি: <strong>৳ ${fmt(closingCash)}</strong>
         &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -6664,7 +6689,7 @@ function renderDashRecentEntries() {
     // non-camp rows (income, expense, transfer, deposit)
     nonCampItems.forEach(e => {
       const amtColor = e.cls==='badge-expense'?'var(--danger)':e.cls==='badge-transfer'?'#1e40af':e.cls==='badge-deposit'?'#7c3aed':'var(--success)';
-      html += `<tr class="dash-grp-row" data-grp="${gid}" style="display:none">
+      html += `<tr class="dash-grp-row" data-grp="${gid}" style="">
         <td style="white-space:nowrap">${formatDate(e.date)}</td>
         <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${e.vouchRef}</td>
         <td><span class="badge ${e.cls}">${e.type}</span></td>
@@ -6690,12 +6715,12 @@ function renderDashRecentEntries() {
       );
       const campDepAmt = campDeposits.reduce((s,t)=>s+t.amount,0);
 
-      html += `<tr class="dash-grp-row" data-grp="${gid}" style="display:none;background:#e8f4e8;cursor:pointer" onclick="toggleDashGroup('${cgid}')">
-        <td colspan="5" style="color:#065f46;font-weight:700;padding:8px 14px;padding-left:28px">
+      html += `<tr class="dash-grp-row" data-grp="${gid}" style="display:none;background:#f0fdf4;border-top:1px solid #bbf7d0;cursor:pointer" onclick="toggleDashGroup('${cgid}')">
+        <td colspan="5" style="color:#065f46;font-weight:700;padding:6px 12px 6px 28px;font-size:12px">
           🏕️ ${campName} &nbsp;—&nbsp; আয়: ৳ ${fmt(cInc)} &nbsp;|&nbsp; ব্যয়: ৳ ${fmt(cExp)} &nbsp;|&nbsp; নেট: ৳ ${fmt(cNet)}
           ${campDepAmt>0 ? `&nbsp;|&nbsp; <span style="color:#1d4ed8">💵 জমা: ৳ ${fmt(campDepAmt)}</span>` : ''}
         </td>
-        <td colspan="2" style="color:#065f46;text-align:right;padding:8px 14px"><span id="dashGrpIcon-${cgid}">▶</span></td>
+        <td colspan="2" style="color:#64748b;text-align:right;padding:6px 12px"><span id="dashGrpIcon-${cgid}">▶</span></td>
       </tr>`;
       cRows.forEach(e => {
         const amtColor = e.cls==='badge-expense'?'var(--danger)':'var(--success)';
@@ -14694,10 +14719,12 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
   ctx.fillText('৳ '+fmt(total), cx, cy);
 
   if (legendEl) {
+    const isOwner = canvas.id === 'ownerPieCanvas';
+    const detailFn = isOwner ? 'showOwnerPieDetailForIdx' : 'showDashPieDetailForIdx';
     legendEl.innerHTML = labels.map((l,i)=>{
       const pct = Math.round(values[i]/total*100);
       const col = PIE_COLORS[i%PIE_COLORS.length];
-      return `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer" onclick="showDashPieDetailForIdx(${i})">
+      return `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer" onclick="${detailFn}(${i})">
           <span style="width:9px;height:9px;border-radius:3px;background:${col};display:inline-block;flex-shrink:0"></span>
           <span style="color:#374151">${l}</span>
           <span style="font-weight:700;color:#111">${pct}%</span>
@@ -14890,6 +14917,25 @@ function fmtK(v){
   return Math.round(v).toString();
 }
 
+// --- Dashboard selected date state ---
+let _dashViewDate = null; // null = today (live)
+
+function onDashDateChange(val) {
+  const today = todayStr();
+  _dashViewDate = (val && val !== today) ? val : null;
+  const badge = document.getElementById('todayBadge');
+  const label = document.getElementById('todayBadgeLabel');
+  if (_dashViewDate) {
+    badge.classList.add('date-changed');
+    label.textContent = '📅 ' + formatDate(val) + ' ✎';
+  } else {
+    badge.classList.remove('date-changed');
+    label.textContent = '📅 ' + formatDate(today);
+  }
+  refreshDashboard();
+  renderDashRecentEntries();
+}
+
 // --- Dashboard pie state ---
 let _dPieType='income', _dPiePeriod='month';
 function setDashPieType(t){
@@ -15072,6 +15118,7 @@ function setOwnerPieType(t){
   if(bi){ bi.style.background=t==='income'?'#0f4c81':'white'; bi.style.color=t==='income'?'white':'#5a7a9a'; bi.style.borderColor=t==='income'?'#0f4c81':'#d0dce8'; }
   if(be){ be.style.background=t==='expense'?'#0f4c81':'white'; be.style.color=t==='expense'?'white':'#5a7a9a'; be.style.borderColor=t==='expense'?'#0f4c81':'#d0dce8'; }
   const tl=document.getElementById('ownerPieTitle'); if(tl) tl.textContent=t==='income'?'🥧 আয়ের বিভাজন':'🥧 ব্যয়ের বিভাজন';
+  hideOwnerPieDetail();
   renderOwnerPieChart();
 }
 function setOwnerPiePeriod(p){
@@ -15081,9 +15128,86 @@ function setOwnerPiePeriod(p){
     const b=document.getElementById(map2[x]); if(!b) return;
     b.style.background=p===x?'#e67e22':'white'; b.style.color=p===x?'white':'#5a7a9a'; b.style.borderColor=p===x?'#e67e22':'#d0dce8';
   });
+  hideOwnerPieDetail();
   renderOwnerPieChart();
 }
 function renderOwnerPieChart(){
+  const canvas=document.getElementById('ownerPieCanvas');
+  const leg=document.getElementById('ownerPieLegend');
+  if(!canvas) return;
+  const map=buildPieData(_oPieType,_oPiePeriod);
+  drawDonut(canvas,leg,map,'');
+  // Attach click once
+  if(!canvas._pieClickAttached){
+    canvas._pieClickAttached=true;
+    canvas.addEventListener('click', function(e){
+      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
+      const rect=canvas.getBoundingClientRect();
+      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+      const {cx,cy,ir}=arcs[0];
+      const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<ir) return;
+      let angle=Math.atan2(dy,dx);
+      if(angle<-Math.PI/2) angle+=2*Math.PI;
+      const norm=angle+Math.PI/2;
+      const normAngle=norm<0?norm+2*Math.PI:norm;
+      for(let i=0;i<arcs.length;i++){
+        const a=arcs[i];
+        let sa=a.sa+Math.PI/2; if(sa<0) sa+=2*Math.PI;
+        let ea=a.ea+Math.PI/2; if(ea<0) ea+=2*Math.PI;
+        if(ea<sa) ea+=2*Math.PI;
+        const na=normAngle<sa?normAngle+2*Math.PI:normAngle;
+        if(na>=sa && na<=ea && dist<=a.r){ showOwnerPieDetailForIdx(i); return; }
+      }
+    });
+    canvas.addEventListener('mousemove', function(e){
+      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
+      canvas.style.cursor='pointer';
+    });
+    canvas.addEventListener('mouseleave', function(){ canvas.style.cursor='default'; });
+  }
+}
+
+function showOwnerPieDetailForIdx(idx){
+  const canvas=document.getElementById('ownerPieCanvas');
+  const arcs=canvas&&canvas._pieArcs;
+  if(!arcs||!arcs[idx]) return;
+  const arc=arcs[idx];
+
+  const panel=document.getElementById('ownerPieDetail');
+  const titleEl=document.getElementById('ownerPieDetailTitle');
+  const listEl=document.getElementById('ownerPieDetailList');
+  const totalEl=document.getElementById('ownerPieDetailTotal');
+
+  titleEl.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:${arc.color};display:inline-block"></span>${arc.label} (${arc.pct}%)</span>`;
+
+  const rows=getDashPieDetailRows(arc.label, _oPieType, _oPiePeriod);
+  if(rows.length){
+    listEl.innerHTML=rows.map(r=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:11px;gap:6px">
+        <span style="flex:1;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.label}</span>
+        <span style="font-weight:700;color:#111;white-space:nowrap">৳ ${fmt(r.amount)}</span>
+        <span style="font-size:9.5px;color:#888;white-space:nowrap">${r.date||''}</span>
+      </div>`).join('');
+  } else {
+    listEl.innerHTML=`<div style="color:#aaa;font-size:11px;padding:14px 0;text-align:center">কোনো বিস্তারিত তথ্য নেই</div>`;
+  }
+  totalEl.textContent='মোট: ৳ '+fmt(arc.value);
+
+  // Highlight segment in chart
+  const leg=document.getElementById('ownerPieLegend');
+  const map=buildPieData(_oPieType,_oPiePeriod);
+  drawDonut(canvas,leg,map,'',idx);
+
+  panel.style.display='flex';
+  panel.style.flexDirection='column';
+}
+
+function hideOwnerPieDetail(){
+  const panel=document.getElementById('ownerPieDetail');
+  if(panel) panel.style.display='none';
+  // Redraw without highlight
   const canvas=document.getElementById('ownerPieCanvas');
   const leg=document.getElementById('ownerPieLegend');
   if(!canvas) return;
