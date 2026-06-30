@@ -3090,7 +3090,7 @@ function openPrintWindow(htmlContent, title) {
               </div>
             </div>
           </div>
-          <canvas id="ownerPieCanvas" width="320" height="240" style="width:100%;height:240px;display:block;cursor:pointer"></canvas>
+          <canvas id="ownerPieCanvas" width="320" height="215" style="width:100%;height:215px;display:block;cursor:pointer"></canvas></canvas>
           <div id="ownerPieLegend" style="margin-top:4px;font-size:9px;display:flex;flex-wrap:wrap;gap:3px 6px"></div>
           <!-- Owner Pie Detail Panel -->
           <div id="ownerPieDetail" style="display:none;position:absolute;inset:0;background:white;border-radius:10px;z-index:10;flex-direction:column;padding:10px;overflow-y:auto">
@@ -3205,9 +3205,6 @@ function openPrintWindow(htmlContent, title) {
       <img src="" id="camperLogoImg" style="height:36px;object-fit:contain">
     </div>
     <button onclick="doLogout()" class="role-logout-btn" style="font-size:11px;padding:5px 10px;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Logout</button>
-  </div>
-  <div id="camperCashBar" style="background:#ffffff;padding:6px 20px;border-bottom:1px solid #e2e8f0;">
-    <button onclick="showCamperCashSubmitModal()" style="width:100%;background:rgba(15,76,129,0.08);color:var(--primary);border:1.5px solid rgba(15,76,129,0.2);border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center;">💵 ক্যাশ জমা</button>
   </div>
   <!-- ক্যাম্প সেশন বটম বার — hardcoded HTML, JS শুধু display toggle করবে -->
   <div id="camperBottomTabBar" class="rtab-bottom-tabs" style="display:none">
@@ -10204,11 +10201,32 @@ function buildReadOnlyHTML(feature) {
       </table></div>`;
   }
   if (feature === 'stock') {
-    const rows = (appData.stock||[]).filter(s=>s.status!=='inactive').slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    const allItems = (appData.stock||[]).filter(s=>s.status!=='inactive');
+    const rows = allItems.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    const totalCapital = allItems.reduce((s,i) => s + (i.buyPrice||0)*(i.qty||0), 0);
+    const totalSellVal = allItems.reduce((s,i) => {
+      const sp = (i.cat==='চশমা/লেন্স') ? (i.sellMin||0) : (i.sellPrice||0);
+      return s + sp*(i.qty||0);
+    }, 0);
+    const totalProfit = totalSellVal - totalCapital;
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📦 স্টক তালিকা ${badge}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:3px">মোট মূলধন (ক্রয়মূল্য)</div>
+          <div style="font-size:15px;font-weight:800;color:var(--danger)">৳ ${fmt2(totalCapital)}</div>
+        </div>
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:3px">মোট বিক্রয়মূল্য (সর্বনিম্ন)</div>
+          <div style="font-size:15px;font-weight:800;color:var(--success)">৳ ${fmt2(totalSellVal)}</div>
+        </div>
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:3px">সম্ভাব্য নিট লাভ</div>
+          <div style="font-size:15px;font-weight:800;color:${totalProfit>=0?'#8e44ad':'var(--danger)'}">৳ ${fmt2(totalProfit)}</div>
+        </div>
+      </div>
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">পণ্যের নাম</th><th style="${thStyle}">বিভাগ</th><th style="${thStyle}">পরিমাণ</th><th style="${thStyle}">বিক্রয় মূল্য</th></tr>
-        ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.category||'—'}</td><td style="${tdStyle};color:${(s.qty||0)<(s.minQty||5)?'#e74c3c':'inherit'}">${s.qty||0} ${s.unit||''}</td><td style="${tdStyle}">৳ ${fmt2(s.sellPrice||s.price||0)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো পণ্য নেই</td></tr>`}
+        ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.cat||'—'}</td><td style="${tdStyle};color:${(s.qty||0)<(s.minQty||5)?'#e74c3c':'inherit'}">${s.qty||0} ${s.unit||''}</td><td style="${tdStyle}">৳ ${fmt2((s.cat==='চশমা/লেন্স'?s.sellMin:s.sellPrice)||0)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো পণ্য নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'salary') {
