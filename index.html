@@ -253,6 +253,11 @@
   .rtab-sheet-list button .osl-icon { font-size:22px; }
   .rtab-sheet-list button .osl-label { font-size:11.5px; font-weight:700; text-align:center; line-height:1.25; }
   .rtab-sheet-list button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+  /* ওনার প্যানেলের "আরো" শীট — ছোট গ্রিড */
+  #ownerMoreSheetList { grid-template-columns:repeat(4,1fr); gap:6px; }
+  #ownerMoreSheetList button { padding:9px 3px; border-radius:11px; gap:3px; }
+  #ownerMoreSheetList button .osl-icon { font-size:16px; }
+  #ownerMoreSheetList button .osl-label { font-size:9.5px; line-height:1.15; }
 
   /* ROLE TAB CUSTOMIZER */
   .rtab-customizer-list { overflow-y:auto; padding:6px 14px 18px; }
@@ -3073,7 +3078,7 @@ function openPrintWindow(htmlContent, title) {
         <div style="background:white;border-radius:10px;padding:10px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:relative">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px;flex-wrap:wrap">
             <span style="font-size:11px;font-weight:700;color:#0f4c81" id="ownerPieTitle">🥧 আয়ের বিভাজন</span>
-            <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+            <div style="display:flex;flex-direction:row;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               <div style="display:flex;gap:3px">
                 <button id="ownerPieBtnInc" onclick="setOwnerPieType('income')" style="padding:2px 6px;border-radius:4px;border:1.5px solid #0f4c81;background:#0f4c81;color:white;font-size:10px;font-weight:600;cursor:pointer">আয়</button>
                 <button id="ownerPieBtnExp" onclick="setOwnerPieType('expense')" style="padding:2px 6px;border-radius:4px;border:1.5px solid #d0dce8;background:white;color:#5a7a9a;font-size:10px;font-weight:600;cursor:pointer">ব্যয়</button>
@@ -3085,7 +3090,7 @@ function openPrintWindow(htmlContent, title) {
               </div>
             </div>
           </div>
-          <canvas id="ownerPieCanvas" width="320" height="190" style="width:100%;height:190px;display:block;cursor:pointer"></canvas>
+          <canvas id="ownerPieCanvas" width="320" height="240" style="width:100%;height:240px;display:block;cursor:pointer"></canvas>
           <div id="ownerPieLegend" style="margin-top:4px;font-size:9px;display:flex;flex-wrap:wrap;gap:3px 6px"></div>
           <!-- Owner Pie Detail Panel -->
           <div id="ownerPieDetail" style="display:none;position:absolute;inset:0;background:white;border-radius:10px;z-index:10;flex-direction:column;padding:10px;overflow-y:auto">
@@ -10153,7 +10158,7 @@ function renderOwnerReadOnlySection(feature) {
 // Read-only HTML builder — সব ফিচারের জন্য
 function buildReadOnlyHTML(feature) {
   const fmt2 = n => new Intl.NumberFormat('bn-BD').format(Math.round(n)||0);
-  const badge = `<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:8px">শুধু পড়া যাবে</span>`;
+  const badge = ``; // "শুধু পড়া যাবে" ব্যাজ সরিয়ে দেওয়া হয়েছে
   const tableStyle = 'width:100%;border-collapse:collapse;font-size:13px';
   const thStyle = 'padding:8px 10px;background:#f8fafc;color:#0f4c81;font-weight:700;text-align:left;border-bottom:2px solid #e2e8f0';
   const tdStyle = 'padding:8px 10px;border-bottom:1px solid #f0f0f0';
@@ -14859,7 +14864,8 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
   const total = values.reduce((a,b)=>a+b,0);
 
   if (total === 0) {
-    const emptyCy = canvas.id==='dashPieCanvas' ? (Math.min(w/2,112)*0.90)+6 : h/2;
+    const isTopPie = canvas.id==='dashPieCanvas' || canvas.id==='ownerPieCanvas';
+    const emptyCy = isTopPie ? (Math.min(w/2,112)*0.90)+6 : h/2;
     ctx.fillStyle='#bbb'; ctx.font='12px Hind Siliguri,sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('কোনো ডেটা নেই', w/2, emptyCy);
@@ -14867,11 +14873,11 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
     return;
   }
 
-  const isDashPie = canvas.id === 'dashPieCanvas';
+  const isTopPie = canvas.id === 'dashPieCanvas' || canvas.id === 'ownerPieCanvas';
   const cx = w/2;
-  const r = isDashPie ? Math.min(cx, 112) * 0.90 : Math.min(cx, h/2) * 0.90;
+  const r = isTopPie ? Math.min(cx, 112) * 0.90 : Math.min(cx, h/2) * 0.90;
   const ir = r * 0.52;
-  const cy = isDashPie ? r + 6 : h/2;
+  const cy = isTopPie ? r + 6 : h/2;
   let sa = -Math.PI/2;
   // Store arc geometry for click detection
   canvas._pieArcs = [];
