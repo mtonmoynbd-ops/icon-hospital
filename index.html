@@ -395,6 +395,13 @@
   [data-settings-section] { display:none; }
   [data-settings-section].settings-section-active { display:block; }
 
+  /* Stock page collapsible panels */
+  .stock-panel-header { cursor:pointer; user-select:none; border-radius:var(--radius) var(--radius) 0 0; }
+  .stock-panel-header:hover { background:rgba(0,0,0,.03); }
+  .stock-collapse-icon { font-size:13px; color:var(--text-light); transition:transform .2s ease; display:inline-block; }
+  .stock-collapse-icon.open { transform:rotate(90deg); }
+  .stock-panel-body.collapsed { display:none; }
+
 </style>
 
 <script>
@@ -710,6 +717,16 @@ function openPrintWindow(htmlContent, title) {
           </div>
         </div>
       </div>
+      <!-- Monthly Comparison — full width strip -->
+      <div id="dashMoCompWrap" style="display:none;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto">
+          <div id="dashMoCompBody" style="display:flex;align-items:stretch;flex:1;min-width:max-content"></div>
+          <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);white-space:nowrap">
+            <span style="font-size:12px;font-weight:700;color:var(--primary)">📈 মাসিক তুলনা</span>
+            <span id="dashMoCompLabel" style="font-size:11px;color:var(--text-light)"></span>
+          </div>
+        </div>
+      </div>
       <!-- Pending camp operations -->
       <div id="campOpsAlert" style="display:none" class="panel">
         <div class="panel-header"><div class="panel-title">🔔 অপেক্ষমাণ ক্যাম্প অপারেশন রোগী</div><button class="btn btn-primary btn-sm" onclick="showPage(&#39;camp&#39;)">সব দেখুন</button></div>
@@ -887,6 +904,23 @@ function openPrintWindow(htmlContent, title) {
 
     <!-- CAMP -->
     <div id="pg-camp" class="page-view">
+      <!-- ক্যাম্প ROI লিডারবোর্ড -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🏆 ক্যাম্প ROI লিডারবোর্ড</div>
+          <select id="campROIRange" onchange="renderCampROILeaderboard()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+            <option value="all">সব সময়</option>
+            <option value="6m">গত ৬ মাস</option>
+            <option value="1y">গত ১ বছর</option>
+          </select>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>র‍্যাংক</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>আয়</th><th>ব্যয়</th><th>নিট মুনাফা</th></tr></thead>
+            <tbody id="campROITable"></tbody>
+          </table></div>
+        </div>
+      </div>
       <!-- ক্যাম্পের তালিকা -->
       <div class="panel">
         <div class="panel-header">
@@ -1228,11 +1262,11 @@ function openPrintWindow(htmlContent, title) {
 
       <!-- আইটেম যোগ ফর্ম -->
       <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">📦 স্টক ব্যবস্থাপনা</div>
-          <button class="btn btn-primary btn-sm" onclick="toggleStockForm()">➕ নতুন আইটেম</button>
+        <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stFormPanelBody','stFormPanelIcon')">
+          <div class="panel-title">📦 স্টক ব্যবস্থাপনা <span id="stFormPanelIcon" class="stock-collapse-icon open">▶</span></div>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();toggleStockForm()">➕ নতুন আইটেম</button>
         </div>
-        <div class="panel-body" id="stockFormBody" style="display:none">
+        <div class="panel-body stock-panel-body" id="stFormPanelBody">
           <div class="form-row three">
             <div class="field"><label>আইটেমের নাম *</label><input type="text" id="stName" placeholder="যেমন: Eye Drop, Lens"></div>
             <div class="field"><label>আইটেম কোড</label><input type="text" id="stCode" placeholder="যেমন: MED001, GL005"></div>
@@ -1306,11 +1340,41 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
+      <!-- স্টক টার্নওভার রেট -->
+      <div class="panel">
+        <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stTurnoverBody','stTurnoverIcon')">
+          <div class="panel-title">🔄 স্টক টার্নওভার রেট <span id="stTurnoverIcon" class="stock-collapse-icon">▶</span></div>
+          <select id="stockTurnoverDays" onchange="renderStockTurnover()" onclick="event.stopPropagation()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+            <option value="30">গত ৩০ দিন</option>
+            <option value="90" selected>গত ৯০ দিন</option>
+            <option value="180">গত ১৮০ দিন</option>
+          </select>
+        </div>
+        <div class="panel-body stock-panel-body collapsed" id="stTurnoverBody">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <div style="font-weight:700;color:#16a34a;font-size:13px;margin-bottom:6px">⚡ দ্রুত বিক্রি হচ্ছে (টপ ১০)</div>
+              <div class="table-wrap"><table>
+                <thead><tr><th>আইটেম</th><th>বিক্রি/বের হয়েছে</th><th>বর্তমান স্টক</th></tr></thead>
+                <tbody id="stockTurnoverFastTable"></tbody>
+              </table></div>
+            </div>
+            <div>
+              <div style="font-weight:700;color:#e74c3c;font-size:13px;margin-bottom:6px">🐢 পড়ে আছে (ডেড স্টক)</div>
+              <div class="table-wrap"><table>
+                <thead><tr><th>আইটেম</th><th>বর্তমান স্টক</th><th>শেষ মুভমেন্ট</th></tr></thead>
+                <tbody id="stockTurnoverSlowTable"></tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- স্টক ইন/আউট মডাল ট্রিগার + ফিল্টার -->
       <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">📋 স্টক তালিকা</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stListBody','stListIcon')">
+          <div class="panel-title">📋 স্টক তালিকা <span id="stListIcon" class="stock-collapse-icon open">▶</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap" onclick="event.stopPropagation()">
             <input type="text" id="stSearch" placeholder="🔍 খুঁজুন..." oninput="renderStockTable()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:160px">
             <select id="stCatFilter" onchange="renderStockTable()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
               <option value="">সব ক্যাটাগরি</option>
@@ -1319,7 +1383,7 @@ function openPrintWindow(htmlContent, title) {
             <button class="btn btn-warning btn-sm" onclick="printStockReport()">🖨️ প্রিন্ট</button>
           </div>
         </div>
-        <div class="panel-body">
+        <div class="panel-body stock-panel-body" id="stListBody">
           <!-- মূলধন সামারি -->
           <div id="stockCapitalSummary" style="display:none;margin-bottom:16px"></div>
           <!-- Low stock alert -->
@@ -1339,8 +1403,10 @@ function openPrintWindow(htmlContent, title) {
 
       <!-- স্টক লগ -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">📜 স্টক ইন/আউট লগ (সাম্প্রতিক ২০টি)</div></div>
-        <div class="panel-body"><div class="table-wrap"><table>
+        <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stLogBody','stLogIcon')">
+          <div class="panel-title">📜 স্টক ইন/আউট লগ (সাম্প্রতিক ২০টি) <span id="stLogIcon" class="stock-collapse-icon">▶</span></div>
+        </div>
+        <div class="panel-body stock-panel-body collapsed" id="stLogBody"><div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>আইটেম</th><th>ধরন</th><th>পরিমাণ</th><th>কারণ</th><th>এন্ট্রিকারী</th></tr></thead>
           <tbody id="stockLogTable"></tbody>
         </table></div></div>
@@ -1348,16 +1414,16 @@ function openPrintWindow(htmlContent, title) {
 
       <!-- ভাউচার ওয়াইজ ক্রয় রেকর্ড -->
       <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">🧾 ভাউচার অনুযায়ী ক্রয় রেকর্ড</div>
-          <div style="display:flex;gap:8px;align-items:center">
+        <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stPurchaseBody','stPurchaseIcon')">
+          <div class="panel-title">🧾 ভাউচার অনুযায়ী ক্রয় রেকর্ড <span id="stPurchaseIcon" class="stock-collapse-icon">▶</span></div>
+          <div style="display:flex;gap:8px;align-items:center" onclick="event.stopPropagation()">
             <select id="purchaseMonthFilter" onchange="renderPurchaseRecord()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="">সব মাস</option>
             </select>
             <button class="btn btn-warning btn-sm" onclick="printPurchaseRecord()">🖨️ প্রিন্ট</button>
           </div>
         </div>
-        <div class="panel-body">
+        <div class="panel-body stock-panel-body collapsed" id="stPurchaseBody">
           <div id="purchaseRecordContainer"></div>
         </div>
       </div>
@@ -2304,7 +2370,7 @@ function openPrintWindow(htmlContent, title) {
           <div style="font-size:12px;color:var(--text-light)">যে বিভাগটি পরিবর্তন করতে চান সেটি বেছে নিন</div>
         </div>
         <div class="settings-nav-grid">
-          <button onclick="openSettingsSection('hosp-info')" class="settings-nav-card"><span class="snc-icon">🏥</span><span class="snc-label">হাসপাতাল তথ্য</span></button><button onclick="openSettingsSection('num-series')" class="settings-nav-card"><span class="snc-icon">🔢</span><span class="snc-label">নম্বর সিরিজ</span></button><button onclick="openSettingsSection('fixed-cost')" class="settings-nav-card"><span class="snc-icon">💸</span><span class="snc-label">ফিক্সড খরচ</span></button><button onclick="openSettingsSection('pricing')" class="settings-nav-card"><span class="snc-icon">💊</span><span class="snc-label">প্রাইসিং</span></button><button onclick="openSettingsSection('users')" class="settings-nav-card"><span class="snc-icon">👥</span><span class="snc-label">ইউজার</span></button><button onclick="openSettingsSection('feature-acc')" class="settings-nav-card"><span class="snc-icon">🔐</span><span class="snc-label">ফিচার এক্সেস</span></button><button onclick="openSettingsSection('camp-sched')" class="settings-nav-card"><span class="snc-icon">🏕️</span><span class="snc-label">ক্যাম্প শিডিউল</span></button><button onclick="openSettingsSection('test-fee')" class="settings-nav-card"><span class="snc-icon">🔬</span><span class="snc-label">টেস্ট ফি</span></button><button onclick="openSettingsSection('income-cat')" class="settings-nav-card"><span class="snc-icon">📂</span><span class="snc-label">আয়/ব্যয় খাত</span></button><button onclick="openSettingsSection('exp-subcat')" class="settings-nav-card"><span class="snc-icon">📋</span><span class="snc-label">সাব-ক্যাটাগরি</span></button><button onclick="openSettingsSection('stock-cat')" class="settings-nav-card"><span class="snc-icon">📦</span><span class="snc-label">স্টক ক্যাটাগরি</span></button><button onclick="openSettingsSection('cash-persons')" class="settings-nav-card"><span class="snc-icon">👤</span><span class="snc-label">ক্যাশ ব্যক্তি</span></button><button onclick="openSettingsSection('checkbook')" class="settings-nav-card"><span class="snc-icon">📒</span><span class="snc-label">চেক বই</span></button><button onclick="openSettingsSection('firebase')" class="settings-nav-card"><span class="snc-icon">🔥</span><span class="snc-label">Firebase সিঙ্ক</span></button><button onclick="openSettingsSection('backup')" class="settings-nav-card"><span class="snc-icon">💾</span><span class="snc-label">ব্যাকআপ</span></button>
+          <button onclick="openSettingsSection('hosp-info')" class="settings-nav-card"><span class="snc-icon">🏥</span><span class="snc-label">হাসপাতাল তথ্য</span></button><button onclick="openSettingsSection('num-series')" class="settings-nav-card"><span class="snc-icon">🔢</span><span class="snc-label">নম্বর সিরিজ</span></button><button onclick="openSettingsSection('fixed-cost')" class="settings-nav-card"><span class="snc-icon">💸</span><span class="snc-label">ফিক্সড খরচ</span></button><button onclick="openSettingsSection('pricing')" class="settings-nav-card"><span class="snc-icon">💊</span><span class="snc-label">প্রাইসিং</span></button><button onclick="openSettingsSection('users')" class="settings-nav-card"><span class="snc-icon">👥</span><span class="snc-label">ইউজার</span></button><button onclick="openSettingsSection('feature-acc')" class="settings-nav-card"><span class="snc-icon">🔐</span><span class="snc-label">ফিচার এক্সেস</span></button><button onclick="openSettingsSection('camp-sched')" class="settings-nav-card"><span class="snc-icon">🏕️</span><span class="snc-label">ক্যাম্প শিডিউল</span></button><button onclick="openSettingsSection('test-fee')" class="settings-nav-card"><span class="snc-icon">🔬</span><span class="snc-label">টেস্ট ফি</span></button><button onclick="openSettingsSection('income-cat')" class="settings-nav-card"><span class="snc-icon">📂</span><span class="snc-label">আয়/ব্যয় খাত</span></button><button onclick="openSettingsSection('exp-subcat')" class="settings-nav-card"><span class="snc-icon">📋</span><span class="snc-label">সাব-ক্যাটাগরি</span></button><button onclick="openSettingsSection('stock-cat')" class="settings-nav-card"><span class="snc-icon">📦</span><span class="snc-label">স্টক ক্যাটাগরি</span></button><button onclick="openSettingsSection('cash-persons')" class="settings-nav-card"><span class="snc-icon">👤</span><span class="snc-label">ক্যাশ ব্যক্তি</span></button><button onclick="openSettingsSection('checkbook')" class="settings-nav-card"><span class="snc-icon">📒</span><span class="snc-label">চেক বই</span></button><button onclick="openSettingsSection('firebase')" class="settings-nav-card"><span class="snc-icon">🔥</span><span class="snc-label">Firebase সিঙ্ক</span></button><button onclick="openSettingsSection('backup')" class="settings-nav-card"><span class="snc-icon">💾</span><span class="snc-label">ব্যাকআপ</span></button><button onclick="openSettingsSection('activity-log')" class="settings-nav-card"><span class="snc-icon">📜</span><span class="snc-label">অ্যাক্টিভিটি লগ</span></button>
         </div>
       </div>
       <!-- SETTINGS SECTION BACK BUTTON -->
@@ -2870,6 +2936,34 @@ function openPrintWindow(htmlContent, title) {
           <hr class="divider">
           <div style="display:flex;justify-content:flex-end">
             <button class="btn btn-danger btn-sm" onclick="clearAllData()">🗑️ সব ডেটা মুছুন</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" data-settings-section="activity-log">
+        <div class="panel-header"><div class="panel-title">📜 অ্যাক্টিভিটি লগ</div></div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <select id="actLogUserFilter" onchange="renderActivityLog()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+              <option value="">সব ইউজার</option>
+            </select>
+            <select id="actLogActionFilter" onchange="renderActivityLog()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+              <option value="">সব অ্যাকশন</option>
+              <option value="add">➕ যোগ</option>
+              <option value="edit">✏️ সম্পাদনা</option>
+              <option value="delete">🗑️ মুছে ফেলা</option>
+            </select>
+            <input type="date" id="actLogDateFilter" onchange="renderActivityLog()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('actLogUserFilter').value='';document.getElementById('actLogActionFilter').value='';document.getElementById('actLogDateFilter').value='';renderActivityLog()">♻️ রিসেট</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>সময়</th><th>ইউজার</th><th>অ্যাকশন</th><th>মডিউল</th><th>বিবরণ</th></tr></thead>
+            <tbody id="activityLogTable"></tbody>
+          </table></div>
+          <p style="font-size:11px;color:var(--text-light);margin-top:8px">সর্বশেষ ৩০০টি এন্ট্রি দেখানো হচ্ছে (সর্বমোট সংরক্ষিত হয় সর্বশেষ ৫০০০টি)।</p>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="if(confirm('সব অ্যাক্টিভিটি লগ মুছবেন?')){appData.activityLog=[];saveData();renderActivityLog();showToast('🗑️ লগ মুছে ফেলা হয়েছে')}">🗑️ লগ মুছুন</button>
+            <button class="btn btn-danger btn-sm" onclick="if(confirm('সব এডিট হিস্ট্রি মুছবেন?')){appData.editHistory=[];saveData();showToast('🗑️ এডিট হিস্ট্রি মুছে ফেলা হয়েছে')}">🗑️ এডিট হিস্ট্রি মুছুন</button>
           </div>
         </div>
       </div>
@@ -3888,7 +3982,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -4328,7 +4422,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -5212,7 +5306,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -5244,7 +5338,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
       appData = { ...def, ...data };
       rebuildUsers();
       if (currentUser) {
@@ -5269,6 +5363,150 @@ function startFirebaseSync() {
     }
   });
 }
+// ---- Edit History ----
+function saveEditHistory(module, entryId, label, before, after) {
+  if (!appData.editHistory) appData.editHistory = [];
+  // পার্থক্য বের করা
+  const changes = {};
+  const allKeys = new Set([...Object.keys(before||{}), ...Object.keys(after||{})]);
+  allKeys.forEach(k => {
+    const bv = JSON.stringify(before?.[k]), av = JSON.stringify(after?.[k]);
+    if (bv !== av) changes[k] = { before: before?.[k], after: after?.[k] };
+  });
+  if (!Object.keys(changes).length) return; // কোনো পরিবর্তন নেই
+  appData.editHistory.push({
+    id: Date.now() + Math.random(),
+    ts: new Date().toISOString(),
+    user: (currentUser&&currentUser.name)||'অজানা',
+    role: (currentUser&&currentUser.role)||'',
+    module, entryId, label, changes
+  });
+  if (appData.editHistory.length > 2000) {
+    appData.editHistory = appData.editHistory.slice(appData.editHistory.length - 2000);
+  }
+}
+
+function showEditHistory(module, entryId, label) {
+  let modal = document.getElementById('editHistoryModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'editHistoryModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)';
+    modal.innerHTML = `
+      <div style="background:var(--card-bg);border-radius:14px;padding:0;width:min(700px,96vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.22)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div style="font-weight:800;font-size:16px;color:var(--primary)">🕐 এডিট হিস্ট্রি</div>
+          <div id="editHistoryLabel" style="font-size:13px;color:var(--text-light)"></div>
+          <button onclick="document.getElementById('editHistoryModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-light)">✕</button>
+        </div>
+        <div id="editHistoryBody" style="overflow-y:auto;padding:16px;flex:1"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if(e.target===modal) modal.style.display='none'; });
+  }
+  modal.style.display = 'flex';
+  document.getElementById('editHistoryLabel').textContent = `${module} — ${label}`;
+
+  const history = (appData.editHistory||[])
+    .filter(h => h.module===module && h.entryId===entryId)
+    .sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
+
+  const body = document.getElementById('editHistoryBody');
+  if (!history.length) {
+    body.innerHTML = '<div style="text-align:center;color:#aaa;padding:40px">এই এন্ট্রির কোনো এডিট হিস্ট্রি নেই</div>';
+    return;
+  }
+
+  const fieldLabels = {
+    name:'নাম', amount:'পরিমাণ', date:'তারিখ', category:'ক্যাটাগরি',
+    qty:'স্টক পরিমাণ', buyPrice:'ক্রয়মূল্য', sellPrice:'বিক্রয়মূল্য',
+    minQty:'নিম্নসীমা', note:'নোট', phone:'ফোন', status:'স্ট্যাটাস',
+    basic:'বেসিক বেতন', desig:'পদবি', shares:'শেয়ার', address:'ঠিকানা',
+    cat:'ক্যাটাগরি', unit:'একক', subCat:'সাব-ক্যাটাগরি', code:'কোড'
+  };
+
+  body.innerHTML = history.map(h => {
+    const d = new Date(h.ts);
+    const dStr = isNaN(d) ? '—' : d.toLocaleDateString('bn-BD') + ' ' + d.toLocaleTimeString('bn-BD',{hour:'2-digit',minute:'2-digit'});
+    const rows = Object.entries(h.changes).map(([k, {before, after}]) => {
+      const fl = fieldLabels[k] || k;
+      const fmtVal = v => (v===undefined||v===null||v==='') ? '<span style="color:#ccc">খালি</span>' : `<span>${v}</span>`;
+      return `<tr>
+        <td style="color:var(--text-light);font-size:12px;white-space:nowrap">${fl}</td>
+        <td style="color:#e74c3c;font-size:13px;text-decoration:line-through">${fmtVal(before)}</td>
+        <td style="color:#16a34a;font-size:13px;font-weight:600">${fmtVal(after)}</td>
+      </tr>`;
+    }).join('');
+    return `<div style="border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <div style="font-weight:700;font-size:13px">${h.user} <span style="color:#94a3b8;font-weight:500">(${h.role})</span></div>
+        <div style="font-size:12px;color:var(--text-light)">${dStr}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr><th style="text-align:left;font-size:11px;color:#aaa;padding-bottom:4px">ফিল্ড</th><th style="text-align:left;font-size:11px;color:#aaa">আগে</th><th style="text-align:left;font-size:11px;color:#aaa">পরে</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+// ---- Activity Log (audit trail) ----
+function logActivity(action, module, detail) {
+  if (!appData.activityLog) appData.activityLog = [];
+  appData.activityLog.push({
+    id: Date.now() + Math.random(),
+    ts: new Date().toISOString(),
+    user: (currentUser && currentUser.name) || 'অজানা',
+    role: (currentUser && currentUser.role) || '',
+    action, // 'add' | 'edit' | 'delete'
+    module, // e.g. 'স্টক', 'আয়', 'ব্যয়', 'ক্যাম্প'
+    detail
+  });
+  // log সাইজ নিয়ন্ত্রণ — সর্বশেষ ৫০০০ এন্ট্রি রাখা হবে
+  if (appData.activityLog.length > 5000) {
+    appData.activityLog = appData.activityLog.slice(appData.activityLog.length - 5000);
+  }
+}
+
+function renderActivityLog() {
+  const tbody = document.getElementById('activityLogTable'); if (!tbody) return;
+  const userF = (document.getElementById('actLogUserFilter')||{}).value || '';
+  const actF  = (document.getElementById('actLogActionFilter')||{}).value || '';
+  const dateF = (document.getElementById('actLogDateFilter')||{}).value || '';
+  let log = [...(appData.activityLog || [])];
+  if (userF) log = log.filter(l => l.user === userF);
+  if (actF)  log = log.filter(l => l.action === actF);
+  if (dateF) log = log.filter(l => l.ts && l.ts.startsWith(dateF));
+  log.sort((a,b)=> (b.ts||'').localeCompare(a.ts||''));
+  log = log.slice(0, 300);
+
+  const actLabel = { add:'➕ যোগ', edit:'✏️ সম্পাদনা', delete:'🗑️ মুছে ফেলা' };
+  const actColor = { add:'#16a34a', edit:'#e67e22', delete:'#e74c3c' };
+
+  if (!log.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:30px">কোনো অ্যাক্টিভিটি নেই</td></tr>';
+  } else {
+    tbody.innerHTML = log.map(l => {
+      const d = new Date(l.ts);
+      const dStr = isNaN(d) ? '—' : d.toLocaleDateString('bn-BD') + ' ' + d.toLocaleTimeString('bn-BD', {hour:'2-digit',minute:'2-digit'});
+      return `<tr>
+        <td style="font-size:12px;color:var(--text-light);white-space:nowrap">${dStr}</td>
+        <td style="font-weight:600">${l.user} <span style="color:#94a3b8;font-size:11px">(${l.role||''})</span></td>
+        <td style="color:${actColor[l.action]||'#334155'};font-weight:700">${actLabel[l.action]||l.action}</td>
+        <td>${l.module||''}</td>
+        <td style="color:var(--text-light);font-size:12.5px">${l.detail||''}</td>
+      </tr>`;
+    }).join('');
+  }
+  // ইউজার ফিল্টার অপশন পপুলেট
+  const userSel = document.getElementById('actLogUserFilter');
+  if (userSel && !userSel.dataset.populated) {
+    const users = [...new Set((appData.activityLog||[]).map(l=>l.user))];
+    userSel.innerHTML = '<option value="">সব ইউজার</option>' + users.map(u=>`<option value="${u}">${u}</option>`).join('');
+    userSel.dataset.populated = '1';
+  }
+}
+
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
   if (window._fbDb && window._fbRef && window._fbSet) {
@@ -5712,6 +5950,7 @@ function saveIncome() {
   const ref=document.getElementById('incRef').value.trim(), note=document.getElementById('incNote').value.trim();
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, খাত ও পরিমাণ আবশ্যক!'); return; }
   appData.income.push({ id:Date.now(), date, category:cat, amount:amt, memo, ref, note, by:currentUser.name });
+  logActivity('add', 'আয়', `${cat} — ৳${fmt(amt)} (${memo})`);
   saveData(); clearIncomeForm(); renderIncomeTable(); refreshDashboard();
   showToast('✅ আয় এন্ট্রি সেভ! মেমো: ' + memo);
 }
@@ -5784,7 +6023,9 @@ function toggleIncGroup(gid) {
 }
 function deleteIncome(id) {
   if (!confirm('এই এন্ট্রি মুছবেন?')) return;
+  const e = appData.income.find(e=>e.id===id);
   appData.income=appData.income.filter(e=>e.id!==id);
+  if (e) logActivity('delete', 'আয়', `${e.category} — ৳${fmt(e.amount)} (${e.memo||''})`);
   saveData(); renderIncomeTable(); refreshDashboard(); showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 
@@ -5818,6 +6059,7 @@ function saveExpense() {
   }
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
   appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, by:currentUser.name });
+  logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher})`);
   saveData(); clearExpenseForm(); renderExpenseTable(); refreshDashboard();
   showToast('✅ ব্যয় এন্ট্রি সেভ! ভাউচার: ' + voucher);
 }
@@ -6234,7 +6476,9 @@ function toggleExpGroup(gid) {
 }
 function deleteExpense(id) {
   if (!confirm('এই এন্ট্রি মুছবেন?')) return;
+  const e = appData.expense.find(e=>e.id===id);
   appData.expense=appData.expense.filter(e=>e.id!==id);
+  if (e) logActivity('delete', 'ব্যয়', `${e.category} — ৳${fmt(e.amount)} (${e.voucher||''})`);
   saveData(); renderExpenseTable(); refreshDashboard(); showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 
@@ -7702,6 +7946,7 @@ function saveCamp() {
   renderCampList();
   renderCampOps();
   refreshDashboard();
+  logActivity('add', 'ক্যাম্প', `${name} — ${location}, আয়: ৳${fmt(totalIncome)}, ব্যয়: ৳${fmt(totalExpense)}`);
   showToast(`✅ ক্যাম্প সেভ! আয়: ৳${fmt(totalIncome)}, ব্যয়: ৳${fmt(totalExpense)}, নেট: ৳${fmt(netProfit)}`);
 }
 
@@ -7721,12 +7966,49 @@ function clearCampForm() {
 
 function deleteCamp(id) {
   if (!confirm('এই ক্যাম্প এন্ট্রি মুছবেন?')) return;
+  const c = appData.camps.find(c=>c.id===id);
   appData.camps = appData.camps.filter(c=>c.id!==id);
+  if (c) logActivity('delete', 'ক্যাম্প', `${c.name} — ${c.location} (${c.date})`);
   saveData(); renderCampList(); renderCampOps(); refreshDashboard();
   showToast('🗑️ ক্যাম্প মুছে ফেলা হয়েছে');
 }
 
+function renderCampROILeaderboard() {
+  const rangeSel = document.getElementById('campROIRange');
+  const range = rangeSel ? rangeSel.value : 'all';
+  let camps = [...(appData.camps||[])];
+  if (range !== 'all') {
+    const months = range === '6m' ? 6 : 12;
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - months);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    camps = camps.filter(c => c.date && c.date >= cutoffStr);
+  }
+  const tbody = document.getElementById('campROITable');
+  if (!tbody) return;
+  if (!camps.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">কোনো ক্যাম্প নেই</td></tr>';
+    return;
+  }
+  // নিট মুনাফা অনুযায়ী sort
+  camps.sort((a, b) => (b.netProfit||0) - (a.netProfit||0));
+  const medals = ['🥇', '🥈', '🥉'];
+  tbody.innerHTML = camps.map((c, i) => {
+    const profit = c.netProfit||0;
+    const profitColor = profit >= 0 ? '#0f4c81' : '#e74c3c';
+    return `<tr>
+      <td style="font-weight:700;text-align:center">${medals[i] || (i + 1)}</td>
+      <td style="font-weight:600">${c.name}</td>
+      <td style="color:var(--text-light)">${c.location || '—'} <span style="color:#aaa;font-size:11px">(${formatDate(c.date)})</span></td>
+      <td style="color:#16a34a">৳ ${fmt(c.totalIncome || 0)}</td>
+      <td style="color:#e74c3c">৳ ${fmt(c.totalExpense || 0)}</td>
+      <td style="font-weight:800;color:${profitColor}">৳ ${fmt(profit)}</td>
+    </tr>`;
+  }).join('');
+}
+
 function renderCampList() {
+  renderCampROILeaderboard();
   const fm = document.getElementById('campFilterMonth');
   const rf = (document.getElementById('campRatingFilter')||{}).value||'';
   const filter = fm ? fm.value : '';
@@ -8194,7 +8476,12 @@ function saveVendor() {
   if(!appData.vendors) appData.vendors=[];
   if(editId){
     const v=appData.vendors.find(v=>v.id===parseInt(editId));
-    if(v){v.name=name;v.cat=cat;v.phone=phone;v.address=address;v.contact=contact;v.note=note;}
+    if(v){
+      const before={name:v.name,cat:v.cat,phone:v.phone,address:v.address,contact:v.contact,note:v.note};
+      const after={name,cat,phone,address,contact,note};
+      saveEditHistory('ভেন্ডর', v.id, name, before, after);
+      v.name=name;v.cat=cat;v.phone=phone;v.address=address;v.contact=contact;v.note=note;
+    }
     showToast('✅ আপডেট হয়েছে!');
   } else {
     appData.vendors.push({id:Date.now(),name,cat,phone,address,contact,note});
@@ -8238,6 +8525,7 @@ function renderVendorList() {
       <td style="font-weight:${totalDue>0?'700':'400'};color:${totalDue>0?'var(--danger)':'var(--success)'}">৳ ${fmt(totalDue)}</td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-primary btn-sm" onclick="editVendor(${v.id})">✏️</button>
+        <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('ভেন্ডর',${v.id},'${v.name.replace(/'/g,"\\'")}')">🕐</button>
         <button class="btn btn-danger btn-sm" onclick="deleteVendor(${v.id})">🗑️</button>
       </td>
     </tr>`;
@@ -8931,7 +9219,12 @@ function saveShareholder() {
   if(!appData.shareholders) appData.shareholders=[];
   if(editId){
     const sh=appData.shareholders.find(s=>s.id===parseInt(editId));
-    if(sh){sh.name=name;sh.shares=shares;sh.phone=phone;sh.joinDate=joinDate;sh.note=note;}
+    if(sh){
+      const before={name:sh.name,shares:sh.shares,phone:sh.phone,joinDate:sh.joinDate,note:sh.note};
+      const after={name,shares,phone,joinDate,note};
+      saveEditHistory('শেয়ারহোল্ডার', sh.id, name, before, after);
+      sh.name=name;sh.shares=shares;sh.phone=phone;sh.joinDate=joinDate;sh.note=note;
+    }
     showToast('✅ আপডেট হয়েছে!');
   } else {
     appData.shareholders.push({id:Date.now(),name,shares,phone,joinDate,note});
@@ -8982,6 +9275,7 @@ function renderShareholderTable() {
       <td>${formatDate(sh.joinDate)}</td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-primary btn-sm" onclick="editShareholder(${sh.id})">✏️</button>
+        <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('শেয়ারহোল্ডার',${sh.id},'${sh.name.replace(/'/g,"\\'")}')">🕐</button>
         <button class="btn btn-danger btn-sm" onclick="deleteShareholder(${sh.id})">🗑️</button>
       </td>
     </tr>`;
@@ -9574,6 +9868,7 @@ function openSettingsSection(sid) {
   if (sid === 'camp-sched') renderCampScheduleList && renderCampScheduleList();
   if (sid === 'income-cat') renderCategoryLists && renderCategoryLists();
   if (sid === 'users') loadUserList && loadUserList();
+  if (sid === 'activity-log') renderActivityLog && renderActivityLog();
 }
 
 function closeSettingsSection() {
@@ -11876,8 +12171,16 @@ let activeStockId = null;
 let activeStockMove = null; // 'in' or 'out'
 
 function toggleStockForm() {
-  const body = document.getElementById('stockFormBody');
-  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  // স্টক ব্যবস্থাপনা panel প্রথমে expand করি, তারপর ভেতরের ফর্ম দেখাই
+  const panelBody = document.getElementById('stFormPanelBody');
+  const panelIcon = document.getElementById('stFormPanelIcon');
+  const formBody  = document.getElementById('stockFormBody');
+  // প্যানেল collapsed থাকলে আগে খুলি
+  if (panelBody && panelBody.classList.contains('collapsed')) {
+    panelBody.classList.remove('collapsed');
+    if (panelIcon) panelIcon.classList.add('open');
+  }
+  if (formBody) formBody.style.display = formBody.style.display === 'none' ? 'block' : 'none';
 }
 
 function onStockCatChange() {
@@ -11982,7 +12285,13 @@ function saveStockItem() {
   const isOpening = document.getElementById('stIsOpening')?.checked||false;
   if (editId) {
     const s = appData.stock.find(s=>s.id===parseInt(editId));
-    if (s) { s.name=name; s.code=code; s.cat=cat; s.subCat=subCat; s.unit=unit; s.qty=qty; s.minQty=minQty; s.buyPrice=buyPrice; s.sellPrice=sellPrice; s.sellMin=sellMin; s.sellMax=sellMax; s.note=note; s.voucherRef=voucherRef; }
+    if (s) {
+      const before = { name:s.name, code:s.code, cat:s.cat, subCat:s.subCat, unit:s.unit, qty:s.qty, minQty:s.minQty, buyPrice:s.buyPrice, sellPrice:s.sellPrice, note:s.note };
+      const after  = { name, code, cat, subCat, unit, qty, minQty, buyPrice, sellPrice, note };
+      saveEditHistory('স্টক', s.id, name, before, after);
+      s.name=name; s.code=code; s.cat=cat; s.subCat=subCat; s.unit=unit; s.qty=qty; s.minQty=minQty; s.buyPrice=buyPrice; s.sellPrice=sellPrice; s.sellMin=sellMin; s.sellMax=sellMax; s.note=note; s.voucherRef=voucherRef;
+    }
+    logActivity('edit', 'স্টক', `${name} — qty: ${qty} ${unit}, ক্রয়মূল্য: ৳${fmt(buyPrice)}`);
     showToast('✅ আইটেম আপডেট হয়েছে!');
   } else {
     const newItem = { id:Date.now(), name, code, cat, subCat, unit, qty, minQty, buyPrice, sellPrice, sellMin, sellMax, note, isOpening, voucherRef, addedDate: todayStr() };
@@ -11997,8 +12306,10 @@ function saveStockItem() {
         voucher: voucherRef||undefined,
         by: currentUser.name, autoStock: true
       });
+      logActivity('add', 'স্টক', `${name} — ${qty} ${unit} যোগ, ব্যয় অটো ৳${fmt(totalCost)}`);
       showToast(`✅ আইটেম যোগ! ব্যয় অটো — ৳${fmt(totalCost)}`);
     } else {
+      logActivity('add', 'স্টক', `${name} — ${qty} ${unit} (ওপেনিং/মূল্যহীন)`);
       showToast('✅ নতুন আইটেম যোগ হয়েছে!');
     }
     if (!appData.stockLog) appData.stockLog=[];
@@ -12059,7 +12370,9 @@ function editStockItem(id) {
 
 function deleteStockItem(id) {
   if (!confirm('এই আইটেম মুছে ফেলবেন?')) return;
+  const s = appData.stock.find(s=>s.id===id);
   appData.stock = appData.stock.filter(s=>s.id!==id);
+  if (s) logActivity('delete', 'স্টক', `${s.name} — ${s.qty} ${s.unit||''}`);
   saveData(); renderStockTable(); renderStockLog(); populatePurchaseMonthFilter(); renderPurchaseRecord(); showToast('🗑️ আইটেম মুছে ফেলা হয়েছে');
 }
 
@@ -12080,7 +12393,68 @@ function toggleStockGroup() {
   renderStockTable();
 }
 
+function toggleStockPanel(bodyId, iconId) {
+  const body = document.getElementById(bodyId);
+  const icon = document.getElementById(iconId);
+  if (!body) return;
+  const isCollapsed = body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', !isCollapsed);
+  if (icon) icon.classList.toggle('open', !isCollapsed);
+}
+
+function renderStockTurnover() {
+  const daysSel = document.getElementById('stockTurnoverDays');
+  const days = daysSel ? parseInt(daysSel.value) : 90;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+
+  const log = appData.stockLog || [];
+  const outQty = {}; // itemId -> total qty out within range
+  const lastMove = {}; // itemId -> latest date of any movement
+
+  log.forEach(l => {
+    if (!l.itemId) return;
+    if (!lastMove[l.itemId] || l.date > lastMove[l.itemId]) lastMove[l.itemId] = l.date;
+    if (l.move === 'out' && l.date && l.date >= cutoffStr) {
+      outQty[l.itemId] = (outQty[l.itemId] || 0) + (Number(l.qty) || 0);
+    }
+  });
+
+  const items = appData.stock || [];
+
+  // দ্রুত বিক্রি হচ্ছে — সর্বোচ্চ out qty অনুযায়ী
+  const fast = items
+    .map(s => ({ s, qty: outQty[s.id] || 0 }))
+    .filter(x => x.qty > 0)
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 10);
+
+  const fastBody = document.getElementById('stockTurnoverFastTable');
+  if (fastBody) {
+    fastBody.innerHTML = fast.length ? fast.map(x => `<tr>
+      <td style="font-weight:600">${x.s.name}</td>
+      <td style="color:#16a34a;font-weight:700">${x.qty} ${x.s.unit||''}</td>
+      <td>${x.s.qty} ${x.s.unit||''}</td>
+    </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:20px">এই সময়ে কোনো বিক্রি নেই</td></tr>';
+  }
+
+  // পড়ে আছে — যাদের নির্বাচিত সময়ে কোনো 'out' মুভমেন্ট নেই কিন্তু স্টক আছে
+  const slow = items
+    .filter(s => (s.qty || 0) > 0 && !(outQty[s.id] > 0))
+    .sort((a, b) => (lastMove[a.id] || a.addedDate || '').localeCompare(lastMove[b.id] || b.addedDate || ''));
+
+  const slowBody = document.getElementById('stockTurnoverSlowTable');
+  if (slowBody) {
+    slowBody.innerHTML = slow.length ? slow.slice(0, 10).map(s => `<tr>
+      <td style="font-weight:600">${s.name}</td>
+      <td>${s.qty} ${s.unit||''}</td>
+      <td style="color:var(--text-light);font-size:12px">${lastMove[s.id] ? formatDate(lastMove[s.id]) : (s.addedDate?formatDate(s.addedDate)+' (যোগ)':'—')}</td>
+    </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:20px">কোনো ডেড স্টক নেই</td></tr>';
+  }
+}
+
 function renderStockTable() {
+  renderStockTurnover();
   const search = (document.getElementById('stSearch').value||'').toLowerCase();
   const catF   = document.getElementById('stCatFilter').value;
   let data = appData.stock.filter(s => {
@@ -12177,6 +12551,7 @@ function renderStockTable() {
         <button class="btn btn-success btn-sm" onclick="openStockModal(${s.id},'in')">📥 ইন</button>
         <button class="btn btn-danger btn-sm" onclick="openStockModal(${s.id},'out')">📤 আউট</button>
         ${isAdmin?`<button class="btn btn-primary btn-sm" onclick="editStockItem(${s.id})">✏️</button>
+        <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('স্টক',${s.id},'${s.name.replace(/'/g,"\\'")}')">🕐</button>
         <button class="btn btn-danger btn-sm" onclick="deleteStockItem(${s.id})">🗑️</button>`:''}
       </td>
     </tr>`;
@@ -12588,7 +12963,12 @@ function saveStaff() {
   };
   if (editId) {
     const s = appData.staff.find(s=>s.id===parseInt(editId));
-    if (s) { s.name=name; s.desig=desig; s.phone=phone; s.basic=basic; s.join=join; s.status=status; s.profile=profile; }
+    if (s) {
+      const before={name:s.name,desig:s.desig,phone:s.phone,basic:s.basic,status:s.status};
+      const after={name,desig,phone,basic,status};
+      saveEditHistory('কর্মী', s.id, name, before, after);
+      s.name=name; s.desig=desig; s.phone=phone; s.basic=basic; s.join=join; s.status=status; s.profile=profile;
+    }
   } else {
     appData.staff.push({ id:Date.now(), name, desig, phone, basic, join, status, profile });
   }
@@ -13055,6 +13435,7 @@ function renderSalarySheet() {
       <td>
         ${isAdmin ? `<button class="btn btn-primary btn-sm" onclick="editStaff(${s.id})">✏️</button>
         <button class="btn btn-outline btn-sm" onclick="viewStaffProfile(${s.id})">👤</button>
+        <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('কর্মী',${s.id},'${s.name.replace(/'/g,"\\'")}')">🕐</button>
         <button class="btn btn-danger btn-sm" onclick="deleteStaff(${s.id})">🗑️</button>` : '—'}
       </td>
     </tr>`;
@@ -13456,6 +13837,7 @@ function saveBill() {
     createDeliveryFromBill({ name:patName, phone:patPhone, orderDate:date, item:services.map(s=>s.name).join(', '), total:netBill, advance:cashPaid, deliveryDate, note:`মেমো: ${memoNo}` });
   }
   saveData();
+  logActivity('add', 'বিল (রিসেপশন)', `${memoNo} — ${patName}, নেট: ৳${fmt(netBill)}, পেইড: ৳${fmt(cashPaid)}`);
   showToast(`✅ বিল সেভ! মেমো: ${memoNo}` + (sendToDelivery?' — ডেলিভারি শিডিউলে পাঠানো হয়েছে':''));
   // returned draft ছিল হলে তা মুছে ফেলি যাতে নোটিফিকেশন আর না দেখায়
   if (window._returnedDraftId) {
@@ -15307,6 +15689,75 @@ function showDashCharts(){
   const allowed = role==='admin' || (role==='owner' && canAccess('owner','chart'));
   col.style.display = allowed ? 'contents' : 'none';
   if(allowed){ renderDashPieChart(); renderDashBarChart(); }
+  // monthly comparison সবসময় দেখাবে (allowed roles)
+  if(allowed){ renderMonthlyComparison(); }
+  else {
+    const w=document.getElementById('dashMoCompWrap'); if(w) w.style.display='none';
+  }
+}
+
+// ---- Monthly Comparison (this month vs last month, income/expense, % change) ----
+function _moCompSumByMonth(arr, ym){
+  return (arr||[]).filter(e=>e.date && e.date.startsWith(ym)).reduce((s,e)=>s+(Number(e.amount)||0),0);
+}
+function _moCompRow(label, curVal, prevVal, color){
+  let pct=0, dir='same';
+  if(prevVal>0){ pct=((curVal-prevVal)/prevVal)*100; }
+  else if(curVal>0){ pct=100; }
+  if(curVal>prevVal) dir='up'; else if(curVal<prevVal) dir='down';
+  const pctTxt = (prevVal===0 && curVal===0) ? '০%' : (dir==='up'?'▲ ':dir==='down'?'▼ ':'— ') + Math.abs(pct).toFixed(1)+'%';
+  const pctColor = dir==='up' ? '#16a34a' : dir==='down' ? '#e74c3c' : '#94a3b8';
+  // For expense, an increase is "bad" — flip color
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#334155"><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${color}"></span>${label}</div>
+      <div style="text-align:right">
+        <div style="font-size:13.5px;font-weight:800;color:${color}">৳ ${curVal.toLocaleString('bn-BD')}</div>
+        <div style="font-size:11px;font-weight:700;color:${pctColor}">${pctTxt} <span style="color:#94a3b8;font-weight:500">(গত মাস ৳ ${prevVal.toLocaleString('bn-BD')})</span></div>
+      </div>
+    </div>`;
+}
+function renderMonthlyComparison(){
+  const wrap=document.getElementById('dashMoCompWrap');
+  const body=document.getElementById('dashMoCompBody');
+  if(!body||!wrap) return;
+  const now=new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const prevD = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const prevYM = `${prevD.getFullYear()}-${String(prevD.getMonth()+1).padStart(2,'0')}`;
+
+  const curInc = _moCompSumByMonth(appData.income, curYM);
+  const prevInc = _moCompSumByMonth(appData.income, prevYM);
+  const curExp = _moCompSumByMonth(appData.expense, curYM);
+  const prevExp = _moCompSumByMonth(appData.expense, prevYM);
+  const curProfit = curInc-curExp, prevProfit = prevInc-prevExp;
+
+  const monthNames=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const lbl=document.getElementById('dashMoCompLabel');
+  if(lbl) lbl.textContent = `${monthNames[now.getMonth()]} বনাম ${monthNames[prevD.getMonth()]}`;
+
+  function moCol(label, curVal, prevVal, accentColor, divider) {
+    let pct=0, dir='same';
+    if(prevVal>0){ pct=((curVal-prevVal)/prevVal)*100; }
+    else if(curVal>0){ pct=100; }
+    if(curVal>prevVal) dir='up'; else if(curVal<prevVal) dir='down';
+    const pctTxt = (prevVal===0&&curVal===0) ? '০%' : (dir==='up'?'▲':dir==='down'?'▼':'—')+Math.abs(pct).toFixed(1)+'%';
+    const pctColor = dir==='up' ? '#16a34a' : dir==='down' ? '#e74c3c' : '#94a3b8';
+    const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
+    return `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}white-space:nowrap;overflow:hidden">
+      <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
+      <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">৳ ${curVal.toLocaleString('bn-BD')}</span>
+      <span style="font-size:11px;font-weight:700;color:${pctColor};flex-shrink:0">${pctTxt}</span>
+      <span style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis">(গত মাস ৳ ${prevVal.toLocaleString('bn-BD')})</span>
+    </div>`;
+  }
+
+  body.innerHTML =
+    moCol('আয়', curInc, prevInc, '#16a34a', true) +
+    moCol('ব্যয়', curExp, prevExp, '#e74c3c', true) +
+    moCol('নিট মুনাফা', curProfit, prevProfit, curProfit>=0?'#0f4c81':'#e74c3c', false);
+
+  wrap.style.display = 'block';
 }
 
 // ---- Owner page chart state ----
