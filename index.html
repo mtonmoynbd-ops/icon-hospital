@@ -5326,11 +5326,11 @@ function normalizeModuleData(val) {
 }
 function isDataSuspectEmpty(data) {
   // Firebase থেকে আসা ডাটা সন্দেহজনকভাবে খালি কিনা চেক করে
-  // যদি income, expense, visits, visits সব [] হয় এবং বর্তমান appData তে ডাটা থাকে
+  // যদি income, expense, visits, camps সব [] হয় এবং বর্তমান appData তে ডাটা থাকে
   const fbEmpty = normalizeModuleData(data.income).length === 0 &&
-                  (!data.expense || data.expense.length === 0) &&
-                  (!data.visits || data.visits.length === 0) &&
-                  (!data.camps || data.camps.length === 0);
+                  normalizeModuleData(data.expense).length === 0 &&
+                  normalizeModuleData(data.visits).length === 0 &&
+                  normalizeModuleData(data.camps).length === 0;
   const localHasData = (appData.income && appData.income.length > 0) ||
                        (appData.expense && appData.expense.length > 0) ||
                        (appData.visits && appData.visits.length > 0);
@@ -5356,19 +5356,27 @@ function startFirebaseSync() {
         return;
       }
       const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
-      // ✅ path-synced মডিউল (income) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
-      const wasLegacyArray = Array.isArray(data.income) && data.income.length > 0;
-      const normalizedIncome = normalizeModuleData(data.income);
-      appData = { ...def, ...data, income: normalizedIncome };
-      _lastSyncedIncomeMap = snapshotIncomeMap();
-      // ✅ একবারই: পুরনো (array-index ভিত্তিক) income কে id-keyed object এ রূপান্তর করে দেয়, যাতে ভবিষ্যতে প্রতি-এন্ট্রি ডিলিট/আপডেট সঠিক পাথে হয়
-      if (wasLegacyArray && window._fbSet && window._fbRef) {
-        const migrated = {};
-        normalizedIncome.forEach(e => { if (e && e.id != null) migrated[e.id] = e; });
-        window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/income'), migrated)
-          .then(() => console.log('[HMS] income মডিউল id-keyed ফরম্যাটে migrate হয়েছে'))
-          .catch(e => console.warn('[HMS] income migration ব্যর্থ:', e));
-      }
+      // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
+      const normalizedOverrides = {};
+      const legacyMigrations = [];
+      PATH_SYNCED_MODULES.forEach(m => {
+        const wasLegacyArray = Array.isArray(data[m]) && data[m].length > 0;
+        const normalized = normalizeModuleData(data[m]);
+        normalizedOverrides[m] = normalized;
+        if (wasLegacyArray) legacyMigrations.push({ module: m, normalized });
+      });
+      appData = { ...def, ...data, ...normalizedOverrides };
+      PATH_SYNCED_MODULES.forEach(m => { _lastSyncedMaps[m] = snapshotModuleMap(m); });
+      // ✅ একবারই: পুরনো (array-index ভিত্তিক) ডাটাকে id-keyed object এ রূপান্তর করে দেয়, যাতে ভবিষ্যতে প্রতি-এন্ট্রি ডিলিট/আপডেট সঠিক পাথে হয়
+      legacyMigrations.forEach(({ module, normalized }) => {
+        if (window._fbSet && window._fbRef) {
+          const migrated = {};
+          normalized.forEach(e => { if (e && e.id != null) migrated[e.id] = e; });
+          window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module), migrated)
+            .then(() => console.log('[HMS] ' + module + ' মডিউল id-keyed ফরম্যাটে migrate হয়েছে'))
+            .catch(e => console.warn('[HMS] ' + module + ' migration ব্যর্থ:', e));
+        }
+      });
       rebuildUsers();
       if (currentUser) {
         refreshDashboard();
@@ -5387,7 +5395,7 @@ function startFirebaseSync() {
           }
           openRoleFeature(getPreferredRoleFeature(currentUser.role));
         }
-        showToast('🔄 ডেটা sync হয়েছে');
+        // 🔕 "ডেটা sync হয়েছে" টোস্ট আর দেখানো হয় না
       }
     }
   });
@@ -5540,20 +5548,23 @@ function renderActivityLog() {
 let _fbSyncPending = false;
 
 // ✅ যেসব মডিউল এখন থেকে "প্রতি-এন্ট্রি" পাথে আলাদাভাবে সিঙ্ক হয় (পুরো array ওভাররাইট না) —
-// এতে দুইজন (যেমন অফলাইন ক্যাম্পেইনার + অফিসের অ্যাডমিন) একসাথে এন্ট্রি দিলেও একে অপরের ডাটা মুছে যায় না।
-// ধাপে ধাপে বাকি মডিউল (expense, visits, camps, demands ইত্যাদি) ও এখানে যোগ হবে।
-const PATH_SYNCED_MODULES = ['income'];
+// এতে যেকোনো দুইজন (অ্যাডমিন, মডারেটর, রিসেপশনিস্ট, ক্যাম্পেইনার — যে কেউ) একসাথে/কাছাকাছি সময়ে এন্ট্রি দিলেও
+// একে অপরের এন্ট্রি মুছে যায় না — প্রতিটা প্যানেলের এন্ট্রি স্বতন্ত্র থাকে।
+// (users বাদ পড়েছে কারণ সেখানে id নয়, username ইউনিক কী হিসেবে ব্যবহৃত হয়; settings/salaries/passwords/featureAccess/featureGroups
+//  অবজেক্ট-টাইপ বা কম-ফ্রিকোয়েন্সি কনফিগ ডাটা, এগুলো আপাতত root merge-এই থাকছে।)
+const PATH_SYNCED_MODULES = [
+  'income', 'expense', 'bankTx', 'visits', 'camps', 'stock', 'stockLog',
+  'demands', 'vouchers', 'loans', 'dividends', 'campSchedules', 'campVisits',
+  'campExpenses', 'campOpPatients', 'memoDocs', 'padNotices', 'recDeposits',
+  'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory',
+  'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
+  'shareholders', 'staff'
+];
 
 function updateSyncStatusUI() {
+  // 🔕 ব্যবহারকারীর অনুরোধে অফলাইন/অনলাইন ব্যাজ আর দেখানো হয় না — সিঙ্ক নিরবেই ব্যাকগ্রাউন্ডে চলবে
   const el = document.getElementById('syncStatusBadge');
-  if (!el) return;
-  if (_fbSyncPending) {
-    el.style.display = 'inline-flex';
-    el.style.background = '#fef3c7'; el.style.color = '#92400e';
-    el.textContent = '📴 সিঙ্ক বাকি — এন্ট্রি লোকালি সেভ আছে, নেট ফিরলে সিঙ্ক হবে';
-  } else {
-    el.style.display = 'none';
-  }
+  if (el) el.style.display = 'none';
 }
 
 function markSyncPending() {
@@ -5566,38 +5577,40 @@ function clearSyncPending() {
   updateSyncStatusUI();
 }
 
-// ✅ path-synced মডিউলের "সর্বশেষ সিঙ্ক হওয়া" অবস্থার স্ন্যাপশট — শুধু সফল সিঙ্কের পরই আপডেট হয়
-let _lastSyncedIncomeMap = null;
+// ✅ path-synced প্রতিটা মডিউলের "সর্বশেষ সিঙ্ক হওয়া" অবস্থার স্ন্যাপশট — শুধু সফল সিঙ্কের পরই আপডেট হয়
+let _lastSyncedMaps = {};
 
-function snapshotIncomeMap() {
+function snapshotModuleMap(module) {
   const m = {};
-  (appData.income || []).forEach(e => { if (e && e.id != null) m[e.id] = JSON.stringify(e); });
+  (appData[module] || []).forEach(e => { if (e && e.id != null) m[e.id] = JSON.stringify(e); });
   return m;
 }
 
-// ✅ বর্তমান income array-কে সর্বশেষ সিঙ্ক-স্ন্যাপশটের সাথে তুলনা করে শুধু নতুন/পরিবর্তিত/মুছে-ফেলা এন্ট্রিগুলো আলাদাভাবে
-// তাদের নিজস্ব পাথে (hms_data/income/{id}) পাঠায় — পুরো array কখনো ওভাররাইট হয় না। কোন কোড পয়েন্ট থেকে
-// income যোগ/পরিবর্তন/মুছা হলো তা গুরুত্বপূর্ণ না — এই ফাংশনটা সব জায়গার পরিবর্তন স্বয়ংক্রিয়ভাবে ধরবে।
-function syncIncomeDiff() {
+// ✅ বর্তমান array-কে সর্বশেষ সিঙ্ক-স্ন্যাপশটের সাথে তুলনা করে শুধু নতুন/পরিবর্তিত/মুছে-ফেলা এন্ট্রিগুলো আলাদাভাবে
+// তাদের নিজস্ব পাথে (hms_data/{module}/{id}) পাঠায় — পুরো array কখনো ওভাররাইট হয় না। কোন কোড পয়েন্ট থেকে
+// এন্ট্রি যোগ/পরিবর্তন/মুছা হলো তা গুরুত্বপূর্ণ না — এই ফাংশনটা সব জায়গার পরিবর্তন স্বয়ংক্রিয়ভাবে ধরবে।
+function syncModuleDiff(module) {
   if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(); return; }
-  const current = snapshotIncomeMap();
-  const prev = _lastSyncedIncomeMap || {};
+  const current = snapshotModuleMap(module);
+  const prev = _lastSyncedMaps[module] || {};
   const toWrite = [], toDelete = [];
   Object.keys(current).forEach(id => { if (prev[id] !== current[id]) toWrite.push(id); });
   Object.keys(prev).forEach(id => { if (!(id in current)) toDelete.push(id); });
   if (toWrite.length === 0 && toDelete.length === 0) return;
   const promises = [];
   toWrite.forEach(id => {
-    const entry = (appData.income || []).find(e => String(e.id) === String(id));
-    if (entry) promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/income/' + id), entry));
+    const entry = (appData[module] || []).find(e => String(e.id) === String(id));
+    if (entry) promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + id), entry));
   });
   toDelete.forEach(id => {
-    promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/income/' + id), null));
+    promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + id), null));
   });
   Promise.all(promises)
-    .then(() => { _lastSyncedIncomeMap = current; clearSyncPending(); })
-    .catch(e => { console.error('[HMS] income সিঙ্ক ব্যর্থ:', e); markSyncPending(); }); // baseline আপডেট হয়নি → পরের বার আবার চেষ্টা হবে
+    .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(); })
+    .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(); }); // baseline আপডেট হয়নি → পরের বার আবার চেষ্টা হবে
 }
+
+function syncAllPathModules() { PATH_SYNCED_MODULES.forEach(syncModuleDiff); }
 
 // ✅ root-এ যা পাঠানো হবে তা থেকে PATH_SYNCED_MODULES বাদ দিয়ে দেয় — যাতে সেগুলোর জন্য পুরো array ওভাররাইট না হয়
 function buildRootSyncPayload() {
@@ -5609,21 +5622,21 @@ function buildRootSyncPayload() {
 // নেট ফিরলে বা periodic retry-তে বাকি (path-synced নয় এমন) ডাটা আবার Firebase-এ পাঠানোর চেষ্টা করে
 function trySyncNow(showMsg) {
   if (!window._fbDb || !window._fbRef || !window._fbUpdate) return;
-  syncIncomeDiff();
-  // ✅ update() ব্যবহার করা হচ্ছে, set() না — update() শুধু দেওয়া key গুলো merge করে, বাকি (income সহ) অক্ষত থাকে
+  syncAllPathModules();
+  // ✅ update() ব্যবহার করা হচ্ছে, set() না — update() শুধু দেওয়া key গুলো merge করে, বাকি (income/expense/bankTx সহ) অক্ষত থাকে
   window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
-    .then(() => { clearSyncPending(); if (showMsg) showToast('✅ ইন্টারনেট ফিরেছে — ডাটা Firebase-এ সিঙ্ক হয়েছে'); })
+    .then(() => { clearSyncPending(); /* 🔕 সিঙ্ক টোস্ট আর দেখানো হয় না */ })
     .catch(e => { console.warn('[HMS] re-sync ব্যর্থ:', e.message); markSyncPending(); });
 }
 
-window.addEventListener('online', () => { if (_fbSyncPending) trySyncNow(true); });
+window.addEventListener('online', () => { if (_fbSyncPending) trySyncNow(false); });
 window.addEventListener('offline', () => markSyncPending());
 // safety-net: online ইভেন্ট মিস হলেও প্রতি ২০ সেকেন্ডে পেন্ডিং সিঙ্ক চেষ্টা করবে
 setInterval(() => { if (_fbSyncPending) trySyncNow(false); }, 20000);
 
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
-  syncIncomeDiff();
+  syncAllPathModules();
   if (window._fbDb && window._fbRef && window._fbUpdate) {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
     window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
