@@ -718,7 +718,7 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
       <!-- Monthly Comparison — full width strip -->
-      <div id="dashMoCompWrap" style="display:none;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
+      <div id="dashMoCompWrap" style="display:none;background:#fffdf3;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
         <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto">
           <div id="dashMoCompBody" style="display:flex;align-items:stretch;flex:1;min-width:max-content"></div>
           <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);white-space:nowrap">
@@ -3904,10 +3904,13 @@ function openPrintWindow(htmlContent, title) {
 <!-- TOAST -->
 <div id="toast" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:#1a2a3a;color:white;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.3);transform:translateY(80px);opacity:0;transition:all 0.3s ease;pointer-events:none;"></div>
 
+<!-- OFFLINE / SYNC STATUS BADGE -->
+<div id="syncStatusBadge" style="display:none;position:fixed;bottom:24px;left:24px;z-index:9999;padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,0.15);align-items:center;gap:6px;"></div>
+
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -3934,6 +3937,8 @@ window._fbRef = ref;
 window._fbSet = set;
 window._fbGet = get;
 window._fbOnValue = onValue;
+window._fbUpdate = update;
+window._fbRemove = remove;
 window._fbDBREF = 'hms_data';
 </script>
 
@@ -5310,13 +5315,19 @@ function loadData() {
     }
   } catch(e) {}
   rebuildUsers();
+  try { if (localStorage.getItem('hms_pending_sync') === '1') { _fbSyncPending = true; updateSyncStatusUI(); } } catch(e){}
   setTimeout(startFirebaseSync, 1000);
 }
 // ===== DATA INTEGRITY CHECK =====
+function normalizeModuleData(val) {
+  // Firebase-এ path-synced মডিউল (যেমন income) array অথবা id-keyed object — দুই ফরম্যাটেই থাকতে পারে; সবসময় array এ রূপান্তর করে
+  if (!val) return [];
+  return Array.isArray(val) ? val : Object.values(val);
+}
 function isDataSuspectEmpty(data) {
   // Firebase থেকে আসা ডাটা সন্দেহজনকভাবে খালি কিনা চেক করে
   // যদি income, expense, visits, visits সব [] হয় এবং বর্তমান appData তে ডাটা থাকে
-  const fbEmpty = (!data.income || data.income.length === 0) &&
+  const fbEmpty = normalizeModuleData(data.income).length === 0 &&
                   (!data.expense || data.expense.length === 0) &&
                   (!data.visits || data.visits.length === 0) &&
                   (!data.camps || data.camps.length === 0);
@@ -5332,6 +5343,12 @@ function startFirebaseSync() {
   window._fbOnValue(dataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
+      // ✅ সুরক্ষা: এই ডিভাইসে এখনো Firebase-এ পুশ না হওয়া (offline-এ করা) এন্ট্রি থাকলে, সার্ভারের পুরনো ডাটা দিয়ে ওভাররাইট করবে না —
+      // নাহলে অফলাইনে করা এন্ট্রিগুলো হারিয়ে যেতে পারে। আগে লোকাল পেন্ডিং ডাটা পুশ হবে, তারপর এই লিসেনার আবার স্বাভাবিকভাবে চলবে।
+      if (_fbSyncPending) {
+        console.warn('[HMS] লোকাল ডাটা এখনো Firebase-এ পুশ হয়নি — এই মুহূর্তে সার্ভার ডাটা দিয়ে ওভাররাইট করা হচ্ছে না।');
+        return;
+      }
       // ✅ সুরক্ষা: Firebase থেকে সন্দেহজনক খালি ডাটা আসলে overwrite করবে না
       if (isDataSuspectEmpty(data)) {
         console.warn('[HMS] Firebase ডাটা সন্দেহজনকভাবে খালি — overwrite বন্ধ রাখা হয়েছে। localStorage ডাটা সুরক্ষিত।');
@@ -5339,7 +5356,19 @@ function startFirebaseSync() {
         return;
       }
       const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
-      appData = { ...def, ...data };
+      // ✅ path-synced মডিউল (income) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
+      const wasLegacyArray = Array.isArray(data.income) && data.income.length > 0;
+      const normalizedIncome = normalizeModuleData(data.income);
+      appData = { ...def, ...data, income: normalizedIncome };
+      _lastSyncedIncomeMap = snapshotIncomeMap();
+      // ✅ একবারই: পুরনো (array-index ভিত্তিক) income কে id-keyed object এ রূপান্তর করে দেয়, যাতে ভবিষ্যতে প্রতি-এন্ট্রি ডিলিট/আপডেট সঠিক পাথে হয়
+      if (wasLegacyArray && window._fbSet && window._fbRef) {
+        const migrated = {};
+        normalizedIncome.forEach(e => { if (e && e.id != null) migrated[e.id] = e; });
+        window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/income'), migrated)
+          .then(() => console.log('[HMS] income মডিউল id-keyed ফরম্যাটে migrate হয়েছে'))
+          .catch(e => console.warn('[HMS] income migration ব্যর্থ:', e));
+      }
       rebuildUsers();
       if (currentUser) {
         refreshDashboard();
@@ -5507,12 +5536,99 @@ function renderActivityLog() {
   }
 }
 
+// ===== OFFLINE / SYNC STATUS =====
+let _fbSyncPending = false;
+
+// ✅ যেসব মডিউল এখন থেকে "প্রতি-এন্ট্রি" পাথে আলাদাভাবে সিঙ্ক হয় (পুরো array ওভাররাইট না) —
+// এতে দুইজন (যেমন অফলাইন ক্যাম্পেইনার + অফিসের অ্যাডমিন) একসাথে এন্ট্রি দিলেও একে অপরের ডাটা মুছে যায় না।
+// ধাপে ধাপে বাকি মডিউল (expense, visits, camps, demands ইত্যাদি) ও এখানে যোগ হবে।
+const PATH_SYNCED_MODULES = ['income'];
+
+function updateSyncStatusUI() {
+  const el = document.getElementById('syncStatusBadge');
+  if (!el) return;
+  if (_fbSyncPending) {
+    el.style.display = 'inline-flex';
+    el.style.background = '#fef3c7'; el.style.color = '#92400e';
+    el.textContent = '📴 সিঙ্ক বাকি — এন্ট্রি লোকালি সেভ আছে, নেট ফিরলে সিঙ্ক হবে';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function markSyncPending() {
+  if (!_fbSyncPending) { _fbSyncPending = true; try { localStorage.setItem('hms_pending_sync','1'); } catch(e){} }
+  updateSyncStatusUI();
+}
+
+function clearSyncPending() {
+  if (_fbSyncPending) { _fbSyncPending = false; try { localStorage.removeItem('hms_pending_sync'); } catch(e){} }
+  updateSyncStatusUI();
+}
+
+// ✅ path-synced মডিউলের "সর্বশেষ সিঙ্ক হওয়া" অবস্থার স্ন্যাপশট — শুধু সফল সিঙ্কের পরই আপডেট হয়
+let _lastSyncedIncomeMap = null;
+
+function snapshotIncomeMap() {
+  const m = {};
+  (appData.income || []).forEach(e => { if (e && e.id != null) m[e.id] = JSON.stringify(e); });
+  return m;
+}
+
+// ✅ বর্তমান income array-কে সর্বশেষ সিঙ্ক-স্ন্যাপশটের সাথে তুলনা করে শুধু নতুন/পরিবর্তিত/মুছে-ফেলা এন্ট্রিগুলো আলাদাভাবে
+// তাদের নিজস্ব পাথে (hms_data/income/{id}) পাঠায় — পুরো array কখনো ওভাররাইট হয় না। কোন কোড পয়েন্ট থেকে
+// income যোগ/পরিবর্তন/মুছা হলো তা গুরুত্বপূর্ণ না — এই ফাংশনটা সব জায়গার পরিবর্তন স্বয়ংক্রিয়ভাবে ধরবে।
+function syncIncomeDiff() {
+  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(); return; }
+  const current = snapshotIncomeMap();
+  const prev = _lastSyncedIncomeMap || {};
+  const toWrite = [], toDelete = [];
+  Object.keys(current).forEach(id => { if (prev[id] !== current[id]) toWrite.push(id); });
+  Object.keys(prev).forEach(id => { if (!(id in current)) toDelete.push(id); });
+  if (toWrite.length === 0 && toDelete.length === 0) return;
+  const promises = [];
+  toWrite.forEach(id => {
+    const entry = (appData.income || []).find(e => String(e.id) === String(id));
+    if (entry) promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/income/' + id), entry));
+  });
+  toDelete.forEach(id => {
+    promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/income/' + id), null));
+  });
+  Promise.all(promises)
+    .then(() => { _lastSyncedIncomeMap = current; clearSyncPending(); })
+    .catch(e => { console.error('[HMS] income সিঙ্ক ব্যর্থ:', e); markSyncPending(); }); // baseline আপডেট হয়নি → পরের বার আবার চেষ্টা হবে
+}
+
+// ✅ root-এ যা পাঠানো হবে তা থেকে PATH_SYNCED_MODULES বাদ দিয়ে দেয় — যাতে সেগুলোর জন্য পুরো array ওভাররাইট না হয়
+function buildRootSyncPayload() {
+  const payload = { ...appData };
+  PATH_SYNCED_MODULES.forEach(m => delete payload[m]);
+  return payload;
+}
+
+// নেট ফিরলে বা periodic retry-তে বাকি (path-synced নয় এমন) ডাটা আবার Firebase-এ পাঠানোর চেষ্টা করে
+function trySyncNow(showMsg) {
+  if (!window._fbDb || !window._fbRef || !window._fbUpdate) return;
+  syncIncomeDiff();
+  // ✅ update() ব্যবহার করা হচ্ছে, set() না — update() শুধু দেওয়া key গুলো merge করে, বাকি (income সহ) অক্ষত থাকে
+  window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
+    .then(() => { clearSyncPending(); if (showMsg) showToast('✅ ইন্টারনেট ফিরেছে — ডাটা Firebase-এ সিঙ্ক হয়েছে'); })
+    .catch(e => { console.warn('[HMS] re-sync ব্যর্থ:', e.message); markSyncPending(); });
+}
+
+window.addEventListener('online', () => { if (_fbSyncPending) trySyncNow(true); });
+window.addEventListener('offline', () => markSyncPending());
+// safety-net: online ইভেন্ট মিস হলেও প্রতি ২০ সেকেন্ডে পেন্ডিং সিঙ্ক চেষ্টা করবে
+setInterval(() => { if (_fbSyncPending) trySyncNow(false); }, 20000);
+
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
-  if (window._fbDb && window._fbRef && window._fbSet) {
-    // ✅ মূল ডাটা সেভ
-    window._fbSet(window._fbRef(window._fbDb, window._fbDBREF), appData)
-      .catch(e => console.error('Firebase save error:', e));
+  syncIncomeDiff();
+  if (window._fbDb && window._fbRef && window._fbUpdate) {
+    // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
+    window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
+      .then(() => clearSyncPending())
+      .catch(e => { console.error('Firebase save error:', e); markSyncPending(); });
     // ✅ দৈনিক snapshot backup (Firebase এ আলাদা node এ)
     const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
     const backupKey = 'hms_last_backup_' + today;
@@ -5546,6 +5662,9 @@ function saveData() {
         })
         .catch(e => console.warn('Firebase backup error:', e));
     }
+  } else {
+    // Firebase এখনো রেডি হয়নি — পরে রেডি হলে সিঙ্ক হবে
+    markSyncPending();
   }
 }
 
@@ -10444,11 +10563,11 @@ function initCamperReadOnlySection(feature) {
 // Owner read-only section render
 function renderOwnerReadOnlySection(feature) {
   const ros = document.getElementById('ownerReadOnlySection');
-  if (ros) ros.innerHTML = buildReadOnlyHTML(feature);
+  if (ros) ros.innerHTML = buildReadOnlyHTML(feature, 'owner');
 }
 
 // Read-only HTML builder — সব ফিচারের জন্য
-function buildReadOnlyHTML(feature) {
+function buildReadOnlyHTML(feature, role) {
   const fmt2 = n => new Intl.NumberFormat('bn-BD').format(Math.round(n)||0);
   const badge = ``; // "শুধু পড়া যাবে" ব্যাজ সরিয়ে দেওয়া হয়েছে
   const tableStyle = 'width:100%;border-collapse:collapse;font-size:13px';
@@ -10533,8 +10652,17 @@ function buildReadOnlyHTML(feature) {
       </table></div>`;
   }
   if (feature === 'demand') {
-    const rows = (appData.demands||[]).filter(d=>d.by===currentUser.name).slice().sort((a,b)=>b.id-a.id).slice(0,30);
     const statusLabel = { pending:'⏳ অপেক্ষমাণ', approved:'✅ অনুমোদিত', rejected:'❌ প্রত্যাখ্যাত', partial:'🔄 আংশিক' };
+    if (role === 'owner') {
+      // Owner: শুধু দেখতে পারবে — কে কোন ডিমান্ড নোট তৈরি করলো আর কি অনুমোদিত হলো। নতুন ডিমান্ড নোট তৈরি করতে পারবে না।
+      const rows = (appData.demands||[]).slice().sort((a,b)=>b.id-a.id).slice(0,50);
+      return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📝 ডিমান্ড নোট (সব)</div>
+        <div style="overflow-x:auto"><table style="${tableStyle}">
+          <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">শিরোনাম</th><th style="${thStyle}">তৈরিকারী</th><th style="${thStyle}">আইটেম</th><th style="${thStyle}">স্ট্যাটাস</th><th style="${thStyle}">অনুমোদনকারী</th></tr>
+          ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle};font-weight:600">${d.title}</td><td style="${tdStyle}">${d.by||'—'}</td><td style="${tdStyle};text-align:center">${(d.items||[]).length} টি</td><td style="${tdStyle}">${statusLabel[d.status]||d.status}</td><td style="${tdStyle}">${d.approvedBy||'—'}</td></tr>`).join('') : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">কোনো ডিমান্ড নোট নেই</td></tr>`}
+        </table></div>`;
+    }
+    const rows = (appData.demands||[]).filter(d=>d.by===currentUser.name).slice().sort((a,b)=>b.id-a.id).slice(0,30);
     const cats = ['ওষুধ','সার্জিক্যাল সামগ্রী','অফিস সামগ্রী','যন্ত্রপাতি','আসবাবপত্র','অন্যান্য'];
     return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-weight:700;color:var(--primary);font-size:15px">📝 ডিমান্ড নোট</div>
