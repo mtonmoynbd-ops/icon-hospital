@@ -718,7 +718,7 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
       <!-- Monthly Comparison — full width strip -->
-      <div id="dashMoCompWrap" style="display:none;background:#fffdf3;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
+      <div id="dashMoCompWrap" style="display:none;background:#fffdf3;border-radius:var(--radius);border-top:1.5px solid var(--border);border-right:1.5px solid var(--border);border-bottom:1.5px solid var(--border);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
         <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto">
           <div id="dashMoCompBody" style="display:flex;align-items:stretch;flex:1;min-width:max-content"></div>
           <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);white-space:nowrap">
@@ -10668,12 +10668,33 @@ function buildReadOnlyHTML(feature, role) {
     const statusLabel = { pending:'⏳ অপেক্ষমাণ', approved:'✅ অনুমোদিত', rejected:'❌ প্রত্যাখ্যাত', partial:'🔄 আংশিক' };
     if (role === 'owner') {
       // Owner: শুধু দেখতে পারবে — কে কোন ডিমান্ড নোট তৈরি করলো আর কি অনুমোদিত হলো। নতুন ডিমান্ড নোট তৈরি করতে পারবে না।
+      const statusBadgeStyle = {
+        pending:  'background:#fef3c7;color:#92400e',
+        approved: 'background:#dcfce7;color:#166534',
+        rejected: 'background:#fee2e2;color:#991b1b',
+        partial:  'background:#dbeafe;color:#1e40af'
+      };
       const rows = (appData.demands||[]).slice().sort((a,b)=>b.id-a.id).slice(0,50);
       return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📝 ডিমান্ড নোট (সব)</div>
-        <div style="overflow-x:auto"><table style="${tableStyle}">
-          <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">শিরোনাম</th><th style="${thStyle}">তৈরিকারী</th><th style="${thStyle}">আইটেম</th><th style="${thStyle}">স্ট্যাটাস</th><th style="${thStyle}">অনুমোদনকারী</th></tr>
-          ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle};font-weight:600">${d.title}</td><td style="${tdStyle}">${d.by||'—'}</td><td style="${tdStyle};text-align:center">${(d.items||[]).length} টি</td><td style="${tdStyle}">${statusLabel[d.status]||d.status}</td><td style="${tdStyle}">${d.approvedBy||'—'}</td></tr>`).join('') : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">কোনো ডিমান্ড নোট নেই</td></tr>`}
-        </table></div>`;
+        ${rows.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">
+          ${rows.map(d=>{
+            const badgeStyle = statusBadgeStyle[d.status] || 'background:#f1f5f9;color:#475569';
+            return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                <div style="font-weight:700;font-size:13.5px;color:#1e293b;line-height:1.35">${d.title}</div>
+                <span style="flex-shrink:0;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;${badgeStyle}">${statusLabel[d.status]||d.status}</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--text-light)">📅 ${formatDate(d.date)}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:#334155">
+                <span>👤 তৈরিকারী: <strong>${d.by||'—'}</strong></span>
+                <span>📦 আইটেম: <strong>${(d.items||[]).length} টি</strong></span>
+              </div>
+              ${d.approvedBy ? `<div style="font-size:12px;color:#334155">✅ অনুমোদনকারী: <strong>${d.approvedBy}</strong></div>` : ''}
+              ${d.adminNote ? `<div style="font-size:11.5px;color:#92400e;background:#fffbeb;border-radius:6px;padding:6px 8px">📝 ${d.adminNote}</div>` : ''}
+              <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:2px" onclick="viewDemand(${d.id})">👁️ বিস্তারিত দেখুন</button>
+            </div>`;
+          }).join('')}
+        </div>` : `<div style="padding:24px;text-align:center;color:#aaa">কোনো ডিমান্ড নোট নেই</div>`}`;
     }
     const rows = (appData.demands||[]).filter(d=>d.by===currentUser.name).slice().sort((a,b)=>b.id-a.id).slice(0,30);
     const cats = ['ওষুধ','সার্জিক্যাল সামগ্রী','অফিস সামগ্রী','যন্ত্রপাতি','আসবাবপত্র','অন্যান্য'];
@@ -15405,11 +15426,24 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
   const total = values.reduce((a,b)=>a+b,0);
 
   if (total === 0) {
+    // ডাটা না থাকলেও "কোনো ডেটা নেই" না দেখিয়ে একরঙা নীল পাই/ডোনাট দেখানো হবে
     const isTopPie = canvas.id==='dashPieCanvas' || canvas.id==='ownerPieCanvas';
-    const emptyCy = isTopPie ? (Math.min(w/2,112)*0.90)+6 : h/2;
-    ctx.fillStyle='#bbb'; ctx.font='12px Hind Siliguri,sans-serif';
+    const cx = w/2;
+    const r = isTopPie ? Math.min(cx, 112) * 0.90 : Math.min(cx, h/2) * 0.90;
+    const ir = r * 0.52;
+    const cy = isTopPie ? r + 6 : h/2;
+    const emptyColor = '#bfdbfe'; // হালকা মানানসই নীল
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,0,2*Math.PI); ctx.closePath();
+    ctx.fillStyle = emptyColor; ctx.fill();
+    // hole
+    ctx.beginPath(); ctx.arc(cx,cy,ir,0,2*Math.PI);
+    ctx.fillStyle='white'; ctx.fill();
+    // center text
+    ctx.fillStyle='#0f4c81'; ctx.font='bold 13px Hind Siliguri,sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('কোনো ডেটা নেই', w/2, emptyCy);
+    ctx.fillText('৳ ০', cx, cy);
+    canvas._pieArcs = [];
     if (legendEl) legendEl.innerHTML = '';
     return;
   }
@@ -15877,7 +15911,7 @@ function renderMonthlyComparison(){
   const lbl=document.getElementById('dashMoCompLabel');
   if(lbl) lbl.textContent = `${monthNames[now.getMonth()]} বনাম ${monthNames[prevD.getMonth()]}`;
 
-  function moCol(label, curVal, prevVal, accentColor, divider) {
+  function moCol(label, curVal, prevVal, accentColor, divider, bgColor) {
     let pct=0, dir='same';
     if(prevVal>0){ pct=((curVal-prevVal)/prevVal)*100; }
     else if(curVal>0){ pct=100; }
@@ -15885,7 +15919,7 @@ function renderMonthlyComparison(){
     const pctTxt = (prevVal===0&&curVal===0) ? '০%' : (dir==='up'?'▲':dir==='down'?'▼':'—')+Math.abs(pct).toFixed(1)+'%';
     const pctColor = dir==='up' ? '#16a34a' : dir==='down' ? '#e74c3c' : '#94a3b8';
     const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
-    return `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}white-space:nowrap;overflow:hidden">
+    return `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
       <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
       <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">৳ ${curVal.toLocaleString('bn-BD')}</span>
       <span style="font-size:11px;font-weight:700;color:${pctColor};flex-shrink:0">${pctTxt}</span>
@@ -15894,9 +15928,9 @@ function renderMonthlyComparison(){
   }
 
   body.innerHTML =
-    moCol('আয়', curInc, prevInc, '#16a34a', true) +
-    moCol('ব্যয়', curExp, prevExp, '#e74c3c', true) +
-    moCol('নিট মুনাফা', curProfit, prevProfit, curProfit>=0?'#0f4c81':'#e74c3c', false);
+    moCol('আয়', curInc, prevInc, '#16a34a', true, 'rgba(22,163,74,0.06)') +
+    moCol('ব্যয়', curExp, prevExp, '#e74c3c', true, 'rgba(231,76,60,0.06)') +
+    moCol('নিট মুনাফা', curProfit, prevProfit, curProfit>=0?'#0f4c81':'#e74c3c', false, curProfit>=0?'rgba(15,76,129,0.06)':'rgba(231,76,60,0.06)');
 
   wrap.style.display = 'block';
 }
