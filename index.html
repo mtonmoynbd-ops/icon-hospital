@@ -72,26 +72,32 @@
 
   /* MAIN CONTENT */
   .main-content { margin-left:260px; width:calc(100% - 260px); min-height:100vh; height:100vh; overflow-y:auto; padding:24px; display:flex; flex-direction:column; box-sizing:border-box; }
-  .app-topbar-logo { height:var(--topbar-logo-h); width:auto; max-width:260px; object-fit:contain; flex-shrink:0; }
-  .top-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px; min-height:var(--topbar-logo-h); position:relative; flex-wrap:wrap; }
-  /* ===== QUICK ACCESS FLOATING ROUND ICON BUTTONS (টপ-বারের সেন্টারে, লোগো লাইনেই) ===== */
-  .qa-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px; flex:1 1 auto; }
-  .qa-bar:empty { display:none; }
+  .app-topbar-logo { height:var(--topbar-logo-h); width:auto; max-width:260px; object-fit:contain; flex-shrink:0; cursor:default; user-select:none; -webkit-user-select:none; }
+  .top-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px; min-height:var(--topbar-logo-h); position:relative; flex-wrap:wrap; cursor:pointer; }
+  .top-bar .page-title, .top-bar .page-sub, .top-bar .topbar-title-block { cursor:default; }
+  /* ===== QUICK ACCESS — একক সেগমেন্টেড টুলবার (টপ-বারের সেন্টারে, লোগো লাইনেই) ===== */
+  .qa-bar { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; background:#f5f8fb; border:1.5px solid var(--border); border-radius:12px; padding:4px; gap:1px; flex:0 1 auto; cursor:pointer; }
+  .qa-bar:empty { display:none; background:none; border:none; padding:0; }
   .qa-btn, .qa-btn * { cursor:pointer !important; user-select:none; -webkit-user-select:none; }
-  .qa-btn { display:flex; align-items:center; background:#fff; border:1.5px solid transparent; border-radius:999px; padding:2px; font-family:inherit; box-shadow:0 1px 2px rgba(0,0,0,0.06); transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
-  .qa-btn:hover { border-color:var(--border); box-shadow:0 2px 7px rgba(0,0,0,0.08); transform:translateY(-1px); }
-  .qa-btn.active { border-color:var(--primary); background:rgba(15,76,129,0.05); }
-  .qa-btn .qa-icon { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
-  .qa-btn .qa-label-wrap { display:grid; grid-template-columns:0fr; transition:grid-template-columns .45s cubic-bezier(.25,.8,.35,1); }
+  .qa-btn { display:flex; align-items:center; background:transparent; border:none; border-radius:9px; padding:7px 10px; font-family:inherit; transition:background .15s ease; }
+  .qa-btn:hover { background:rgba(15,76,129,0.06); }
+  .qa-btn .qa-content { position:relative; display:flex; align-items:center; }
+  .qa-btn .qa-icon { display:flex; align-items:center; color:var(--text-light); flex-shrink:0; transition:color .15s ease; }
+  .qa-btn .qa-icon svg { display:block; width:15px; height:15px; }
+  .qa-btn.active .qa-icon { color:var(--primary); }
+  .qa-btn .qa-label-wrap { display:grid; grid-template-columns:0fr; transition:grid-template-columns .3s cubic-bezier(.25,.8,.35,1); }
   .qa-btn:hover .qa-label-wrap, .qa-btn.active .qa-label-wrap { grid-template-columns:1fr; }
-  .qa-btn .qa-label { min-width:0; overflow:hidden; white-space:nowrap; font-size:11.5px; font-weight:700; color:var(--text); padding-right:0; transition:padding .45s cubic-bezier(.25,.8,.35,1); }
-  .qa-btn:hover .qa-label, .qa-btn.active .qa-label { padding-right:9px; padding-left:7px; }
+  .qa-btn .qa-label { min-width:0; overflow:hidden; white-space:nowrap; font-size:11.5px; font-weight:700; color:var(--text-light); padding-left:0; transition:padding .3s cubic-bezier(.25,.8,.35,1), color .15s ease; }
+  .qa-btn:hover .qa-label, .qa-btn.active .qa-label { padding-left:6px; }
   .qa-btn.active .qa-label { color:var(--primary); }
+  .qa-btn .qa-content::after { content:''; position:absolute; left:0; right:0; bottom:-7px; height:2px; border-radius:2px 2px 0 0; background:transparent; transition:background .2s ease; }
+  .qa-btn.active .qa-content::after { background:var(--primary); }
   @media (max-width:900px) {
     .qa-bar { order:3; flex-basis:100%; margin-top:6px; }
   }
   @media (max-width:700px) {
-    .qa-btn .qa-icon { width:23px; height:23px; font-size:12px; }
+    .qa-btn { padding:6px 8px; }
+    .qa-btn .qa-icon svg { width:14px; height:14px; }
     .qa-btn .qa-label { font-size:10.5px; }
   }
   @media (max-width:640px) {
@@ -581,7 +587,7 @@ function openPrintWindow(htmlContent, title) {
   </nav>
   <main class="main-content">
     <div class="top-bar">
-      <div>
+      <div class="topbar-title-block">
         <div class="page-title" id="pageTitle">ড্যাশবোর্ড</div>
         <div class="page-sub" id="pageSub">আজকের সারসংক্ষেপ</div>
       </div>
@@ -10216,37 +10222,81 @@ function saveQuickAccessSettings() {
 
 // admin/moderator টপ-বারে (ড্যাশবোর্ড/লোগো লাইনের সেন্টারে) ফ্লোটিং ওভাল কুইক-এক্সেস বাটন রেন্ডার করে
 // আইকনের সাথে মানানসই রঙ — ফিচারের ধরন অনুযায়ী (টাকা=সবুজ, খরচ=লাল, স্টক=কমলা, ব্যাংক/হিসাব=নীল, এইচআর=বেগুনি, সেটিংস=পার্পল ইত্যাদি)
-const QA_ICON_COLORS = {
-  dashboard:'#dbe9f7', chart:'#dbe9f7', report:'#dbe9f7',
-  income:'#dbf3e3', 'act-income-add':'#dbf3e3',
-  expense:'#fbdfdf', 'act-expense-add':'#fbdfdf', due:'#fbdfdf',
-  stock:'#fce6d4', 'act-stock-add':'#fce6d4', demand:'#fce6d4', 'act-demand-add':'#fce6d4',
-  bank:'#dde6fb', checkbook:'#dde6fb', loan:'#dde6fb', balancesheet:'#dde6fb', recdeposit:'#dde6fb', delivery:'#dde6fb',
-  salary:'#ebe1fb', attendance:'#ebe1fb',
-  camp:'#daf1ee',
-  vendor:'#fbdfec', shareholders:'#fbdfec',
-  memorandum:'#e7eaee', officialpad:'#e7eaee', patients:'#e7eaee', newbill:'#e7eaee', adminbill:'#e7eaee', testfees:'#e7eaee',
+// একরঙা SVG লাইন-আইকন সেট (currentColor ব্যবহার করে, তাই CSS দিয়ে রঙ কন্ট্রোল হয় — ইমোজির মতো নিজস্ব রঙ থাকে না)
+const QA_SVG = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V12M10 20V6M16 20v-9"/><path d="M2 20h20"/></svg>',
+  coin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>',
+  receipt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>',
+  briefcase:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  clipboard:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></svg>',
+  truck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="11" height="8"/><path d="M13 11h4l3 3v2h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>',
+  bank:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M10 10v9M14 10v9M19 10v9"/><path d="M3 19h18"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3V4z"/><path d="M18 4v16"/></svg>',
+  card:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15 14c2.8 .3 5 2.6 5 6"/></svg>',
+  filetext:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6"/></svg>',
+  archive:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M4 8v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>',
+  scale:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M6 7h12"/><path d="M4 7l3 6H1l3-6zM20 7l3 6h-6l3-6z"/><path d="M8 21h8"/></svg>',
+  fileplus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M12 12v6M9 15h6"/></svg>',
+  flask:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6M10 2v6l-6 11a1.5 1.5 0 0 0 1.3 2.3h13.4A1.5 1.5 0 0 0 20 19L14 8V2"/><path d="M7 15h10"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-9.5-9C.7 8.4 2.4 5 6 5c2 0 3.5 1.2 4 2.3.5-1.1 2-2.3 4-2.3 3.6 0 5.3 3.4 3.5 7-2.5 4.6-9.5 9-9.5 9z"/></svg>',
+  file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg>',
+  tent:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 17H3z"/><path d="M12 3v17M8 20l4-8 4 8"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>',
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  tag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11V4h7l11 11-7 7z"/><circle cx="7.5" cy="7.5" r="1.1" fill="currentColor" stroke="none"/></svg>',
+  folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"/></svg>',
+  bolt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>',
+  hash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14M5 15h14M9 3 7 21M17 3l-2 18"/></svg>',
+  save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 13h8v8H8z"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"/></svg>',
 };
-function qaIconColor(item) {
-  if (item.group === 'সেটিংস') return '#f0e3fb';
-  return QA_ICON_COLORS[item.id] || '#dbe9f7';
+const QA_ICON_MAP = {
+  dashboard:'home', chart:'chart', report:'chart',
+  income:'coin', 'act-income-add':'coin',
+  expense:'receipt', 'act-expense-add':'receipt', due:'clock',
+  stock:'box', 'act-stock-add':'box', demand:'clipboard', 'act-demand-add':'clipboard',
+  bank:'bank', checkbook:'book', loan:'card', balancesheet:'scale', recdeposit:'archive', delivery:'truck',
+  salary:'briefcase', attendance:'calendar',
+  camp:'tent',
+  vendor:'truck', shareholders:'users',
+  memorandum:'filetext', officialpad:'file', patients:'heart', newbill:'fileplus', adminbill:'fileplus', testfees:'flask',
+  'set-hosp-info':'heart', 'set-num-series':'hash', 'set-fixed-cost':'coin', 'set-pricing':'tag',
+  'set-users':'users', 'set-feature-acc':'lock', 'set-camp-sched':'tent', 'set-test-fee':'flask',
+  'set-income-cat':'folder', 'set-exp-subcat':'clipboard', 'set-stock-cat':'box', 'set-cash-persons':'user',
+  'set-checkbook':'book', 'set-firebase':'bolt', 'set-backup':'save', 'set-activity-log':'filetext',
+};
+function qaSvgIcon(item) {
+  return QA_SVG[QA_ICON_MAP[item.id]] || QA_SVG.gear;
 }
 
 function renderQuickAccessBar(activeFeature) {
   const bar = document.getElementById('quickAccessBar');
   if (!bar || !currentUser) return;
+  const topBarEl = bar.parentElement;
   const role = currentUser.role;
-  if (role !== 'admin' && role !== 'moderator') { bar.innerHTML = ''; return; }
+  if (role !== 'admin' && role !== 'moderator') {
+    bar.innerHTML = '';
+    if (topBarEl) topBarEl.onclick = null;
+    return;
+  }
   const active = activeFeature || currentActivePage || 'dashboard';
   const picked = appData.quickAccess || [];
   const allowed = picked
     .map(id => quickActionInfo(id))
     .filter(item => item && quickAccessAllowedForRole(item, role));
-  if (!allowed.length) { bar.innerHTML = ''; return; }
   bar.innerHTML = allowed.map(item => {
     const isActive = item.type === 'page' ? item.targetId === active : (item.page === active);
-    return `<button type="button" class="qa-btn ${isActive?'active':''}" onclick="goQuickAccess('${item.id}')" title="${item.label}"><span class="qa-icon" style="background:${qaIconColor(item)}">${item.icon}</span><span class="qa-label-wrap"><span class="qa-label">${item.label}</span></span></button>`;
+    return `<button type="button" class="qa-btn ${isActive?'active':''}" onclick="goQuickAccess('${item.id}')" title="${item.label}"><span class="qa-content"><span class="qa-icon">${qaSvgIcon(item)}</span><span class="qa-label-wrap"><span class="qa-label">${item.label}</span></span></span></button>`;
   }).join('');
+  // বার এবং টপ-বারের ফাঁকা জায়গায় (কোনো আইকন/বাটনের উপরে না) ক্লিক করলে ড্যাশবোর্ডে ফিরে যাবে
+  const goHome = (e) => { if (e.target === topBarEl || e.target === bar) goQuickAccess('dashboard'); };
+  bar.onclick = goHome;
+  if (topBarEl) topBarEl.onclick = goHome;
 }
 
 function goQuickAccess(id) {
