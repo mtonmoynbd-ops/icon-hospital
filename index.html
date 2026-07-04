@@ -5632,7 +5632,20 @@ function startFirebaseSync() {
       const legacyMigrations = [];
       PATH_SYNCED_MODULES.forEach(m => {
         const wasLegacyArray = Array.isArray(data[m]) && data[m].length > 0;
-        const normalized = normalizeModuleData(data[m]);
+        let normalized = normalizeModuleData(data[m]);
+        // 🛡️ সাম্প্রতিক (grace period এর মধ্যে) লোকাল এন্ট্রি — যেগুলো এই সার্ভার স্ন্যাপশটে অনুপস্থিত — সেগুলো হারিয়ে না গিয়ে ফিরিয়ে আনা হয়
+        const recent = _recentLocalSnapshot[m];
+        if (recent && (Date.now() - recent.ts) < RECENT_EDIT_GRACE_MS) {
+          const incomingIds = new Set(normalized.filter(e=>e && e.id!=null).map(e => String(e.id)));
+          const missing = Object.keys(recent.map)
+            .filter(id => !incomingIds.has(String(id)))
+            .map(id => { try { return JSON.parse(recent.map[id]); } catch(e){ return null; } })
+            .filter(Boolean);
+          if (missing.length) {
+            console.warn('[HMS] '+m+' — সাম্প্রতিক লোকাল এন্ট্রি সার্ভার স্ন্যাপশটে অনুপস্থিত ছিল, পুনরায় যোগ করা হলো:', missing.length);
+            normalized = [...normalized, ...missing];
+          }
+        }
         normalizedOverrides[m] = normalized;
         if (wasLegacyArray) legacyMigrations.push({ module: m, normalized });
       });
@@ -5837,6 +5850,17 @@ function hasSyncPending() { return _fbPendingKeys.size > 0; }
 // এগুলো আলাদা আলাদা promise, এবং যেকোনো একটা আগে শেষ হলে onValue লিসেনার ফায়ার করতে পারে, যখন বাকিগুলো
 // এখনো সার্ভারে পৌঁছায়নি। এই কাউন্টার শূন্যে না নামা পর্যন্ত onValue-কে স্থানীয় ডাটা ওভাররাইট করতে দেওয়া হয় না —
 // নাহলে সবে যোগ করা এন্ট্রি (যেমন নতুন ইস্যু করা চেক) স্টেল সার্ভার ডাটা দিয়ে মুছে যেতে পারে।
+// ✅ অতিরিক্ত সুরক্ষা স্তর (প্রমিজ-ভিত্তিক গার্ডের পাশাপাশি): প্রতিটা path-synced module-এ সর্বশেষ লোকাল
+// পরিবর্তনের একটা স্ন্যাপশট (timestamp সহ) রাখা হয়। কোনো কারণে (নেটওয়ার্ক টাইমিং, cache ইত্যাদি — এমনকি
+// প্রমিজ resolve হয়ে যাওয়ার পরেও) যদি Firebase থেকে আসা স্ন্যাপশটে আমাদের একদম সাম্প্রতিক (কয়েক সেকেন্ড
+// আগের) কোনো এন্ট্রি না থাকে, সেটা চুপচাপ হারিয়ে না গিয়ে আবার ফিরিয়ে আনা হয় — যেমন "চেক ইস্যু" এন্ট্রি
+// টোস্ট দেখানোর পরও তালিকা থেকে হারিয়ে যাওয়ার মতো সমস্যা এড়াতে।
+let _recentLocalSnapshot = {}; // module -> { map: {id: entryJSON}, ts: Date.now() }
+const RECENT_EDIT_GRACE_MS = 20000;
+function noteRecentLocalEdits() {
+  PATH_SYNCED_MODULES.forEach(m => { _recentLocalSnapshot[m] = { map: snapshotModuleMap(m), ts: Date.now() }; });
+}
+
 let _fbWritesInFlight = 0;
 function beginFbWrite() { _fbWritesInFlight++; }
 function endFbWrite() { _fbWritesInFlight = Math.max(0, _fbWritesInFlight - 1); }
@@ -5946,6 +5970,7 @@ setInterval(() => { if (hasSyncPending()) trySyncNow(false); }, 20000);
 
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
+  noteRecentLocalEdits();
   syncAllPathModules();
   if (window._fbDb && window._fbRef && window._fbUpdate) {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
@@ -6704,7 +6729,20 @@ function saveExpense() {
     clearDate = date; actualClearedDate = date; status='cleared';
   }
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
-  appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by:currentUser.name });
+  const expId = Date.now();
+  appData.expense.push({ id:expId, date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by:currentUser.name });
+  // ✅ ব্যাংক/চেক মাধ্যমে ব্যয় হলে — একই লেনদেনের একটা লিংকড রেকর্ড appData.issuedChecks-এও রাখা হয়,
+  // যাতে সব ধরনের চেক (ব্যয় থেকে হোক, ইস্যু পেজ থেকে হোক, শেয়ারহোল্ডার উত্তোলন থেকে হোক) একটাই জায়গায় (single source of truth) ট্র্যাক হয় —
+  // ড্যাশবোর্ড, নিষ্পত্তি স্ট্রিপ ও "ইস্যু করা চেকের তালিকা" সবকিছু এখন এখান থেকেই পড়ে, তাই আলাদা আলাদা মার্জ-লজিকের দরকার পড়ে না।
+  if (payMode==='bank') {
+    if (!appData.issuedChecks) appData.issuedChecks=[];
+    appData.issuedChecks.push({
+      id: expId+1, source:'expense', linkedExpenseId: expId, voucher, checkbookId, checkNo: checkNo||'—',
+      payee: `${cat}${payPerson?(' — বাহক: '+payPerson):''}${note?(' — '+note):''}`,
+      amount: amt, issueDate: date, dueDate: clearDate, note,
+      status, clearedDate: actualClearedDate, by: currentUser.name
+    });
+  }
   logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
   saveData(); clearExpenseForm(); renderExpenseTable(); refreshDashboard();
   if (typeof renderIssuedChecks==='function') renderIssuedChecks();
@@ -6935,9 +6973,10 @@ function issueCheck() {
   cb.lastUsed = parseInt(checkNo); // পাতা এখনই ব্যবহৃত হিসেবে চিহ্নিত — কিন্তু ব্যাংক ব্যালেন্সে প্রভাব পরে, ভাঙ্গানো নিশ্চিত হলে
   if (!appData.issuedChecks) appData.issuedChecks=[];
   appData.issuedChecks.push({
-    id:Date.now(), voucher, checkbookId, checkNo, payee, amount, issueDate, dueDate, note,
+    id:Date.now(), source:'issued', voucher, checkbookId, checkNo, payee, amount, issueDate, dueDate, note,
     status:'pending', clearedDate:'', linkedBankTxId:null, by:currentUser.name
   });
+  console.log('[HMS] issueCheck: পুশের পর appData.issuedChecks সংখ্যা =', appData.issuedChecks.length);
   saveData();
   ['ciPayee','ciAmount','ciNote'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   populateIssueCheckbookSelect();
@@ -7034,29 +7073,34 @@ function daysBetween(dateStr) {
   const target = new Date(dateStr+'T00:00:00');
   return Math.round((target-today)/(1000*60*60*24));
 }
-// ব্যয় এন্ট্রি (payMode==='bank') ও "চেক ইস্যু" পেজ — দুই উৎসের চেককেই একত্র করে একটি একক তালিকা তৈরি করে,
-// যাতে "ইস্যু করা চেকের তালিকা" তে সবকিছু (উৎস নির্বিশেষে) বিস্তারিতভাবে দেখা যায়।
+// এখন থেকে appData.issuedChecks-ই সব ধরনের চেকের একমাত্র (single source of truth) সংগ্রহস্থল —
+// ব্যয় এন্ট্রি, "চেক ইস্যু" পেজ, ও শেয়ারহোল্ডার উত্তোলন — তিন জায়গা থেকেই এখানে সরাসরি রেকর্ড তৈরি হয়।
+// ব্যাকওয়ার্ড কম্প্যাটিবিলিটি: এই ফিক্সের আগে তৈরি ব্যাংক-মাধ্যম ব্যয় এন্ট্রি, যেগুলোর কোনো লিংকড রেকর্ড নেই, সেগুলোকেও দেখানো হয়।
 function getAllIssuedChequeEntries() {
-  const fromIssue = (appData.issuedChecks||[]).map(c => ({
-    source:'issued', id:c.id, voucher:c.voucher||'—', checkNo:c.checkNo||'—',
+  const list = (appData.issuedChecks||[]).map(c => ({
+    source: c.source||'issued', id:c.id, voucher:c.voucher||'—', checkNo:c.checkNo||'—',
     payee: c.payee||'—', amount:c.amount, issueDate:c.issueDate, dueDate:c.dueDate,
-    status:c.status||'pending'
+    status:c.status||'pending', linkedExpenseId:c.linkedExpenseId||null
   }));
-  const fromExpense = (appData.expense||[]).filter(e => e.payMode==='bank').map(e => ({
+  const linkedExpenseIds = new Set(list.filter(c=>c.linkedExpenseId).map(c=>c.linkedExpenseId));
+  const orphanExpense = (appData.expense||[]).filter(e => e.payMode==='bank' && !linkedExpenseIds.has(e.id)).map(e => ({
     source:'expense', id:e.id, voucher:e.voucher||'—', checkNo:e.checkNo||'—',
     payee: `${e.category}${e.payPerson?(' — বাহক: '+e.payPerson):''}${e.note?(' — '+e.note):''}`,
     amount:e.amount, issueDate:e.date, dueDate:e.clearDate||e.date,
-    status:e.status||'cleared'
+    status:e.status||'cleared', linkedExpenseId:e.id
   }));
-  return [...fromIssue, ...fromExpense];
+  return [...list, ...orphanExpense];
 }
 function renderIssuedChecks() {
   const tbody=document.getElementById('issuedChecksTable'); if (!tbody) return;
   const list=getAllIssuedChequeEntries().sort((a,b)=> (b.issueDate||'').localeCompare(a.issueDate||'') || (b.id-a.id||0));
+  console.log('[HMS] renderIssuedChecks: মোট এন্ট্রি =', list.length, '(appData.issuedChecks =', (appData.issuedChecks||[]).length, ')');
   if (!list.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো চেক ইস্যু করা হয়নি</td></tr>'; return; }
-  const sourceBadge = c => c.source==='issued'
-    ? `<span class="badge badge-cheque">চেক ইস্যু</span>`
-    : `<span class="badge" style="background:#f1f5f9;color:#475569">ব্যয়</span>`;
+  const sourceBadge = c => c.source==='expense'
+    ? `<span class="badge" style="background:#f1f5f9;color:#475569">ব্যয়</span>`
+    : c.source==='withdrawal'
+    ? `<span class="badge" style="background:#ede9fe;color:#6d28d9">শেয়ার উত্তোলন</span>`
+    : `<span class="badge badge-cheque">চেক ইস্যু</span>`;
   const statusBadge = c => {
     if (c.status==='cleared') return `<span class="badge badge-income">✅ ভাঙ্গানো হয়েছে</span>`;
     if (c.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
@@ -7075,11 +7119,11 @@ function renderIssuedChecks() {
     <td style="font-weight:600">${formatDate(c.dueDate)}</td>
     <td>${statusBadge(c)}</td>
     <td style="display:flex;gap:4px;flex-wrap:wrap">
-      ${c.status==='pending' && c.source==='issued' ? `<button class="btn btn-success btn-sm" onclick="markCheckCleared(${c.id})">✅ ভাঙ্গানো হয়েছে</button>
+      ${c.status==='pending' && c.source!=='expense' ? `<button class="btn btn-success btn-sm" onclick="markCheckCleared(${c.id})">✅ ভাঙ্গানো হয়েছে</button>
       <button class="btn btn-outline btn-sm" onclick="markCheckBounced(${c.id})">❌ বাউন্স</button>` : ''}
-      ${c.status==='pending' && c.source==='expense' ? `<button class="btn btn-success btn-sm" onclick="markExpenseCleared(${c.id})">✅ ভাঙ্গানো হয়েছে</button>` : ''}
-      ${currentUser.role==='admin' && c.source==='issued' ? `<button class="btn btn-danger btn-sm" onclick="deleteIssuedCheck(${c.id})">🗑️</button>` : ''}
-      ${currentUser.role==='admin' && c.source==='expense' ? `<button class="btn btn-danger btn-sm" onclick="deleteExpense(${c.id})">🗑️</button>` : ''}
+      ${c.status==='pending' && c.source==='expense' ? `<button class="btn btn-success btn-sm" onclick="markExpenseCleared(${c.linkedExpenseId})">✅ ভাঙ্গানো হয়েছে</button>` : ''}
+      ${currentUser.role==='admin' && c.source!=='expense' ? `<button class="btn btn-danger btn-sm" onclick="deleteIssuedCheck(${c.id})">🗑️</button>` : ''}
+      ${currentUser.role==='admin' && c.source==='expense' ? `<button class="btn btn-danger btn-sm" onclick="deleteExpense(${c.linkedExpenseId})">🗑️</button>` : ''}
     </td>
   </tr>`).join('');
 }
@@ -7258,6 +7302,8 @@ function confirmExpenseCleared(id) {
   const clearedDate = document.getElementById('ecClearedDate')?.value;
   if (!clearedDate) { showToast('⚠️ তারিখ দিন!'); return; }
   e.status='cleared'; e.actualClearedDate=clearedDate;
+  const linked=(appData.issuedChecks||[]).find(c=>c.linkedExpenseId===id);
+  if (linked) { linked.status='cleared'; linked.clearedDate=clearedDate; }
   saveData(); renderExpenseTable(); refreshDashboard(); updateBankBalances(); if (typeof renderBankTx==='function') renderBankTx();
   if (typeof renderIssuedChecks==='function') renderIssuedChecks();
   document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
@@ -7283,6 +7329,7 @@ function deleteExpense(id) {
   if (!confirm('এই এন্ট্রি মুছবেন?')) return;
   const e = appData.expense.find(e=>e.id===id);
   appData.expense=appData.expense.filter(e=>e.id!==id);
+  appData.issuedChecks=(appData.issuedChecks||[]).filter(c=>c.linkedExpenseId!==id);
   if (e) logActivity('delete', 'ব্যয়', `${e.category} — ৳${fmt(e.amount)} (${e.voucher||''})`);
   saveData(); renderExpenseTable(); refreshDashboard();
   if (typeof renderIssuedChecks==='function') renderIssuedChecks();
@@ -7662,11 +7709,11 @@ function renderDashRecentEntries() {
       campId: null,
       amt: d.amount, by: d.by||'—', cls:'badge-deposit'
     })),
-    // "চেক ইস্যু" পেজ থেকে ইস্যু করা চেক (তথ্যের জন্য — ভাঙ্গানো নিশ্চিত হলে সেটা আলাদাভাবে ট্রান্সফার/ব্যাংক ব্যয় রো হিসেবে দেখা যাবে)
-    ...(appData.issuedChecks||[]).map(c=>{
+    // "চেক ইস্যু" পেজ ও শেয়ারহোল্ডার উত্তোলন থেকে ইস্যু করা চেক (ব্যয়-লিংকড চেক এখানে বাদ, কারণ সেটা ইতিমধ্যে উপরে "ব্যয়" রো হিসেবে দেখানো হচ্ছে — ডাবল দেখাবে না)
+    ...(appData.issuedChecks||[]).filter(c=>c.source!=='expense').map(c=>{
       const statusTxt = c.status==='cleared' ? ' — ✅ ভাঙ্গানো হয়েছে' : c.status==='bounced' ? ' — ❌ বাউন্স' : ' — ⏳ পেন্ডিং';
       return {
-        id: 'ic_'+c.id, date:c.issueDate, type:'চেক ইস্যু',
+        id: 'ic_'+c.id, date:c.issueDate, type: c.source==='withdrawal' ? 'শেয়ার উত্তোলন চেক' : 'চেক ইস্যু',
         vouchRef: c.voucher||'—',
         cat: `চেক নং ${c.checkNo}`,
         ref: `${c.payee||'—'}${c.note?(' — '+c.note):''}${statusTxt}`,
@@ -10440,7 +10487,7 @@ function saveShareholderWithdrawal() {
     if (!appData.issuedChecks) appData.issuedChecks=[];
     linkedIssuedCheckId = wdId + 1;
     appData.issuedChecks.push({
-      id: linkedIssuedCheckId, voucher, checkbookId, checkNo:chequeNo, payee:sh.name, amount,
+      id: linkedIssuedCheckId, source:'withdrawal', voucher, checkbookId, checkNo:chequeNo, payee:sh.name, amount,
       issueDate:date, dueDate, note:`শেয়ারহোল্ডার উত্তোলন${note?' — '+note:''}`,
       status:'pending', clearedDate:'', linkedBankTxId:null, linkedWithdrawalId:wdId, by:currentUser.name
     });
@@ -10459,7 +10506,7 @@ function saveShareholderWithdrawal() {
       if (!appData.issuedChecks) appData.issuedChecks=[];
       linkedIssuedCheckId = wdId + 2;
       appData.issuedChecks.push({
-        id: linkedIssuedCheckId, voucher, checkbookId, checkNo:chequeNo, payee:sh.name, amount,
+        id: linkedIssuedCheckId, source:'withdrawal', voucher, checkbookId, checkNo:chequeNo, payee:sh.name, amount,
         issueDate:date, dueDate:date, note:`শেয়ারহোল্ডার উত্তোলন${note?' — '+note:''}`,
         status:'cleared', clearedDate:date, linkedBankTxId:bankTxId, linkedWithdrawalId:wdId, by:currentUser.name
       });
@@ -17485,18 +17532,13 @@ function renderMonthlyComparison(){
 }
 
 // ---- চেক নিষ্পত্তি স্ট্রিপ (মাসিক তুলনার ঠিক নিচে, একই ডিজাইনে) ----
-// ডেটা সোর্স: (১) ব্যয়ের তালিকায় ব্যাংক/চেকে পরিশোধিত এন্ট্রি (payMode==='bank' — checkNo না থাকলেও গণনায় ধরা হয়, কারণ ফর্মে এটা ঐচ্ছিক),
-// (২) "চেক ইস্যু" পেজের appData.issuedChecks (শেয়ারহোল্ডার উত্তোলনের চেকসহ) — দুটোকেই একত্র করে "অনিষ্পন্ন চেক" গণনা করা হয়
+// getAllIssuedChequeEntries() (single source of truth: appData.issuedChecks) থেকেই ডেটা নেয় — আলাদা মার্জ-লজিকের দরকার নেই।
 function getAllCheckEntries() {
-  const expenseChecks = (appData.expense||[]).filter(e => e.payMode==='bank')
-    .map(e => ({ source:'expense', date:e.date, amount:e.amount, status:e.status,
-                 label: e.category||e.note||'ব্যয়', checkNo: e.checkNo||'—', voucher: e.voucher||'—',
-                 refDate: e.clearDate||e.date }));
-  const issuedChecks = (appData.issuedChecks||[]).filter(c => c.checkNo)
-    .map(c => ({ source:'issued', date:c.issueDate, amount:c.amount, status:c.status,
-                 label: c.payee||'—', checkNo: c.checkNo, voucher: c.voucher||'—',
-                 refDate: c.dueDate||c.issueDate }));
-  return [...expenseChecks, ...issuedChecks];
+  return getAllIssuedChequeEntries().map(c => ({
+    source:c.source, date:c.issueDate, amount:c.amount, status:c.status,
+    label:c.payee||'—', checkNo:c.checkNo||'—', voucher:c.voucher||'—',
+    refDate:c.dueDate||c.issueDate
+  }));
 }
 function _checkStatusCol(label, count, amount, accentColor, divider, bgColor) {
   const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
