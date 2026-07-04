@@ -797,7 +797,7 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
       <!-- Check Status — একই সাইজ/ডিজাইনের স্ট্রিপ, চেকের নিষ্পন্ন/অনিষ্পন্ন অবস্থা দেখায় -->
-      <div id="dashCheckStatusWrap" onclick="showCheckStatusDetail()" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;display:none;background:#fffdf3;border-radius:var(--radius);border-top:1.5px solid var(--border);border-right:1.5px solid var(--border);border-bottom:1.5px solid var(--border);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
+      <div id="dashCheckStatusWrap" style="display:none;background:#fffdf3;border-radius:var(--radius);border-top:1.5px solid var(--border);border-right:1.5px solid var(--border);border-bottom:1.5px solid var(--border);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
         <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto">
           <div id="dashCheckStatusBody" style="display:flex;align-items:stretch;flex:1;min-width:max-content"></div>
           <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);white-space:nowrap">
@@ -17540,12 +17540,12 @@ function getAllCheckEntries() {
     refDate:c.dueDate||c.issueDate
   }));
 }
-function _checkStatusCol(label, count, amount, accentColor, divider, bgColor) {
+function _checkStatusCol(label, count, amount, accentColor, divider, bgColor, onClickFn, countSuffix) {
   const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
-  return `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
+  return `<div onclick="${onClickFn}" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
     <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
-    <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">৳ ${fmt(amount)}</span>
-    <span style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis">(${count.toLocaleString('bn-BD')}টি)</span>
+    <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">${amount}</span>
+    <span style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis">(${count.toLocaleString('bn-BD')}${countSuffix||'টি'})</span>
   </div>`;
 }
 function renderDashCheckStatus(){
@@ -17563,22 +17563,27 @@ function renderDashCheckStatus(){
   const prevPending      = allChecks.filter(e => e.status==='pending' && !(e.date && e.date.startsWith(curYM)));
   const thisMonthPendingAmt = thisMonthPending.reduce((s,e)=>s+e.amount,0);
   const prevPendingAmt      = prevPending.reduce((s,e)=>s+e.amount,0);
-  const totalAmt            = allChecks.reduce((s,e)=>s+e.amount,0);
+
+  // চেক বইয়ের পাতা — মোট বনাম ব্যবহৃত (সব চেকবই মিলিয়ে)
+  const books = appData.checkbooks||[];
+  const totalPages = books.reduce((s,b)=>s+Math.max(0,(b.end-b.start+1)),0);
+  const usedPages = books.reduce((s,b)=>s+Math.max(0,Math.min(b.lastUsed,b.end)-b.start+1),0);
 
   const monthNames=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   const lbl=document.getElementById('dashCheckStatusLabel');
   if(lbl) lbl.textContent = monthNames[now.getMonth()];
 
   body.innerHTML =
-    _checkStatusCol('এই মাসের অনিষ্পন্ন', thisMonthPending.length, thisMonthPendingAmt, '#f59e0b', true, 'rgba(245,158,11,0.08)') +
-    _checkStatusCol('পূর্বের অনিষ্পন্ন', prevPending.length, prevPendingAmt, '#ea580c', true, 'rgba(234,88,12,0.07)') +
-    _checkStatusCol('সর্বমোট চেক (নিষ্পন্ন+অনিষ্পন্ন)', allChecks.length, totalAmt, '#0f4c81', false, 'rgba(15,76,129,0.06)');
+    _checkStatusCol('এই মাসের অনিষ্পন্ন', thisMonthPending.length, '৳ '+fmt(thisMonthPendingAmt), '#f59e0b', true, 'rgba(245,158,11,0.08)', "showCheckStatusDetail('thisMonth')") +
+    _checkStatusCol('পূর্বের অনিষ্পন্ন', prevPending.length, '৳ '+fmt(prevPendingAmt), '#ea580c', true, 'rgba(234,88,12,0.07)', "showCheckStatusDetail('prev')") +
+    _checkStatusCol('চেক বইয়ের পাতা (ব্যবহৃত/মোট)', totalPages, `${usedPages.toLocaleString('bn-BD')}/${totalPages.toLocaleString('bn-BD')}`, '#7c3aed', false, 'rgba(124,58,237,0.06)', "showChequeBookPagesDetail()", ' পাতা');
 
   wrap.style.display = 'block';
 }
 
 // ---- চেক নিষ্পত্তি স্ট্রিপে ক্লিক করলে বিস্তারিত মোডাল ----
-function showCheckStatusDetail(){
+// mode: 'thisMonth' → শুধু এই মাসের অনিষ্পন্ন, 'prev' → শুধু পূর্বের সকল অনিষ্পন্ন, না দিলে (ব্যাকওয়ার্ড কম্প্যাটিবিলিটি) সবকিছু
+function showCheckStatusDetail(mode){
   const allChecks = getAllCheckEntries();
   if (!allChecks.length) return;
   const now = new Date();
@@ -17589,9 +17594,11 @@ function showCheckStatusDetail(){
     if (e.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
     return `<span class="badge" style="background:#fef3c7;color:#92400e">⏳ পেন্ডিং</span>`;
   };
-  const sourceLabel = e => e.source==='issued'
-    ? `<span style="font-size:10.5px;color:#3498db;font-weight:700">চেক ইস্যু</span>`
-    : `<span style="font-size:10.5px;color:#888;font-weight:700">ব্যয়</span>`;
+  const sourceLabel = e => e.source==='expense'
+    ? `<span style="font-size:10.5px;color:#888;font-weight:700">ব্যয়</span>`
+    : e.source==='withdrawal'
+    ? `<span style="font-size:10.5px;color:#6d28d9;font-weight:700">শেয়ার উত্তোলন</span>`
+    : `<span style="font-size:10.5px;color:#3498db;font-weight:700">চেক ইস্যু</span>`;
   const row = e => `<tr>
     <td>${sourceLabel(e)}</td>
     <td style="font-weight:600;color:var(--warning)">${e.voucher}</td>
@@ -17607,12 +17614,75 @@ function showCheckStatusDetail(){
   const prevPending      = allChecks.filter(e => e.status==='pending' && !(e.date && e.date.startsWith(curYM)));
   const cleared          = allChecks.filter(e => e.status!=='pending');
 
-  const section = (title, list, color) => !list.length ? '' : `
+  const section = (title, list, color) => !list.length ? `<div style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</div>` : `
     <div style="margin-bottom:16px">
       <div style="font-weight:700;color:${color};font-size:13px;margin-bottom:6px">${title} (${list.length}টি — ৳ ${fmt(list.reduce((s,e)=>s+e.amount,0))})</div>
       <div class="table-wrap"><table>
         <thead><tr><th>উৎস</th><th>ভাউচার</th><th>চেক নং</th><th>বিবরণ/প্রাপক</th><th>তারিখ</th><th>ভাঙ্গানোর তারিখ</th><th>পরিমাণ</th><th>স্ট্যাটাস</th></tr></thead>
         <tbody>${list.slice().sort((a,b)=>(a.refDate||'').localeCompare(b.refDate||'')).map(row).join('')}</tbody>
+      </table></div>
+    </div>`;
+
+  let title = '📒 চেক নিষ্পত্তি — বিস্তারিত', body;
+  if (mode==='thisMonth') { title = '⏳ এই মাসের অনিষ্পন্ন চেক'; body = section('⏳ এই মাসের অনিষ্পন্ন', thisMonthPending, '#f59e0b'); }
+  else if (mode==='prev') { title = '⏳ পূর্বের সকল অনিষ্পন্ন চেক'; body = section('⏳ পূর্বের অনিষ্পন্ন', prevPending, '#ea580c'); }
+  else {
+    body = section('⏳ এই মাসের অনিষ্পন্ন', thisMonthPending, '#f59e0b')
+         + section('⏳ পূর্বের অনিষ্পন্ন', prevPending, '#ea580c')
+         + section('✅ ভাঙ্গানো/বাউন্স হয়েছে', cleared, '#0f4c81');
+  }
+
+  let modal = document.getElementById('checkStatusDetailModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'checkStatusDetailModal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  // মোডালের প্রস্থ স্ট্রিপের প্রস্থের সমান, উচ্চতা কনটেন্ট অনুযায়ি (সর্বোচ্চ 86vh, তারপর স্ক্রল)
+  const stripWrap = document.getElementById('dashCheckStatusWrap');
+  const modalWidth = stripWrap ? stripWrap.offsetWidth : 900;
+  modal.innerHTML = `<div class="modal" style="width:${modalWidth}px;max-width:94vw;max-height:86vh;display:flex;flex-direction:column">
+    <div class="modal-title">${title}</div>
+    <div style="overflow-y:auto;flex:1;padding-right:4px">
+      ${body}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
+    </div>
+  </div>`;
+}
+
+// ---- তৃতীয় কলাম: চেক বইয়ের সব পাতা ক্রম অনুযায়ি, কোন পাতার কি অবস্থা ----
+function showChequeBookPagesDetail(){
+  const books = appData.checkbooks||[];
+  if (!books.length) return;
+  const allChecks = getAllIssuedChequeEntries();
+
+  const pageStatusCell = (book, pageNo) => {
+    if (pageNo > book.lastUsed) {
+      return `<td colspan="4" style="color:#94a3b8">— ব্যবহৃত হয়নি —</td>`;
+    }
+    const entry = allChecks.find(c => c.checkNo == pageNo && (String(c.checkbookId)===String(book.id)));
+    if (!entry) {
+      return `<td colspan="4" style="color:#c2410c">⚠️ ব্যবহৃত (কোনো রেকর্ড পাওয়া যায়নি — ম্যানুয়ালি চেক করুন)</td>`;
+    }
+    const statusTxt = entry.status==='cleared' ? `<span class="badge badge-income">✅ ভাঙ্গানো হয়েছে</span>`
+                     : entry.status==='bounced' ? `<span class="badge badge-expense">❌ বাউন্স</span>`
+                     : `<span class="badge" style="background:#fef3c7;color:#92400e">⏳ পেন্ডিং</span>`;
+    return `<td>${entry.payee||'—'}</td><td style="font-weight:600;color:var(--warning)">${entry.voucher||'—'}</td><td style="font-weight:700;color:var(--danger)">৳ ${fmt(entry.amount)}</td><td>${statusTxt}</td>`;
+  };
+
+  const bookSection = book => `
+    <div style="margin-bottom:18px">
+      <div style="font-weight:700;color:var(--primary);font-size:13px;margin-bottom:6px">📒 ${book.name} (পাতা ${book.start}–${book.end}, সর্বশেষ ব্যবহৃত: ${book.lastUsed<book.start?'—':book.lastUsed})</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>পাতা নং</th><th>প্রাপক/বিবরণ</th><th>ভাউচার</th><th>পরিমাণ</th><th>স্ট্যাটাস</th></tr></thead>
+        <tbody>${Array.from({length: book.end-book.start+1}, (_,i)=>book.start+i).map(pageNo => `<tr>
+          <td style="font-weight:700;color:var(--primary)">${pageNo}</td>
+          ${pageStatusCell(book, pageNo)}
+        </tr>`).join('')}</tbody>
       </table></div>
     </div>`;
 
@@ -17624,12 +17694,12 @@ function showCheckStatusDetail(){
     document.body.appendChild(modal);
   }
   modal.style.display = 'flex';
-  modal.innerHTML = `<div class="modal" style="max-width:900px;max-height:86vh;display:flex;flex-direction:column">
-    <div class="modal-title">📒 চেক নিষ্পত্তি — বিস্তারিত</div>
+  const stripWrap = document.getElementById('dashCheckStatusWrap');
+  const modalWidth = stripWrap ? stripWrap.offsetWidth : 900;
+  modal.innerHTML = `<div class="modal" style="width:${modalWidth}px;max-width:94vw;max-height:86vh;display:flex;flex-direction:column">
+    <div class="modal-title">📒 চেক বইয়ের পাতা — ক্রম অনুযায়ি অবস্থা</div>
     <div style="overflow-y:auto;flex:1;padding-right:4px">
-      ${section('⏳ এই মাসের অনিষ্পন্ন', thisMonthPending, '#f59e0b')}
-      ${section('⏳ পূর্বের অনিষ্পন্ন', prevPending, '#ea580c')}
-      ${section('✅ ভাঙ্গানো/বাউন্স হয়েছে', cleared, '#0f4c81')}
+      ${books.map(bookSection).join('')}
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
