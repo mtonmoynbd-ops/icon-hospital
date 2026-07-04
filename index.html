@@ -115,7 +115,8 @@
     .top-bar-tools { flex-wrap:wrap; }
     .search-scope-select { max-width:none; flex:1 1 100%; order:1; }
     .search-input-wrap { flex:1 1 100%; order:2; }
-    .top-bar-tools .today-badge { order:3; margin:0 auto; }
+    .date-preset-pills { order:3; margin:0 auto 0 0; }
+    .top-bar-tools .today-badge { order:4; margin:0 0 0 auto; }
   }
   @keyframes searchRowFlash { 0%{ background:#fef9c3; } 100%{ background:transparent; } }
   .search-row-flash { animation:searchRowFlash 2s ease-out; }
@@ -126,6 +127,20 @@
   .today-badge input[type="date"] { position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer; border:none; background:transparent; }
   .today-badge.date-changed { border-color:var(--accent); color:var(--accent); background:#eff6ff; }
   .today-badge.date-changed .today-badge-label { color:var(--accent); font-weight:700; }
+  .date-preset-pills { flex-shrink:0; display:flex; gap:3px; background:#f1f5f9; border-radius:20px; padding:3px; }
+  .date-pill { border:none; background:transparent; padding:7px 13px; border-radius:16px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--text-light); cursor:pointer; transition:background .15s ease,color .15s ease; white-space:nowrap; }
+  .date-pill:hover { background:rgba(0,0,0,0.06); }
+  .date-pill.active { background:var(--primary); color:#fff; }
+  .notif-bell-wrap { position:relative; flex-shrink:0; }
+  .notif-bell-btn { position:relative; width:38px; height:38px; border-radius:50%; border:1.5px solid var(--border); background:white; box-shadow:var(--shadow); cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; }
+  .notif-bell-btn:hover { background:#f8fafc; }
+  .notif-bell-badge { position:absolute; top:-3px; right:-3px; background:var(--danger); color:#fff; font-size:10px; font-weight:700; border-radius:10px; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; padding:0 3px; line-height:1; box-shadow:0 0 0 2px white; }
+  .notif-bell-panel { position:absolute; top:46px; right:0; width:330px; max-height:420px; overflow-y:auto; background:white; border:1.5px solid var(--border); border-radius:12px; box-shadow:var(--shadow-lg); z-index:80; padding:8px; animation:fadeIn 0.15s ease; }
+  .notif-bell-section-title { font-size:10.5px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:.04em; padding:8px 8px 4px; }
+  .notif-bell-item { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:8px 8px; border-radius:8px; cursor:pointer; font-size:12.5px; line-height:1.4; }
+  .notif-bell-item:hover { background:#f1f5f9; }
+  .notif-bell-item .nb-dot { flex-shrink:0; width:7px; height:7px; border-radius:50%; margin-top:5px; }
+  .notif-bell-empty { text-align:center; color:#aaa; font-size:12px; padding:24px 0; }
 
   /* STATS */
   .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; margin-bottom:24px; }
@@ -620,9 +635,20 @@ function openPrintWindow(htmlContent, title) {
         <input type="text" id="dashSearch" placeholder="🔍 রোগীর নাম, ফোন, মেমো/ভাউচার নং, পণ্য বা টাকার পরিমাণ দিয়ে খুঁজুন..." oninput="showDashSearchResults()" onblur="setTimeout(()=&gt;document.getElementById(&#39;dashSearchResults&#39;).style.display=&#39;none&#39;,200)">
         <div id="dashSearchResults" style="display:none;position:absolute;top:42px;right:0;width:360px;background:white;border:1.5px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);z-index:50;max-height:340px;overflow-y:auto"></div>
       </div>
-      <div class="today-badge" id="todayBadge" title="তারিখ পরিবর্তন করতে ক্লিক করুন">
+      <div class="date-preset-pills" id="datePresetPills">
+        <button type="button" class="date-pill" data-preset="today" onclick="setDashDatePreset('today')">আজ</button>
+        <button type="button" class="date-pill" data-preset="week" onclick="setDashDatePreset('week')">এই সপ্তাহ</button>
+        <button type="button" class="date-pill" data-preset="month" onclick="setDashDatePreset('month')">এই মাস</button>
+      </div>
+      <div class="today-badge" id="todayBadge" title="কাস্টম তারিখ বাছতে ক্লিক করুন">
         <span class="today-badge-label" id="todayBadgeLabel">📅 09 জুন, 2026</span>
         <input type="date" id="dashDatePicker" onchange="onDashDateChange(this.value)" title="তারিখ বাছুন">
+      </div>
+      <div class="notif-bell-wrap" id="notifBellWrap" style="display:none">
+        <button type="button" class="notif-bell-btn" onclick="toggleNotifBell(event)" title="নোটিফিকেশন">
+          🔔<span class="notif-bell-badge" id="notifBellBadge" style="display:none">0</span>
+        </button>
+        <div class="notif-bell-panel" id="notifBellPanel" style="display:none"></div>
       </div>
     </div>
     <div id="appRoleFeatureBar" class="role-feature-bar" style="display:none"></div>
@@ -634,55 +660,55 @@ function openPrintWindow(htmlContent, title) {
         <!-- LEFT: 9 stat cards -->
         <div class="dash-cards-col" style="position:relative">
           <div class="stats-grid" id="dashStatsGrid">
-            <div class="stat-card income" onclick="showDashCardModal('todayIncome')" style="cursor:pointer">
+<div data-card-id="todayIncome" class="stat-card income" onclick="showDashCardModal('todayIncome')" style="cursor:pointer">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#16a34a"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,80V192a8,8,0,0,1-8,8H56a16,16,0,0,1-16-16V56A16,16,0,0,0,56,72H216A8,8,0,0,1,224,80Z" opacity="0.38"/><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">আজকের আয়</div></div>
               <div class="stat-value income" id="todayIncome">৳ ০</div>
               <div class="stat-change">এন্ট্রি: <span id="incomeCount">0</span>টি</div>
             </div>
-            <div class="stat-card expense" onclick="showDashCardModal('todayExpense')" style="cursor:pointer">
+            <div data-card-id="todayExpense" class="stat-card expense" onclick="showDashCardModal('todayExpense')" style="cursor:pointer">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#e74c3c"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,56V208l-32-16-32,16-32-16L96,208,64,192,32,208V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z" opacity="0.38"/><path d="M72,104a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,104Zm8,40h96a8,8,0,0,0,0-16H80a8,8,0,0,0,0,16ZM232,56V208a8,8,0,0,1-11.58,7.15L192,200.94l-28.42,14.21a8,8,0,0,1-7.16,0L128,200.94,99.58,215.15a8,8,0,0,1-7.16,0L64,200.94,35.58,215.15A8,8,0,0,1,24,208V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Zm-16,0H40V195.06l20.42-10.22a8,8,0,0,1,7.16,0L96,199.06l28.42-14.22a8,8,0,0,1,7.16,0L160,199.06l28.42-14.22a8,8,0,0,1,7.16,0L216,195.06Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">আজকের ব্যয়</div></div>
               <div class="stat-value expense" id="todayExpense">৳ ০</div>
               <div class="stat-change">ফিক্সড সহ: <span id="todayFixedNote">ফিক্সড ৳০ সহ</span></div>
             </div>
-            <div class="stat-card profit" onclick="showDashCardModal('todayProfit')" style="cursor:pointer">
+            <div data-card-id="todayProfit" class="stat-card profit" onclick="showDashCardModal('todayProfit')" style="cursor:pointer">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#0369a1"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,128v64H168Z" opacity="0.38"/><path d="M235.06,120.61a8,8,0,0,0-8.72,1.73L200,148.69,141.66,90.34a8,8,0,0,0-11.32,0L96,124.69,29.66,58.34A8,8,0,0,0,18.34,69.66l72,72a8,8,0,0,0,11.32,0L136,107.31,188.69,160l-26.35,26.34A8,8,0,0,0,168,200h64a8,8,0,0,0,8-8V128A8,8,0,0,0,235.06,120.61ZM224,184H187.31L224,147.31Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">আজকের লাভ/লস</div></div>
               <div class="stat-value profit" id="todayProfit" style="color:var(--success);">৳ ০</div>
               <div class="stat-change" id="profitStatus">✅ লাভজনক</div>
             </div>
-            <div class="stat-card" style="border-left-color:#8e44ad;cursor:pointer" onclick="showDashCardModal('monthlyProfit')">
+            <div data-card-id="monthlyProfit" class="stat-card" style="border-left-color:#8e44ad;cursor:pointer" onclick="showDashCardModal('monthlyProfit')">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#8e44ad"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,40V208H152V40Z" opacity="0.38"/><path d="M224,200h-8V40a8,8,0,0,0-8-8H152a8,8,0,0,0-8,8V80H96a8,8,0,0,0-8,8v40H48a8,8,0,0,0-8,8v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM160,48h40V200H160ZM104,96h40V200H104ZM56,144H88v56H56Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">মাসিক লাভ/লস</div></div>
               <div class="stat-value" id="monthlyProfit" style="color:#8e44ad">৳ ০</div>
               <div class="stat-change" id="monthlyProfitStatus">✅ লাভজনক মাস</div>
             </div>
-            <div class="stat-card" style="border-left-color:#e67e22;cursor:pointer" onclick="showDashCardModal('campIncome')">
+            <div data-card-id="campIncome" class="stat-card" style="border-left-color:#e67e22;cursor:pointer" onclick="showDashCardModal('campIncome')">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#e67e22"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M16,152H48v56H16a8,8,0,0,1-8-8V160A8,8,0,0,1,16,152ZM204,56a28,28,0,0,0-12,2.71h0A28,28,0,1,0,176,85.29h0A28,28,0,1,0,204,56Z" opacity="0.38"/><path d="M230.33,141.06a24.43,24.43,0,0,0-21.24-4.23l-41.84,9.62A28,28,0,0,0,140,112H89.94a31.82,31.82,0,0,0-22.63,9.37L44.69,144H16A16,16,0,0,0,0,160v40a16,16,0,0,0,16,16H120a7.93,7.93,0,0,0,1.94-.24l64-16a6.94,6.94,0,0,0,1.19-.4L226,182.82l.44-.2a24.6,24.6,0,0,0,3.93-41.56ZM16,160H40v40H16Zm203.43,8.21-38,16.18L119,200H56V155.31l22.63-22.62A15.86,15.86,0,0,1,89.94,128H140a12,12,0,0,1,0,24H112a8,8,0,0,0,0,16h32a8.32,8.32,0,0,0,1.79-.2l67-15.41.31-.08a8.6,8.6,0,0,1,6.3,15.9ZM164,96a36,36,0,0,0,5.9-.48,36,36,0,1,0,28.22-47A36,36,0,1,0,164,96Zm60-12a20,20,0,1,1-20-20A20,20,0,0,1,224,84ZM164,40a20,20,0,0,1,19.25,14.61,36,36,0,0,0-15,24.93A20.42,20.42,0,0,1,164,80a20,20,0,0,1,0-40Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">ক্যাম্প আয় (এই মাস)</div></div>
               <div class="stat-value" id="campIncome" style="color:#e67e22">৳ ০</div>
               <div class="stat-change">ক্যাম্প: <span id="campCount">0</span>টি</div>
             </div>
-            <div class="stat-card due" onclick="showDashCardModal('totalDue')" style="cursor:pointer">
+            <div data-card-id="totalDue" class="stat-card due" onclick="showDashCardModal('totalDue')" style="cursor:pointer">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#9b59b6"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.38"/><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">মোট বাকি</div></div>
               <div class="stat-value due" id="totalDue">৳ ০</div>
               <div class="stat-change">রোগী: <span id="dueCount">0</span>জন</div>
             </div>
-            <div class="stat-card expense" style="border-left-color:#c0392b;cursor:pointer" onclick="showDashCardModal('totalDebt')">
+            <div data-card-id="totalDebt" class="stat-card expense" style="border-left-color:#c0392b;cursor:pointer" onclick="showDashCardModal('totalDebt')">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#c0392b"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96v96a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V96Z" opacity="0.38"/><path d="M224,48H32A16,16,0,0,0,16,64V192a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V64A16,16,0,0,0,224,48Zm0,16V88H32V64Zm0,128H32V104H224v88Zm-16-24a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h32A8,8,0,0,1,208,168Zm-64,0a8,8,0,0,1-8,8H120a8,8,0,0,1,0-16h16A8,8,0,0,1,144,168Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">মোট দেনা</div></div>
               <div class="stat-value" id="totalDebt" style="color:#c0392b">৳ ০</div>
               <div class="stat-change">লোন + সরবরাহকারী বাকি</div>
             </div>
-            <div class="stat-card income" onclick="showDashCardModal('dashCashBalance')" style="cursor:pointer">
+                          <div data-card-id="dashCashBalance" class="stat-card income" onclick="showDashCardModal('dashCashBalance')" style="cursor:pointer">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#16a34a"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,80V192a8,8,0,0,1-8,8H56a16,16,0,0,1-16-16V56A16,16,0,0,0,56,72H216A8,8,0,0,1,224,80Z" opacity="0.38"/><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">ক্যাশ ব্যালেন্স</div></div>
               <div class="stat-value income" id="dashCashBalance">৳ ০</div>
               <div class="stat-change">হাতে নগদ মজুদ</div>
             </div>
-            <div class="stat-card" style="border-left-color:#3498db;cursor:pointer" onclick="showDashCardModal('dashBankBalance')">
+            <div data-card-id="dashBankBalance" class="stat-card" style="border-left-color:#3498db;cursor:pointer" onclick="showDashCardModal('dashBankBalance')">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#3498db"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96H24L128,32Z" opacity="0.38"/><path d="M24,104H48v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16H208V104h24a8,8,0,0,0,4.19-14.81l-104-64a8,8,0,0,0-8.38,0l-104,64A8,8,0,0,0,24,104Zm40,0H96v64H64Zm80,0v64H112V104Zm48,64H160V104h32ZM128,41.39,203.74,88H52.26ZM248,208a8,8,0,0,1-8,8H16a8,8,0,0,1,0-16H240A8,8,0,0,1,248,208Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">ব্যাংক ব্যালেন্স</div></div>
               <div class="stat-value" id="dashBankBalance" style="color:#3498db">৳ ০</div>
@@ -769,6 +795,16 @@ function openPrintWindow(htmlContent, title) {
           </div>
         </div>
       </div>
+      <!-- Check Status — একই সাইজ/ডিজাইনের স্ট্রিপ, চেকের নিষ্পন্ন/অনিষ্পন্ন অবস্থা দেখায় -->
+      <div id="dashCheckStatusWrap" onclick="showCheckStatusDetail()" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;display:none;background:#fffdf3;border-radius:var(--radius);border-top:1.5px solid var(--border);border-right:1.5px solid var(--border);border-bottom:1.5px solid var(--border);box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto">
+          <div id="dashCheckStatusBody" style="display:flex;align-items:stretch;flex:1;min-width:max-content"></div>
+          <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);white-space:nowrap">
+            <span style="font-size:12px;font-weight:700;color:var(--primary)">📒 চেক নিষ্পত্তি</span>
+            <span id="dashCheckStatusLabel" style="font-size:11px;color:var(--text-light)"></span>
+          </div>
+        </div>
+      </div>
       <!-- Pending camp operations -->
       <div id="campOpsAlert" style="display:none" class="panel">
         <div class="panel-header"><div class="panel-title">🔔 অপেক্ষমাণ ক্যাম্প অপারেশন রোগী</div><button class="btn btn-primary btn-sm" onclick="showPage(&#39;camp&#39;)">সব দেখুন</button></div>
@@ -780,7 +816,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 সাম্প্রতিক এন্ট্রি</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <select id="dashRecentViewMode" onchange="renderDashRecentEntries()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <select id="dashRecentViewMode" onchange="_dashDatePreset=null;document.querySelectorAll('.date-pill').forEach(b=>b.classList.remove('active'));renderDashRecentEntries()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="day">ডে ওয়াইজ</option>
               <option value="month">মান্থ ওয়াইজ</option>
             </select>
@@ -900,7 +936,7 @@ function openPrintWindow(htmlContent, title) {
               </div>
             </div>
           </div>
-          <!-- ব্যাংক: চেক নম্বর -->
+          <!-- ব্যাংক: চেক নম্বর ও ভাঙ্গানোর তারিখ -->
           <div id="expBankRow" class="form-row" style="display:none;margin-bottom:10px">
             <div class="field">
               <label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো — পূর্বের পরের চেক)</span></label>
@@ -910,6 +946,12 @@ function openPrintWindow(htmlContent, title) {
               <select id="expCheckbook" onchange="updateNextCheckNo()" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
                 <option value="">-- চেক বই নির্বাচন করুন --</option>
               </select>
+            </div>
+          </div>
+          <div id="expClearDateRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field">
+              <label>ভাঙ্গানোর তারিখ * <span style="font-size:11px;color:var(--accent)">(ভবিষ্যতের তারিখ দিলে এন্ট্রিটি "পেন্ডিং" থাকবে, হিসাবে গণনা হবে না যতক্ষণ না ভাঙ্গানো নিশ্চিত হয়)</span></label>
+              <input type="date" id="expClearDate">
             </div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -2044,9 +2086,14 @@ function openPrintWindow(htmlContent, title) {
                   <option value="bank_out">🏦 ব্যাংক থেকে ব্যয়</option>
                 </select>
               </div>
-              <div class="field"><label>তারিখ *</label><input type="date" id="bankTxDate"></div>
+              <div class="field"><label>তারিখ *</label><input type="date" id="bankTxDate" onchange="updateBankTxVoucher()"></div>
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="bankTxAmount" placeholder="০.০০" min="0"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+              <input type="text" id="bankTxVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
+            </div>
           </div>
           <!-- ব্যাংক থেকে টাকা বের হলে (ব্যয় বা ক্যাশে ট্রান্সফার) — চেকের মাধ্যমেই হয়, তাই চেক বই ব্যবহার হবে -->
           <div id="bankTxCheckbookRow" class="form-row" style="display:none;margin-bottom:10px">
@@ -2076,7 +2123,7 @@ function openPrintWindow(htmlContent, title) {
           <input type="date" id="bankTxFilter" onchange="renderBankTx()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>ধরন</th><th>বিবরণ</th><th>রেফ</th><th>পরিমাণ</th><th>ক্যাশ ব্যালেন্স</th><th>ব্যাংক ব্যালেন্স</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>ভাউচার নং</th><th>তারিখ</th><th>ধরন</th><th>বিবরণ</th><th>রেফ</th><th>পরিমাণ</th><th>ক্যাশ ব্যালেন্স</th><th>ব্যাংক ব্যালেন্স</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="bankTxTable"></tbody>
         </table></div></div>
       </div>
@@ -2142,9 +2189,14 @@ function openPrintWindow(htmlContent, title) {
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="ciAmount" placeholder="০.০০" min="0"></div>
           </div>
+          <div class="form-row">
+            <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো — ইস্যুর তারিখে)</span></label>
+              <input type="text" id="ciVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
+            </div>
+          </div>
           <div class="form-row three">
             <div class="field"><label>প্রাপকের নাম *</label><input type="text" id="ciPayee" placeholder="যাকে চেক দিচ্ছেন তার নাম"></div>
-            <div class="field"><label>ইস্যুর তারিখ *</label><input type="date" id="ciIssueDate"></div>
+            <div class="field"><label>ইস্যুর তারিখ *</label><input type="date" id="ciIssueDate" onchange="updateCiVoucher()"></div>
             <div class="field"><label>ভাঙ্গানোর তারিখ (Due date) *</label><input type="date" id="ciDueDate"></div>
           </div>
           <div class="form-row">
@@ -2159,7 +2211,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📤 ইস্যু করা চেকের তালিকা</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>চেক নং</th><th>প্রাপক</th><th>পরিমাণ</th><th>ইস্যুর তারিখ</th><th>ভাঙ্গানোর তারিখ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>ভাউচার নং</th><th>চেক নং</th><th>প্রাপক</th><th>পরিমাণ</th><th>ইস্যুর তারিখ</th><th>ভাঙ্গানোর তারিখ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="issuedChecksTable"></tbody>
         </table></div></div>
       </div>
@@ -2246,27 +2298,27 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
-      <!-- লাভ বন্টন -->
+      <!-- মাস ক্লোজ (স্বয়ংক্রিয় মুনাফা/লস বন্টন) -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">💰 মাসিক লাভ বন্টন</div></div>
+        <div class="panel-header"><div class="panel-title">📊 মাস ক্লোজ (স্বয়ংক্রিয় মুনাফা/লস বন্টন)</div></div>
         <div class="panel-body">
+          <div id="mcAccLossNote" style="display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:14px;color:#b91c1c;font-weight:600;font-size:13px"></div>
           <div class="form-row-amt">
             <div class="field-stack">
               <div class="field"><label>মাস *</label>
-                <select id="divMonth">
+                <select id="mcMonth">
                   <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
                   <option value="5">মে</option><option value="6">জুন</option><option value="7">জুলাই</option><option value="8">আগস্ট</option>
                   <option value="9">সেপ্টেম্বর</option><option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
                 </select>
               </div>
-              <div class="field"><label>বছর *</label><input type="number" id="divYear" placeholder="২০২৬"></div>
+              <div class="field"><label>বছর *</label><input type="number" id="mcYear" placeholder="২০২৬"></div>
             </div>
-            <div class="field amt-hl"><label>বন্টনযোগ্য মোট লাভ (৳) *</label><input type="number" id="divTotal" placeholder="০.০০" min="0" oninput="calcDividend()"></div>
           </div>
-          <div id="dividendPreview" style="display:none;margin-top:12px"></div>
+          <div id="mcPreview" style="display:none;margin-top:14px"></div>
           <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
-            <button class="btn btn-outline" onclick="calcDividend()">🔄 হিসাব করুন</button>
-            <button class="btn btn-success" onclick="saveDividend()">✅ সেভ করুন</button>
+            <button class="btn btn-outline" onclick="previewMonthClose()">🔄 হিসাব করুন</button>
+            <button class="btn btn-success" id="mcConfirmBtn" style="display:none" onclick="confirmMonthClose()">✅ মাস ক্লোজ কনফার্ম করুন</button>
           </div>
         </div>
       </div>
@@ -2275,17 +2327,108 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 শেয়ারহোল্ডার তালিকা</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>নাম</th><th>শেয়ার সংখ্যা</th><th>শেয়ার %</th><th>ফোন</th><th>যোগদান</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>#</th><th>নাম</th><th>শেয়ার সংখ্যা</th><th>শেয়ার %</th><th>ফোন</th><th>যোগদান</th><th>চলতি ব্যালেন্স</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="shareholderTable"></tbody>
         </table></div></div>
       </div>
 
-      <!-- লাভ বন্টনের ইতিহাস -->
+      <!-- মুনাফা উত্তোলন -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">📜 লাভ বন্টনের ইতিহাস</div></div>
+        <div class="panel-header"><div class="panel-title">🏧 মুনাফা উত্তোলন</div></div>
+        <div class="panel-body">
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>উত্তোলন নং (ভাউচার) <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+                <input type="text" id="wdVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
+              </div>
+              <div class="field"><label>তারিখ *</label><input type="date" id="wdDate" onchange="updateWdVoucher()"></div>
+            </div>
+            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="wdAmount" placeholder="০.০০" min="0"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>শেয়ারহোল্ডার *</label><select id="wdShareholder" onchange="updateWdBalanceNote()"></select></div>
+          </div>
+          <div id="wdBalanceNote" style="font-size:12.5px;color:var(--text-light);margin-bottom:10px"></div>
+          <!-- পেমেন্ট মাধ্যম -->
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="field">
+              <label>পেমেন্ট মাধ্যম *</label>
+              <div style="display:flex;gap:10px;margin-top:6px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="wdMethod" value="cash" id="wdPayCash" onchange="onWdMethodChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="wdMethod" value="cheque" id="wdPayCheque" onchange="onWdMethodChange()"> 🏦 চেক
+                </label>
+              </div>
+            </div>
+          </div>
+          <!-- পরিশোধকারী / চেক বহনকারী ব্যক্তি -->
+          <div id="wdPersonRow" class="form-row" style="margin-bottom:10px">
+            <div class="field">
+              <label id="wdPersonLabel">পরিশোধকারী ব্যক্তি</label>
+              <div style="display:flex;gap:6px">
+                <select id="wdPerson" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc">
+                  <option value="">-- ব্যক্তি নির্বাচন করুন --</option>
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" onclick="toggleWdAddPerson()" title="নতুন ব্যক্তি যোগ করুন" style="padding:8px 12px">➕</button>
+              </div>
+              <div id="wdAddPersonRow" style="display:none;margin-top:6px">
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="wdNewPersonName" placeholder="নতুন ব্যক্তির নাম" style="flex:1;padding:9px 12px;border:1.5px solid var(--accent);border-radius:6px;font-family:inherit;font-size:13px">
+                  <button type="button" class="btn btn-success btn-sm" onclick="addWdPerson()">✅ যোগ</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="toggleWdAddPerson()">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- চেক বই ও চেক নম্বর -->
+          <div id="wdChequeRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field"><label>চেক বই</label>
+              <select id="wdCheckbook" onchange="updateNextCheckNo('wdCheckbook','wdChequeNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                <option value="">-- চেক বই নির্বাচন করুন --</option>
+              </select>
+            </div>
+            <div class="field"><label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+              <input type="text" id="wdChequeNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+            </div>
+          </div>
+          <!-- ভবিষ্যৎ তারিখে চেক ইস্যু -->
+          <div id="wdPostDatedRow" style="display:none;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:10px 14px;margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:#1d4ed8;cursor:pointer">
+              <input type="checkbox" id="wdPostDated" onchange="onWdPostDatedChange()" style="width:16px;height:16px">
+              📅 ভবিষ্যৎ তারিখে চেক ইস্যু (পোস্ট-ডেটেড — এখনই ব্যাংক ব্যালেন্স কাটবে না, শুধু চেক ভাঙ্গানো নিশ্চিত হলে কাটবে)
+            </label>
+            <div id="wdDueDateRow" style="display:none;margin-top:8px">
+              <label style="font-size:12px">ভাঙ্গানোর তারিখ (Due date) *</label>
+              <input type="date" id="wdDueDate" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field" style="grid-column:1/-1"><label>বিবরণ</label><input type="text" id="wdNote" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="clearWithdrawalForm()">🔄 রিসেট</button>
+            <button class="btn btn-success" onclick="saveShareholderWithdrawal()">✅ উত্তোলন সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- মাসিক ক্লোজিং হিস্ট্রি -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📜 মাসিক ক্লোজিং হিস্ট্রি</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>মাস/বছর</th><th>মোট লাভ</th><th>প্রতি শেয়ার</th><th>এন্ট্রিকারী</th><th>বিস্তারিত</th></tr></thead>
-          <tbody id="dividendHistTable"></tbody>
+          <thead><tr><th>মাস/বছর</th><th>নিট ফলাফল</th><th>ফান্ড খাতে</th><th>শেয়ারহোল্ডার অংশ</th><th>ক্লোজকারী</th><th>বিস্তারিত</th></tr></thead>
+          <tbody id="monthClosingHistTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- উত্তোলনের ইতিহাস -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🧾 উত্তোলনের ইতিহাস</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>উত্তোলন নং</th><th>তারিখ</th><th>শেয়ারহোল্ডার</th><th>পরিমাণ</th><th>মাধ্যম</th><th>ব্যক্তি</th><th>স্ট্যাটাস</th><th>বিবরণ</th><th>এন্ট্রিকারী</th></tr></thead>
+          <tbody id="shWithdrawalHistTable"></tbody>
         </table></div></div>
       </div>
     </div>
@@ -2412,7 +2555,7 @@ function openPrintWindow(htmlContent, title) {
           <div style="font-size:12px;color:var(--text-light)">যে বিভাগটি পরিবর্তন করতে চান সেটি বেছে নিন</div>
         </div>
         <div class="settings-nav-grid">
-          <button onclick="openSettingsSection('hosp-info')" class="settings-nav-card"><span class="snc-icon">🏥</span><span class="snc-label">হাসপাতাল তথ্য</span></button><button onclick="openSettingsSection('num-series')" class="settings-nav-card"><span class="snc-icon">🔢</span><span class="snc-label">নম্বর সিরিজ</span></button><button onclick="openSettingsSection('fixed-cost')" class="settings-nav-card"><span class="snc-icon">💸</span><span class="snc-label">ফিক্সড খরচ</span></button><button onclick="openSettingsSection('pricing')" class="settings-nav-card"><span class="snc-icon">💊</span><span class="snc-label">প্রাইসিং</span></button><button onclick="openSettingsSection('users')" class="settings-nav-card"><span class="snc-icon">👥</span><span class="snc-label">ইউজার</span></button><button onclick="openSettingsSection('feature-acc')" class="settings-nav-card"><span class="snc-icon">🔐</span><span class="snc-label">ফিচার এক্সেস</span></button><button onclick="openSettingsSection('quick-access')" class="settings-nav-card"><span class="snc-icon">⭐</span><span class="snc-label">কুইক এক্সেস</span></button><button onclick="openSettingsSection('camp-sched')" class="settings-nav-card"><span class="snc-icon">🏕️</span><span class="snc-label">ক্যাম্প শিডিউল</span></button><button onclick="openSettingsSection('test-fee')" class="settings-nav-card"><span class="snc-icon">🔬</span><span class="snc-label">টেস্ট ফি</span></button><button onclick="openSettingsSection('income-cat')" class="settings-nav-card"><span class="snc-icon">📂</span><span class="snc-label">আয়/ব্যয় খাত</span></button><button onclick="openSettingsSection('exp-subcat')" class="settings-nav-card"><span class="snc-icon">📋</span><span class="snc-label">সাব-ক্যাটাগরি</span></button><button onclick="openSettingsSection('stock-cat')" class="settings-nav-card"><span class="snc-icon">📦</span><span class="snc-label">স্টক ক্যাটাগরি</span></button><button onclick="openSettingsSection('cash-persons')" class="settings-nav-card"><span class="snc-icon">👤</span><span class="snc-label">ক্যাশ ব্যক্তি</span></button><button onclick="openSettingsSection('checkbook')" class="settings-nav-card"><span class="snc-icon">📒</span><span class="snc-label">চেক বই</span></button><button onclick="openSettingsSection('firebase')" class="settings-nav-card"><span class="snc-icon">🔥</span><span class="snc-label">Firebase সিঙ্ক</span></button><button onclick="openSettingsSection('backup')" class="settings-nav-card"><span class="snc-icon">💾</span><span class="snc-label">ব্যাকআপ</span></button><button onclick="openSettingsSection('activity-log')" class="settings-nav-card"><span class="snc-icon">📜</span><span class="snc-label">অ্যাক্টিভিটি লগ</span></button>
+          <button onclick="openSettingsSection('hosp-info')" class="settings-nav-card"><span class="snc-icon">🏥</span><span class="snc-label">হাসপাতাল তথ্য</span></button><button onclick="openSettingsSection('num-series')" class="settings-nav-card"><span class="snc-icon">🔢</span><span class="snc-label">নম্বর সিরিজ</span></button><button onclick="openSettingsSection('fixed-cost')" class="settings-nav-card"><span class="snc-icon">💸</span><span class="snc-label">ফিক্সড খরচ</span></button><button onclick="openSettingsSection('pricing')" class="settings-nav-card"><span class="snc-icon">💊</span><span class="snc-label">প্রাইসিং</span></button><button onclick="openSettingsSection('users')" class="settings-nav-card"><span class="snc-icon">👥</span><span class="snc-label">ইউজার</span></button><button onclick="openSettingsSection('feature-acc')" class="settings-nav-card"><span class="snc-icon">🔐</span><span class="snc-label">ফিচার এক্সেস</span></button><button onclick="openSettingsSection('quick-access')" class="settings-nav-card"><span class="snc-icon">⭐</span><span class="snc-label">কুইক এক্সেস</span></button><button onclick="openSettingsSection('dash-card-order')" class="settings-nav-card"><span class="snc-icon">🔀</span><span class="snc-label">ড্যাশবোর্ড কার্ড ক্রম</span></button><button onclick="openSettingsSection('camp-sched')" class="settings-nav-card"><span class="snc-icon">🏕️</span><span class="snc-label">ক্যাম্প শিডিউল</span></button><button onclick="openSettingsSection('test-fee')" class="settings-nav-card"><span class="snc-icon">🔬</span><span class="snc-label">টেস্ট ফি</span></button><button onclick="openSettingsSection('income-cat')" class="settings-nav-card"><span class="snc-icon">📂</span><span class="snc-label">আয়/ব্যয় খাত</span></button><button onclick="openSettingsSection('profit-funds')" class="settings-nav-card"><span class="snc-icon">🏦</span><span class="snc-label">লাভ বন্টন খাত</span></button><button onclick="openSettingsSection('exp-subcat')" class="settings-nav-card"><span class="snc-icon">📋</span><span class="snc-label">সাব-ক্যাটাগরি</span></button><button onclick="openSettingsSection('stock-cat')" class="settings-nav-card"><span class="snc-icon">📦</span><span class="snc-label">স্টক ক্যাটাগরি</span></button><button onclick="openSettingsSection('cash-persons')" class="settings-nav-card"><span class="snc-icon">👤</span><span class="snc-label">ক্যাশ ব্যক্তি</span></button><button onclick="openSettingsSection('checkbook')" class="settings-nav-card"><span class="snc-icon">📒</span><span class="snc-label">চেক বই</span></button><button onclick="openSettingsSection('firebase')" class="settings-nav-card"><span class="snc-icon">🔥</span><span class="snc-label">Firebase সিঙ্ক</span></button><button onclick="openSettingsSection('backup')" class="settings-nav-card"><span class="snc-icon">💾</span><span class="snc-label">ব্যাকআপ</span></button><button onclick="openSettingsSection('activity-log')" class="settings-nav-card"><span class="snc-icon">📜</span><span class="snc-label">অ্যাক্টিভিটি লগ</span></button>
         </div>
       </div>
       <!-- SETTINGS SECTION BACK BUTTON -->
@@ -2758,6 +2901,18 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
+      <!-- ড্যাশবোর্ড কার্ড ক্রম -->
+      <div class="panel" data-settings-section="dash-card-order">
+        <div class="panel-header"><div class="panel-title">🔀 ড্যাশবোর্ড কার্ড ক্রম</div></div>
+        <div class="panel-body">
+          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">ড্যাশবোর্ডের ৯টি কার্ড কোন ক্রমে দেখাবে তা এখান থেকে সাজান। তীর বাটনে ক্লিক করলে সাথে সাথে প্রয়োগ হবে।</p>
+          <div id="dashCardOrderList" style="display:flex;flex-direction:column;gap:6px;max-width:480px"></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:14px">
+            <button class="btn btn-outline" onclick="resetDashCardOrder()">↩️ ডিফল্ট ক্রমে ফিরুন</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ক্যাম্প শিডিউল ম্যানেজমেন্ট -->
       <div class="panel" data-settings-section="camp-sched">
         <div class="panel-header">
@@ -2841,6 +2996,24 @@ function openPrintWindow(htmlContent, title) {
               <div id="expCatList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- লাভ বন্টন খাত (শেয়ারহোল্ডার প্রফিট ফান্ড এলোকেশন) -->
+      <div class="panel" data-settings-section="profit-funds">
+        <div class="panel-header"><div class="panel-title">🏦 লাভ বন্টন খাত ব্যবস্থাপনা</div></div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px">মাস ক্লোজের সময় নিট মুনাফা থেকে এখানে দেওয়া খাতগুলোতে নির্দিষ্ট শতাংশ কেটে রাখা হবে। বাকি অংশ শেয়ারহোল্ডারদের মধ্যে শেয়ার-অনুপাতে বন্টন হবে।</p>
+          <div class="form-row" style="grid-template-columns:2fr 1fr auto;gap:10px;align-items:end;margin-bottom:14px">
+            <div class="field"><label>খাতের নাম</label><input type="text" id="newFundName" placeholder="যেমন: রিজার্ভ ফান্ড"></div>
+            <div class="field"><label>শতাংশ (%)</label><input type="number" id="newFundPercent" placeholder="১০" min="0" max="100" step="0.1"></div>
+            <button class="btn btn-success btn-sm" onclick="addProfitFund()" style="height:38px">+ যোগ</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>খাতের নাম</th><th>শতাংশ (%)</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="profitFundTable"></tbody>
+          </table></div>
+          <div id="profitFundSummary" style="margin-top:12px;background:#f0f4f8;border-radius:8px;padding:12px;font-size:13px"></div>
         </div>
       </div>
 
@@ -3957,9 +4130,12 @@ function openPrintWindow(htmlContent, title) {
   <div class="modal" style="width:520px">
     <div class="modal-title">✏️ এন্ট্রি সংশোধন</div>
     <div id="recVisitEditBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeRecVisitEdit()">বাতিল</button>
-      <button class="btn btn-success" onclick="saveRecVisitEdit()">✅ সংরক্ষণ করুন</button>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" onclick="if(_recVisitEditId!=null) deleteVisit(_recVisitEditId)">🗑️ সম্পূর্ণ মুছুন</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" onclick="closeRecVisitEdit()">বাতিল</button>
+        <button class="btn btn-success" onclick="saveRecVisitEdit()">✅ সংরক্ষণ করুন</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3969,9 +4145,12 @@ function openPrintWindow(htmlContent, title) {
   <div class="modal">
     <div class="modal-title" id="dashEntryEditTitle">✏️ এন্ট্রি সংশোধন</div>
     <div id="dashEntryEditBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeDashEntryEdit()">বাতিল</button>
-      <button class="btn btn-success" onclick="saveDashEntryEdit()">✅ সংরক্ষণ করুন</button>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" onclick="dashDeleteCurrentEntry()">🗑️ সম্পূর্ণ মুছুন</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" onclick="closeDashEntryEdit()">বাতিল</button>
+        <button class="btn btn-success" onclick="saveDashEntryEdit()">✅ সংরক্ষণ করুন</button>
+      </div>
     </div>
   </div>
 </div>
@@ -4065,7 +4244,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -4505,7 +4684,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -5381,6 +5560,7 @@ function startApp() {
     }
     refreshDashboard(); loadUserList(); updateDemandBadge(); updateCategorySelects();
     renderQuickAccessBar(currentActivePage || 'dashboard');
+    applyDashCardOrder();
   }
 }
 
@@ -5390,7 +5570,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -5426,8 +5606,8 @@ function startFirebaseSync() {
     if (data) {
       // ✅ সুরক্ষা: এই ডিভাইসে এখনো Firebase-এ পুশ না হওয়া (offline-এ করা) এন্ট্রি থাকলে, সার্ভারের পুরনো ডাটা দিয়ে ওভাররাইট করবে না —
       // নাহলে অফলাইনে করা এন্ট্রিগুলো হারিয়ে যেতে পারে। আগে লোকাল পেন্ডিং ডাটা পুশ হবে, তারপর এই লিসেনার আবার স্বাভাবিকভাবে চলবে।
-      if (_fbSyncPending) {
-        console.warn('[HMS] লোকাল ডাটা এখনো Firebase-এ পুশ হয়নি — এই মুহূর্তে সার্ভার ডাটা দিয়ে ওভাররাইট করা হচ্ছে না।');
+      if (_fbSyncPending || _fbWritesInFlight > 0) {
+        console.warn('[HMS] লোকাল ডাটা এখনো Firebase-এ পুশ হচ্ছে (বা ব্যর্থ হয়েছে) — এই মুহূর্তে সার্ভার ডাটা দিয়ে ওভাররাইট করা হচ্ছে না।');
         return;
       }
       // ✅ সুরক্ষা: Firebase থেকে সন্দেহজনক খালি ডাটা আসলে overwrite করবে না
@@ -5436,7 +5616,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[] } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -5636,6 +5816,14 @@ function renderActivityLog() {
 
 // ===== OFFLINE / SYNC STATUS =====
 let _fbSyncPending = false;
+// ✅ এই মুহূর্তে কয়টা Firebase write (root update + প্রতিটা module-এর diff write) চলমান আছে তার কাউন্ট।
+// saveData() একইসাথে root update() এবং প্রতিটা path-synced module-এর জন্য আলাদা set() কল করে —
+// এগুলো আলাদা আলাদা promise, এবং যেকোনো একটা আগে শেষ হলে onValue লিসেনার ফায়ার করতে পারে, যখন বাকিগুলো
+// এখনো সার্ভারে পৌঁছায়নি। এই কাউন্টার শূন্যে না নামা পর্যন্ত onValue-কে স্থানীয় ডাটা ওভাররাইট করতে দেওয়া হয় না —
+// নাহলে সবে যোগ করা এন্ট্রি (যেমন নতুন ইস্যু করা চেক) স্টেল সার্ভার ডাটা দিয়ে মুছে যেতে পারে।
+let _fbWritesInFlight = 0;
+function beginFbWrite() { _fbWritesInFlight++; }
+function endFbWrite() { _fbWritesInFlight = Math.max(0, _fbWritesInFlight - 1); }
 
 // ✅ যেসব মডিউল এখন থেকে "প্রতি-এন্ট্রি" পাথে আলাদাভাবে সিঙ্ক হয় (পুরো array ওভাররাইট না) —
 // এতে যেকোনো দুইজন (অ্যাডমিন, মডারেটর, রিসেপশনিস্ট, ক্যাম্পেইনার — যে কেউ) একসাথে/কাছাকাছি সময়ে এন্ট্রি দিলেও
@@ -5648,7 +5836,7 @@ const PATH_SYNCED_MODULES = [
   'campExpenses', 'campOpPatients', 'memoDocs', 'padNotices', 'recDeposits',
   'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory',
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
-  'shareholders', 'staff'
+  'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals'
 ];
 
 function updateSyncStatusUI() {
@@ -5700,9 +5888,11 @@ function syncModuleDiff(module) {
   toDelete.forEach(id => {
     promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + fbSafeKey(id)), null));
   });
+  beginFbWrite();
   Promise.all(promises)
     .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(); })
-    .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(); }); // baseline আপডেট হয়নি → পরের বার আবার চেষ্টা হবে
+    .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(); }) // baseline আপডেট হয়নি → পরের বার আবার চেষ্টা হবে
+    .finally(() => endFbWrite());
 }
 
 function syncAllPathModules() { PATH_SYNCED_MODULES.forEach(syncModuleDiff); }
@@ -5719,9 +5909,11 @@ function trySyncNow(showMsg) {
   if (!window._fbDb || !window._fbRef || !window._fbUpdate) return;
   syncAllPathModules();
   // ✅ update() ব্যবহার করা হচ্ছে, set() না — update() শুধু দেওয়া key গুলো merge করে, বাকি (income/expense/bankTx সহ) অক্ষত থাকে
+  beginFbWrite();
   window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
     .then(() => { clearSyncPending(); /* 🔕 সিঙ্ক টোস্ট আর দেখানো হয় না */ })
-    .catch(e => { console.warn('[HMS] re-sync ব্যর্থ:', e.message); markSyncPending(); });
+    .catch(e => { console.warn('[HMS] re-sync ব্যর্থ:', e.message); markSyncPending(); })
+    .finally(() => endFbWrite());
 }
 
 window.addEventListener('online', () => { if (_fbSyncPending) trySyncNow(false); });
@@ -5734,9 +5926,11 @@ function saveData() {
   syncAllPathModules();
   if (window._fbDb && window._fbRef && window._fbUpdate) {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
+    beginFbWrite();
     window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
       .then(() => clearSyncPending())
-      .catch(e => { console.error('Firebase save error:', e); markSyncPending(); });
+      .catch(e => { console.error('Firebase save error:', e); markSyncPending(); })
+      .finally(() => endFbWrite());
     // ✅ দৈনিক snapshot backup (Firebase এ আলাদা node এ)
     const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
     const backupKey = 'hms_last_backup_' + today;
@@ -5837,7 +6031,7 @@ function showPage(name) {
   if (name === 'bank')         { initBankPage(); }
   if (name === 'checkbook')    { initCheckbookPage(); }
   if (name === 'loan')         { initLoanPage(); }
-  if (name === 'shareholders') { renderShareholderTable(); renderDividendHistory(); }
+  if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); }
   if (name === 'officialpad')  { initOfficialPad(); }
   if (name === 'memorandum')   { initMemorandumPage(); }
   if (name === 'newbill')      { initNewBillPage(); }
@@ -5969,6 +6163,32 @@ function closeDashEntryEdit() {
   if (m) m.classList.remove('open');
   _dashEditEntry = null;
 }
+// এডিট মোডাল থেকেই এন্ট্রি সম্পূর্ণ মুছে ফেলার সুযোগ (বিদ্যমান delete ফাংশনগুলোই ব্যবহার করে, যেগুলো নিজে থেকেই confirm() দেখায়)
+function dashDeleteCurrentEntry() {
+  if (!_dashEditEntry) return;
+  const { cls, id } = _dashEditEntry;
+  let entry, lenBefore, lenAfter;
+  if (cls === 'badge-income') {
+    entry = appData.income.find(x => String(x.id)===String(id));
+    if (!entry) return;
+    lenBefore = appData.income.length;
+    deleteIncome(entry.id);
+    lenAfter = appData.income.length;
+  } else if (cls === 'badge-expense') {
+    entry = appData.expense.find(x => String(x.id)===String(id));
+    if (!entry) return;
+    lenBefore = appData.expense.length;
+    deleteExpense(entry.id);
+    lenAfter = appData.expense.length;
+  } else if (cls === 'badge-transfer') {
+    entry = (appData.bankTx||[]).find(x => String(x.id)===String(id));
+    if (!entry) return;
+    lenBefore = (appData.bankTx||[]).length;
+    deleteBankTx(entry.id);
+    lenAfter = (appData.bankTx||[]).length;
+  } else return;
+  if (lenAfter < lenBefore) closeDashEntryEdit(); // শুধু আসলেই মুছে গেলে মোডাল বন্ধ হবে (confirm বাতিল করলে খোলা থাকবে)
+}
 function saveDashEntryEdit() {
   if (!_dashEditEntry) return;
   const { cls, id } = _dashEditEntry;
@@ -6030,8 +6250,8 @@ function refreshDashboard() {
   const totalTodayInc = manualInc.reduce((s,e)=>s+e.amount,0)
     + visits.reduce((s,v)=>s+v.cashPaid,0);
 
-  // Today expense (manual)
-  const exp      = appData.expense.filter(e=>e.date===today);
+  // Today expense (manual) — cash-basis: cash entries always count; bank entries count only when actually cleared today
+  const exp      = appData.expense.filter(e=>expenseEffectiveDate(e)===today);
   const totalExp = exp.reduce((s,e)=>s+e.amount,0);
 
   // Today profit = income - manual expense - daily fixed share
@@ -6053,7 +6273,7 @@ function refreshDashboard() {
   const mInc  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0);
   const mVis  = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+v.cashPaid,0);
   const mCamp = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
-  const mExp  = appData.expense.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0);
+  const mExp  = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix)).reduce((s,e)=>s+e.amount,0);
   const mTotalInc = mInc + mVis + mCamp;
   const mProfit   = mTotalInc - mExp - totalMonthlyFixed;
   animateStatText(document.getElementById('monthlyProfit'), mProfit, v => (v>=0?'৳ ':'- ৳ ') + fmt(Math.abs(v)));
@@ -6109,6 +6329,7 @@ function refreshDashboard() {
 
   // Recent entries (ডে/মান্থ গ্রুপড — toggle dropdown না ছুঁয়েও সবসময় গ্রুপড দেখাবে)
   renderDashRecentEntries();
+  if (typeof updateNotifBell==='function') updateNotifBell();
 }
 
 // ===== DASHBOARD CARD MODAL =====
@@ -6161,7 +6382,7 @@ function showDashCardModal(cardId, modalId) {
     ) + row('<strong>মোট</strong>', '<strong>৳ '+fmt(manualSum+visSum)+'</strong>', '#16a34a');
 
   } else if (cardId === 'todayExpense') {
-    const exp = appData.expense.filter(e=>e.date===today);
+    const exp = appData.expense.filter(e=>expenseEffectiveDate(e)===today);
     const expSum = exp.reduce((s,e)=>s+e.amount,0);
     icon='💸'; title='আজকের ব্যয়'; sub=formatDate(today);
     amtText='৳ '+fmt(expSum+dailyFixed); amtColor='#e74c3c';
@@ -6176,7 +6397,7 @@ function showDashCardModal(cardId, modalId) {
     const manualInc = appData.income.filter(e=>e.date===today);
     const vis       = appData.visits.filter(v=>v.date===today);
     const totalInc  = manualInc.reduce((s,e)=>s+e.amount,0)+vis.reduce((s,v)=>s+v.cashPaid,0);
-    const exp       = appData.expense.filter(e=>e.date===today);
+    const exp       = appData.expense.filter(e=>expenseEffectiveDate(e)===today);
     const totalExp  = exp.reduce((s,e)=>s+e.amount,0);
     const profit    = totalInc - totalExp - dailyFixed;
     icon='📈'; title='আজকের লাভ/লস'; sub=formatDate(today);
@@ -6190,7 +6411,7 @@ function showDashCardModal(cardId, modalId) {
     const mInc  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0);
     const mVis  = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+v.cashPaid,0);
     const mCamp = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
-    const mExp  = appData.expense.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0);
+    const mExp  = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix)).reduce((s,e)=>s+e.amount,0);
     const mTotalInc = mInc+mVis+mCamp;
     const mProfit = mTotalInc - mExp - totalMonthlyFixed;
     icon='📅'; title='মাসিক লাভ/লস'; sub=prefix+' মাস';
@@ -6325,9 +6546,12 @@ function generateNextRcptNo() {
 function generateNextVoucherNo(dateStr) {
   const vDate = getVoucherDate(dateStr);
   const prefix = 'VN' + vDate + '-';
-  const allVouchers = (appData.expense||[])
-    .map(e => e.voucher||'')
-    .filter(v => v.startsWith(prefix));
+  const allVouchers = [
+    ...(appData.expense||[]).map(e => e.voucher||''),
+    ...(appData.issuedChecks||[]).map(c => c.voucher||''),
+    ...(appData.shareholderWithdrawals||[]).map(w => w.voucher||''),
+    ...(appData.bankTx||[]).map(t => t.voucher||'')
+  ].filter(v => v.startsWith(prefix));
   let maxSeq = 0;
   allVouchers.forEach(v => {
     const seq = parseInt(v.replace(prefix,''))||0;
@@ -6440,22 +6664,27 @@ function saveExpense() {
   const note=document.getElementById('expNote').value.trim();
   // পেমেন্ট মাধ্যম
   const payMode = document.querySelector('input[name="expPayMode"]:checked')?.value || 'cash';
-  let payPerson='', checkNo='', checkbookId='';
+  let payPerson='', checkNo='', checkbookId='', clearDate='', status='cleared', actualClearedDate='';
   payPerson = (document.getElementById('expCashPerson')||{}).value || '';
   if (payMode==='bank') {
     checkNo = (document.getElementById('expCheckNo')||{}).value.trim() || '';
     checkbookId = (document.getElementById('expCheckbook')||{}).value || '';
-    // ব্যবহৃত চেক আপডেট
+    clearDate = (document.getElementById('expClearDate')||{}).value || date;
+    // ব্যবহৃত চেক আপডেট (পাতা এখনই রিজার্ভ হবে — ভাঙ্গানো নিশ্চিত না হলেও)
     if (checkbookId && checkNo) {
       const cb = (appData.checkbooks||[]).find(b=>b.id==checkbookId);
       if (cb) { cb.lastUsed = parseInt(checkNo); }
     }
+    if (clearDate > todayStr()) { status='pending'; actualClearedDate=''; }
+    else { status='cleared'; actualClearedDate=clearDate; }
+  } else {
+    clearDate = date; actualClearedDate = date; status='cleared';
   }
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
-  appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, by:currentUser.name });
-  logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher})`);
+  appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by:currentUser.name });
+  logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
   saveData(); clearExpenseForm(); renderExpenseTable(); refreshDashboard();
-  showToast('✅ ব্যয় এন্ট্রি সেভ! ভাউচার: ' + voucher);
+  showToast(status==='pending' ? `✅ ব্যয় এন্ট্রি সেভ (পেন্ডিং — ${formatDate(clearDate)} তারিখে ভাঙ্গানো হবে)! ভাউচার: ${voucher}` : '✅ ব্যয় এন্ট্রি সেভ! ভাউচার: ' + voucher);
 }
 function clearExpenseForm() {
   document.getElementById('expDate').value = todayStr();
@@ -6465,6 +6694,7 @@ function clearExpenseForm() {
   const subEl=document.getElementById('expSubCategory'); if(subEl){ subEl.innerHTML='<option value="">-- সাব-ক্যাটাগরি --</option>'; }
   const cashRadio=document.getElementById('expPayCash'); if(cashRadio){ cashRadio.checked=true; onExpPayModeChange(); }
   const personEl=document.getElementById('expCashPerson'); if(personEl) personEl.value='';
+  const cdEl=document.getElementById('expClearDate'); if(cdEl) cdEl.value=todayStr();
   const vEl = document.getElementById('expVoucher');
   if (vEl) vEl.value = generateNextVoucherNo(todayStr());
 }
@@ -6473,11 +6703,16 @@ function onExpPayModeChange() {
   const mode = document.querySelector('input[name="expPayMode"]:checked')?.value || 'cash';
   const cashRow=document.getElementById('expCashPersonRow');
   const bankRow=document.getElementById('expBankRow');
+  const clearDateRow=document.getElementById('expClearDateRow');
   const personLabel=document.getElementById('expPersonLabel');
   if (cashRow) cashRow.style.display = ''; // ক্যাশ ও ব্যাংক — উভয় মাধ্যমেই ব্যক্তি নির্বাচন দেখাবে
   if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
   if (personLabel) personLabel.textContent = mode==='bank' ? 'চেক বহনকারী / বাহক ব্যক্তি' : 'পরিশোধকারী ব্যক্তি';
-  if (mode==='bank') updateNextCheckNo();
+  if (mode==='bank') {
+    updateNextCheckNo();
+    const cdEl=document.getElementById('expClearDate'); if (cdEl && !cdEl.value) cdEl.value = todayStr();
+  }
 }
 // ব্যক্তি যোগ টগল
 function toggleExpAddPerson() {
@@ -6635,10 +6870,10 @@ function renderCheckbookDetail() {
 function initCheckbookPage() {
   renderCheckbookList();
   renderCheckbookDetail();
+  const ciDateEl=document.getElementById('ciIssueDate'); if (ciDateEl && !ciDateEl.value) ciDateEl.value=todayStr();
   populateIssueCheckbookSelect();
   renderIssuedChecks();
   renderCheckReminders();
-  const ciDateEl=document.getElementById('ciIssueDate'); if (ciDateEl && !ciDateEl.value) ciDateEl.value=todayStr();
 }
 
 // ===== চেক ইস্যু (পোস্ট-ডেটেড চেক ট্র্যাকিং) =====
@@ -6648,6 +6883,13 @@ function populateIssueCheckbookSelect() {
   sel.innerHTML='<option value="">-- চেক বই নির্বাচন করুন --</option>'+books.map(b=>`<option value="${b.id}">${b.name} (${b.start}–${b.end})</option>`).join('');
   if (books.length===1) sel.value=books[0].id;
   updateNextCheckNo('ciCheckbook','ciCheckNo');
+  updateCiVoucher();
+}
+function updateCiVoucher() {
+  const el=document.getElementById('ciVoucher'); if(!el) return;
+  const dateEl=document.getElementById('ciIssueDate');
+  if (dateEl && !dateEl.value) dateEl.value = todayStr();
+  el.value = generateNextVoucherNo(dateEl ? dateEl.value : todayStr());
 }
 function issueCheck() {
   const checkbookId=document.getElementById('ciCheckbook')?.value||'';
@@ -6657,6 +6899,8 @@ function issueCheck() {
   const issueDate=document.getElementById('ciIssueDate')?.value||todayStr();
   const dueDate=document.getElementById('ciDueDate')?.value||'';
   const note=(document.getElementById('ciNote')?.value||'').trim();
+  let voucher=(document.getElementById('ciVoucher')?.value||'').trim();
+  if (!voucher) voucher = generateNextVoucherNo(issueDate);
   if (!checkbookId) { showToast('⚠️ চেক বই নির্বাচন করুন!'); return; }
   if (!checkNo) { showToast('⚠️ চেক নম্বর পাওয়া যায়নি — চেক বইয়ের পাতা শেষ কিনা দেখুন!'); return; }
   if (!payee) { showToast('⚠️ প্রাপকের নাম লিখুন!'); return; }
@@ -6667,7 +6911,7 @@ function issueCheck() {
   cb.lastUsed = parseInt(checkNo); // পাতা এখনই ব্যবহৃত হিসেবে চিহ্নিত — কিন্তু ব্যাংক ব্যালেন্সে প্রভাব পরে, ভাঙ্গানো নিশ্চিত হলে
   if (!appData.issuedChecks) appData.issuedChecks=[];
   appData.issuedChecks.push({
-    id:Date.now(), checkbookId, checkNo, payee, amount, issueDate, dueDate, note,
+    id:Date.now(), voucher, checkbookId, checkNo, payee, amount, issueDate, dueDate, note,
     status:'pending', clearedDate:'', linkedBankTxId:null, by:currentUser.name
   });
   saveData();
@@ -6675,32 +6919,82 @@ function issueCheck() {
   populateIssueCheckbookSelect();
   populateCheckbookSelect(); populateCheckbookSelect('bankTxCheckbook','bankTxCheckNo');
   renderIssuedChecks(); renderCheckbookList(); renderCheckbookDetail(); renderCheckReminders();
-  showToast('✅ চেক ইস্যু রেকর্ড হয়েছে — চেক নং '+checkNo);
+  showToast(`✅ চেক ইস্যু রেকর্ড হয়েছে — চেক নং ${checkNo} (ভাউচার: ${voucher})`);
 }
 function markCheckCleared(id) {
   const chk=(appData.issuedChecks||[]).find(c=>c.id===id); if (!chk) return;
   const defaultDate = chk.dueDate || todayStr();
-  const clearedDate = prompt('চেকটি কোন তারিখে ভাঙ্গানো হয়েছে? (YYYY-MM-DD)', defaultDate);
-  if (!clearedDate) return;
+  const modal=document.createElement('div');
+  modal.className='modal-overlay'; modal.style.display='flex';
+  modal.innerHTML=`<div class="modal" style="max-width:420px">
+    <div class="modal-title">✅ চেক ভাঙ্গানো নিশ্চিত করুন</div>
+    <div style="font-size:13.5px;margin-bottom:14px;background:#f0f4f8;border-radius:8px;padding:10px 12px">
+      চেক নং <strong>${chk.checkNo}</strong> (${chk.payee})${chk.voucher?` — ভাউচার: <strong>${chk.voucher}</strong>`:''}<br>
+      পরিমাণ: <strong>৳ ${fmt(chk.amount)}</strong>
+    </div>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:10px">ব্যাংক থেকে চেক ভাঙ্গানোর বার্তা/এসএমএস পেলে সেই অনুযায়ী প্রকৃত তারিখ দিন — এতে অ্যাপের ব্যাংক ব্যালেন্স আপনার ব্যাংকের অফিসিয়াল স্টেটমেন্টের সাথে মিলে থাকবে।</p>
+    <div class="field"><label>ভাঙ্গানোর প্রকৃত তারিখ *</label><input type="date" id="ccClearedDate" value="${defaultDate}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বাতিল</button>
+      <button class="btn btn-success" onclick="confirmCheckCleared(${id})">✅ নিশ্চিত করুন</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+function confirmCheckCleared(id) {
+  const chk=(appData.issuedChecks||[]).find(c=>c.id===id); if (!chk) return;
+  const clearedDate = document.getElementById('ccClearedDate')?.value;
+  if (!clearedDate) { showToast('⚠️ তারিখ দিন!'); return; }
   chk.status='cleared'; chk.clearedDate=clearedDate;
   if(!appData.bankTx) appData.bankTx=[];
   const txId = Date.now();
-  appData.bankTx.push({id:txId, type:'bank_out', amount:chk.amount, date:clearedDate, note:`চেক ইস্যু পরিশোধ — ${chk.payee}${chk.note?(' ('+chk.note+')'):''}`, ref:chk.checkNo, checkNo:chk.checkNo, checkbookId:chk.checkbookId, by:currentUser.name});
+  appData.bankTx.push({id:txId, voucher:chk.voucher||'', type:'bank_out', amount:chk.amount, date:clearedDate, note:`চেক ইস্যু পরিশোধ — ${chk.payee}${chk.note?(' ('+chk.note+')'):''}`, ref:chk.checkNo, checkNo:chk.checkNo, checkbookId:chk.checkbookId, by:currentUser.name});
   chk.linkedBankTxId = txId;
+  // এই চেকটি যদি কোনো শেয়ারহোল্ডার উত্তোলনের সাথে যুক্ত থাকে — সেই এন্ট্রির স্ট্যাটাসও আপডেট করো
+  if (chk.linkedWithdrawalId) {
+    const wd=(appData.shareholderWithdrawals||[]).find(w=>w.id===chk.linkedWithdrawalId);
+    if (wd) { wd.status='cleared'; wd.clearedDate=clearedDate; }
+    if (typeof renderShareholderWithdrawalHistory==='function') renderShareholderWithdrawalHistory();
+  }
   saveData(); renderIssuedChecks(); renderCheckbookDetail(); updateBankBalances(); renderBankTx(); renderCheckReminders();
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
   showToast('✅ চেক ভাঙ্গানো নিশ্চিত হয়েছে — ব্যাংক ব্যালেন্স থেকে কর্তন হয়েছে');
 }
 function markCheckBounced(id) {
   const chk=(appData.issuedChecks||[]).find(c=>c.id===id); if (!chk) return;
   if (!confirm(`চেক নং ${chk.checkNo} (${chk.payee}) বাউন্স হয়েছে হিসেবে চিহ্নিত করবেন? এই পাতাটি অপচয় হিসেবে গণ্য হবে এবং ব্যাংক থেকে কোনো টাকা কাটবে না।`)) return;
   chk.status='bounced';
+  // যদি এটি কোনো শেয়ারহোল্ডার উত্তোলনের চেক হয় — বাউন্সের কারণে টাকা আসলে যায়নি, তাই ব্যালেন্স ফেরত দাও
+  if (chk.linkedWithdrawalId) {
+    const wd=(appData.shareholderWithdrawals||[]).find(w=>w.id===chk.linkedWithdrawalId);
+    if (wd && wd.status!=='bounced') {
+      wd.status='bounced';
+      const sh=(appData.shareholders||[]).find(s=>s.id===wd.shareholderId);
+      if (sh) sh.balance = (sh.balance||0) + wd.amount;
+    }
+    if (typeof renderShareholderTable==='function') renderShareholderTable();
+    if (typeof renderShareholderWithdrawalHistory==='function') renderShareholderWithdrawalHistory();
+  }
   saveData(); renderIssuedChecks(); renderCheckReminders();
-  showToast('⚠️ চেক বাউন্স হিসেবে চিহ্নিত হয়েছে');
+  showToast('⚠️ চেক বাউন্স হিসেবে চিহ্নিত হয়েছে' + (chk.linkedWithdrawalId ? ' — শেয়ারহোল্ডারের ব্যালেন্স ফেরত দেওয়া হয়েছে' : ''));
 }
 function deleteIssuedCheck(id) {
   const chk=(appData.issuedChecks||[]).find(c=>c.id===id); if (!chk) return;
   if (!confirm('এই ইস্যু করা চেকের রেকর্ড মুছবেন?')) return;
   if (chk.linkedBankTxId) { appData.bankTx=(appData.bankTx||[]).filter(t=>t.id!==chk.linkedBankTxId); }
+  // যুক্ত শেয়ারহোল্ডার উত্তোলন থাকলে — এখনো পরিশোধ না হয়ে থাকলে ব্যালেন্স ফেরত দিয়ে এন্ট্রিও মুছে দাও
+  if (chk.linkedWithdrawalId) {
+    const wd=(appData.shareholderWithdrawals||[]).find(w=>w.id===chk.linkedWithdrawalId);
+    if (wd) {
+      if (wd.status==='pending') {
+        const sh=(appData.shareholders||[]).find(s=>s.id===wd.shareholderId);
+        if (sh) sh.balance = (sh.balance||0) + wd.amount;
+      }
+      appData.shareholderWithdrawals = (appData.shareholderWithdrawals||[]).filter(w=>w.id!==chk.linkedWithdrawalId);
+    }
+    if (typeof renderShareholderTable==='function') renderShareholderTable();
+    if (typeof renderShareholderWithdrawalHistory==='function') renderShareholderWithdrawalHistory();
+  }
   appData.issuedChecks=(appData.issuedChecks||[]).filter(c=>c.id!==id);
   saveData(); renderIssuedChecks(); renderCheckbookDetail(); updateBankBalances(); renderBankTx(); renderCheckReminders();
   showToast('🗑️ মুছে ফেলা হয়েছে');
@@ -6715,7 +7009,7 @@ function daysBetween(dateStr) {
 function renderIssuedChecks() {
   const tbody=document.getElementById('issuedChecksTable'); if (!tbody) return;
   const list=[...(appData.issuedChecks||[])].sort((a,b)=>b.id-a.id);
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">কোনো চেক ইস্যু করা হয়নি</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো চেক ইস্যু করা হয়নি</td></tr>'; return; }
   const statusBadge = c => {
     if (c.status==='cleared') return `<span class="badge badge-income">✅ ভাঙ্গানো হয়েছে</span>`;
     if (c.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
@@ -6725,6 +7019,7 @@ function renderIssuedChecks() {
     return `<span class="badge badge-info">⏳ পেন্ডিং (${d} দিন বাকি)</span>`;
   };
   tbody.innerHTML = list.map(c => `<tr>
+    <td style="font-weight:600;color:var(--warning)">${c.voucher||'—'}</td>
     <td style="font-weight:700;color:var(--primary)">${c.checkNo}</td>
     <td>${c.payee}</td>
     <td style="font-weight:700;color:var(--danger)">৳ ${fmt(c.amount)}</td>
@@ -6794,7 +7089,35 @@ function renderExpenseTable() {
   if (filterCat) data=data.filter(e=>e.category===filterCat);
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('expenseTable');
-  if (!data.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+
+  // সব পেন্ডিং চেক (ফিল্টার নির্বিশেষে) — সবসময় উপরে ভেসে থাকবে, যতদিন না ভাঙ্গানো নিশ্চিত হয়
+  const allPending = [...(appData.expense||[])].filter(e=>e.status==='pending').sort((a,b)=>a.clearDate.localeCompare(b.clearDate));
+  let pendingHtml = '';
+  if (allPending.length) {
+    const pendingTotal = allPending.reduce((s,e)=>s+e.amount,0);
+    pendingHtml += `<tr style="background:#fef9c3;border-top:2px solid #fbbf24;border-bottom:2px solid #fbbf24">
+      <td colspan="10" style="color:#854d0e;font-weight:700;padding:8px 12px;font-size:12.5px">
+        ⏳ অনিষ্পন্ন চেক (ভাঙ্গানো বাকি) &nbsp;—&nbsp; মোট: ৳ ${fmt(pendingTotal)} &nbsp;|&nbsp; ${allPending.length}টি — হিসাবে এখনো গণনা হয়নি
+      </td>
+    </tr>`;
+    allPending.forEach(e => {
+      const overdue = e.clearDate < todayStr();
+      pendingHtml += `<tr style="background:#fffbeb">
+        <td>${formatDate(e.date)}</td>
+        <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
+        <td>${e.category}</td>
+        <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
+        <td><span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক</span></td>
+        <td style="color:var(--text-light);font-size:12px">চেক: ${e.checkNo||'—'}${e.payPerson?` <span style="color:#888">(বাহক: ${e.payPerson})</span>`:''}</td>
+        <td style="color:var(--text-light)">ভাঙ্গানোর তারিখ: <strong style="color:${overdue?'var(--danger)':'#92400e'}">${formatDate(e.clearDate)}</strong>${e.note?' — '+e.note:''}</td>
+        <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
+        <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
+        <td><button class="btn btn-success btn-sm" onclick="markExpenseCleared(${e.id})">✅ ভাঙ্গানো হয়েছে</button></td>
+      </tr>`;
+    });
+  }
+
+  if (!data.length) { tbody.innerHTML = pendingHtml || '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
 
   // গ্রুপিং কী নির্ধারণ
   const getKey = e => {
@@ -6817,7 +7140,7 @@ function renderExpenseTable() {
   data.forEach(e => { const k=getKey(e); if(!groups[k])groups[k]=[]; groups[k].push(e); });
   const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
 
-  let html='';
+  let html=pendingHtml;
   sortedKeys.forEach(key => {
     const items = groups[key];
     const total = items.reduce((s,e)=>s+e.amount,0);
@@ -6833,6 +7156,11 @@ function renderExpenseTable() {
       const payBadge = e.payMode==='bank'
         ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক</span>`
         : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">💵 ক্যাশ</span>`;
+      const statusBadge = e.payMode==='bank'
+        ? (e.status==='pending'
+          ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-left:4px">⏳ পেন্ডিং</span>`
+          : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-left:4px">✅ ক্লিয়ার্ড</span>`)
+        : '';
       const personOrCheck = e.payMode==='bank'
         ? `${e.checkNo ? `চেক: ${e.checkNo}` : '—'}${e.payPerson ? ` <span style="color:#888">(বাহক: ${e.payPerson})</span>` : ''}`
         : (e.payPerson || '—');
@@ -6841,16 +7169,48 @@ function renderExpenseTable() {
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
         <td>${e.category}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
-        <td>${payBadge}</td>
+        <td>${payBadge}${statusBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${personOrCheck}</td>
         <td style="color:var(--text-light)">${e.note||'—'}</td>
         <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
         <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
-        <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">🗑️</button>`:'—'}</td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
+          ${e.status==='pending' ? `<button class="btn btn-success btn-sm" onclick="markExpenseCleared(${e.id})">✅ ভাঙ্গানো হয়েছে</button>` : ''}
+          ${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">🗑️</button>`:''}
+        </td>
       </tr>`;
     });
   });
   tbody.innerHTML=html;
+}
+function markExpenseCleared(id) {
+  const e=(appData.expense||[]).find(x=>x.id===id); if (!e) return;
+  const defaultDate = e.clearDate || todayStr();
+  const modal=document.createElement('div');
+  modal.className='modal-overlay'; modal.style.display='flex';
+  modal.innerHTML=`<div class="modal" style="max-width:420px">
+    <div class="modal-title">✅ চেক ভাঙ্গানো নিশ্চিত করুন</div>
+    <div style="font-size:13.5px;margin-bottom:14px;background:#f0f4f8;border-radius:8px;padding:10px 12px">
+      ${e.category}${e.checkNo?` — চেক নং <strong>${e.checkNo}</strong>`:''} — ভাউচার: <strong>${e.voucher||'—'}</strong><br>
+      পরিমাণ: <strong>৳ ${fmt(e.amount)}</strong>
+    </div>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:10px">ব্যাংক থেকে ভাঙ্গানোর বার্তা/এসএমএস পেলে প্রকৃত তারিখ দিন — এই তারিখের মাসেই এটা ব্যয় ও নিট মুনাফা হিসাবে গণনা হবে।</p>
+    <div class="field"><label>ভাঙ্গানোর প্রকৃত তারিখ *</label><input type="date" id="ecClearedDate" value="${defaultDate}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বাতিল</button>
+      <button class="btn btn-success" onclick="confirmExpenseCleared(${id})">✅ নিশ্চিত করুন</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+function confirmExpenseCleared(id) {
+  const e=(appData.expense||[]).find(x=>x.id===id); if (!e) return;
+  const clearedDate = document.getElementById('ecClearedDate')?.value;
+  if (!clearedDate) { showToast('⚠️ তারিখ দিন!'); return; }
+  e.status='cleared'; e.actualClearedDate=clearedDate;
+  saveData(); renderExpenseTable(); refreshDashboard(); updateBankBalances(); if (typeof renderBankTx==='function') renderBankTx();
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
+  showToast('✅ ভাঙ্গানো নিশ্চিত হয়েছে — '+formatDate(clearedDate)+' তারিখের হিসাবে যোগ হয়েছে');
 }
 // expFilterCat সিলেক্ট পপুলেট
 function populateExpFilterCat() {
@@ -6893,14 +7253,14 @@ function getDayIncome(date) {
   return (appData.income||[]).filter(e=>e.date===date).reduce((s,e)=>s+e.amount,0);
 }
 function getDayExpense(date) {
-  // appData.expense এ সব ব্যয় আছে (manual, ক্যাম্প — সব save এর সময় এখানে push হয়)
-  return (appData.expense||[]).filter(e=>e.date===date).reduce((s,e)=>s+e.amount,0);
+  // ক্যাশ ব্যয় সবসময় গণনা হবে; ব্যাংক/চেক ব্যয় শুধু প্রকৃত ভাঙ্গানোর তারিখে গণনা হবে (পেন্ডিং বাদ)
+  return (appData.expense||[]).filter(e=>expenseEffectiveDate(e)===date).reduce((s,e)=>s+e.amount,0);
 }
 function getMonthIncome(month) { // month = 'YYYY-MM'
   return (appData.income||[]).filter(e=>e.date&&e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
 }
 function getMonthExpense(month) {
-  return (appData.expense||[]).filter(e=>e.date&&e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
+  return (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, month)).reduce((s,e)=>s+e.amount,0);
 }
 function getPeriodIncome(key, vm) { return vm==='month' ? getMonthIncome(key) : getDayIncome(key); }
 function getPeriodExpense(key, vm) { return vm==='month' ? getMonthExpense(key) : getDayExpense(key); }
@@ -7260,11 +7620,21 @@ function renderDashRecentEntries() {
     if (!key) return;
     (groups[key] = groups[key]||[]).push(r);
   });
-  const sortedKeys = Object.keys(groups).sort().reverse().slice(0, vm==='month'?6:14);
-  // যদি নির্দিষ্ট তারিখ সিলেক্ট করা থাকে এবং day mode, শুধু সেই তারিখ দেখাও
-  const filteredKeys = (_dashViewDate && vm==='day')
-    ? sortedKeys.filter(k => k === _dashViewDate)
-    : sortedKeys;
+  const allSortedKeys = Object.keys(groups).sort().reverse();
+  // প্রিসেট পিল (আজ/সপ্তাহ/মাস) অথবা কাস্টম তারিখ অনুযায়ী ফিল্টার — নাহলে ডিফল্ট সর্বশেষ N
+  let filteredKeys;
+  if (_dashDatePreset === 'today' && vm === 'day') {
+    filteredKeys = allSortedKeys.filter(k => k === todayStr());
+  } else if (_dashDatePreset === 'week' && vm === 'day' && _dashRangeStart && _dashRangeEnd) {
+    filteredKeys = allSortedKeys.filter(k => k >= _dashRangeStart && k <= _dashRangeEnd);
+  } else if (_dashDatePreset === 'month' && vm === 'month') {
+    const curMonth = todayStr().substring(0,7);
+    filteredKeys = allSortedKeys.filter(k => k === curMonth);
+  } else if (_dashViewDate && vm==='day') {
+    filteredKeys = allSortedKeys.filter(k => k === _dashViewDate);
+  } else {
+    filteredKeys = allSortedKeys.slice(0, vm==='month'?6:14);
+  }
 
   let html = '';
   filteredKeys.forEach(key => {
@@ -7610,7 +7980,7 @@ function confirmDuePayment() {
 // ===== SETTINGS =====
 function clearAllData() {
   if (!confirm('সত্যিই সব ডেটা মুছে ফেলবেন?')) return;
-  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], settings:appData.settings, passwords:appData.passwords||{} };
+  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], settings:appData.settings, passwords:appData.passwords||{} };
   saveData(); refreshDashboard(); showToast('🗑️ সব ডেটা মুছে ফেলা হয়েছে');
 }
 
@@ -7626,7 +7996,7 @@ function printBoardReport() {
 
   // ডেটা ফিল্টার
   const incomes  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix));
-  const expenses = appData.expense.filter(e=>e.date&&e.date.startsWith(prefix));
+  const expenses = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix));
   const visits   = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix));
   const camps    = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix));
   const ops      = (appData.operations||[]).filter(o=>o.date&&o.date.startsWith(prefix));
@@ -7932,7 +8302,7 @@ function renderReport() {
 
   // Filter data for this month
   const incomes  = appData.income.filter(e => e.date && e.date.startsWith(prefix));
-  const expenses = appData.expense.filter(e => e.date && e.date.startsWith(prefix));
+  const expenses = appData.expense.filter(e => expenseCountsInPrefix(e, prefix));
   const visits   = appData.visits.filter(v => v.date && v.date.startsWith(prefix));
 
   const totalInc    = incomes.reduce((s,e)=>s+e.amount,0);
@@ -8058,7 +8428,7 @@ function setRpGroupMode(mode) {
   const pad=n=>String(n).padStart(2,'0');
   const prefix=`${year}-${pad(month)}`;
   const incomes=appData.income.filter(e=>e.date&&e.date.startsWith(prefix));
-  const expenses=appData.expense.filter(e=>e.date&&e.date.startsWith(prefix));
+  const expenses=appData.expense.filter(e=>expenseCountsInPrefix(e, prefix));
   const visits=appData.visits.filter(e=>e.date&&e.date.startsWith(prefix));
   renderRpDetailTable(incomes, expenses, visits, year, month, pad);
 }
@@ -9004,8 +9374,21 @@ function initBankPage() {
   if(document.getElementById('settBankAccNo')) document.getElementById('settBankAccNo').value=s.bankAccNo||'';
   if(document.getElementById('settBankBranch')) document.getElementById('settBankBranch').value=s.bankBranch||'';
   onBankTxTypeChange();
+  updateBankTxVoucher();
   updateBankBalances();
   renderBankTx();
+}
+// ব্যয় এন্ট্রির প্রকৃত হিসাবভুক্তির তারিখ — ক্যাশ হলে এন্ট্রির তারিখ, ব্যাংক/চেক হলে যেদিন প্রকৃতপক্ষে ভাঙ্গানো হয়েছে (পেন্ডিং হলে হিসাবে গণনাই হবে না)
+function expenseEffectiveDate(e) {
+  if (e.payMode === 'bank') {
+    if (e.status === 'pending') return null;
+    return e.actualClearedDate || e.clearDate || e.date;
+  }
+  return e.date;
+}
+function expenseCountsInPrefix(e, prefix) {
+  const eff = expenseEffectiveDate(e);
+  return !!eff && eff.startsWith(prefix);
 }
 function calcCashBankBalance() {
   // ক্যাশ = সব আয় - সব ব্যয় + bankTx অ্যাডজাস্টমেন্ট
@@ -9017,8 +9400,14 @@ function calcCashBankBalance() {
   (appData.visits||[]).forEach(v => { cash += (v.cashPaid||0); });
   // ৩. Camp income → ক্যাশে যোগ
   (appData.camps||[]).forEach(c => { cash += (c.totalIncome||0); });
-  // ৪. Manual expense → ক্যাশ থেকে বাদ
-  (appData.expense||[]).forEach(e => { cash -= (e.amount||0); });
+  // ৪. Manual expense → পেমেন্ট মাধ্যম অনুযায়ী ক্যাশ বা ব্যাংক থেকে বাদ। ব্যাংকের চেক এখনো 'পেন্ডিং' (ভবিষ্যতের তারিখে ভাঙ্গানো) হলে — ভাঙ্গানো নিশ্চিত না হওয়া পর্যন্ত কোনো ব্যালেন্স থেকেই বাদ যাবে না।
+  (appData.expense||[]).forEach(e => {
+    if (e.payMode === 'bank') {
+      if (e.status !== 'pending') bank -= (e.amount||0);
+    } else {
+      cash -= (e.amount||0);
+    }
+  });
   // ৫. Camp expense → ক্যাশ থেকে বাদ
   (appData.camps||[]).forEach(c => { cash -= ((c.totalExpense||0) + (c.totalCOGS||0) + (c.regularStaffCost||0)); });
   // ৬. bankTx: ক্যাশ→ব্যাংক ট্রান্সফার ও ম্যানুয়াল অ্যাডজাস্টমেন্ট
@@ -9046,12 +9435,20 @@ function updateBankBalances() {
     const el=document.getElementById(id); if(el) el.textContent='৳ '+fmt(bank);
   });
 }
+function updateBankTxVoucher() {
+  const el=document.getElementById('bankTxVoucher'); if(!el) return;
+  const dateEl=document.getElementById('bankTxDate');
+  if (dateEl && !dateEl.value) dateEl.value = todayStr();
+  el.value = generateNextVoucherNo(dateEl ? dateEl.value : todayStr());
+}
 function saveBankTx() {
   const type=document.getElementById('bankTxType').value;
   const amount=parseFloat(document.getElementById('bankTxAmount').value)||0;
   const date=document.getElementById('bankTxDate').value;
   const note=document.getElementById('bankTxNote').value.trim();
   const ref=document.getElementById('bankTxRef').value.trim();
+  let voucher=(document.getElementById('bankTxVoucher')?.value||'').trim();
+  if (!voucher) voucher = generateNextVoucherNo(date);
   if(!amount||!date){showToast('⚠️ পরিমাণ ও তারিখ আবশ্যক!');return;}
   let checkNo='', checkbookId='';
   if (type==='bank_out' || type==='bank_to_cash') {
@@ -9064,12 +9461,13 @@ function saveBankTx() {
     }
   }
   if(!appData.bankTx) appData.bankTx=[];
-  appData.bankTx.push({id:Date.now(),type,amount,date,note,ref:ref||checkNo,checkNo,checkbookId,by:currentUser.name});
+  appData.bankTx.push({id:Date.now(),voucher,type,amount,date,note,ref:ref||checkNo,checkNo,checkbookId,by:currentUser.name});
   saveData(); updateBankBalances(); renderBankTx(); renderCheckbookDetail();
   ['bankTxAmount','bankTxNote','bankTxRef'].forEach(id=>document.getElementById(id).value='');
   const ckSel=document.getElementById('bankTxCheckbook'); if(ckSel) ckSel.value='';
   const ckNoEl=document.getElementById('bankTxCheckNo'); if(ckNoEl) ckNoEl.value='';
-  showToast('✅ লেনদেন সেভ হয়েছে!');
+  updateBankTxVoucher();
+  showToast('✅ লেনদেন সেভ হয়েছে! ভাউচার: '+voucher);
 }
 // বার্তার ধরন বদলালে চেক বই রো দেখাবে/লুকাবে (যেসব ক্ষেত্রে ব্যাংক থেকে টাকা বের হয়)
 function onBankTxTypeChange() {
@@ -9097,10 +9495,11 @@ function renderBankTx() {
     runMap[tx.id]={cash,bank};
   });
   const tbody=document.getElementById('bankTxTable');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো লেনদেন নেই</td></tr>';return;}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো লেনদেন নেই</td></tr>';return;}
   tbody.innerHTML=list.map(tx=>{
     const rb=runMap[tx.id]||{cash:0,bank:0};
     return `<tr>
+      <td style="font-weight:600;color:var(--warning)">${tx.voucher||'—'}</td>
       <td>${formatDate(tx.date)}</td>
       <td><span class="badge badge-info">${typeLabel[tx.type]||tx.type}</span></td>
       <td style="color:var(--text-light)">${tx.note||'—'}</td>
@@ -9630,7 +10029,7 @@ function saveShareholder() {
     }
     showToast('✅ আপডেট হয়েছে!');
   } else {
-    appData.shareholders.push({id:Date.now(),name,shares,phone,joinDate,note});
+    appData.shareholders.push({id:Date.now(),name,shares,phone,joinDate,note,balance:0});
     showToast('✅ শেয়ারহোল্ডার যোগ হয়েছে!');
   }
   saveData(); clearShareholderForm(); renderShareholderTable();
@@ -9658,12 +10057,13 @@ function renderShareholderTable() {
   const shareholders=appData.shareholders||[];
   const totalShares=shareholders.reduce((s,sh)=>s+sh.shares,0)||1;
   const now=new Date();
-  document.getElementById('divYear').value=now.getFullYear();
-  document.getElementById('divMonth').value=now.getMonth()+1;
+  const mcYearEl=document.getElementById('mcYear'); if(mcYearEl && !mcYearEl.value) mcYearEl.value=now.getFullYear();
+  const mcMonthEl=document.getElementById('mcMonth'); if(mcMonthEl && !mcMonthEl.dataset.set){ mcMonthEl.value=now.getMonth()+1; mcMonthEl.dataset.set='1'; }
   const tbody=document.getElementById('shareholderTable');
-  if(!shareholders.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">কোনো শেয়ারহোল্ডার নেই</td></tr>';return;}
+  if(!shareholders.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো শেয়ারহোল্ডার নেই</td></tr>';renderWithdrawalShareholderSelect();return;}
   tbody.innerHTML=shareholders.map((sh,i)=>{
     const pct=((sh.shares/totalShares)*100).toFixed(1);
+    const bal=sh.balance||0;
     return `<tr>
       <td style="color:var(--text-light)">${i+1}</td>
       <td style="font-weight:600">${sh.name}</td>
@@ -9676,70 +10076,439 @@ function renderShareholderTable() {
       </div></td>
       <td style="color:var(--text-light)">${sh.phone||'—'}</td>
       <td>${formatDate(sh.joinDate)}</td>
+      <td style="font-weight:700;color:${bal>=0?'var(--success)':'var(--danger)'}">৳ ${fmt(bal.toFixed(2))}</td>
       <td style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" title="স্টেটমেন্ট" onclick="viewShareholderStatement(${sh.id})">📄</button>
         <button class="btn btn-primary btn-sm" onclick="editShareholder(${sh.id})">✏️</button>
         <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('শেয়ারহোল্ডার',${sh.id},'${sh.name.replace(/'/g,"\\'")}')">🕐</button>
         <button class="btn btn-danger btn-sm" onclick="deleteShareholder(${sh.id})">🗑️</button>
       </td>
     </tr>`;
   }).join('');
+  renderWithdrawalShareholderSelect();
 }
-function calcDividend() {
-  const total=parseFloat(document.getElementById('divTotal').value)||0;
-  const shareholders=appData.shareholders||[];
-  const totalShares=shareholders.reduce((s,sh)=>s+sh.shares,0)||1;
-  const perShare=total/totalShares;
-  const preview=document.getElementById('dividendPreview');
-  if(!shareholders.length||!total){preview.style.display='none';return;}
+// ===== মাস ক্লোজ (স্বয়ংক্রিয় মুনাফা/লস বন্টন) ইঞ্জিন =====
+let _mcPreviewResult = null;
+const MC_MONTHS=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+
+function computeMonthlyAutoNet(month, year) {
+  const prefix = `${year}-${String(month).padStart(2,'0')}`;
+  const s = appData.settings;
+  const mInc  = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)).reduce((sum,e)=>sum+e.amount,0);
+  const mVis  = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).reduce((sum,v)=>sum+v.cashPaid,0);
+  const mCamp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((sum,c)=>sum+(c.totalIncome||0),0);
+  const mExp  = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, prefix)).reduce((sum,e)=>sum+e.amount,0);
+  const monthlyFixed = (s.rent||0) + (s.utility||0) + (s.otherFixed||0);
+  const monthlySalary = (appData.staff||[]).filter(st=>st.status==='active').reduce((sum,st)=>sum+st.basic,0);
+  const totalFixed = monthlyFixed + monthlySalary;
+  const totalIncome = mInc + mVis + mCamp;
+  const totalExpense = mExp + totalFixed;
+  return { totalIncome, totalExpense, autoNet: totalIncome - totalExpense };
+}
+
+function previewMonthClose() {
+  const month = parseInt(document.getElementById('mcMonth').value);
+  const year = parseInt(document.getElementById('mcYear').value);
+  if (!month || !year) { showToast('⚠️ মাস ও বছর নির্বাচন করুন!'); return; }
+  const already = (appData.monthClosings||[]).find(mc=>mc.month===month && mc.year===year);
+  const preview = document.getElementById('mcPreview');
+  const confirmBtn = document.getElementById('mcConfirmBtn');
+  if (already) {
+    preview.style.display='block';
+    preview.innerHTML = `<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:8px;padding:14px;font-size:13.5px">
+      ⚠️ <strong>${MC_MONTHS[month-1]} ${year}</strong> মাস ইতিমধ্যে ক্লোজ করা হয়েছে (${formatDate(already.closedAt?already.closedAt.slice(0,10):'')} — ${already.closedBy||''})।
+      <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="viewMonthClosingDetail(${already.id})">👁️ বিস্তারিত দেখুন</button></div>
+    </div>`;
+    confirmBtn.style.display='none';
+    _mcPreviewResult = null;
+    return;
+  }
+  const { totalIncome, totalExpense, autoNet } = computeMonthlyAutoNet(month, year);
+  const accLoss = appData.settings.accumulatedLoss || 0;
   preview.style.display='block';
-  preview.innerHTML=`
-    <div style="background:#f0f4f8;border-radius:8px;padding:12px;margin-bottom:8px;font-size:13px">
-      মোট শেয়ার: <strong>${totalShares}</strong> &nbsp;|&nbsp;
-      প্রতি শেয়ারে: <strong style="color:var(--success)">৳ ${fmt(perShare.toFixed(2))}</strong>
+  preview.innerHTML = `
+    <div style="background:#f0f4f8;border-radius:8px;padding:12px;margin-bottom:10px;font-size:13px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div>অটো আয়<br><strong style="color:var(--success);font-size:16px">৳ ${fmt(totalIncome.toFixed(2))}</strong></div>
+      <div>অটো ব্যয় (ফিক্সডসহ)<br><strong style="color:var(--danger);font-size:16px">৳ ${fmt(totalExpense.toFixed(2))}</strong></div>
+      <div>অটো নিট ফলাফল<br><strong style="font-size:16px;color:${autoNet>=0?'var(--success)':'var(--danger)'}">${autoNet>=0?'':'-'}৳ ${fmt(Math.abs(autoNet).toFixed(2))}</strong></div>
     </div>
-    <div class="table-wrap"><table style="font-size:13px">
-      <thead><tr style="background:#f0f4f8"><th>নাম</th><th>শেয়ার</th><th>%</th><th>লাভের ভাগ (৳)</th></tr></thead>
-      <tbody>${shareholders.map(sh=>`<tr>
-        <td style="font-weight:600">${sh.name}</td>
-        <td style="text-align:center">${sh.shares}</td>
-        <td style="text-align:center">${((sh.shares/totalShares)*100).toFixed(1)}%</td>
-        <td style="font-weight:700;color:var(--success)">৳ ${fmt((sh.shares*perShare).toFixed(2))}</td>
-      </tr>`).join('')}</tbody>
-    </table></div>`;
-  return { perShare, total, totalShares };
+    ${accLoss>0?`<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:10px;color:#b91c1c;font-size:13px;font-weight:600">📉 পূর্বের সঞ্চিত লস: ৳ ${fmt(accLoss.toFixed(2))} — মুনাফা হলে প্রথমে এখান থেকে সমন্বয় হবে।</div>`:''}
+    <div class="form-row">
+      <div class="field"><label>ম্যানুয়াল সমন্বয় (৳, +/-)</label><input type="number" id="mcAdjustment" placeholder="০" value="0" oninput="calcMonthCloseBreakdown()"></div>
+      <div class="field"><label>সমন্বয়ের কারণ</label><input type="text" id="mcAdjustmentNote" placeholder="ঐচ্ছিক — কেন সমন্বয় করা হলো" oninput="calcMonthCloseBreakdown()"></div>
+    </div>
+    <div id="mcBreakdownArea" style="margin-top:10px"></div>`;
+  calcMonthCloseBreakdown(totalIncome, totalExpense, autoNet, month, year);
 }
-function saveDividend() {
-  const result=calcDividend();
-  if(!result){showToast('⚠️ প্রথমে হিসাব করুন!');return;}
-  const month=document.getElementById('divMonth').value;
-  const year=document.getElementById('divYear').value;
-  const months=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
-  if(!appData.dividends) appData.dividends=[];
-  const shareholders=appData.shareholders||[];
-  const totalShares=result.totalShares;
-  appData.dividends.push({
-    id:Date.now(), month, year, total:result.total, perShare:result.perShare,
-    breakdown:shareholders.map(sh=>({name:sh.name,shares:sh.shares,amount:sh.shares*result.perShare})),
-    by:currentUser.name, label:months[parseInt(month)-1]+' '+year
+
+function calcMonthCloseBreakdown(totalIncome, totalExpense, autoNet, month, year) {
+  // যদি আর্গুমেন্ট ছাড়া কল হয় (ইনপুট পরিবর্তনের সময়), আগের ভ্যালু থেকে পুনরায় হিসাব করে
+  if (totalIncome === undefined) {
+    if (!_mcPreviewResult) return;
+    ({ totalIncome, totalExpense, autoNet, month, year } = _mcPreviewResult);
+  }
+  const adjustment = parseFloat(document.getElementById('mcAdjustment')?.value) || 0;
+  const adjustmentNote = document.getElementById('mcAdjustmentNote')?.value.trim() || '';
+  const finalNet = autoNet + adjustment;
+  const accLoss = appData.settings.accumulatedLoss || 0;
+  const shareholders = appData.shareholders || [];
+  const totalShares = shareholders.reduce((s,sh)=>s+sh.shares,0) || 1;
+  const area = document.getElementById('mcBreakdownArea');
+  const confirmBtn = document.getElementById('mcConfirmBtn');
+  let result = { month, year, totalIncome, totalExpense, autoNet, adjustment, adjustmentNote, finalNet, accLossBefore: accLoss };
+
+  if (finalNet > 0) {
+    const lossCleared = Math.min(finalNet, accLoss);
+    const remaining = finalNet - lossCleared;
+    const funds = appData.settings.profitAllocationFunds || [];
+    const fundAllocations = funds.map(f=>({ fundId:f.id, name:f.name, percent:f.percent, amount: remaining * f.percent / 100 }));
+    const fundTotal = fundAllocations.reduce((s,f)=>s+f.amount,0);
+    const shareholderPool = remaining - fundTotal;
+    const breakdown = shareholders.map(sh=>({ shareholderId:sh.id, name:sh.name, shares:sh.shares, percent:(sh.shares/totalShares*100), amount: (sh.shares/totalShares)*shareholderPool }));
+    result = { ...result, isLoss:false, lossCleared, accLossAfter: accLoss - lossCleared, fundAllocations, fundTotal, shareholderPool, totalShares, breakdown };
+    area.innerHTML = `
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px;margin-bottom:10px;font-size:13px">
+        চূড়ান্ত নিট মুনাফা: <strong style="color:var(--success)">৳ ${fmt(finalNet.toFixed(2))}</strong>
+        ${lossCleared>0?` &nbsp;|&nbsp; সঞ্চিত লস সমন্বয়: <strong style="color:#b91c1c">-৳ ${fmt(lossCleared.toFixed(2))}</strong> (বাকি লস: ৳${fmt(result.accLossAfter.toFixed(2))})`:''}
+        &nbsp;|&nbsp; বন্টনযোগ্য: <strong>৳ ${fmt(remaining.toFixed(2))}</strong>
+      </div>
+      ${fundAllocations.length?`<div class="table-wrap" style="margin-bottom:10px"><table style="font-size:13px">
+        <thead><tr style="background:#f0f4f8"><th>ফান্ড খাত</th><th>%</th><th>পরিমাণ</th></tr></thead>
+        <tbody>${fundAllocations.map(f=>`<tr><td>${f.name}</td><td style="text-align:center">${f.percent}%</td><td style="font-weight:700">৳ ${fmt(f.amount.toFixed(2))}</td></tr>`).join('')}</tbody>
+      </table></div>`:''}
+      <div style="font-size:13px;margin-bottom:6px">শেয়ারহোল্ডারদের জন্য মোট: <strong style="color:var(--success)">৳ ${fmt(shareholderPool.toFixed(2))}</strong></div>
+      <div class="table-wrap"><table style="font-size:13px">
+        <thead><tr style="background:#f0f4f8"><th>নাম</th><th>শেয়ার</th><th>%</th><th>বরাদ্দ (৳)</th></tr></thead>
+        <tbody>${breakdown.map(b=>`<tr><td style="font-weight:600">${b.name}</td><td style="text-align:center">${b.shares}</td><td style="text-align:center">${b.percent.toFixed(1)}%</td><td style="font-weight:700;color:var(--success)">৳ ${fmt(b.amount.toFixed(2))}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+  } else {
+    const lossAmt = -finalNet;
+    result = { ...result, isLoss:true, lossAmt, accLossAfter: accLoss + lossAmt, fundAllocations:[], fundTotal:0, shareholderPool:0, totalShares, breakdown:[] };
+    area.innerHTML = `<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:12px;font-size:13px;color:#b91c1c">
+      ⚠️ এই মাসে লস: <strong>৳ ${fmt(lossAmt.toFixed(2))}</strong> — এটা 'সঞ্চিত লস' হিসেবে জমা থাকবে (নতুন সঞ্চিত লস: ৳${fmt(result.accLossAfter.toFixed(2))})। শেয়ারহোল্ডারদের ব্যালেন্স থেকে কিছু কাটা হবে না।
+    </div>`;
+  }
+  _mcPreviewResult = result;
+  if (confirmBtn) confirmBtn.style.display = 'inline-flex';
+}
+
+function confirmMonthClose() {
+  if (currentUser.role !== 'admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন মাস ক্লোজ করতে পারবেন!'); return; }
+  if (!_mcPreviewResult) { showToast('⚠️ প্রথমে হিসাব করুন!'); return; }
+  const r = _mcPreviewResult;
+  const already = (appData.monthClosings||[]).find(mc=>mc.month===r.month && mc.year===r.year);
+  if (already) { showToast('⚠️ এই মাস ইতিমধ্যে ক্লোজ করা হয়েছে!'); return; }
+  if (!confirm(`${MC_MONTHS[r.month-1]} ${r.year} মাস ক্লোজ নিশ্চিত করবেন? এটি পরে পরিবর্তন করা যাবে না।`)) return;
+
+  if (!appData.monthClosings) appData.monthClosings = [];
+  appData.monthClosings.push({
+    id: Date.now(), month: r.month, year: r.year, label: MC_MONTHS[r.month-1]+' '+r.year,
+    autoIncome: r.totalIncome, autoExpense: r.totalExpense, autoNet: r.autoNet,
+    adjustment: r.adjustment, adjustmentNote: r.adjustmentNote, finalNet: r.finalNet,
+    isLoss: r.isLoss, lossCleared: r.lossCleared||0, lossAmt: r.lossAmt||0,
+    accLossBefore: r.accLossBefore, accLossAfter: r.accLossAfter,
+    fundAllocations: r.fundAllocations, fundTotal: r.fundTotal, shareholderPool: r.shareholderPool,
+    totalShares: r.totalShares, breakdown: r.breakdown,
+    closedBy: currentUser.name, closedAt: new Date().toISOString()
   });
-  saveData(); renderDividendHistory(); showToast(`✅ ${months[parseInt(month)-1]} ${year} লাভ বন্টন সেভ হয়েছে!`);
+  appData.settings.accumulatedLoss = r.accLossAfter;
+  if (!r.isLoss) {
+    (r.breakdown||[]).forEach(b=>{
+      const sh = (appData.shareholders||[]).find(s=>s.id===b.shareholderId);
+      if (sh) sh.balance = (sh.balance||0) + b.amount;
+    });
+  }
+  logActivity('add','শেয়ারহোল্ডার',`মাস ক্লোজ — ${MC_MONTHS[r.month-1]} ${r.year} — নিট: ৳${fmt(r.finalNet.toFixed(2))}${r.isLoss?' (লস)':''}`);
+  saveData();
+  document.getElementById('mcPreview').style.display='none';
+  document.getElementById('mcConfirmBtn').style.display='none';
+  _mcPreviewResult = null;
+  renderShareholderTable(); renderMonthClosingHistory();
+  showToast(`✅ ${MC_MONTHS[r.month-1]} ${r.year} মাস ক্লোজ সম্পন্ন হয়েছে!`);
 }
-function renderDividendHistory() {
-  const divs=[...(appData.dividends||[])].sort((a,b)=>b.id-a.id);
-  const tbody=document.getElementById('dividendHistTable');
-  if(!divs.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">কোনো বন্টন নেই</td></tr>';return;}
-  tbody.innerHTML=divs.map(d=>`<tr>
-    <td style="font-weight:600">${d.label||'—'}</td>
-    <td style="font-weight:700;color:var(--success)">৳ ${fmt(d.total)}</td>
-    <td>৳ ${fmt(d.perShare?.toFixed(2)||0)}</td>
-    <td style="font-size:12px;color:var(--text-light)">${d.by||'—'}</td>
-    <td><button class="btn btn-primary btn-sm" onclick="viewDividendDetail(${d.id})">👁️ বিস্তারিত</button></td>
+
+function renderMonthClosingHistory() {
+  const list=[...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id);
+  const tbody=document.getElementById('monthClosingHistTable');
+  if(!tbody) return;
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">কোনো মাস ক্লোজ করা হয়নি</td></tr>';return;}
+  tbody.innerHTML=list.map(mc=>`<tr>
+    <td style="font-weight:600">${mc.label||'—'}</td>
+    <td style="font-weight:700;color:${mc.isLoss?'var(--danger)':'var(--success)'}">${mc.isLoss?'-':''}৳ ${fmt(Math.abs(mc.finalNet).toFixed(2))}</td>
+    <td>৳ ${fmt((mc.fundTotal||0).toFixed(2))}</td>
+    <td>৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</td>
+    <td style="font-size:12px;color:var(--text-light)">${mc.closedBy||'—'}</td>
+    <td><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button></td>
   </tr>`).join('');
 }
-function viewDividendDetail(id) {
-  const d=(appData.dividends||[]).find(d=>d.id===id); if(!d)return;
-  const rows=(d.breakdown||[]).map(b=>`<tr><td>${b.name}</td><td style="text-align:right;font-weight:700;color:var(--success)">৳ ${fmt(b.amount?.toFixed(2)||0)}</td></tr>`).join('');
-  alert(`💰 ${d.label} — লাভ বন্টন\n\nমোট: ৳${fmt(d.total)}\nপ্রতি শেয়ার: ৳${fmt(d.perShare?.toFixed(2)||0)}\n\n${(d.breakdown||[]).map(b=>`${b.name}: ৳${fmt(b.amount?.toFixed(2)||0)}`).join('\n')}`);
+
+function viewMonthClosingDetail(id) {
+  const mc=(appData.monthClosings||[]).find(m=>m.id===id); if(!mc)return;
+  const modal=document.createElement('div');
+  modal.className='modal-overlay'; modal.style.display='flex';
+  modal.innerHTML=`<div class="modal" style="max-width:560px">
+    <div class="modal-title">📊 মাস ক্লোজ বিস্তারিত — ${mc.label}</div>
+    <div style="font-size:13px;line-height:1.9;max-height:60vh;overflow-y:auto">
+      <div style="background:#f0f4f8;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        অটো আয়: <strong>৳ ${fmt(mc.autoIncome.toFixed(2))}</strong> &nbsp;|&nbsp; অটো ব্যয়: <strong>৳ ${fmt(mc.autoExpense.toFixed(2))}</strong> &nbsp;|&nbsp; অটো নিট: <strong>৳ ${fmt(mc.autoNet.toFixed(2))}</strong><br>
+        ম্যানুয়াল সমন্বয়: <strong>৳ ${fmt(mc.adjustment.toFixed(2))}</strong>${mc.adjustmentNote?` (${mc.adjustmentNote})`:''}<br>
+        চূড়ান্ত নিট: <strong style="color:${mc.isLoss?'var(--danger)':'var(--success)'}">${mc.isLoss?'-':''}৳ ${fmt(Math.abs(mc.finalNet).toFixed(2))}</strong>
+      </div>
+      ${mc.isLoss ? `<div style="color:#b91c1c">এই মাসের লস ৳${fmt(mc.lossAmt.toFixed(2))} সঞ্চিত লসে যোগ হয়েছে। মোট সঞ্চিত লস এখন: ৳${fmt(mc.accLossAfter.toFixed(2))}</div>` : `
+      ${mc.lossCleared>0?`<div style="margin-bottom:8px">সঞ্চিত লস থেকে সমন্বয়: <strong>৳ ${fmt(mc.lossCleared.toFixed(2))}</strong></div>`:''}
+      ${(mc.fundAllocations||[]).length?`<div style="font-weight:700;margin:8px 0 4px">ফান্ড খাত বন্টন:</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:10px"><tbody>${mc.fundAllocations.map(f=>`<tr><td>${f.name} (${f.percent}%)</td><td style="text-align:right;font-weight:700">৳ ${fmt(f.amount.toFixed(2))}</td></tr>`).join('')}</tbody></table>`:''}
+      <div style="font-weight:700;margin:8px 0 4px">শেয়ারহোল্ডার বন্টন (মোট ৳${fmt(mc.shareholderPool.toFixed(2))}):</div>
+      <table style="width:100%;border-collapse:collapse"><tbody>${(mc.breakdown||[]).map(b=>`<tr><td>${b.name} (${b.percent.toFixed(1)}%)</td><td style="text-align:right;font-weight:700;color:var(--success)">৳ ${fmt(b.amount.toFixed(2))}</td></tr>`).join('')}</tbody></table>`}
+      <div style="margin-top:10px;font-size:12px;color:var(--text-light)">ক্লোজ করেছেন: ${mc.closedBy} — ${formatDate((mc.closedAt||'').slice(0,10))}</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button></div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+// ===== মুনাফা উত্তোলন =====
+function updateWdVoucher() {
+  const el = document.getElementById('wdVoucher');
+  const dateEl = document.getElementById('wdDate');
+  if (dateEl && !dateEl.value) dateEl.value = todayStr();
+  if (el) el.value = generateNextVoucherNo(dateEl ? dateEl.value : todayStr());
+}
+function renderWithdrawalShareholderSelect() {
+  const sel=document.getElementById('wdShareholder'); if(!sel) return;
+  const prev=sel.value;
+  const shareholders=appData.shareholders||[];
+  sel.innerHTML = '<option value="">-- নির্বাচন করুন --</option>' + shareholders.map(sh=>`<option value="${sh.id}">${sh.name} (ব্যালেন্স: ৳${fmt((sh.balance||0).toFixed(2))})</option>`).join('');
+  if (prev) sel.value = prev;
+  updateWdBalanceNote();
+}
+function updateWdBalanceNote() {
+  const sel=document.getElementById('wdShareholder'); const note=document.getElementById('wdBalanceNote');
+  if (!sel || !note) return;
+  const sh=(appData.shareholders||[]).find(s=>String(s.id)===sel.value);
+  note.textContent = sh ? `বর্তমান বকেয়া ব্যালেন্স: ৳ ${fmt((sh.balance||0).toFixed(2))}` : '';
+}
+function populateWdPersonSelect() {
+  const sel=document.getElementById('wdPerson'); if(!sel) return;
+  const persons=appData.settings.expPersons||[];
+  const prev=sel.value;
+  sel.innerHTML='<option value="">-- ব্যক্তি নির্বাচন করুন --</option>'+persons.map(p=>`<option value="${p}">${p}</option>`).join('');
+  if (prev) sel.value=prev;
+}
+function toggleWdAddPerson() {
+  const row=document.getElementById('wdAddPersonRow'); if(!row) return;
+  row.style.display = row.style.display==='none' ? '' : 'none';
+  if (row.style.display!=='none') document.getElementById('wdNewPersonName').focus();
+}
+function addWdPerson() {
+  const inp=document.getElementById('wdNewPersonName');
+  const name=inp.value.trim();
+  if (!name) { showToast('⚠️ নাম লিখুন!'); return; }
+  if (!appData.settings.expPersons) appData.settings.expPersons=[];
+  if (appData.settings.expPersons.includes(name)) { showToast('এই নাম আগে থেকেই আছে!'); return; }
+  appData.settings.expPersons.push(name);
+  saveData(); inp.value='';
+  toggleWdAddPerson();
+  populateWdPersonSelect();
+  if (typeof populateExpPersonSelect==='function') populateExpPersonSelect();
+  if (typeof renderExpPersonSettings==='function') renderExpPersonSettings();
+  const sel=document.getElementById('wdPerson'); if(sel) sel.value=name;
+  showToast('✅ ব্যক্তি যোগ হয়েছে: '+name);
+}
+function onWdMethodChange() {
+  const method = document.querySelector('input[name="wdMethod"]:checked')?.value || 'cash';
+  const chequeRow=document.getElementById('wdChequeRow');
+  const postDatedRow=document.getElementById('wdPostDatedRow');
+  const personLabel=document.getElementById('wdPersonLabel');
+  if (chequeRow) chequeRow.style.display = method==='cheque' ? '' : 'none';
+  if (postDatedRow) postDatedRow.style.display = method==='cheque' ? '' : 'none';
+  if (personLabel) personLabel.textContent = method==='cheque' ? 'চেক বহনকারী / বাহক ব্যক্তি' : 'পরিশোধকারী ব্যক্তি';
+  if (method==='cheque') { populateCheckbookSelect('wdCheckbook','wdChequeNo'); }
+  else { const pd=document.getElementById('wdPostDated'); if(pd){ pd.checked=false; onWdPostDatedChange(); } }
+}
+function onWdPostDatedChange() {
+  const checked = document.getElementById('wdPostDated')?.checked;
+  const row=document.getElementById('wdDueDateRow');
+  if (row) row.style.display = checked ? '' : 'none';
+}
+function clearWithdrawalForm() {
+  document.getElementById('wdDate').value = todayStr();
+  ['wdAmount','wdChequeNo','wdNote','wdDueDate'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  const cashRadio=document.querySelector('input[name="wdMethod"][value="cash"]'); if(cashRadio) cashRadio.checked=true;
+  const pd=document.getElementById('wdPostDated'); if(pd) pd.checked=false;
+  onWdMethodChange(); onWdPostDatedChange();
+  updateWdVoucher();
+  populateWdPersonSelect();
+}
+function saveShareholderWithdrawal() {
+  const shId = document.getElementById('wdShareholder').value;
+  const date = document.getElementById('wdDate').value;
+  const amount = parseFloat(document.getElementById('wdAmount').value);
+  const method = document.querySelector('input[name="wdMethod"]:checked')?.value || 'cash';
+  const person = document.getElementById('wdPerson').value;
+  const checkbookId = document.getElementById('wdCheckbook')?.value || '';
+  const chequeNo = document.getElementById('wdChequeNo').value.trim();
+  const postDated = method==='cheque' && document.getElementById('wdPostDated')?.checked;
+  const dueDate = document.getElementById('wdDueDate')?.value || '';
+  const note = document.getElementById('wdNote').value.trim();
+  let voucher = document.getElementById('wdVoucher').value.trim();
+  if (!voucher) voucher = generateNextVoucherNo(date);
+  if (!shId || !date || isNaN(amount) || amount<=0) { showToast('⚠️ শেয়ারহোল্ডার, তারিখ ও সঠিক পরিমাণ দিন!'); return; }
+  const sh = (appData.shareholders||[]).find(s=>String(s.id)===shId);
+  if (!sh) { showToast('⚠️ শেয়ারহোল্ডার পাওয়া যায়নি!'); return; }
+  if (method==='cheque' && !checkbookId) { showToast('⚠️ চেক বই নির্বাচন করুন!'); return; }
+  if (method==='cheque' && !chequeNo) { showToast('⚠️ চেক নম্বর পাওয়া যায়নি — চেক বইয়ের পাতা শেষ কিনা দেখুন!'); return; }
+  if (postDated && !dueDate) { showToast('⚠️ চেক ভাঙ্গানোর তারিখ (due date) দিন!'); return; }
+  const curBal = sh.balance || 0;
+  if (amount > curBal) {
+    if (!confirm(`⚠️ ${sh.name}-এর বর্তমান ব্যালেন্স ৳${fmt(curBal.toFixed(2))}, কিন্তু ৳${fmt(amount.toFixed(2))} উত্তোলন করা হচ্ছে। এগিয়ে যাবেন?`)) return;
+  }
+  if (!appData.shareholderWithdrawals) appData.shareholderWithdrawals=[];
+  const wdId = Date.now();
+  let linkedIssuedCheckId = null;
+
+  if (postDated) {
+    // পোস্ট-ডেটেড চেক — এখনই ব্যাংক ব্যালেন্স কাটবে না, চেকের পাতা এখনই রিজার্ভ হবে। ভাউচার নম্বর ইস্যুর দিনেই বসে যাবে ও ভাঙ্গানো পর্যন্ত অপরিবর্তিত থাকবে।
+    const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+    if (!cb) { showToast('⚠️ চেক বই খুঁজে পাওয়া যায়নি!'); return; }
+    cb.lastUsed = parseInt(chequeNo);
+    if (!appData.issuedChecks) appData.issuedChecks=[];
+    linkedIssuedCheckId = wdId + 1;
+    appData.issuedChecks.push({
+      id: linkedIssuedCheckId, voucher, checkbookId, checkNo:chequeNo, payee:sh.name, amount,
+      issueDate:date, dueDate, note:`শেয়ারহোল্ডার উত্তোলন${note?' — '+note:''}`,
+      status:'pending', clearedDate:'', linkedBankTxId:null, linkedWithdrawalId:wdId, by:currentUser.name
+    });
+  } else {
+    // তাৎক্ষণিক (ক্যাশ বা তাৎক্ষণিক চেক) — সাথে সাথেই ব্যাংক/ক্যাশ ব্যালেন্স থেকে কর্তন
+    if (method==='cheque') {
+      const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      if (cb) cb.lastUsed = parseInt(chequeNo);
+    }
+    if (!appData.bankTx) appData.bankTx=[];
+    appData.bankTx.push({ id:wdId+1, voucher, type: method==='cheque'?'bank_out':'cash_out', amount, date, note:`শেয়ারহোল্ডার উত্তোলন: ${sh.name}${note?' — '+note:''}`, ref:chequeNo, checkNo:chequeNo, checkbookId, by:currentUser.name });
+  }
+
+  appData.shareholderWithdrawals.push({
+    id: wdId, voucher, shareholderId:sh.id, shareholderName:sh.name, date, amount, method,
+    person, checkbookId, chequeNo, postDated, dueDate,
+    status: postDated ? 'pending' : 'cleared', clearedDate: postDated ? '' : date,
+    linkedIssuedCheckId, note, by:currentUser.name
+  });
+  sh.balance = curBal - amount; // উত্তোলন কমিটমেন্ট সাথে সাথেই ব্যালেন্স থেকে বিয়োগ হয়; পোস্ট-ডেটেড চেক বাউন্স হলে ফেরত যোগ হবে
+
+  logActivity('add','শেয়ারহোল্ডার',`উত্তোলন — ${sh.name} — ৳${fmt(amount.toFixed(2))} (${method==='cheque'?(postDated?'পোস্ট-ডেটেড চেক':'চেক'):'ক্যাশ'}) — ${voucher}`);
+  saveData(); clearWithdrawalForm(); renderShareholderTable(); renderShareholderWithdrawalHistory();
+  if (typeof updateBankBalances==='function') updateBankBalances();
+  if (typeof renderBankTx==='function') renderBankTx();
+  if (typeof populateCheckbookSelect==='function') { populateCheckbookSelect(); populateCheckbookSelect('bankTxCheckbook','bankTxCheckNo'); }
+  if (typeof renderIssuedChecks==='function') renderIssuedChecks();
+  if (typeof renderCheckbookList==='function') renderCheckbookList();
+  if (typeof renderCheckbookDetail==='function') renderCheckbookDetail();
+  if (typeof renderCheckReminders==='function') renderCheckReminders();
+  showToast(postDated ? '✅ পোস্ট-ডেটেড চেক ইস্যু হয়েছে — চেক নং '+chequeNo : '✅ উত্তোলন সেভ হয়েছে!');
+}
+function renderShareholderWithdrawalHistory() {
+  const list=[...(appData.shareholderWithdrawals||[])].sort((a,b)=>b.id-a.id);
+  const tbody=document.getElementById('shWithdrawalHistTable');
+  if(!tbody) return;
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো উত্তোলন নেই</td></tr>';return;}
+  const statusBadge = w => {
+    if (w.status==='cleared') return `<span class="badge badge-income">✅ পরিশোধিত</span>`;
+    if (w.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
+    return `<span class="badge badge-info">⏳ পেন্ডিং</span>`;
+  };
+  tbody.innerHTML=list.map(w=>`<tr>
+    <td style="font-weight:600;color:var(--warning)">${w.voucher||'—'}</td>
+    <td>${formatDate(w.date)}</td>
+    <td style="font-weight:600">${w.shareholderName}</td>
+    <td style="font-weight:700;color:var(--success)">৳ ${fmt(w.amount.toFixed(2))}</td>
+    <td>${w.method==='cheque'?`🏦 চেক${w.chequeNo?' #'+w.chequeNo:''}${w.postDated?' (পোস্ট-ডেটেড)':''}`:'💵 ক্যাশ'}</td>
+    <td style="color:var(--text-light)">${w.person||'—'}</td>
+    <td>${statusBadge(w)}</td>
+    <td style="color:var(--text-light)">${w.note||'—'}</td>
+    <td style="font-size:12px;color:var(--text-light)">${w.by||'—'}</td>
+  </tr>`).join('');
+}
+
+function viewShareholderStatement(id) {
+  const sh=(appData.shareholders||[]).find(s=>s.id===id); if(!sh)return;
+  const entries=[];
+  (appData.monthClosings||[]).forEach(mc=>{
+    const b=(mc.breakdown||[]).find(x=>x.shareholderId===id);
+    if (b && b.amount) entries.push({ date:(mc.closedAt||'').slice(0,10), type:'allocation', label:`মাস ক্লোজ — ${mc.label}`, amount:b.amount, sortKey:mc.id });
+  });
+  (appData.shareholderWithdrawals||[]).filter(w=>w.shareholderId===id).forEach(w=>{
+    entries.push({ date:w.date, type:'withdrawal', label:`উত্তোলন (${w.method==='cheque'?'চেক':'ক্যাশ'})${w.note?' — '+w.note:''}`, amount:-w.amount, sortKey:w.id });
+  });
+  entries.sort((a,b)=>a.sortKey-b.sortKey);
+  let running=0;
+  const rows=entries.map(e=>{ running+=e.amount; return { ...e, running }; });
+  const modal=document.createElement('div');
+  modal.className='modal-overlay'; modal.style.display='flex';
+  modal.innerHTML=`<div class="modal" style="max-width:600px">
+    <div class="modal-title">📄 শেয়ারহোল্ডার স্টেটমেন্ট — ${sh.name}</div>
+    <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:14px">
+      বর্তমান ব্যালেন্স: <strong style="color:var(--success);font-size:17px">৳ ${fmt((sh.balance||0).toFixed(2))}</strong>
+    </div>
+    <div style="max-height:50vh;overflow-y:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <thead><tr style="background:#f0f4f8"><th style="padding:6px;text-align:left">তারিখ</th><th style="padding:6px;text-align:left">বিবরণ</th><th style="padding:6px;text-align:right">পরিমাণ</th><th style="padding:6px;text-align:right">ব্যালেন্স</th></tr></thead>
+      <tbody>${rows.length ? rows.map(r=>`<tr>
+        <td style="padding:6px">${formatDate(r.date)}</td>
+        <td style="padding:6px">${r.label}</td>
+        <td style="padding:6px;text-align:right;font-weight:700;color:${r.amount>=0?'var(--success)':'var(--danger)'}">${r.amount>=0?'+':''}৳ ${fmt(Math.abs(r.amount).toFixed(2))}</td>
+        <td style="padding:6px;text-align:right;font-weight:700">৳ ${fmt(r.running.toFixed(2))}</td>
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো এন্ট্রি নেই</td></tr>`}</tbody>
+    </table>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button></div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+// ===== লাভ বন্টন খাত (Profit Allocation Funds) =====
+function addProfitFund() {
+  const name = document.getElementById('newFundName').value.trim();
+  const percent = parseFloat(document.getElementById('newFundPercent').value);
+  if (!name || isNaN(percent) || percent < 0) { showToast('⚠️ খাতের নাম ও সঠিক শতাংশ দিন!'); return; }
+  if (!appData.settings.profitAllocationFunds) appData.settings.profitAllocationFunds = [];
+  const usedPercent = appData.settings.profitAllocationFunds.reduce((s,f)=>s+f.percent,0);
+  if (usedPercent + percent > 100) { showToast(`⚠️ মোট শতাংশ ১০০ এর বেশি হতে পারবে না! (বর্তমানে ব্যবহৃত: ${usedPercent}%)`); return; }
+  appData.settings.profitAllocationFunds.push({ id: Date.now(), name, percent });
+  saveData(); document.getElementById('newFundName').value=''; document.getElementById('newFundPercent').value='';
+  renderProfitFundSettings();
+  showToast('✅ খাত যোগ হয়েছে!');
+}
+function removeProfitFund(id) {
+  if (!confirm('এই খাতটি মুছবেন?')) return;
+  appData.settings.profitAllocationFunds = (appData.settings.profitAllocationFunds||[]).filter(f=>f.id!==id);
+  saveData(); renderProfitFundSettings();
+  showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+function updateProfitFundPercent(id, val) {
+  const f = (appData.settings.profitAllocationFunds||[]).find(f=>f.id===id); if (!f) return;
+  const p = parseFloat(val); if (isNaN(p) || p < 0) return;
+  const otherTotal = (appData.settings.profitAllocationFunds||[]).filter(x=>x.id!==id).reduce((s,x)=>s+x.percent,0);
+  if (otherTotal + p > 100) { showToast('⚠️ মোট শতাংশ ১০০ এর বেশি হতে পারবে না!'); renderProfitFundSettings(); return; }
+  f.percent = p; saveData(); renderProfitFundSettings();
+}
+function renderProfitFundSettings() {
+  const funds = appData.settings.profitAllocationFunds || [];
+  const tbody = document.getElementById('profitFundTable');
+  if (!tbody) return;
+  if (!funds.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:24px">কোনো ফান্ড খাত যোগ করা হয়নি</td></tr>'; }
+  else {
+    tbody.innerHTML = funds.map(f=>`<tr>
+      <td style="font-weight:600">${f.name}</td>
+      <td><input type="number" value="${f.percent}" min="0" max="100" step="0.1" style="width:80px;padding:6px;border:1.5px solid var(--border);border-radius:6px" onchange="updateProfitFundPercent(${f.id}, this.value)"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeProfitFund(${f.id})">🗑️</button></td>
+    </tr>`).join('');
+  }
+  const totalPercent = funds.reduce((s,f)=>s+f.percent,0);
+  const shareholderPercent = Math.max(0, 100 - totalPercent);
+  const summary = document.getElementById('profitFundSummary');
+  if (summary) summary.innerHTML = `মোট ফান্ড খাতে বরাদ্দ: <strong>${totalPercent.toFixed(1)}%</strong> &nbsp;|&nbsp; শেয়ারহোল্ডারদের জন্য বরাদ্দ: <strong style="color:var(--success)">${shareholderPercent.toFixed(1)}%</strong>`;
 }
 
 // ===== USER MANAGEMENT =====
@@ -10304,10 +11073,12 @@ function openSettingsSection(sid) {
   // Trigger renders for specific sections
   if (sid === 'feature-acc') renderFeatureAccessPanel();
   if (sid === 'quick-access') renderQuickAccessPanel();
+  if (sid === 'dash-card-order') renderDashCardOrderPanel();
   if (sid === 'camp-sched') renderCampScheduleList && renderCampScheduleList();
   if (sid === 'income-cat') renderCategoryLists && renderCategoryLists();
   if (sid === 'users') loadUserList && loadUserList();
   if (sid === 'activity-log') renderActivityLog && renderActivityLog();
+  if (sid === 'profit-funds') renderProfitFundSettings && renderProfitFundSettings();
 }
 
 function closeSettingsSection() {
@@ -10429,6 +11200,70 @@ function saveQuickAccessSettings() {
   showToast('✅ কুইক এক্সেস সেভ হয়েছে!');
 }
 
+// ===== ড্যাশবোর্ড কার্ড ক্রম (সেটিংস) — ৯টি স্ট্যাট কার্ড ইউজার তার পছন্দমতো ক্রমে সাজাতে পারবে =====
+const DEFAULT_DASH_CARD_ORDER = ['todayIncome','todayExpense','todayProfit','monthlyProfit','campIncome','totalDue','totalDebt','dashCashBalance','dashBankBalance'];
+const DASH_CARD_META = {
+  todayIncome:     { icon:'💰', label:'আজকের আয়' },
+  todayExpense:    { icon:'💸', label:'আজকের ব্যয়' },
+  todayProfit:     { icon:'📈', label:'আজকের লাভ/লস' },
+  monthlyProfit:   { icon:'📊', label:'মাসিক লাভ/লস' },
+  campIncome:      { icon:'🏕️', label:'ক্যাম্প আয় (এই মাস)' },
+  totalDue:        { icon:'⏳', label:'মোট বাকি' },
+  totalDebt:       { icon:'📉', label:'মোট দেনা' },
+  dashCashBalance: { icon:'💵', label:'ক্যাশ ব্যালেন্স' },
+  dashBankBalance: { icon:'🏦', label:'ব্যাংক ব্যালেন্স' },
+};
+function getDashCardOrder() {
+  const saved = appData.settings && appData.settings.dashCardOrder;
+  if (!Array.isArray(saved) || !saved.length) return [...DEFAULT_DASH_CARD_ORDER];
+  // সংরক্ষিত ক্রমে যদি কোনো নতুন কার্ড (আপডেটের কারণে) বাদ পড়ে যায়, সেগুলো শেষে যোগ করে দেয়
+  const merged = saved.filter(id => DASH_CARD_META[id]);
+  DEFAULT_DASH_CARD_ORDER.forEach(id => { if (!merged.includes(id)) merged.push(id); });
+  return merged;
+}
+function renderDashCardOrderPanel() {
+  const list = document.getElementById('dashCardOrderList');
+  if (!list) return;
+  const order = getDashCardOrder();
+  list.innerHTML = order.map((id, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f8fafc;border:1.5px solid var(--border);border-radius:9px">
+      <span style="font-size:16px">${DASH_CARD_META[id].icon}</span>
+      <span style="flex:1;font-size:13.5px;font-weight:600">${DASH_CARD_META[id].label}</span>
+      <button class="btn btn-outline btn-sm" ${i===0?'disabled style="opacity:.35"':''} onclick="moveDashCard(${i},-1)" title="উপরে নিন">▲</button>
+      <button class="btn btn-outline btn-sm" ${i===order.length-1?'disabled style="opacity:.35"':''} onclick="moveDashCard(${i},1)" title="নিচে নিন">▼</button>
+    </div>`).join('');
+}
+function moveDashCard(index, dir) {
+  const order = getDashCardOrder();
+  const j = index + dir;
+  if (j < 0 || j >= order.length) return;
+  [order[index], order[j]] = [order[j], order[index]];
+  appData.settings = appData.settings || {};
+  appData.settings.dashCardOrder = order;
+  saveData();
+  renderDashCardOrderPanel();
+  applyDashCardOrder();
+  showToast('✅ কার্ড ক্রম আপডেট হয়েছে');
+}
+function resetDashCardOrder() {
+  appData.settings = appData.settings || {};
+  appData.settings.dashCardOrder = [...DEFAULT_DASH_CARD_ORDER];
+  saveData();
+  renderDashCardOrderPanel();
+  applyDashCardOrder();
+  showToast('↩️ ডিফল্ট ক্রমে ফেরত আনা হয়েছে');
+}
+// dashStatsGrid এর ভেতরের কার্ড DOM নোডগুলো সংরক্ষিত ক্রম অনুযায়ী সাজায় (রি-রেন্ডার নয়, শুধু নোড মুভ — event listener/id অক্ষত থাকে)
+function applyDashCardOrder() {
+  const grid = document.getElementById('dashStatsGrid');
+  if (!grid) return;
+  const order = getDashCardOrder();
+  order.forEach(id => {
+    const card = grid.querySelector(`[data-card-id="${id}"]`);
+    if (card) grid.appendChild(card);
+  });
+}
+
 // admin/moderator টপ-বারে (ড্যাশবোর্ড/লোগো লাইনের সেন্টারে) ফ্লোটিং ওভাল কুইক-এক্সেস বাটন রেন্ডার করে
 // আইকনের সাথে মানানসই রঙ — ফিচারের ধরন অনুযায়ী (টাকা=সবুজ, খরচ=লাল, স্টক=কমলা, ব্যাংক/হিসাব=নীল, এইচআর=বেগুনি, সেটিংস=পার্পল ইত্যাদি)
 // একরঙা SVG লাইন-আইকন সেট (currentColor ব্যবহার করে, তাই CSS দিয়ে রঙ কন্ট্রোল হয় — ইমোজির মতো নিজস্ব রঙ থাকে না)
@@ -10546,11 +11381,11 @@ function initOwnerPage() {
   const todayInc = appData.income.filter(e=>e.date===today).reduce((s,e)=>s+e.amount,0)
                  + appData.visits.filter(v=>v.date===today).reduce((s,v)=>s+v.cashPaid,0)
                  + appData.camps.filter(c=>c.date===today).reduce((s,c)=>s+c.totalIncome,0);
-  const todayExp = appData.expense.filter(e=>e.date===today).reduce((s,e)=>s+e.amount,0);
+  const todayExp = appData.expense.filter(e=>expenseEffectiveDate(e)===today).reduce((s,e)=>s+e.amount,0);
   const mInc = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0)
              + appData.visits.filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+v.cashPaid,0)
              + appData.camps.filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
-  const mExp = appData.expense.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0);
+  const mExp = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix)).reduce((s,e)=>s+e.amount,0);
   const fixed = (appData.settings.rent||0)+(appData.settings.utility||0)+(appData.settings.otherFixed||0);
   const salCost = appData.staff.filter(s=>s.status==='active').reduce((s,st)=>s+st.basic,0);
   const mProfit = mInc - mExp - fixed - salCost;
@@ -10620,13 +11455,15 @@ function initOwnerPage() {
   const si = document.getElementById('ownerShareInfo');
   if (si && myShare) {
     const pct = ((myShare.shares/totalShares)*100).toFixed(1);
-    const lastDiv = (appData.dividends||[]).slice(-1)[0];
-    const myDiv = lastDiv ? (myShare.shares * lastDiv.perShare) : 0;
+    const lastMc = [...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id)[0];
+    const lastBreakdown = lastMc ? (lastMc.breakdown||[]).find(b=>b.shareholderId===myShare.id) : null;
+    const myBal = myShare.balance || 0;
     si.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
         <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">আমার শেয়ার</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${myShare.shares} টি</div></div>
         <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">শেয়ার %</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${pct}%</div></div>
-        ${lastDiv?`<div style="padding:10px;background:#d1fae5;border-radius:8px;grid-column:span 2"><span style="color:#065f46">শেষ বন্টন (${lastDiv.label||''})</span><div style="font-weight:700;color:#065f46;font-size:18px">৳ ${fmt(myDiv.toFixed(0))}</div></div>`:''}
+        <div style="padding:10px;background:#d1fae5;border-radius:8px;grid-column:span 2"><span style="color:#065f46">বর্তমান বকেয়া ব্যালেন্স</span><div style="font-weight:700;color:#065f46;font-size:18px">৳ ${fmt(myBal.toFixed(0))}</div></div>
+        ${lastBreakdown?`<div style="padding:10px;background:#fef9c3;border-radius:8px;grid-column:span 2"><span style="color:#854d0e">শেষ মাস ক্লোজ (${lastMc.label||''})</span><div style="font-weight:700;color:#854d0e;font-size:18px">৳ ${fmt(lastBreakdown.amount.toFixed(0))}</div></div>`:''}
       </div>`;
   } else if (si) {
     si.innerHTML = '<p style="color:#aaa;font-size:13px">শেয়ারহোল্ডার তালিকায় নাম পাওয়া যায়নি।</p>';
@@ -12383,6 +13220,83 @@ function updateDemandBadge() {
   const pending = appData.demands.filter(d=>d.status==='pending').length;
   const badge = document.getElementById('demandBadge');
   if (badge) { badge.textContent=pending; badge.style.display=pending>0?'inline':'none'; }
+}
+
+// ===== নোটিফিকেশন বেল (শুধু অ্যাডমিন/মডারেটর) — পেন্ডিং ডিমান্ড নোট, বাকি টাকা, চেক রিমাইন্ডার =====
+function getNotifData() {
+  const pendingDemands = (appData.demands||[]).filter(d=>d.status==='pending').sort((a,b)=>b.id-a.id);
+  const dueVisits = (appData.visits||[]).filter(v=>v.due>0).sort((a,b)=>b.due-a.due);
+  const checkReminders = (currentUser && currentUser.role==='admin' && typeof getCheckReminders==='function') ? getCheckReminders() : [];
+  return { pendingDemands, dueVisits, checkReminders };
+}
+function updateNotifBell() {
+  const wrap = document.getElementById('notifBellWrap');
+  if (!wrap) return;
+  if (!currentUser || !['admin','moderator'].includes(currentUser.role)) { wrap.style.display='none'; return; }
+  wrap.style.display = '';
+  const { pendingDemands, dueVisits, checkReminders } = getNotifData();
+  const count = pendingDemands.length + dueVisits.length + checkReminders.length;
+  const badge = document.getElementById('notifBellBadge');
+  if (badge) { badge.textContent = count>99?'৯৯+':count; badge.style.display = count>0?'flex':'none'; }
+  const panel = document.getElementById('notifBellPanel');
+  if (panel && panel.style.display !== 'none') renderNotifBellPanel();
+}
+function toggleNotifBell(ev) {
+  if (ev) ev.stopPropagation();
+  const panel = document.getElementById('notifBellPanel');
+  if (!panel) return;
+  const willOpen = panel.style.display === 'none';
+  if (willOpen) { renderNotifBellPanel(); panel.style.display = 'block'; }
+  else { panel.style.display = 'none'; }
+}
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('notifBellWrap');
+  const panel = document.getElementById('notifBellPanel');
+  if (panel && panel.style.display !== 'none' && wrap && !wrap.contains(e.target)) panel.style.display = 'none';
+});
+function notifBellGo(page) {
+  document.getElementById('notifBellPanel').style.display = 'none';
+  showPage(page);
+}
+function renderNotifBellPanel() {
+  const panel = document.getElementById('notifBellPanel');
+  if (!panel) return;
+  const { pendingDemands, dueVisits, checkReminders } = getNotifData();
+  let html = '';
+
+  if (pendingDemands.length) {
+    html += `<div class="notif-bell-section-title">📝 পেন্ডিং ডিমান্ড নোট (${pendingDemands.length})</div>`;
+    pendingDemands.slice(0,5).forEach(d => {
+      html += `<div class="notif-bell-item" onclick="notifBellGo('demand')">
+        <span class="nb-dot" style="background:#f59e0b"></span>
+        <span style="flex:1"><strong>${d.title||'ডিমান্ড'}</strong><br><span style="color:var(--text-light);font-size:11px">${d.by||''} — ${formatDate(d.date)}</span></span>
+      </div>`;
+    });
+  }
+
+  if (dueVisits.length) {
+    const totalDue = dueVisits.reduce((s,v)=>s+v.due,0);
+    html += `<div class="notif-bell-section-title">💳 বাকি পরিশোধ (${dueVisits.length} জন, ৳ ${fmt(totalDue)})</div>`;
+    dueVisits.slice(0,5).forEach(v => {
+      html += `<div class="notif-bell-item" onclick="notifBellGo('due')">
+        <span class="nb-dot" style="background:#9b59b6"></span>
+        <span style="flex:1"><strong>${v.patName||'—'}</strong><br><span style="color:var(--text-light);font-size:11px">বাকি ৳ ${fmt(v.due)} — ${formatDate(v.date)}</span></span>
+      </div>`;
+    });
+  }
+
+  if (checkReminders.length) {
+    html += `<div class="notif-bell-section-title">📒 চেক রিমাইন্ডার (${checkReminders.length})</div>`;
+    checkReminders.slice(0,5).forEach(r => {
+      html += `<div class="notif-bell-item" onclick="notifBellGo('checkbook')">
+        <span class="nb-dot" style="background:${r.type==='overdue'?'#e74c3c':'#3498db'}"></span>
+        <span style="flex:1">${r.text}</span>
+      </div>`;
+    });
+  }
+
+  if (!html) html = `<div class="notif-bell-empty">🎉 কোনো পেন্ডিং নোটিফিকেশন নেই</div>`;
+  panel.innerHTML = html;
 }
 
 let _viewDemandEditId = null; // admin এডিট মোডে থাকা ডিমান্ড নোটের id
@@ -14530,6 +15444,22 @@ function renderRecHistory() {
   </tr>`).join('');
 }
 
+// ===== রিসেপশন প্যানেল: আজকের এন্ট্রি (ভিজিট) সম্পূর্ণ মুছে ফেলা =====
+function deleteVisit(id) {
+  const v = appData.visits.find(x=>x.id===id);
+  if (!v) return;
+  if (!confirm(`"${v.patName}" এর এই বিলটি সম্পূর্ণ মুছে ফেলতে চান? এই কাজ ফিরিয়ে আনা যাবে না।`)) return;
+  appData.visits = appData.visits.filter(x=>x.id!==id);
+  logActivity('delete', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} (মেমো: ${v.memoNo||v.rcptNo||'—'})`);
+  saveData();
+  closeRecVisitEdit();
+  renderRecHistory();
+  if (typeof renderRecDue==='function') renderRecDue();
+  if (typeof refreshDashboard==='function') refreshDashboard();
+  showToast('🗑️ বিল মুছে ফেলা হয়েছে');
+}
+
+
 // ===== রিসেপশন প্যানেল: আজকের এন্ট্রি (ভিজিট) সংশোধন — ডিলিটের বদলে এডিট, আগের মান এডিট হিস্ট্রিতে সংরক্ষিত থাকে =====
 let _recVisitEditId = null;
 function openRecVisitEdit(id) {
@@ -15893,7 +16823,7 @@ function buildPieData(type, period) {
     Object.entries(cmap).forEach(([k,v])=>{ map[k]=(map[k]||0)+v; });
   } else {
     // expense breakdown
-    (appData.expense||[]).filter(e=>dateMatch(e.date)).forEach(e=>{
+    (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&dateMatch(expenseEffectiveDate(e))).forEach(e=>{
       const k = canonicalCat(e.category);
       map[k] = (map[k]||0) + e.amount;
     });
@@ -16159,7 +17089,7 @@ function getBarData(mode) {
       inc.push((appData.income||[]).filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0)
         +(appData.visits||[]).filter(v=>v.date===ds).reduce((s,v)=>s+v.cashPaid,0)
         +(appData.camps||[]).filter(c=>c.date===ds).reduce((s,c)=>s+c.totalIncome,0));
-      exp.push((appData.expense||[]).filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0));
+      exp.push((appData.expense||[]).filter(e=>expenseEffectiveDate(e)===ds).reduce((s,e)=>s+e.amount,0));
     }
   } else {
     for(let i=5;i>=0;i--){
@@ -16169,7 +17099,7 @@ function getBarData(mode) {
       inc.push((appData.income||[]).filter(e=>e.date&&e.date.startsWith(pfx)).reduce((s,e)=>s+e.amount,0)
         +(appData.visits||[]).filter(v=>v.date&&v.date.startsWith(pfx)).reduce((s,v)=>s+v.cashPaid,0)
         +(appData.camps||[]).filter(c=>c.date&&c.date.startsWith(pfx)).reduce((s,c)=>s+c.totalIncome,0));
-      exp.push((appData.expense||[]).filter(e=>e.date&&e.date.startsWith(pfx)).reduce((s,e)=>s+e.amount,0));
+      exp.push((appData.expense||[]).filter(e=>expenseCountsInPrefix(e, pfx)).reduce((s,e)=>s+e.amount,0));
     }
   }
   return {labels,inc,exp};
@@ -16183,10 +17113,44 @@ function fmtK(v){
 
 // --- Dashboard selected date state ---
 let _dashViewDate = null; // null = today (live)
+let _dashDatePreset = null; // null | 'today' | 'week' | 'month' — কুইক প্রিসেট পিল, রিসেন্ট এন্ট্রি টেবিলের ফিল্টার নিয়ন্ত্রণ করে
+let _dashRangeStart = null, _dashRangeEnd = null; // 'week' প্রিসেটের জন্য তারিখ-রেঞ্জ
+
+function _dpYmd(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+function setDashDatePreset(preset) {
+  _dashDatePreset = preset;
+  document.querySelectorAll('.date-pill').forEach(b => b.classList.toggle('active', b.dataset.preset===preset));
+  const badge = document.getElementById('todayBadge');
+  const label = document.getElementById('todayBadgeLabel');
+  const vmSel = document.getElementById('dashRecentViewMode');
+  _dashViewDate = null;
+  if (badge) badge.classList.remove('date-changed');
+  if (label) label.textContent = '📅 ' + formatDate(todayStr());
+
+  if (preset === 'today') {
+    _dashRangeStart = null; _dashRangeEnd = null;
+    if (vmSel) vmSel.value = 'day';
+  } else if (preset === 'week') {
+    const now = new Date();
+    const start = new Date(now); start.setDate(now.getDate() - now.getDay()); // রবিবার থেকে শুরু
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+    _dashRangeStart = _dpYmd(start); _dashRangeEnd = _dpYmd(end);
+    if (vmSel) vmSel.value = 'day';
+  } else if (preset === 'month') {
+    _dashRangeStart = null; _dashRangeEnd = null;
+    if (vmSel) vmSel.value = 'month';
+  }
+  refreshDashboard();
+  renderDashRecentEntries();
+}
 
 function onDashDateChange(val) {
   const today = todayStr();
   _dashViewDate = (val && val !== today) ? val : null;
+  _dashDatePreset = null; // কাস্টম তারিখ বাছলে প্রিসেট পিল নিষ্ক্রিয় হয়ে যাবে
+  _dashRangeStart = null; _dashRangeEnd = null;
+  document.querySelectorAll('.date-pill').forEach(b => b.classList.remove('active'));
   const badge = document.getElementById('todayBadge');
   const label = document.getElementById('todayBadgeLabel');
   if (_dashViewDate) {
@@ -16337,7 +17301,7 @@ function getDashPieDetailRows(catLabel, type, period){
       (appData.camps||[]).filter(c=>inPeriod(c.date)&&c.totalIncome>0).forEach(c=>rows.push({label:c.campName||'ক্যাম্প',amount:c.totalIncome,date:c.date}));
     }
   } else {
-    (appData.expense||[]).filter(e=>inPeriod(e.date)&&e.category===catLabel).forEach(e=>rows.push({label:e.note||e.category,amount:e.amount,date:e.date}));
+    (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&inPeriod(expenseEffectiveDate(e))&&e.category===catLabel).forEach(e=>rows.push({label:e.note||e.category,amount:e.amount,date:expenseEffectiveDate(e)}));
   }
   return rows.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
@@ -16372,9 +17336,10 @@ function showDashCharts(){
   col.style.display = allowed ? 'contents' : 'none';
   if(allowed){ renderDashPieChart(); renderDashBarChart(); }
   // monthly comparison সবসময় দেখাবে (allowed roles)
-  if(allowed){ renderMonthlyComparison(); }
+  if(allowed){ renderMonthlyComparison(); renderDashCheckStatus(); }
   else {
     const w=document.getElementById('dashMoCompWrap'); if(w) w.style.display='none';
+    const cw=document.getElementById('dashCheckStatusWrap'); if(cw) cw.style.display='none';
   }
 }
 
@@ -16441,6 +17406,118 @@ function renderMonthlyComparison(){
 
   wrap.style.display = 'block';
 }
+
+// ---- চেক নিষ্পত্তি স্ট্রিপ (মাসিক তুলনার ঠিক নিচে, একই ডিজাইনে) ----
+// ডেটা সোর্স: (১) ব্যয়ের তালিকায় ব্যাংক/চেকে পরিশোধিত এন্ট্রি (payMode==='bank' — checkNo না থাকলেও গণনায় ধরা হয়, কারণ ফর্মে এটা ঐচ্ছিক),
+// (২) "চেক ইস্যু" পেজের appData.issuedChecks (শেয়ারহোল্ডার উত্তোলনের চেকসহ) — দুটোকেই একত্র করে "অনিষ্পন্ন চেক" গণনা করা হয়
+function getAllCheckEntries() {
+  const expenseChecks = (appData.expense||[]).filter(e => e.payMode==='bank')
+    .map(e => ({ source:'expense', date:e.date, amount:e.amount, status:e.status,
+                 label: e.category||e.note||'ব্যয়', checkNo: e.checkNo||'—', voucher: e.voucher||'—',
+                 refDate: e.clearDate||e.date }));
+  const issuedChecks = (appData.issuedChecks||[]).filter(c => c.checkNo)
+    .map(c => ({ source:'issued', date:c.issueDate, amount:c.amount, status:c.status,
+                 label: c.payee||'—', checkNo: c.checkNo, voucher: c.voucher||'—',
+                 refDate: c.dueDate||c.issueDate }));
+  return [...expenseChecks, ...issuedChecks];
+}
+function _checkStatusCol(label, count, amount, accentColor, divider, bgColor) {
+  const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
+  return `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
+    <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
+    <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">৳ ${fmt(amount)}</span>
+    <span style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis">(${count.toLocaleString('bn-BD')}টি)</span>
+  </div>`;
+}
+function renderDashCheckStatus(){
+  const wrap=document.getElementById('dashCheckStatusWrap');
+  const body=document.getElementById('dashCheckStatusBody');
+  if(!body||!wrap) return;
+
+  const allChecks = getAllCheckEntries();
+  if (!allChecks.length) { wrap.style.display='none'; return; }
+
+  const now = new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  const thisMonthPending = allChecks.filter(e => e.status==='pending' && e.date && e.date.startsWith(curYM));
+  const prevPending      = allChecks.filter(e => e.status==='pending' && !(e.date && e.date.startsWith(curYM)));
+  const thisMonthPendingAmt = thisMonthPending.reduce((s,e)=>s+e.amount,0);
+  const prevPendingAmt      = prevPending.reduce((s,e)=>s+e.amount,0);
+  const totalAmt            = allChecks.reduce((s,e)=>s+e.amount,0);
+
+  const monthNames=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const lbl=document.getElementById('dashCheckStatusLabel');
+  if(lbl) lbl.textContent = monthNames[now.getMonth()];
+
+  body.innerHTML =
+    _checkStatusCol('এই মাসের অনিষ্পন্ন', thisMonthPending.length, thisMonthPendingAmt, '#f59e0b', true, 'rgba(245,158,11,0.08)') +
+    _checkStatusCol('পূর্বের অনিষ্পন্ন', prevPending.length, prevPendingAmt, '#ea580c', true, 'rgba(234,88,12,0.07)') +
+    _checkStatusCol('সর্বমোট চেক (নিষ্পন্ন+অনিষ্পন্ন)', allChecks.length, totalAmt, '#0f4c81', false, 'rgba(15,76,129,0.06)');
+
+  wrap.style.display = 'block';
+}
+
+// ---- চেক নিষ্পত্তি স্ট্রিপে ক্লিক করলে বিস্তারিত মোডাল ----
+function showCheckStatusDetail(){
+  const allChecks = getAllCheckEntries();
+  if (!allChecks.length) return;
+  const now = new Date();
+  const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  const statusBadge = e => {
+    if (e.status==='cleared') return `<span class="badge badge-income">✅ ভাঙ্গানো হয়েছে</span>`;
+    if (e.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
+    return `<span class="badge" style="background:#fef3c7;color:#92400e">⏳ পেন্ডিং</span>`;
+  };
+  const sourceLabel = e => e.source==='issued'
+    ? `<span style="font-size:10.5px;color:#3498db;font-weight:700">চেক ইস্যু</span>`
+    : `<span style="font-size:10.5px;color:#888;font-weight:700">ব্যয়</span>`;
+  const row = e => `<tr>
+    <td>${sourceLabel(e)}</td>
+    <td style="font-weight:600;color:var(--warning)">${e.voucher}</td>
+    <td style="font-weight:700;color:var(--primary)">${e.checkNo}</td>
+    <td>${e.label}</td>
+    <td>${formatDate(e.date)}</td>
+    <td>${formatDate(e.refDate)}</td>
+    <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
+    <td>${statusBadge(e)}</td>
+  </tr>`;
+
+  const thisMonthPending = allChecks.filter(e => e.status==='pending' && e.date && e.date.startsWith(curYM));
+  const prevPending      = allChecks.filter(e => e.status==='pending' && !(e.date && e.date.startsWith(curYM)));
+  const cleared          = allChecks.filter(e => e.status!=='pending');
+
+  const section = (title, list, color) => !list.length ? '' : `
+    <div style="margin-bottom:16px">
+      <div style="font-weight:700;color:${color};font-size:13px;margin-bottom:6px">${title} (${list.length}টি — ৳ ${fmt(list.reduce((s,e)=>s+e.amount,0))})</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>উৎস</th><th>ভাউচার</th><th>চেক নং</th><th>বিবরণ/প্রাপক</th><th>তারিখ</th><th>ভাঙ্গানোর তারিখ</th><th>পরিমাণ</th><th>স্ট্যাটাস</th></tr></thead>
+        <tbody>${list.slice().sort((a,b)=>(a.refDate||'').localeCompare(b.refDate||'')).map(row).join('')}</tbody>
+      </table></div>
+    </div>`;
+
+  let modal = document.getElementById('checkStatusDetailModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'checkStatusDetailModal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  modal.innerHTML = `<div class="modal" style="max-width:900px;max-height:86vh;display:flex;flex-direction:column">
+    <div class="modal-title">📒 চেক নিষ্পত্তি — বিস্তারিত</div>
+    <div style="overflow-y:auto;flex:1;padding-right:4px">
+      ${section('⏳ এই মাসের অনিষ্পন্ন', thisMonthPending, '#f59e0b')}
+      ${section('⏳ পূর্বের অনিষ্পন্ন', prevPending, '#ea580c')}
+      ${section('✅ ভাঙ্গানো/বাউন্স হয়েছে', cleared, '#0f4c81')}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
+    </div>
+  </div>`;
+}
+
 
 // ---- Owner page chart state ----
 let _oPieType='income', _oPiePeriod='month', _oBarMode='day';
