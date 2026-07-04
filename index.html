@@ -238,6 +238,7 @@
   .badge-info { background:#dbeafe; color:#1e40af; }
   .badge-purple { background:#f3e8ff; color:#6b21a8; }
   .badge-rec { background:#fce7f3; color:#9d174d; }
+  .badge-cheque { background:#ffedd5; color:#9a3412; }
 
   /* PAGES */
   .page-view { display:none; }
@@ -2211,7 +2212,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📤 ইস্যু করা চেকের তালিকা</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>ভাউচার নং</th><th>চেক নং</th><th>প্রাপক</th><th>পরিমাণ</th><th>ইস্যুর তারিখ</th><th>ভাঙ্গানোর তারিখ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>উৎস</th><th>ভাউচার নং</th><th>চেক নং</th><th>প্রাপক</th><th>পরিমাণ</th><th>ইস্যুর তারিখ</th><th>ভাঙ্গানোর তারিখ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="issuedChecksTable"></tbody>
         </table></div></div>
       </div>
@@ -5574,7 +5575,16 @@ function loadData() {
     }
   } catch(e) {}
   rebuildUsers();
-  try { if (localStorage.getItem('hms_pending_sync') === '1') { _fbSyncPending = true; updateSyncStatusUI(); } } catch(e){}
+  try {
+    const pendingRaw = localStorage.getItem('hms_pending_sync');
+    if (pendingRaw) {
+      let keys = null;
+      try { keys = JSON.parse(pendingRaw); } catch(e) { keys = null; }
+      if (Array.isArray(keys) && keys.length) keys.forEach(k => _fbPendingKeys.add(k));
+      else _fbPendingKeys.add('general'); // পুরনো ফরম্যাট ('1') থেকে আসা — নিরাপদে সব মডিউল আবার সিঙ্ক করার জন্য জেনেরিক কী
+      updateSyncStatusUI();
+    }
+  } catch(e){}
   setTimeout(startFirebaseSync, 1000);
 }
 // ===== DATA INTEGRITY CHECK =====
@@ -5606,7 +5616,7 @@ function startFirebaseSync() {
     if (data) {
       // ✅ সুরক্ষা: এই ডিভাইসে এখনো Firebase-এ পুশ না হওয়া (offline-এ করা) এন্ট্রি থাকলে, সার্ভারের পুরনো ডাটা দিয়ে ওভাররাইট করবে না —
       // নাহলে অফলাইনে করা এন্ট্রিগুলো হারিয়ে যেতে পারে। আগে লোকাল পেন্ডিং ডাটা পুশ হবে, তারপর এই লিসেনার আবার স্বাভাবিকভাবে চলবে।
-      if (_fbSyncPending || _fbWritesInFlight > 0) {
+      if (hasSyncPending() || _fbWritesInFlight > 0) {
         console.warn('[HMS] লোকাল ডাটা এখনো Firebase-এ পুশ হচ্ছে (বা ব্যর্থ হয়েছে) — এই মুহূর্তে সার্ভার ডাটা দিয়ে ওভাররাইট করা হচ্ছে না।');
         return;
       }
@@ -5815,7 +5825,13 @@ function renderActivityLog() {
 }
 
 // ===== OFFLINE / SYNC STATUS =====
-let _fbSyncPending = false;
+// ⚠️ আগে এটি একটাই গ্লোবাল true/false ফ্ল্যাগ ছিল, যা সব মডিউল শেয়ার করতো — এতে একটা মডিউলের
+// (যেমন issuedChecks) সিঙ্ক ব্যর্থ/পেন্ডিং অবস্থায় থাকা সত্ত্বেও, অন্য কোনো মডিউলের (যেমন income)
+// সফল সিঙ্ক হলে পুরো ফ্ল্যাগ false হয়ে যেত — ফলে Firebase-এর পুরনো স্ন্যাপশট এসে সদ্য যোগ করা
+// (কিন্তু আসলে এখনো সার্ভারে না পৌঁছানো) এন্ট্রি মুছে ফেলতো, যেমন "চেক ইস্যু" এন্ট্রি টোস্ট দেখানোর
+// পরেও তালিকা থেকে হারিয়ে যাওয়া। এখন প্রতিটা মডিউল/কী আলাদাভাবে ট্র্যাক করা হয় একটা Set-এ।
+let _fbPendingKeys = new Set();
+function hasSyncPending() { return _fbPendingKeys.size > 0; }
 // ✅ এই মুহূর্তে কয়টা Firebase write (root update + প্রতিটা module-এর diff write) চলমান আছে তার কাউন্ট।
 // saveData() একইসাথে root update() এবং প্রতিটা path-synced module-এর জন্য আলাদা set() কল করে —
 // এগুলো আলাদা আলাদা promise, এবং যেকোনো একটা আগে শেষ হলে onValue লিসেনার ফায়ার করতে পারে, যখন বাকিগুলো
@@ -5845,13 +5861,20 @@ function updateSyncStatusUI() {
   if (el) el.style.display = 'none';
 }
 
-function markSyncPending() {
-  if (!_fbSyncPending) { _fbSyncPending = true; try { localStorage.setItem('hms_pending_sync','1'); } catch(e){} }
+function markSyncPending(key) {
+  key = key || 'general';
+  _fbPendingKeys.add(key);
+  try { localStorage.setItem('hms_pending_sync', JSON.stringify([..._fbPendingKeys])); } catch(e){}
   updateSyncStatusUI();
 }
 
-function clearSyncPending() {
-  if (_fbSyncPending) { _fbSyncPending = false; try { localStorage.removeItem('hms_pending_sync'); } catch(e){} }
+function clearSyncPending(key) {
+  key = key || 'general';
+  _fbPendingKeys.delete(key);
+  try {
+    if (_fbPendingKeys.size === 0) localStorage.removeItem('hms_pending_sync');
+    else localStorage.setItem('hms_pending_sync', JSON.stringify([..._fbPendingKeys]));
+  } catch(e){}
   updateSyncStatusUI();
 }
 
@@ -5873,7 +5896,7 @@ function fbSafeKey(id) {
 }
 
 function syncModuleDiff(module) {
-  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(); return; }
+  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(module); return; }
   const current = snapshotModuleMap(module);
   const prev = _lastSyncedMaps[module] || {};
   const toWrite = [], toDelete = [];
@@ -5890,8 +5913,8 @@ function syncModuleDiff(module) {
   });
   beginFbWrite();
   Promise.all(promises)
-    .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(); })
-    .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(); }) // baseline আপডেট হয়নি → পরের বার আবার চেষ্টা হবে
+    .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(module); })
+    .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(module); }) // এই মডিউলটাই পেন্ডিং থাকবে, অন্য মডিউলের সফল সিঙ্ক একে মুছবে না
     .finally(() => endFbWrite());
 }
 
@@ -5911,15 +5934,15 @@ function trySyncNow(showMsg) {
   // ✅ update() ব্যবহার করা হচ্ছে, set() না — update() শুধু দেওয়া key গুলো merge করে, বাকি (income/expense/bankTx সহ) অক্ষত থাকে
   beginFbWrite();
   window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
-    .then(() => { clearSyncPending(); /* 🔕 সিঙ্ক টোস্ট আর দেখানো হয় না */ })
-    .catch(e => { console.warn('[HMS] re-sync ব্যর্থ:', e.message); markSyncPending(); })
+    .then(() => { clearSyncPending('root'); /* 🔕 সিঙ্ক টোস্ট আর দেখানো হয় না */ })
+    .catch(e => { console.warn('[HMS] re-sync ব্যর্থ:', e.message); markSyncPending('root'); })
     .finally(() => endFbWrite());
 }
 
-window.addEventListener('online', () => { if (_fbSyncPending) trySyncNow(false); });
-window.addEventListener('offline', () => markSyncPending());
+window.addEventListener('online', () => { clearSyncPending('offline'); if (hasSyncPending()) trySyncNow(false); });
+window.addEventListener('offline', () => markSyncPending('offline'));
 // safety-net: online ইভেন্ট মিস হলেও প্রতি ২০ সেকেন্ডে পেন্ডিং সিঙ্ক চেষ্টা করবে
-setInterval(() => { if (_fbSyncPending) trySyncNow(false); }, 20000);
+setInterval(() => { if (hasSyncPending()) trySyncNow(false); }, 20000);
 
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
@@ -5928,8 +5951,8 @@ function saveData() {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
     beginFbWrite();
     window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
-      .then(() => clearSyncPending())
-      .catch(e => { console.error('Firebase save error:', e); markSyncPending(); })
+      .then(() => clearSyncPending('root'))
+      .catch(e => { console.error('Firebase save error:', e); markSyncPending('root'); })
       .finally(() => endFbWrite());
     // ✅ দৈনিক snapshot backup (Firebase এ আলাদা node এ)
     const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
@@ -5966,7 +5989,7 @@ function saveData() {
     }
   } else {
     // Firebase এখনো রেডি হয়নি — পরে রেডি হলে সিঙ্ক হবে
-    markSyncPending();
+    markSyncPending('root');
   }
 }
 
@@ -6684,6 +6707,7 @@ function saveExpense() {
   appData.expense.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by:currentUser.name });
   logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
   saveData(); clearExpenseForm(); renderExpenseTable(); refreshDashboard();
+  if (typeof renderIssuedChecks==='function') renderIssuedChecks();
   showToast(status==='pending' ? `✅ ব্যয় এন্ট্রি সেভ (পেন্ডিং — ${formatDate(clearDate)} তারিখে ভাঙ্গানো হবে)! ভাউচার: ${voucher}` : '✅ ব্যয় এন্ট্রি সেভ! ভাউচার: ' + voucher);
 }
 function clearExpenseForm() {
@@ -6919,6 +6943,7 @@ function issueCheck() {
   populateIssueCheckbookSelect();
   populateCheckbookSelect(); populateCheckbookSelect('bankTxCheckbook','bankTxCheckNo');
   renderIssuedChecks(); renderCheckbookList(); renderCheckbookDetail(); renderCheckReminders();
+  if (typeof refreshDashboard==='function') refreshDashboard();
   showToast(`✅ চেক ইস্যু রেকর্ড হয়েছে — চেক নং ${checkNo} (ভাউচার: ${voucher})`);
 }
 function markCheckCleared(id) {
@@ -6957,6 +6982,7 @@ function confirmCheckCleared(id) {
     if (typeof renderShareholderWithdrawalHistory==='function') renderShareholderWithdrawalHistory();
   }
   saveData(); renderIssuedChecks(); renderCheckbookDetail(); updateBankBalances(); renderBankTx(); renderCheckReminders();
+  if (typeof refreshDashboard==='function') refreshDashboard();
   document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
   showToast('✅ চেক ভাঙ্গানো নিশ্চিত হয়েছে — ব্যাংক ব্যালেন্স থেকে কর্তন হয়েছে');
 }
@@ -6976,6 +7002,7 @@ function markCheckBounced(id) {
     if (typeof renderShareholderWithdrawalHistory==='function') renderShareholderWithdrawalHistory();
   }
   saveData(); renderIssuedChecks(); renderCheckReminders();
+  if (typeof refreshDashboard==='function') refreshDashboard();
   showToast('⚠️ চেক বাউন্স হিসেবে চিহ্নিত হয়েছে' + (chk.linkedWithdrawalId ? ' — শেয়ারহোল্ডারের ব্যালেন্স ফেরত দেওয়া হয়েছে' : ''));
 }
 function deleteIssuedCheck(id) {
@@ -6997,6 +7024,7 @@ function deleteIssuedCheck(id) {
   }
   appData.issuedChecks=(appData.issuedChecks||[]).filter(c=>c.id!==id);
   saveData(); renderIssuedChecks(); renderCheckbookDetail(); updateBankBalances(); renderBankTx(); renderCheckReminders();
+  if (typeof refreshDashboard==='function') refreshDashboard();
   showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 function daysBetween(dateStr) {
@@ -7006,10 +7034,29 @@ function daysBetween(dateStr) {
   const target = new Date(dateStr+'T00:00:00');
   return Math.round((target-today)/(1000*60*60*24));
 }
+// ব্যয় এন্ট্রি (payMode==='bank') ও "চেক ইস্যু" পেজ — দুই উৎসের চেককেই একত্র করে একটি একক তালিকা তৈরি করে,
+// যাতে "ইস্যু করা চেকের তালিকা" তে সবকিছু (উৎস নির্বিশেষে) বিস্তারিতভাবে দেখা যায়।
+function getAllIssuedChequeEntries() {
+  const fromIssue = (appData.issuedChecks||[]).map(c => ({
+    source:'issued', id:c.id, voucher:c.voucher||'—', checkNo:c.checkNo||'—',
+    payee: c.payee||'—', amount:c.amount, issueDate:c.issueDate, dueDate:c.dueDate,
+    status:c.status||'pending'
+  }));
+  const fromExpense = (appData.expense||[]).filter(e => e.payMode==='bank').map(e => ({
+    source:'expense', id:e.id, voucher:e.voucher||'—', checkNo:e.checkNo||'—',
+    payee: `${e.category}${e.payPerson?(' — বাহক: '+e.payPerson):''}${e.note?(' — '+e.note):''}`,
+    amount:e.amount, issueDate:e.date, dueDate:e.clearDate||e.date,
+    status:e.status||'cleared'
+  }));
+  return [...fromIssue, ...fromExpense];
+}
 function renderIssuedChecks() {
   const tbody=document.getElementById('issuedChecksTable'); if (!tbody) return;
-  const list=[...(appData.issuedChecks||[])].sort((a,b)=>b.id-a.id);
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো চেক ইস্যু করা হয়নি</td></tr>'; return; }
+  const list=getAllIssuedChequeEntries().sort((a,b)=> (b.issueDate||'').localeCompare(a.issueDate||'') || (b.id-a.id||0));
+  if (!list.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো চেক ইস্যু করা হয়নি</td></tr>'; return; }
+  const sourceBadge = c => c.source==='issued'
+    ? `<span class="badge badge-cheque">চেক ইস্যু</span>`
+    : `<span class="badge" style="background:#f1f5f9;color:#475569">ব্যয়</span>`;
   const statusBadge = c => {
     if (c.status==='cleared') return `<span class="badge badge-income">✅ ভাঙ্গানো হয়েছে</span>`;
     if (c.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
@@ -7019,6 +7066,7 @@ function renderIssuedChecks() {
     return `<span class="badge badge-info">⏳ পেন্ডিং (${d} দিন বাকি)</span>`;
   };
   tbody.innerHTML = list.map(c => `<tr>
+    <td>${sourceBadge(c)}</td>
     <td style="font-weight:600;color:var(--warning)">${c.voucher||'—'}</td>
     <td style="font-weight:700;color:var(--primary)">${c.checkNo}</td>
     <td>${c.payee}</td>
@@ -7027,9 +7075,11 @@ function renderIssuedChecks() {
     <td style="font-weight:600">${formatDate(c.dueDate)}</td>
     <td>${statusBadge(c)}</td>
     <td style="display:flex;gap:4px;flex-wrap:wrap">
-      ${c.status==='pending' ? `<button class="btn btn-success btn-sm" onclick="markCheckCleared(${c.id})">✅ ভাঙ্গানো হয়েছে</button>
+      ${c.status==='pending' && c.source==='issued' ? `<button class="btn btn-success btn-sm" onclick="markCheckCleared(${c.id})">✅ ভাঙ্গানো হয়েছে</button>
       <button class="btn btn-outline btn-sm" onclick="markCheckBounced(${c.id})">❌ বাউন্স</button>` : ''}
-      ${currentUser.role==='admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteIssuedCheck(${c.id})">🗑️</button>` : ''}
+      ${c.status==='pending' && c.source==='expense' ? `<button class="btn btn-success btn-sm" onclick="markExpenseCleared(${c.id})">✅ ভাঙ্গানো হয়েছে</button>` : ''}
+      ${currentUser.role==='admin' && c.source==='issued' ? `<button class="btn btn-danger btn-sm" onclick="deleteIssuedCheck(${c.id})">🗑️</button>` : ''}
+      ${currentUser.role==='admin' && c.source==='expense' ? `<button class="btn btn-danger btn-sm" onclick="deleteExpense(${c.id})">🗑️</button>` : ''}
     </td>
   </tr>`).join('');
 }
@@ -7209,6 +7259,7 @@ function confirmExpenseCleared(id) {
   if (!clearedDate) { showToast('⚠️ তারিখ দিন!'); return; }
   e.status='cleared'; e.actualClearedDate=clearedDate;
   saveData(); renderExpenseTable(); refreshDashboard(); updateBankBalances(); if (typeof renderBankTx==='function') renderBankTx();
+  if (typeof renderIssuedChecks==='function') renderIssuedChecks();
   document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
   showToast('✅ ভাঙ্গানো নিশ্চিত হয়েছে — '+formatDate(clearedDate)+' তারিখের হিসাবে যোগ হয়েছে');
 }
@@ -7233,7 +7284,9 @@ function deleteExpense(id) {
   const e = appData.expense.find(e=>e.id===id);
   appData.expense=appData.expense.filter(e=>e.id!==id);
   if (e) logActivity('delete', 'ব্যয়', `${e.category} — ৳${fmt(e.amount)} (${e.voucher||''})`);
-  saveData(); renderExpenseTable(); refreshDashboard(); showToast('🗑️ মুছে ফেলা হয়েছে');
+  saveData(); renderExpenseTable(); refreshDashboard();
+  if (typeof renderIssuedChecks==='function') renderIssuedChecks();
+  showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 
 // ===== BALANCE HELPERS =====
@@ -7609,6 +7662,18 @@ function renderDashRecentEntries() {
       campId: null,
       amt: d.amount, by: d.by||'—', cls:'badge-deposit'
     })),
+    // "চেক ইস্যু" পেজ থেকে ইস্যু করা চেক (তথ্যের জন্য — ভাঙ্গানো নিশ্চিত হলে সেটা আলাদাভাবে ট্রান্সফার/ব্যাংক ব্যয় রো হিসেবে দেখা যাবে)
+    ...(appData.issuedChecks||[]).map(c=>{
+      const statusTxt = c.status==='cleared' ? ' — ✅ ভাঙ্গানো হয়েছে' : c.status==='bounced' ? ' — ❌ বাউন্স' : ' — ⏳ পেন্ডিং';
+      return {
+        id: 'ic_'+c.id, date:c.issueDate, type:'চেক ইস্যু',
+        vouchRef: c.voucher||'—',
+        cat: `চেক নং ${c.checkNo}`,
+        ref: `${c.payee||'—'}${c.note?(' — '+c.note):''}${statusTxt}`,
+        campId: null,
+        amt: c.amount, by: c.by||'—', cls:'badge-cheque'
+      };
+    }),
   ].sort((a,b)=>(b.id>a.id?1:-1));
 
   if (!allRows.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">কোনো এন্ট্রি নেই</td></tr>'; return; }
@@ -7675,7 +7740,7 @@ function renderDashRecentEntries() {
 
     // non-camp rows (income, expense, transfer, deposit)
     nonCampItems.forEach(e => {
-      const amtColor = e.cls==='badge-expense'?'var(--danger)':e.cls==='badge-transfer'?'#1e40af':e.cls==='badge-deposit'?'#7c3aed':'var(--success)';
+      const amtColor = e.cls==='badge-expense'?'var(--danger)':e.cls==='badge-transfer'?'#1e40af':e.cls==='badge-deposit'?'#7c3aed':e.cls==='badge-cheque'?'#9a3412':'var(--success)';
       html += `<tr class="dash-grp-row" data-grp="${gid}" style="">
         <td style="white-space:nowrap">${formatDate(e.date)}</td>
         <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${e.vouchRef}</td>
@@ -10386,7 +10451,19 @@ function saveShareholderWithdrawal() {
       if (cb) cb.lastUsed = parseInt(chequeNo);
     }
     if (!appData.bankTx) appData.bankTx=[];
-    appData.bankTx.push({ id:wdId+1, voucher, type: method==='cheque'?'bank_out':'cash_out', amount, date, note:`শেয়ারহোল্ডার উত্তোলন: ${sh.name}${note?' — '+note:''}`, ref:chequeNo, checkNo:chequeNo, checkbookId, by:currentUser.name });
+    const bankTxId = wdId+1;
+    appData.bankTx.push({ id:bankTxId, voucher, type: method==='cheque'?'bank_out':'cash_out', amount, date, note:`শেয়ারহোল্ডার উত্তোলন: ${sh.name}${note?' — '+note:''}`, ref:chequeNo, checkNo:chequeNo, checkbookId, by:currentUser.name });
+    // ✅ তাৎক্ষণিক (পোস্ট-ডেটেড নয়) চেকেও একটি issuedChecks রেকর্ড রাখা হয় (আগে শুধু bankTx-এ যেত, তাই "ইস্যু করা চেকের তালিকা"
+    // ও ড্যাশবোর্ডে দেখা যেত না — চেকের পাতা ব্যবহৃত হতো কিন্তু কোনো ট্র্যাক করা রেকর্ড তৈরি হতো না) — এটি সরাসরি "cleared" হিসেবে রেকর্ড হবে, যেহেতু ব্যাংক ব্যালেন্স এখনই কাটা হচ্ছে।
+    if (method==='cheque') {
+      if (!appData.issuedChecks) appData.issuedChecks=[];
+      linkedIssuedCheckId = wdId + 2;
+      appData.issuedChecks.push({
+        id: linkedIssuedCheckId, voucher, checkbookId, checkNo:chequeNo, payee:sh.name, amount,
+        issueDate:date, dueDate:date, note:`শেয়ারহোল্ডার উত্তোলন${note?' — '+note:''}`,
+        status:'cleared', clearedDate:date, linkedBankTxId:bankTxId, linkedWithdrawalId:wdId, by:currentUser.name
+      });
+    }
   }
 
   appData.shareholderWithdrawals.push({
