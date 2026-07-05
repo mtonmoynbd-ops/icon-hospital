@@ -607,6 +607,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="nav-item admin-only" data-page="checkbook"><span class="nav-icon">📒</span> চেক বই</div>
       <div class="nav-item admin-only" data-page="loan"><span class="nav-icon">💳</span> লোন ট্র্যাকিং</div>
       <div class="nav-item admin-only" data-page="shareholders"><span class="nav-icon">👥</span> শেয়ারহোল্ডার</div>
+      <div class="nav-item admin-only" data-page="funds"><span class="nav-icon">🏦</span> ফান্ড</div>
       <div class="nav-item" data-page="balancesheet"><span class="nav-icon">📊</span> ব্যালেন্স শিট</div>
     </div>
     <div class="sidebar-footer">
@@ -714,6 +715,7 @@ function openPrintWindow(htmlContent, title) {
               <div class="stat-card-header"><div class="stat-label">ব্যাংক ব্যালেন্স</div></div>
               <div class="stat-value" id="dashBankBalance" style="color:#3498db">৳ ০</div>
               <div class="stat-change" id="dashBankName">ব্যাংক একাউন্ট</div>
+              <div class="stat-change" id="dashBankFundNote" style="font-size:10.5px;color:#94a3b8;margin-top:2px"></div>
             </div>
           </div>
           <!-- কার্ড ডিটেইল মোডাল — stats-grid এর ভেতরেই, একই এরিয়া জুড়ে -->
@@ -2067,7 +2069,7 @@ function openPrintWindow(htmlContent, title) {
     <div id="pg-bank" class="page-view">
       <div class="stats-grid">
         <div class="stat-card income"><div class="stat-icon">💵</div><div class="stat-label">ক্যাশ ব্যালেন্স</div><div class="stat-value income" id="cashBalance">৳ ০</div><div class="stat-change">হাতে নগদ</div></div>
-        <div class="stat-card" style="border-left-color:#3498db"><div class="stat-icon">🏦</div><div class="stat-label">ব্যাংক ব্যালেন্স</div><div class="stat-value" id="bankBalance" style="color:#3498db">৳ ০</div><div class="stat-change" id="bankName">ব্যাংক একাউন্ট</div></div>
+        <div class="stat-card" style="border-left-color:#3498db"><div class="stat-icon">🏦</div><div class="stat-label">ব্যাংক ব্যালেন্স</div><div class="stat-value" id="bankBalance" style="color:#3498db">৳ ০</div><div class="stat-change" id="bankName">ব্যাংক একাউন্ট</div><div class="stat-change" id="bankFundNote" style="font-size:11px;color:#94a3b8"></div></div>
         <div class="stat-card profit"><div class="stat-icon">💰</div><div class="stat-label">মোট ব্যালেন্স</div><div class="stat-value profit" id="totalBalance">৳ ০</div><div class="stat-change">ক্যাশ + ব্যাংক</div></div>
       </div>
 
@@ -2430,6 +2432,123 @@ function openPrintWindow(htmlContent, title) {
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>উত্তোলন নং</th><th>তারিখ</th><th>শেয়ারহোল্ডার</th><th>পরিমাণ</th><th>মাধ্যম</th><th>ব্যক্তি</th><th>স্ট্যাটাস</th><th>বিবরণ</th><th>এন্ট্রিকারী</th></tr></thead>
           <tbody id="shWithdrawalHistTable"></tbody>
+        </table></div></div>
+      </div>
+    </div>
+
+    <!-- ফান্ড (লাভ বন্টন খাতভিত্তিক জমা হিসাব) -->
+    <div id="pg-funds" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🏦 ফান্ড খাতভিত্তিক জমা হিসাব</div>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12.5px;color:var(--text-light);margin-bottom:14px">
+            প্রতি মাস ক্লোজের সময় নিট মুনাফা থেকে "লাভ বন্টন খাত" (সেটিংস) অনুযায়ি শতাংশ কেটে এখানে জমা হয়। নিচে প্রতিটি খাতে এখন পর্যন্ত মোট কত জমা হয়েছে ও কত খরচ হয়ে কত অবশিষ্ট আছে তার হিসাব দেখানো হলো।
+          </p>
+          <div id="fundsSummaryCards" class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px"></div>
+          <div id="fundsGrandTotal" style="background:#f0f4f8;border-radius:8px;padding:12px 16px;font-size:14px;font-weight:700;margin-bottom:6px"></div>
+        </div>
+      </div>
+
+      <!-- ফান্ড থেকে খরচ (প্রাতিষ্ঠানিক খরচ — নিট মুনাফা হিসাবে প্রভাব ফেলবে না) -->
+      <div class="panel admin-only" id="feFormPanel">
+        <div class="panel-header" style="cursor:pointer" onclick="toggleFormPanel('feFormBody','feFormIcon')">
+          <div class="panel-title">🏧 ফান্ড থেকে খরচ</div>
+          <span id="feFormIcon" style="color:var(--text-light);font-size:16px">▶</span>
+        </div>
+        <div class="panel-body" id="feFormBody" style="display:none">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px">
+            এই খরচ ক্যাশ/ব্যাংক ব্যালেন্স থেকে সরাসরি কেটে নেওয়া হবে এবং "ব্যয় এন্ট্রি" তালিকায় দেখা যাবে, কিন্তু এটা মাসিক নিট মুনাফা/লোকসান হিসাবে গণনা হবে না — কারণ এই টাকা আগেই মুনাফা থেকে ফান্ডে জমা হয়ে গেছে।
+          </p>
+          <div class="form-row three">
+            <div class="field"><label>ফান্ড খাত *</label>
+              <select id="feFund" onchange="updateFeFundBalanceNote()"><option value="">-- ফান্ড নির্বাচন করুন --</option></select>
+            </div>
+            <div class="field"><label>তারিখ *</label><input type="date" id="feDate" onchange="updateFeVoucher()"></div>
+            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="feAmount" placeholder="০.০০" min="0"></div>
+          </div>
+          <div id="feFundBalanceNote" style="font-size:12.5px;color:var(--text-light);margin-bottom:10px"></div>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+                <input type="text" id="feVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
+              </div>
+              <div class="field"><label>বিবরণ / কারণ *</label><input type="text" id="feNote" placeholder="যেমন: ভবন সংস্কার, যন্ত্রপাতি ক্রয় ইত্যাদি"></div>
+            </div>
+            <div></div>
+          </div>
+          <!-- পেমেন্ট মাধ্যম -->
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="field">
+              <label>পেমেন্ট মাধ্যম *</label>
+              <div style="display:flex;gap:10px;margin-top:6px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="fePayMode" value="cash" id="fePayCash" onchange="onFePayModeChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="fePayMode" value="bank" id="fePayBank" onchange="onFePayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক
+                </label>
+              </div>
+            </div>
+          </div>
+          <div id="feCashPersonRow" class="form-row" style="margin-bottom:10px">
+            <div class="field">
+              <label id="fePersonLabel">পরিশোধকারী ব্যক্তি</label>
+              <div style="display:flex;gap:6px">
+                <select id="fePerson" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc">
+                  <option value="">-- ব্যক্তি নির্বাচন করুন --</option>
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" onclick="toggleFeAddPerson()" title="নতুন ব্যক্তি যোগ করুন" style="padding:8px 12px">➕</button>
+              </div>
+              <div id="feAddPersonRow" style="display:none;margin-top:6px">
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="feNewPersonName" placeholder="নতুন ব্যক্তির নাম" style="flex:1;padding:9px 12px;border:1.5px solid var(--accent);border-radius:6px;font-family:inherit;font-size:13px">
+                  <button type="button" class="btn btn-success btn-sm" onclick="addFePerson()">✅ যোগ</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="toggleFeAddPerson()">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="feBankRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field">
+              <label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো — পূর্বের পরের চেক)</span></label>
+              <input type="text" id="feCheckNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+            </div>
+            <div class="field"><label>চেক বই</label>
+              <select id="feCheckbook" onchange="updateNextCheckNo('feCheckbook','feCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                <option value="">-- চেক বই নির্বাচন করুন --</option>
+              </select>
+            </div>
+          </div>
+          <div id="feClearDateRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field">
+              <label>ভাঙ্গানোর তারিখ * <span style="font-size:11px;color:var(--accent)">(ভবিষ্যতের তারিখ দিলে এন্ট্রিটি "পেন্ডিং" থাকবে)</span></label>
+              <input type="date" id="feClearDate">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="clearFeForm()">🔄 রিসেট</button>
+            <button class="btn btn-danger" onclick="saveFundExpense()">✅ ফান্ড খরচ সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ফান্ড খরচের ইতিহাস -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🧾 ফান্ড খরচের ইতিহাস</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>ভাউচার</th><th>ফান্ড খাত</th><th>বিবরণ</th><th>পেমেন্ট</th><th style="text-align:right">পরিমাণ</th><th>এন্ট্রিকারী</th></tr></thead>
+          <tbody id="fundExpenseHistTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- খাতভিত্তিক মাসিক জমার বিস্তারিত -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📜 মাসভিত্তিক ফান্ড জমার হিস্ট্রি</div></div>
+        <div class="panel-body"><div class="table-wrap"><table style="table-layout:fixed;width:100%">
+          <thead><tr id="fundsHistHeadRow" style="text-align:right"><th style="text-align:left">মাস/বছর</th></tr></thead>
+          <tbody id="fundsHistTable"></tbody>
         </table></div></div>
       </div>
     </div>
@@ -6007,6 +6126,7 @@ const pageMap = {
   checkbook:    { title:'📒 চেক বই', sub:'চেক বই ও প্রতিটি চেকের লেনদেনের বিস্তারিত' },
   loan:         { title:'💳 লোন ট্র্যাকিং', sub:'লোন গ্রহণ ও পরিশোধের রেকর্ড' },
   shareholders: { title:'👥 শেয়ারহোল্ডার', sub:'মালিকানা ও লাভ বন্টন' },
+  funds:        { title:'🏦 ফান্ড', sub:'লাভ বন্টন ফান্ড খাতভিত্তিক জমা হিসাব' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
   attendance:{ title:'🕐 এটেন্ডেন্স শিট', sub:'কর্মীদের উপস্থিতি ব্যবস্থাপনা' },
   stock:    { title:'📦 স্টক ম্যানেজমেন্ট', sub:'ওষুধ ও চশমার স্টক' },
@@ -6057,6 +6177,7 @@ function showPage(name) {
   if (name === 'checkbook')    { initCheckbookPage(); }
   if (name === 'loan')         { initLoanPage(); }
   if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); }
+  if (name === 'funds')        { renderFundsPage(); }
   if (name === 'officialpad')  { initOfficialPad(); }
   if (name === 'memorandum')   { initMemorandumPage(); }
   if (name === 'newbill')      { initNewBillPage(); }
@@ -6082,6 +6203,11 @@ function renderDashBalanceTable() {
   const ce = document.getElementById('cashBalance'); if(ce) ce.textContent = '৳ ' + fmt(cash);
   const be = document.getElementById('bankBalance'); if(be) be.textContent = '৳ ' + fmt(bank);
   const te = document.getElementById('totalBalance'); if(te) te.textContent = '৳ ' + fmt(cash + bank);
+  const fundReserve = (typeof calcTotalFundReserve==='function') ? calcTotalFundReserve() : 0;
+  const noteText = fundReserve > 0 ? `(এর মধ্যে ফান্ড সংরক্ষিত: ৳${fmt(fundReserve)} | প্রকৃত ব্যালেন্স: ৳${fmt(bank - fundReserve)})` : '';
+  ['bankFundNote','dashBankFundNote'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent = noteText;
+  });
 }
 // ===== স্ট্যাট কার্ড অ্যানিমেশন হেল্পার (কাউন্ট-আপ) =====
 function animateStatText(el, endValue, formatFn, duration) {
@@ -7235,10 +7361,11 @@ function renderExpenseTable() {
       const personOrCheck = e.payMode==='bank'
         ? `${e.checkNo ? `চেক: ${e.checkNo}` : '—'}${e.payPerson ? ` <span style="color:#888">(বাহক: ${e.payPerson})</span>` : ''}`
         : (e.payPerson || '—');
-      html += `<tr class="exp-grp-row" data-grp="${gid}" id="exp-row-${e.id}">
+      const fundBadge = e.isFundExpense ? `<span title="এই খরচ ফান্ড থেকে করা হয়েছে — মাসিক নিট লাভ/লোকসান হিসাবে গণনা হয় না" style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏦 P&L-নিরপেক্ষ</span>` : '';
+      html += `<tr class="exp-grp-row"${e.isFundExpense?' style="background:#faf5ff"':''} data-grp="${gid}" id="exp-row-${e.id}">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
-        <td>${e.category}</td>
+        <td>${e.category}${fundBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
         <td>${payBadge}${statusBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${personOrCheck}</td>
@@ -9476,6 +9603,7 @@ function expenseEffectiveDate(e) {
   return e.date;
 }
 function expenseCountsInPrefix(e, prefix) {
+  if (e.isFundExpense) return false; // ফান্ড খরচ — নিট মুনাফা/লোকসান হিসাবে গণনা হয় না
   const eff = expenseEffectiveDate(e);
   return !!eff && eff.startsWith(prefix);
 }
@@ -9510,6 +9638,29 @@ function calcCashBankBalance() {
   });
   return { cash, bank };
 }
+// ===== ফান্ড ব্যালেন্স হেল্পার =====
+function calcFundAllocatedTotal(fundKey) {
+  let total = 0;
+  (appData.monthClosings || []).forEach(mc => {
+    (mc.fundAllocations || []).forEach(fa => {
+      const key = fa.fundId != null ? String(fa.fundId) : ('name:' + fa.name);
+      if (key === fundKey) total += fa.amount;
+    });
+  });
+  return total;
+}
+function calcFundSpentTotal(fundKey) {
+  return (appData.expense || []).filter(e => e.isFundExpense && String(e.fundId) === fundKey).reduce((s,e)=>s+(e.amount||0),0);
+}
+function calcFundBalance(fundKey) {
+  return calcFundAllocatedTotal(fundKey) - calcFundSpentTotal(fundKey);
+}
+function calcTotalFundReserve() {
+  let totalAllocated = 0;
+  (appData.monthClosings || []).forEach(mc => { (mc.fundAllocations || []).forEach(fa => { totalAllocated += fa.amount; }); });
+  const totalSpent = (appData.expense || []).filter(e => e.isFundExpense).reduce((s,e)=>s+(e.amount||0),0);
+  return Math.max(0, totalAllocated - totalSpent);
+}
 function updateBankBalances() {
   const { cash, bank } = calcCashBankBalance();
   const cashEl=document.getElementById('cashBalance'); if(cashEl) cashEl.textContent='৳ '+fmt(cash);
@@ -9522,6 +9673,12 @@ function updateBankBalances() {
   });
   ['dashBankBalance','ownerDashBankBalance'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent='৳ '+fmt(bank);
+  });
+  // ফান্ড রিজার্ভ ব্র্যাকেট নোট (ব্যাংক ব্যালেন্সের মধ্যে যে অংশ ফান্ডে সংরক্ষিত/অনুত্তোলিত)
+  const fundReserve = (typeof calcTotalFundReserve==='function') ? calcTotalFundReserve() : 0;
+  const noteText = fundReserve > 0 ? `(এর মধ্যে ফান্ড সংরক্ষিত: ৳${fmt(fundReserve)} | প্রকৃত ব্যালেন্স: ৳${fmt(bank - fundReserve)})` : '';
+  ['bankFundNote','dashBankFundNote'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent = noteText;
   });
 }
 function updateBankTxVoucher() {
@@ -10610,6 +10767,261 @@ function renderProfitFundSettings() {
   const shareholderPercent = Math.max(0, 100 - totalPercent);
   const summary = document.getElementById('profitFundSummary');
   if (summary) summary.innerHTML = `মোট ফান্ড খাতে বরাদ্দ: <strong>${totalPercent.toFixed(1)}%</strong> &nbsp;|&nbsp; শেয়ারহোল্ডারদের জন্য বরাদ্দ: <strong style="color:var(--success)">${shareholderPercent.toFixed(1)}%</strong>`;
+}
+
+// ===== ফান্ড পেজ (প্রতিটি লাভ বন্টন খাতে জমাকৃত মোট হিসাব) =====
+function _fundKeyOf(fa) { return fa.fundId != null ? String(fa.fundId) : ('name:' + fa.name); }
+function renderFundsPage() {
+  const esc = s => (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const closings = (appData.monthClosings || []).slice().sort((a,b)=> a.year===b.year ? a.month-b.month : a.year-b.year);
+  const currentFunds = appData.settings.profitAllocationFunds || [];
+  const map = {}; // key -> {key,name,percent,active,total}
+  currentFunds.forEach(f => {
+    map[String(f.id)] = { key: String(f.id), name: f.name, percent: f.percent, active: true, total: 0 };
+  });
+  closings.forEach(mc => {
+    (mc.fundAllocations || []).forEach(fa => {
+      const key = _fundKeyOf(fa);
+      if (!map[key]) map[key] = { key, name: fa.name, percent: fa.percent, active: false, total: 0 };
+      map[key].total += fa.amount;
+    });
+  });
+  const funds = Object.values(map).map(f => {
+    const spent = calcFundSpentTotal(f.key);
+    return { ...f, spent, balance: f.total - spent };
+  });
+
+  const cardsEl = document.getElementById('fundsSummaryCards');
+  if (cardsEl) {
+    if (!funds.length) {
+      cardsEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#aaa;padding:24px">এখনো কোনো ফান্ড খাত সেট করা হয়নি অথবা কোনো মাস ক্লোজ হয়নি। সেটিংস &gt; লাভ বন্টন খাত থেকে খাত যোগ করুন।</div>';
+    } else {
+      cardsEl.innerHTML = funds.map(f => `
+        <div class="stat-card profit" style="cursor:pointer" onclick="showFundDetail('${String(f.key).replace(/'/g,"\\'")}')">
+          <div class="stat-card-header"><div class="stat-label">${esc(f.name)}${f.active ? '' : ' <span style="color:var(--danger);font-size:11px">(নিষ্ক্রিয়)</span>'}</div></div>
+          <div class="stat-value" style="font-size:20px;font-weight:700;margin-top:6px">৳ ${fmt(f.balance.toFixed(2))}</div>
+          <div style="font-size:11.5px;color:var(--text-light);margin-top:4px">মোট জমা: ৳ ${fmt(f.total.toFixed(2))}${f.spent>0?` &nbsp;|&nbsp; খরচ: ৳ ${fmt(f.spent.toFixed(2))}`:''}</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:2px">${f.active ? 'বরাদ্দ: ' + f.percent + '%' : 'বর্তমানে সক্রিয় নেই'}</div>
+        </div>`).join('');
+    }
+  }
+  const grandTotal = funds.reduce((s,f)=>s+f.total,0);
+  const grandSpent = funds.reduce((s,f)=>s+f.spent,0);
+  const grandBalance = funds.reduce((s,f)=>s+f.balance,0);
+  const gt = document.getElementById('fundsGrandTotal');
+  if (gt) gt.innerHTML = funds.length ? `সকল ফান্ড খাতে অবশিষ্ট ব্যালেন্স: <span style="color:var(--success)">৳ ${fmt(grandBalance.toFixed(2))}</span> &nbsp;|&nbsp; মোট জমা: ৳ ${fmt(grandTotal.toFixed(2))} &nbsp;|&nbsp; মোট খরচ: ৳ ${fmt(grandSpent.toFixed(2))}` : '';
+
+  const headRow = document.getElementById('fundsHistHeadRow');
+  const bodyEl = document.getElementById('fundsHistTable');
+  if (headRow && bodyEl) {
+    headRow.innerHTML = '<th style="text-align:left">মাস/বছর</th>' + funds.map(f => `<th style="text-align:right">${esc(f.name)}</th>`).join('') + '<th style="text-align:right">মোট</th>';
+    if (!closings.length) {
+      bodyEl.innerHTML = `<tr><td colspan="${funds.length + 2}" style="text-align:center;color:#aaa;padding:20px">কোনো মাস ক্লোজ হয়নি</td></tr>`;
+    } else {
+      bodyEl.innerHTML = closings.slice().reverse().map(mc => {
+        const rowTotal = (mc.fundAllocations || []).reduce((s,fa)=>s+fa.amount,0);
+        const cells = funds.map(f => {
+          const fa = (mc.fundAllocations || []).find(x => _fundKeyOf(x) === f.key);
+          return `<td style="text-align:right">${fa ? '৳ ' + fmt(fa.amount.toFixed(2)) : '-'}</td>`;
+        }).join('');
+        return `<tr><td style="font-weight:600;text-align:left">${esc(mc.label)}</td>${cells}<td style="text-align:right;font-weight:700">৳ ${fmt(rowTotal.toFixed(2))}</td></tr>`;
+      }).join('');
+    }
+  }
+  if (typeof renderFundExpenseHistTable === 'function') renderFundExpenseHistTable();
+  if (typeof initFundExpenseForm === 'function') initFundExpenseForm();
+}
+function showFundDetail(key) {
+  const esc = s => (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const closings = (appData.monthClosings || []).slice().sort((a,b)=> a.year===b.year ? a.month-b.month : a.year-b.year);
+  let name = '';
+  const entries = [];
+  closings.forEach(mc => {
+    const fa = (mc.fundAllocations || []).find(x => _fundKeyOf(x) === key);
+    if (fa) { name = fa.name; entries.push({ date: `${mc.year}-${String(mc.month).padStart(2,'0')}-01`, label: mc.label, type: 'credit', desc: `মাস ক্লোজ (${fa.percent}%)`, amount: fa.amount }); }
+  });
+  (appData.expense || []).filter(e => e.isFundExpense && String(e.fundId) === key).forEach(e => {
+    name = e.fundName || name;
+    entries.push({ date: e.date, label: formatDate(e.date), type: 'debit', desc: `${e.note || 'ফান্ড খরচ'} (ভাউচার: ${e.voucher||'—'})`, amount: e.amount });
+  });
+  entries.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  let running = 0;
+  const rows = entries.map(en => { running += en.type==='credit' ? en.amount : -en.amount; return { ...en, running }; });
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `<div class="modal" style="max-width:600px">
+    <div class="modal-title">🏦 ফান্ড বিবরণ — ${esc(name)}</div>
+    <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:14px">
+      অবশিষ্ট ব্যালেন্স: <strong style="color:var(--success);font-size:17px">৳ ${fmt(running.toFixed(2))}</strong>
+    </div>
+    <div style="max-height:50vh;overflow-y:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <thead><tr style="background:#f0f4f8"><th style="padding:6px;text-align:left">তারিখ</th><th style="padding:6px;text-align:left">বিবরণ</th><th style="padding:6px;text-align:right">পরিমাণ</th><th style="padding:6px;text-align:right">সঞ্চিত ব্যালেন্স</th></tr></thead>
+      <tbody>${rows.length ? rows.map(r=>`<tr>
+        <td style="padding:6px">${r.type==='credit' ? esc(r.label) : esc(r.label)}</td>
+        <td style="padding:6px">${esc(r.desc)}</td>
+        <td style="padding:6px;text-align:right;font-weight:700;color:${r.type==='credit'?'var(--success)':'var(--danger)'}">${r.type==='credit'?'+':'-'}৳ ${fmt(r.amount.toFixed(2))}</td>
+        <td style="padding:6px;text-align:right;font-weight:700">৳ ${fmt(r.running.toFixed(2))}</td>
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো এন্ট্রি নেই</td></tr>`}</tbody>
+    </table>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button></div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+// ===== ফান্ড থেকে খরচ (প্রাতিষ্ঠানিক খরচ — নিট মুনাফা/লোকসান হিসাবে গণনা হয় না) =====
+function initFundExpenseForm() {
+  const sel = document.getElementById('feFund'); if (!sel) return;
+  const funds = appData.settings.profitAllocationFunds || [];
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">-- ফান্ড নির্বাচন করুন --</option>' + funds.map(f => {
+    const bal = calcFundBalance(String(f.id));
+    return `<option value="${f.id}">${f.name} (অবশিষ্ট: ৳ ${fmt(bal.toFixed(2))})</option>`;
+  }).join('');
+  if (prev) sel.value = prev;
+  const dateEl = document.getElementById('feDate'); if (dateEl && !dateEl.value) dateEl.value = todayStr();
+  updateFeVoucher();
+  updateFeFundBalanceNote();
+  populateCheckbookSelect('feCheckbook','feCheckNo');
+  populateFePersonSelect();
+  onFePayModeChange();
+}
+function updateFeVoucher() {
+  const dateEl = document.getElementById('feDate');
+  const vEl = document.getElementById('feVoucher');
+  if (!dateEl || !vEl) return;
+  vEl.value = generateNextVoucherNo(dateEl.value);
+}
+function updateFeFundBalanceNote() {
+  const sel = document.getElementById('feFund');
+  const note = document.getElementById('feFundBalanceNote');
+  if (!sel || !note) return;
+  if (!sel.value) { note.textContent = ''; return; }
+  const bal = calcFundBalance(sel.value);
+  note.innerHTML = `এই ফান্ডে অবশিষ্ট ব্যালেন্স: <strong style="color:${bal>=0?'var(--success)':'var(--danger)'}">৳ ${fmt(bal.toFixed(2))}</strong>`;
+}
+function onFePayModeChange() {
+  const mode = document.querySelector('input[name="fePayMode"]:checked')?.value || 'cash';
+  const bankRow = document.getElementById('feBankRow');
+  const clearDateRow = document.getElementById('feClearDateRow');
+  const personLabel = document.getElementById('fePersonLabel');
+  if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
+  if (personLabel) personLabel.textContent = mode==='bank' ? 'চেক বহনকারী / বাহক ব্যক্তি' : 'পরিশোধকারী ব্যক্তি';
+  if (mode==='bank') {
+    updateNextCheckNo('feCheckbook','feCheckNo');
+    const cdEl=document.getElementById('feClearDate'); if (cdEl && !cdEl.value) cdEl.value = todayStr();
+  }
+}
+function toggleFeAddPerson() {
+  const row=document.getElementById('feAddPersonRow'); if (!row) return;
+  row.style.display = row.style.display==='none' ? '' : 'none';
+  if (row.style.display!=='none') document.getElementById('feNewPersonName').focus();
+}
+function populateFePersonSelect() {
+  const sel=document.getElementById('fePerson'); if(!sel) return;
+  const persons=appData.settings.expPersons||[];
+  const prev=sel.value;
+  sel.innerHTML='<option value="">-- ব্যক্তি নির্বাচন করুন --</option>'+persons.map(p=>`<option value="${p}">${p}</option>`).join('');
+  if (prev) sel.value=prev;
+}
+function addFePerson() {
+  const inp=document.getElementById('feNewPersonName');
+  const name=inp.value.trim();
+  if (!name) { showToast('⚠️ নাম লিখুন!'); return; }
+  if (!appData.settings.expPersons) appData.settings.expPersons=[];
+  if (!appData.settings.expPersons.includes(name)) appData.settings.expPersons.push(name);
+  saveData(); inp.value='';
+  toggleFeAddPerson();
+  populateFePersonSelect();
+  if (typeof populateExpPersonSelect==='function') populateExpPersonSelect();
+  if (typeof populateWdPersonSelect==='function') populateWdPersonSelect();
+  if (typeof renderExpPersonSettings==='function') renderExpPersonSettings();
+  const sel=document.getElementById('fePerson'); if(sel) sel.value=name;
+  showToast('✅ ব্যক্তি যোগ হয়েছে: '+name);
+}
+function clearFeForm() {
+  const dateEl=document.getElementById('feDate'); if(dateEl) dateEl.value = todayStr();
+  ['feFund','feAmount','feNote'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const cashRadio=document.getElementById('fePayCash'); if(cashRadio){ cashRadio.checked=true; }
+  const personEl=document.getElementById('fePerson'); if(personEl) personEl.value='';
+  const cdEl=document.getElementById('feClearDate'); if(cdEl) cdEl.value=todayStr();
+  onFePayModeChange();
+  updateFeVoucher();
+  updateFeFundBalanceNote();
+}
+function saveFundExpense() {
+  if (currentUser.role !== 'admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন ফান্ড খরচ এন্ট্রি করতে পারবেন!'); return; }
+  const fundId = document.getElementById('feFund').value;
+  const date = document.getElementById('feDate').value;
+  const amt = parseFloat(document.getElementById('feAmount').value);
+  const note = document.getElementById('feNote').value.trim();
+  let voucher = document.getElementById('feVoucher').value.trim();
+  if (!voucher) voucher = generateNextVoucherNo(date);
+  const payMode = document.querySelector('input[name="fePayMode"]:checked')?.value || 'cash';
+  const payPerson = document.getElementById('fePerson').value || '';
+  let checkNo='', checkbookId='', clearDate='', status='cleared', actualClearedDate='';
+  if (!fundId || !date || isNaN(amt) || amt<=0 || !note) { showToast('⚠️ ফান্ড, তারিখ, পরিমাণ ও বিবরণ আবশ্যক!'); return; }
+  const fund = (appData.settings.profitAllocationFunds||[]).find(f=>String(f.id)===String(fundId));
+  if (!fund) { showToast('⚠️ ফান্ড খুঁজে পাওয়া যায়নি!'); return; }
+  const bal = calcFundBalance(String(fundId));
+  if (amt > bal) {
+    if (!confirm(`⚠️ ${fund.name}-এ অবশিষ্ট ব্যালেন্স ৳${fmt(bal.toFixed(2))}, কিন্তু ৳${fmt(amt.toFixed(2))} খরচ করা হচ্ছে। এগিয়ে যাবেন?`)) return;
+  }
+  if (payMode==='bank') {
+    checkNo = (document.getElementById('feCheckNo')||{}).value.trim() || '';
+    checkbookId = (document.getElementById('feCheckbook')||{}).value || '';
+    clearDate = (document.getElementById('feClearDate')||{}).value || date;
+    if (checkbookId && checkNo) {
+      const cb = (appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      if (cb) { cb.lastUsed = parseInt(checkNo); }
+    }
+    if (clearDate > todayStr()) { status='pending'; actualClearedDate=''; }
+    else { status='cleared'; actualClearedDate=clearDate; }
+  } else {
+    clearDate = date; actualClearedDate = date; status='cleared';
+  }
+  const expId = Date.now();
+  if (!appData.expense) appData.expense=[];
+  appData.expense.push({
+    id: expId, date, category: `🏦 ফান্ড খরচ — ${fund.name}`, subCategory: '', amount: amt, voucher, note,
+    payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by: currentUser.name,
+    isFundExpense: true, fundId: fund.id, fundName: fund.name
+  });
+  if (payMode==='bank') {
+    if (!appData.issuedChecks) appData.issuedChecks=[];
+    appData.issuedChecks.push({
+      id: expId+1, source:'expense', linkedExpenseId: expId, voucher, checkbookId, checkNo: checkNo||'—',
+      payee: `${fund.name} — ফান্ড খরচ${payPerson?(' — বাহক: '+payPerson):''}${note?(' — '+note):''}`,
+      amount: amt, issueDate: date, dueDate: clearDate, note,
+      status, clearedDate: actualClearedDate, by: currentUser.name
+    });
+  }
+  logActivity('add', 'ফান্ড খরচ', `${fund.name} — ৳${fmt(amt)} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
+  saveData(); clearFeForm(); renderFundsPage(); renderExpenseTable(); refreshDashboard();
+  if (typeof renderIssuedChecks==='function') renderIssuedChecks();
+  showToast('✅ ফান্ড খরচ সেভ হয়েছে! ভাউচার: ' + voucher);
+}
+function renderFundExpenseHistTable() {
+  const tbody = document.getElementById('fundExpenseHistTable');
+  if (!tbody) return;
+  const rows = (appData.expense||[]).filter(e=>e.isFundExpense).slice().sort((a,b)=>b.id-a.id);
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">এখনো কোনো ফান্ড খরচ হয়নি</td></tr>'; return; }
+  tbody.innerHTML = rows.map(e => {
+    const payBadge = e.payMode==='bank'
+      ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক${e.status==='pending'?' (পেন্ডিং)':''}</span>`
+      : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">💵 ক্যাশ</span>`;
+    return `<tr>
+      <td>${formatDate(e.date)}</td>
+      <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
+      <td style="font-weight:600">${e.fundName||'—'}</td>
+      <td style="color:var(--text-light)">${e.note||'—'}</td>
+      <td>${payBadge}</td>
+      <td style="text-align:right;font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
+      <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ===== USER MANAGEMENT =====
