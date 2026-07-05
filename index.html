@@ -5632,23 +5632,11 @@ function startFirebaseSync() {
       const legacyMigrations = [];
       PATH_SYNCED_MODULES.forEach(m => {
         const wasLegacyArray = Array.isArray(data[m]) && data[m].length > 0;
-        let normalized = normalizeModuleData(data[m]);
-        // 🛡️ সাম্প্রতিক (grace period এর মধ্যে) লোকাল এন্ট্রি — যেগুলো এই সার্ভার স্ন্যাপশটে অনুপস্থিত — সেগুলো হারিয়ে না গিয়ে ফিরিয়ে আনা হয়
-        const recent = _recentLocalSnapshot[m];
-        if (recent && (Date.now() - recent.ts) < RECENT_EDIT_GRACE_MS) {
-          const incomingIds = new Set(normalized.filter(e=>e && e.id!=null).map(e => String(e.id)));
-          const missing = Object.keys(recent.map)
-            .filter(id => !incomingIds.has(String(id)))
-            .map(id => { try { return JSON.parse(recent.map[id]); } catch(e){ return null; } })
-            .filter(Boolean);
-          if (missing.length) {
-            console.warn('[HMS] '+m+' — সাম্প্রতিক লোকাল এন্ট্রি সার্ভার স্ন্যাপশটে অনুপস্থিত ছিল, পুনরায় যোগ করা হলো:', missing.length);
-            normalized = [...normalized, ...missing];
-          }
-        }
+        const normalized = normalizeModuleData(data[m]);
         normalizedOverrides[m] = normalized;
         if (wasLegacyArray) legacyMigrations.push({ module: m, normalized });
       });
+      console.log('[HMS] onValue: appData প্রতিস্থাপন হচ্ছে — সার্ভার issuedChecks সংখ্যা =', (normalizedOverrides.issuedChecks||[]).length);
       appData = { ...def, ...data, ...normalizedOverrides };
       PATH_SYNCED_MODULES.forEach(m => { _lastSyncedMaps[m] = snapshotModuleMap(m); });
       // ✅ একবারই: পুরনো (array-index ভিত্তিক) ডাটাকে id-keyed object এ রূপান্তর করে দেয়, যাতে ভবিষ্যতে প্রতি-এন্ট্রি ডিলিট/আপডেট সঠিক পাথে হয়
@@ -5850,17 +5838,6 @@ function hasSyncPending() { return _fbPendingKeys.size > 0; }
 // এগুলো আলাদা আলাদা promise, এবং যেকোনো একটা আগে শেষ হলে onValue লিসেনার ফায়ার করতে পারে, যখন বাকিগুলো
 // এখনো সার্ভারে পৌঁছায়নি। এই কাউন্টার শূন্যে না নামা পর্যন্ত onValue-কে স্থানীয় ডাটা ওভাররাইট করতে দেওয়া হয় না —
 // নাহলে সবে যোগ করা এন্ট্রি (যেমন নতুন ইস্যু করা চেক) স্টেল সার্ভার ডাটা দিয়ে মুছে যেতে পারে।
-// ✅ অতিরিক্ত সুরক্ষা স্তর (প্রমিজ-ভিত্তিক গার্ডের পাশাপাশি): প্রতিটা path-synced module-এ সর্বশেষ লোকাল
-// পরিবর্তনের একটা স্ন্যাপশট (timestamp সহ) রাখা হয়। কোনো কারণে (নেটওয়ার্ক টাইমিং, cache ইত্যাদি — এমনকি
-// প্রমিজ resolve হয়ে যাওয়ার পরেও) যদি Firebase থেকে আসা স্ন্যাপশটে আমাদের একদম সাম্প্রতিক (কয়েক সেকেন্ড
-// আগের) কোনো এন্ট্রি না থাকে, সেটা চুপচাপ হারিয়ে না গিয়ে আবার ফিরিয়ে আনা হয় — যেমন "চেক ইস্যু" এন্ট্রি
-// টোস্ট দেখানোর পরও তালিকা থেকে হারিয়ে যাওয়ার মতো সমস্যা এড়াতে।
-let _recentLocalSnapshot = {}; // module -> { map: {id: entryJSON}, ts: Date.now() }
-const RECENT_EDIT_GRACE_MS = 20000;
-function noteRecentLocalEdits() {
-  PATH_SYNCED_MODULES.forEach(m => { _recentLocalSnapshot[m] = { map: snapshotModuleMap(m), ts: Date.now() }; });
-}
-
 let _fbWritesInFlight = 0;
 function beginFbWrite() { _fbWritesInFlight++; }
 function endFbWrite() { _fbWritesInFlight = Math.max(0, _fbWritesInFlight - 1); }
@@ -5920,12 +5897,13 @@ function fbSafeKey(id) {
 }
 
 function syncModuleDiff(module) {
-  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(module); return; }
+  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(module); if(module==='issuedChecks') console.warn('[HMS] syncModuleDiff(issuedChecks): Firebase এখনো রেডি না'); return; }
   const current = snapshotModuleMap(module);
   const prev = _lastSyncedMaps[module] || {};
   const toWrite = [], toDelete = [];
   Object.keys(current).forEach(id => { if (prev[id] !== current[id]) toWrite.push(id); });
   Object.keys(prev).forEach(id => { if (!(id in current)) toDelete.push(id); });
+  if (module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): toWrite=', toWrite, 'toDelete=', toDelete);
   if (toWrite.length === 0 && toDelete.length === 0) return;
   const promises = [];
   toWrite.forEach(id => {
@@ -5937,7 +5915,7 @@ function syncModuleDiff(module) {
   });
   beginFbWrite();
   Promise.all(promises)
-    .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(module); })
+    .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(module); if(module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): সফলভাবে Firebase-এ লেখা হয়েছে ✅'); })
     .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(module); }) // এই মডিউলটাই পেন্ডিং থাকবে, অন্য মডিউলের সফল সিঙ্ক একে মুছবে না
     .finally(() => endFbWrite());
 }
@@ -5970,7 +5948,6 @@ setInterval(() => { if (hasSyncPending()) trySyncNow(false); }, 20000);
 
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
-  noteRecentLocalEdits();
   syncAllPathModules();
   if (window._fbDb && window._fbRef && window._fbUpdate) {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
@@ -17631,7 +17608,11 @@ function showCheckStatusDetail(mode){
          + section('⏳ পূর্বের অনিষ্পন্ন', prevPending, '#ea580c')
          + section('✅ ভাঙ্গানো/বাউন্স হয়েছে', cleared, '#0f4c81');
   }
+  openStripModal(title, body);
+}
 
+// ---- স্ট্রিপের ঠিক এরিয়াতেই (স্ক্রিনের মাঝখানে না) মোডাল দেখানোর কমন হেল্পার — প্রস্থ স্ট্রিপের সমান, উচ্চতা কনটেন্ট অনুযায়ি ----
+function openStripModal(title, bodyHtml) {
   let modal = document.getElementById('checkStatusDetailModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -17640,16 +17621,19 @@ function showCheckStatusDetail(mode){
     document.body.appendChild(modal);
   }
   modal.style.display = 'flex';
-  // মোডালের প্রস্থ স্ট্রিপের প্রস্থের সমান, উচ্চতা কনটেন্ট অনুযায়ি (সর্বোচ্চ 86vh, তারপর স্ক্রল)
   const stripWrap = document.getElementById('dashCheckStatusWrap');
-  const modalWidth = stripWrap ? stripWrap.offsetWidth : 900;
-  modal.innerHTML = `<div class="modal" style="width:${modalWidth}px;max-width:94vw;max-height:86vh;display:flex;flex-direction:column">
-    <div class="modal-title">${title}</div>
+  const rect = stripWrap ? stripWrap.getBoundingClientRect() : null;
+  const modalWidth = rect ? rect.width : 900;
+  // অনুভূমিকভাবে স্ট্রিপের এরিয়াতেই (left ও width স্ট্রিপের সমান), উলম্বভাবে স্ক্রিনের উচ্চতা বরাবর মাঝখানে —
+  // যাতে মোডালের উপরে-নিচে সামান্য ফাঁকা জায়গা থাকে (একদম নিচে/উপরে লেগে না থাকে)
+  const posStyle = rect
+    ? `position:fixed;left:${Math.max(8,rect.left)}px;top:50%;transform:translateY(-50%);margin:0;`
+    : '';
+  modal.innerHTML = `<div class="modal" style="${posStyle}width:${modalWidth}px;max-width:94vw;max-height:82vh;display:flex;flex-direction:column;position:relative">
+    <button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove()" style="position:absolute;top:14px;right:14px;padding:4px 12px">✕ বন্ধ করুন</button>
+    <div class="modal-title" style="padding-right:110px">${title}</div>
     <div style="overflow-y:auto;flex:1;padding-right:4px">
-      ${body}
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
+      ${bodyHtml}
     </div>
   </div>`;
 }
@@ -17686,25 +17670,7 @@ function showChequeBookPagesDetail(){
       </table></div>
     </div>`;
 
-  let modal = document.getElementById('checkStatusDetailModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'checkStatusDetailModal';
-    modal.className = 'modal-overlay';
-    document.body.appendChild(modal);
-  }
-  modal.style.display = 'flex';
-  const stripWrap = document.getElementById('dashCheckStatusWrap');
-  const modalWidth = stripWrap ? stripWrap.offsetWidth : 900;
-  modal.innerHTML = `<div class="modal" style="width:${modalWidth}px;max-width:94vw;max-height:86vh;display:flex;flex-direction:column">
-    <div class="modal-title">📒 চেক বইয়ের পাতা — ক্রম অনুযায়ি অবস্থা</div>
-    <div style="overflow-y:auto;flex:1;padding-right:4px">
-      ${books.map(bookSection).join('')}
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
-    </div>
-  </div>`;
+  openStripModal('📒 চেক বইয়ের পাতা — ক্রম অনুযায়ি অবস্থা', books.map(bookSection).join(''));
 }
 
 
