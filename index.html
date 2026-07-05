@@ -17620,17 +17620,17 @@ function openStripModal(title, bodyHtml) {
     modal.className = 'modal-overlay';
     document.body.appendChild(modal);
   }
-  modal.style.display = 'flex';
   const stripWrap = document.getElementById('dashCheckStatusWrap');
   const rect = stripWrap ? stripWrap.getBoundingClientRect() : null;
-  const modalWidth = rect ? rect.width : 900;
-  // অনুভূমিকভাবে স্ট্রিপের এরিয়াতেই (left ও width স্ট্রিপের সমান), উলম্বভাবে স্ক্রিনের উচ্চতা বরাবর মাঝখানে —
-  // যাতে মোডালের উপরে-নিচে সামান্য ফাঁকা জায়গা থাকে (একদম নিচে/উপরে লেগে না থাকে)
-  const posStyle = rect
-    ? `position:fixed;left:${Math.max(8,rect.left)}px;top:50%;transform:translateY(-50%);margin:0;`
-    : '';
-  modal.innerHTML = `<div class="modal" style="${posStyle}width:${modalWidth}px;max-width:94vw;max-height:82vh;display:flex;flex-direction:column;position:relative">
-    <button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove()" style="position:absolute;top:14px;right:14px;padding:4px 12px">✕ বন্ধ করুন</button>
+  const modalLeft = rect ? Math.max(8, Math.round(rect.left)) : 0;
+  const modalWidth = rect ? Math.round(rect.width) : 900;
+  // এখানে position:fixed/transform এর বদলে সাধারণ flexbox padding ব্যবহার করা হয়েছে —
+  // এটাই সেই একই, বহু জায়গায় পরীক্ষিত মেকানিজম যা দিয়ে অ্যাপের বাকি সব মোডাল স্ক্রিনে সেন্টার হয় (align-items:center),
+  // শুধু এখানে justify-content:flex-start + padding-left দিয়ে স্ট্রিপের এরিয়া বরাবর সরানো হয়েছে —
+  // zoom/scroll যাই হোক, ব্রাউজারের flexbox ইঞ্জিন নিজেই এটা বাক্সের মধ্যে রাখতে বাধ্য, তাই কখনো স্ক্রিনের বাইরে যেতে পারবে না
+  modal.style.cssText = 'display:flex;align-items:center;justify-content:flex-start;box-sizing:border-box;padding:16px 16px 16px ' + modalLeft + 'px;';
+  modal.innerHTML = `<div class="modal" style="width:${modalWidth}px;max-width:100%;max-height:82vh;margin:0;display:flex;flex-direction:column;position:relative;flex-shrink:0">
+    <button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove()" style="position:absolute;top:14px;right:14px;padding:4px 12px;z-index:2;background:white">✕ বন্ধ করুন</button>
     <div class="modal-title" style="padding-right:110px">${title}</div>
     <div style="overflow-y:auto;flex:1;padding-right:4px">
       ${bodyHtml}
@@ -17648,7 +17648,10 @@ function showChequeBookPagesDetail(){
     if (pageNo > book.lastUsed) {
       return `<td colspan="4" style="color:#94a3b8">— ব্যবহৃত হয়নি —</td>`;
     }
-    const entry = allChecks.find(c => c.checkNo == pageNo && (String(c.checkbookId)===String(book.id)));
+    // প্রথমে checkbookId মিলিয়ে খোঁজা হয়; checkbookId ফাঁকা/অমিল থাকলে (পুরনো ডাটা বা টাইপ-মিসম্যাচের কারণে)
+    // শুধু চেক নং মিলিয়ে ফলব্যাক করা হয় — যেহেতু প্রতিটা বইয়ের পাতার রেঞ্জ ভিন্ন, তাই এটা নিরাপদ
+    let entry = allChecks.find(c => String(c.checkNo)===String(pageNo) && c.checkbookId && String(c.checkbookId)===String(book.id));
+    if (!entry) entry = allChecks.find(c => String(c.checkNo)===String(pageNo));
     if (!entry) {
       return `<td colspan="4" style="color:#c2410c">⚠️ ব্যবহৃত (কোনো রেকর্ড পাওয়া যায়নি — ম্যানুয়ালি চেক করুন)</td>`;
     }
