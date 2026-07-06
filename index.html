@@ -608,6 +608,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="nav-item admin-only" data-page="loan"><span class="nav-icon">💳</span> লোন ট্র্যাকিং</div>
       <div class="nav-item admin-only" data-page="shareholders"><span class="nav-icon">👥</span> শেয়ারহোল্ডার</div>
       <div class="nav-item admin-only" data-page="funds"><span class="nav-icon">🏦</span> ফান্ড</div>
+      <div class="nav-item admin-only" data-page="doctors"><span class="nav-icon">🩺</span> ডাক্তার</div>
       <div class="nav-item" data-page="balancesheet"><span class="nav-icon">📊</span> ব্যালেন্স শিট</div>
     </div>
     <div class="sidebar-footer">
@@ -1257,6 +1258,18 @@ function openPrintWindow(htmlContent, title) {
             <div class="field" style="grid-column:span 2"><label>ঠিকানা</label><input type="text" id="nb_PatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
             <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="ডাক্তারের নাম"></div>
           </div>
+          <div class="form-row three" style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid var(--border)">
+            <div class="field"><label>🩺 কমিশন প্রযোজ্য ডাক্তার <span style="font-size:11px;color:var(--text-light)">(ঐচ্ছিক)</span></label>
+              <select id="nb_DocSelect" onchange="onDocSelectChange('nb_')"><option value="">-- কোনো ডাক্তার/কমিশন নেই --</option></select>
+            </div>
+            <div class="field" id="nb_DocAfterDutyRow" style="display:none">
+              <label>&nbsp;</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:9px 10px">
+                <input type="checkbox" id="nb_DocAfterDuty" onchange="updateDocCommissionPreview('nb_')"> ডিউটি সময়ের পরে দেখা হয়েছে
+              </label>
+            </div>
+            <div class="field"><label>&nbsp;</label><div id="nb_DocCommissionPreview" style="font-size:12.5px;color:var(--text-light);padding-top:8px"></div></div>
+          </div>
           <hr class="divider">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
             <p style="font-weight:700;font-size:14px;color:var(--primary);margin:0">💊 পণ্য ও সার্ভিস</p>
@@ -1665,7 +1678,21 @@ function openPrintWindow(htmlContent, title) {
           <p style="font-weight:600;font-size:13px;color:var(--primary);margin-bottom:10px">📋 মূল তথ্য</p>
           <div class="form-row three">
             <div class="field"><label>কর্মীর নাম *</label><input type="text" id="sfName" placeholder="পূর্ণ নাম"></div>
-            <div class="field"><label>পদবি *</label><input type="text" id="sfDesig" placeholder="যেমন: নার্স, ডাক্তার"></div>
+            <div class="field"><label>পদবি *</label>
+              <div style="display:flex;gap:6px">
+                <select id="sfDesig" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc">
+                  <option value="">-- পদবি নির্বাচন করুন --</option>
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" onclick="toggleSfAddDesig()" title="নতুন পদবি/ক্যাটাগরি যোগ করুন" style="padding:8px 12px">➕</button>
+              </div>
+              <div id="sfAddDesigRow" style="display:none;margin-top:6px">
+                <div style="display:flex;gap:6px">
+                  <input type="text" id="sfNewDesig" placeholder="নতুন পদবি লিখুন" style="flex:1;padding:9px 12px;border:1.5px solid var(--accent);border-radius:6px;font-family:inherit;font-size:13px">
+                  <button type="button" class="btn btn-success btn-sm" onclick="addSfDesig()">✅ যোগ</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="toggleSfAddDesig()">✕</button>
+                </div>
+              </div>
+            </div>
             <div class="field"><label>ফোন *</label><input type="text" id="sfPhone" placeholder="০১XXXXXXXXX"></div>
           </div>
           <div class="form-row three">
@@ -1724,7 +1751,7 @@ function openPrintWindow(htmlContent, title) {
           <div class="table-wrap"><table>
             <thead><tr>
               <th>#</th><th>নাম</th><th>পদবি</th>
-              <th>বেসিক (৳)</th><th>বোনাস (৳)</th><th>কাটা (৳)</th>
+              <th>বেসিক (৳)</th><th>বোনাস (৳)</th><th>🩺 ডাক্তার কমিশন (৳)</th><th>কাটা (৳)</th>
               <th>নেট বেতন (৳)</th><th>পেমেন্ট</th><th>অ্যাকশন</th>
             </tr></thead>
             <tbody id="salaryTable"></tbody>
@@ -2553,6 +2580,160 @@ function openPrintWindow(htmlContent, title) {
       </div>
     </div>
 
+    <!-- ডাক্তার ব্যবস্থাপনা ও কমিশন -->
+    <div id="pg-doctors" class="page-view">
+      <div class="panel admin-only" style="background:#fffbeb;border:1px solid #fde68a">
+        <div class="panel-body" style="padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:700;color:#92400e">⏰ প্রতিষ্ঠানের নিয়মিত ডিউটি সময় শেষ</div>
+          <input type="time" id="globalDutyEndTime" onchange="saveGlobalDutyEndTime()" style="padding:8px 12px;border:1.5px solid #fdba74;border-radius:6px;font-family:inherit">
+          <div style="font-size:11.5px;color:#92400e">এই সময়ের পরে বিল করার সময় ডাক্তার কমিশন সিলেক্ট করা না থাকলে সতর্ক করা হবে</div>
+        </div>
+      </div>
+      <div class="panel admin-only" id="docFormPanel">
+        <div class="panel-header" style="cursor:pointer" onclick="toggleFormPanel('docFormBody','docFormIcon')">
+          <div class="panel-title">➕ ডাক্তার যোগ/সম্পাদনা করুন</div>
+          <span id="docFormIcon" style="color:var(--text-light);font-size:16px">▶</span>
+        </div>
+        <div class="panel-body" id="docFormBody" style="display:none">
+          <input type="hidden" id="docEditId" value="">
+          <div class="form-row three">
+            <div class="field"><label>ডাক্তারের নাম *</label><input type="text" id="docName" placeholder="ডাক্তারের নাম"></div>
+            <div class="field"><label>ধরন *</label>
+              <select id="docType" onchange="toggleDoctorTypeFields()">
+                <option value="salaried">🏥 বেতনভুক্ত (স্যালারি + ডিউটির পরে কমিশন)</option>
+                <option value="parttime">🕒 পার্টটাইমার (ডে-বেসিস + বিলের উপর %)</option>
+              </select>
+            </div>
+            <div class="field"><label>স্ট্যাটাস</label>
+              <select id="docStatus"><option value="active">সক্রিয়</option><option value="inactive">নিষ্ক্রিয়</option></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff7ed;border:1.5px solid #fdba74;border-radius:8px;padding:10px 14px">
+                <input type="checkbox" id="docCommissionEnabled" onchange="toggleDoctorTypeFields()" style="width:18px;height:18px;accent-color:var(--warning)">
+                <span style="font-weight:600;font-size:13.5px">এই ডাক্তারের জন্য কমিশন প্রযোজ্য <span style="font-weight:400;color:var(--text-light);font-size:12px">(টিক না দিলে এই ডাক্তারের কোনো কমিশন হিসাব হবে না)</span></span>
+              </label>
+            </div>
+          </div>
+          <div id="docSalariedFields">
+            <div class="form-row three">
+              <div class="field"><label>সংশ্লিষ্ট স্টাফ (বেতন শিট)</label>
+                <select id="docLinkedStaff"><option value="">-- স্টাফ লিংক করুন (ঐচ্ছিক) --</option></select>
+              </div>
+              <div class="field"><label>ডিউটি শুরু</label><input type="time" id="docDutyStart" value="09:00"></div>
+              <div class="field"><label>ডিউটি শেষ</label><input type="time" id="docDutyEnd" value="17:00"></div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>ডিউটি সময়ের পরে কমিশন (%) <span style="font-size:11px;color:var(--text-light)">— ভিজিট/টেস্ট এমাউন্টের উপর</span></label>
+                <input type="number" id="docAfterDutyPercent" placeholder="যেমন: ৩০" min="0" max="100"></div>
+            </div>
+          </div>
+          <div id="docParttimeFields" style="display:none">
+            <div class="form-row">
+              <div class="field"><label>ডে-বেসিস রেট (৳/দিন)</label><input type="number" id="docDayRate" placeholder="০.০০" min="0"></div>
+              <div class="field"><label>বিলের উপর কমিশন (%) <span style="font-size:11px;color:var(--text-light)">— সব বিলে প্রযোজ্য</span></label>
+                <input type="number" id="docCommissionPercent" placeholder="যেমন: ২০" min="0" max="100"></div>
+            </div>
+          </div>
+          <div class="form-row" id="docCommissionTypesRow">
+            <div class="field" style="grid-column:1/-1">
+              <label>কমিশন যোগ্য সার্ভিস ধরন <span style="font-size:11px;color:var(--text-light)">(ডিফল্ট: শুধু ভিজিট ও টেস্ট — মেডিসিন/চশমা/লেন্স সবসময় বাদ)</span></label>
+              <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" id="docTypeVisit" checked> ভিজিট ফি</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" id="docTypeTest" checked> টেস্ট / পরীক্ষা</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" id="docTypeOperation"> অপারেশন ফি</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" id="docTypeOther"> অন্যান্য সেবা</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="checkbox" id="docTypeManual"> ম্যানুয়াল এন্ট্রি</label>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+            <button class="btn btn-outline" onclick="clearDoctorForm()">🔄 রিসেট</button>
+            <button class="btn btn-success" onclick="saveDoctor()">✅ ডাক্তার সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🩺 ডাক্তার তালিকা</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>নাম</th><th>ধরন</th><th>বিস্তারিত</th><th>এই মাসে কমিশন</th><th>স্ট্যাটাস</th><th class="admin-only">অ্যাকশন</th></tr></thead>
+          <tbody id="doctorListTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- পার্টটাইমার ডে-বেসিস পেমেন্ট -->
+      <div class="panel admin-only" id="docPayFormPanel">
+        <div class="panel-header" style="cursor:pointer" onclick="toggleFormPanel('docPayFormBody','docPayFormIcon')">
+          <div class="panel-title">💰 পার্টটাইমার ডে-বেসিস পেমেন্ট</div>
+          <span id="docPayFormIcon" style="color:var(--text-light);font-size:16px">▶</span>
+        </div>
+        <div class="panel-body" id="docPayFormBody" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>পার্টটাইমার ডাক্তার *</label>
+              <select id="dpDoctor" onchange="updateDpNote()"><option value="">-- ডাক্তার নির্বাচন করুন --</option></select>
+            </div>
+            <div class="field"><label>তারিখ *</label><input type="date" id="dpDate"></div>
+            <div class="field"><label>দিন সংখ্যা</label><input type="number" id="dpDays" value="1" min="1" oninput="updateDpAmountFromDays()"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="dpAmount" placeholder="০.০০" min="0"></div>
+            <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label><input type="text" id="dpVoucher" style="font-weight:600;color:var(--warning)"></div>
+            <div class="field"><label>বিবরণ</label><input type="text" id="dpNote" placeholder="যেমন: ৫-৭ জুলাই ডিউটি"></div>
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="field">
+              <label>পেমেন্ট মাধ্যম *</label>
+              <div style="display:flex;gap:10px;margin-top:6px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="dpPayMode" value="cash" id="dpPayCash" onchange="onDpPayModeChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="dpPayMode" value="bank" id="dpPayBank" onchange="onDpPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক
+                </label>
+              </div>
+            </div>
+          </div>
+          <div id="dpBankRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field"><label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label><input type="text" id="dpCheckNo" style="font-weight:600;color:#3498db"></div>
+            <div class="field"><label>চেক বই</label>
+              <select id="dpCheckbook" onchange="updateNextCheckNo('dpCheckbook','dpCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                <option value="">-- চেক বই নির্বাচন করুন --</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="clearDpForm()">🔄 রিসেট</button>
+            <button class="btn btn-danger" onclick="saveDoctorDayPayment()">✅ পেমেন্ট সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🧾 ডে-বেসিস পেমেন্ট ইতিহাস</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>ভাউচার</th><th>ডাক্তার</th><th>বিবরণ</th><th>পেমেন্ট</th><th style="text-align:right">পরিমাণ</th></tr></thead>
+          <tbody id="doctorDayPayTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📜 বিলভিত্তিক কমিশন হিস্ট্রি</div></div>
+        <div class="panel-body">
+          <div class="form-row" style="margin-bottom:10px">
+            <div class="field"><label>ডাক্তার ফিল্টার</label>
+              <select id="docCommFilter" onchange="renderDoctorCommissionHistory()"><option value="">-- সকল ডাক্তার --</option></select>
+            </div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>তারিখ</th><th>মেমো</th><th>ডাক্তার</th><th style="text-align:right">যোগ্য এমাউন্ট</th><th>%</th><th style="text-align:right">কমিশন</th><th>ডিউটির পরে?</th></tr></thead>
+            <tbody id="docCommHistTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ADMIN BILLING -->
     <div id="pg-adminbill" class="page-view">
       <!-- Draft bills from receptionist -->
@@ -2576,6 +2757,18 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>বয়স</label><input type="text" id="abPatAge" placeholder="যেমন: ৩৫ বছর"></div>
             <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="abPatDoc" placeholder="ডাক্তারের নাম"></div>
             <div class="field"><label>মেমো নং</label><input type="text" id="abMemoNo" placeholder="অটো"></div>
+          </div>
+          <div class="form-row three" style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid var(--border)">
+            <div class="field"><label>🩺 কমিশন প্রযোজ্য ডাক্তার <span style="font-size:11px;color:var(--text-light)">(ঐচ্ছিক)</span></label>
+              <select id="abDocSelect" onchange="onDocSelectChange('ab')"><option value="">-- কোনো ডাক্তার/কমিশন নেই --</option></select>
+            </div>
+            <div class="field" id="abDocAfterDutyRow" style="display:none">
+              <label>&nbsp;</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:9px 10px">
+                <input type="checkbox" id="abDocAfterDuty" onchange="updateDocCommissionPreview('ab')"> ডিউটি সময়ের পরে দেখা হয়েছে
+              </label>
+            </div>
+            <div class="field"><label>&nbsp;</label><div id="abDocCommissionPreview" style="font-size:12.5px;color:var(--text-light);padding-top:8px"></div></div>
           </div>
           <div style="margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -4011,6 +4204,18 @@ function openPrintWindow(htmlContent, title) {
             </div>
             <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="rPatDoc" placeholder="ডাক্তারের নাম"></div>
           </div>
+          <div class="form-row three" style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid var(--border)">
+            <div class="field"><label>🩺 কমিশন প্রযোজ্য ডাক্তার <span style="font-size:11px;color:var(--text-light)">(ঐচ্ছিক)</span></label>
+              <select id="rDocSelect" onchange="onDocSelectChange('r')"><option value="">-- কোনো ডাক্তার/কমিশন নেই --</option></select>
+            </div>
+            <div class="field" id="rDocAfterDutyRow" style="display:none">
+              <label>&nbsp;</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:9px 10px">
+                <input type="checkbox" id="rDocAfterDuty" onchange="updateDocCommissionPreview('r')"> ডিউটি সময়ের পরে দেখা হয়েছে
+              </label>
+            </div>
+            <div class="field"><label>&nbsp;</label><div id="rDocCommissionPreview" style="font-size:12.5px;color:var(--text-light);padding-top:8px"></div></div>
+          </div>
           <div class="form-row three">
             <div class="field" style="grid-column:span 2"><label>ঠিকানা</label><input type="text" id="rPatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
             <div class="field"><label>মেমো নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label><input type="text" id="rMemoNo" placeholder="যেমন: Memo-0001" style="font-weight:600;color:var(--accent)"></div>
@@ -4364,7 +4569,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -4804,7 +5009,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -5644,6 +5849,7 @@ function startApp() {
     const limit = getDiscountLimit();
     const el = document.getElementById('rDiscountLimit');
     if (el) el.textContent = `সর্বোচ্চ ${limit}% পর্যন্ত দিতে পারবেন`;
+    if (typeof populateDoctorSelect==='function') populateDoctorSelect('rDocSelect');
 
   } else if (role === 'owner' || role === 'campaigner') {
     // ✅ campaigner: আগের active camp session restore করো
@@ -5690,7 +5896,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -5745,7 +5951,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -5972,7 +6178,8 @@ const PATH_SYNCED_MODULES = [
   'campExpenses', 'campOpPatients', 'memoDocs', 'padNotices', 'recDeposits',
   'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory',
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
-  'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals'
+  'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
+  'doctors', 'doctorCommissions', 'doctorDayPayments'
 ];
 
 function updateSyncStatusUI() {
@@ -6127,6 +6334,7 @@ const pageMap = {
   loan:         { title:'💳 লোন ট্র্যাকিং', sub:'লোন গ্রহণ ও পরিশোধের রেকর্ড' },
   shareholders: { title:'👥 শেয়ারহোল্ডার', sub:'মালিকানা ও লাভ বন্টন' },
   funds:        { title:'🏦 ফান্ড', sub:'লাভ বন্টন ফান্ড খাতভিত্তিক জমা হিসাব' },
+  doctors:      { title:'🩺 ডাক্তার', sub:'ডাক্তার ব্যবস্থাপনা ও কমিশন' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
   attendance:{ title:'🕐 এটেন্ডেন্স শিট', sub:'কর্মীদের উপস্থিতি ব্যবস্থাপনা' },
   stock:    { title:'📦 স্টক ম্যানেজমেন্ট', sub:'ওষুধ ও চশমার স্টক' },
@@ -6178,6 +6386,7 @@ function showPage(name) {
   if (name === 'loan')         { initLoanPage(); }
   if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); }
   if (name === 'funds')        { renderFundsPage(); }
+  if (name === 'doctors')      { renderDoctorsPage(); }
   if (name === 'officialpad')  { initOfficialPad(); }
   if (name === 'memorandum')   { initMemorandumPage(); }
   if (name === 'newbill')      { initNewBillPage(); }
@@ -11024,6 +11233,427 @@ function renderFundExpenseHistTable() {
   }).join('');
 }
 
+// ===== ডাক্তার ব্যবস্থাপনা ও কমিশন =====
+function toggleDoctorTypeFields() {
+  const typeEl = document.getElementById('docType'); if (!typeEl) return;
+  const type = typeEl.value;
+  const enabled = (document.getElementById('docCommissionEnabled')||{}).checked;
+  const sf = document.getElementById('docSalariedFields'); if (sf) sf.style.display = (type==='salaried' && enabled) ? '' : 'none';
+  const pf = document.getElementById('docParttimeFields'); if (pf) pf.style.display = (type==='parttime' && enabled) ? '' : 'none';
+  const ctr = document.getElementById('docCommissionTypesRow'); if (ctr) ctr.style.display = enabled ? '' : 'none';
+}
+function populateDocLinkedStaffSelect() {
+  const sel = document.getElementById('docLinkedStaff'); if (!sel) return;
+  const prev = sel.value;
+  const staff = (appData.staff||[]).filter(s=>s.status==='active');
+  sel.innerHTML = '<option value="">-- স্টাফ লিংক করুন (ঐচ্ছিক) --</option>' + staff.map(s=>`<option value="${s.id}">${s.name} (${s.desig||''})</option>`).join('');
+  if (prev) sel.value = prev;
+}
+function clearDoctorForm() {
+  const idEl=document.getElementById('docEditId'); if(idEl) idEl.value='';
+  ['docName','docAfterDutyPercent','docDayRate','docCommissionPercent'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  const te=document.getElementById('docType'); if(te) te.value='salaried';
+  const se=document.getElementById('docStatus'); if(se) se.value='active';
+  const ceEl=document.getElementById('docCommissionEnabled'); if(ceEl) ceEl.checked=false;
+  const lse=document.getElementById('docLinkedStaff'); if(lse) lse.value='';
+  const ds=document.getElementById('docDutyStart'); if(ds) ds.value='09:00';
+  const de=document.getElementById('docDutyEnd'); if(de) de.value='17:00';
+  const tv=document.getElementById('docTypeVisit'); if(tv) tv.checked=true;
+  const tt=document.getElementById('docTypeTest'); if(tt) tt.checked=true;
+  const to=document.getElementById('docTypeOperation'); if(to) to.checked=false;
+  const toth=document.getElementById('docTypeOther'); if(toth) toth.checked=false;
+  const tm=document.getElementById('docTypeManual'); if(tm) tm.checked=false;
+  toggleDoctorTypeFields();
+}
+function saveDoctor() {
+  try {
+  if (currentUser.role !== 'admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন ডাক্তার যোগ/সম্পাদনা করতে পারবেন!'); return; }
+  const editId = document.getElementById('docEditId').value;
+  const name = document.getElementById('docName').value.trim();
+  const type = document.getElementById('docType').value;
+  const status = document.getElementById('docStatus').value;
+  if (!name) { showToast('⚠️ ডাক্তারের নাম দিন!'); return; }
+  const commissionTypes = [];
+  if (document.getElementById('docTypeVisit').checked) commissionTypes.push('visit');
+  if (document.getElementById('docTypeTest').checked) commissionTypes.push('test');
+  if (document.getElementById('docTypeOperation').checked) commissionTypes.push('operation');
+  if (document.getElementById('docTypeOther').checked) commissionTypes.push('other');
+  if (document.getElementById('docTypeManual').checked) commissionTypes.push('manual');
+  const doc = {
+    id: editId ? parseInt(editId) : Date.now(),
+    name, type, status,
+    commissionEnabled: !!(document.getElementById('docCommissionEnabled')||{}).checked,
+    linkedStaffId: document.getElementById('docLinkedStaff').value ? parseInt(document.getElementById('docLinkedStaff').value) : null,
+    dutyStart: document.getElementById('docDutyStart').value || '09:00',
+    dutyEnd: document.getElementById('docDutyEnd').value || '17:00',
+    afterDutyPercent: parseFloat(document.getElementById('docAfterDutyPercent').value)||0,
+    dayRate: parseFloat(document.getElementById('docDayRate').value)||0,
+    commissionPercent: parseFloat(document.getElementById('docCommissionPercent').value)||0,
+    commissionTypes
+  };
+  if (!appData.doctors) appData.doctors=[];
+  if (editId) {
+    const idx = appData.doctors.findIndex(d=>d.id===doc.id);
+    if (idx>=0) appData.doctors[idx]=doc;
+  } else {
+    appData.doctors.push(doc);
+  }
+  logActivity(editId?'edit':'add', 'ডাক্তার', `${name} (${type==='salaried'?'বেতনভুক্ত':'পার্টটাইমার'})`);
+  saveData(); clearDoctorForm();
+  const body=document.getElementById('docFormBody'); if(body) body.style.display='none';
+  renderDoctorsPage();
+  showToast('✅ ডাক্তার সেভ হয়েছে!');
+  } catch (err) {
+    console.error('[HMS] saveDoctor error:', err);
+    showToast('❌ ডাক্তার সেভ করতে সমস্যা হয়েছে: ' + err.message);
+  }
+}
+function editDoctor(id) {
+  const d = (appData.doctors||[]).find(x=>x.id===id); if (!d) return;
+  const body=document.getElementById('docFormBody'); if(body) body.style.display='';
+  document.getElementById('docEditId').value=d.id;
+  document.getElementById('docName').value=d.name;
+  document.getElementById('docType').value=d.type;
+  document.getElementById('docStatus').value=d.status;
+  document.getElementById('docCommissionEnabled').checked = !!d.commissionEnabled;
+  populateDocLinkedStaffSelect();
+  document.getElementById('docLinkedStaff').value=d.linkedStaffId||'';
+  document.getElementById('docDutyStart').value=d.dutyStart||'09:00';
+  document.getElementById('docDutyEnd').value=d.dutyEnd||'17:00';
+  document.getElementById('docAfterDutyPercent').value=d.afterDutyPercent||'';
+  document.getElementById('docDayRate').value=d.dayRate||'';
+  document.getElementById('docCommissionPercent').value=d.commissionPercent||'';
+  const ct = d.commissionTypes||['visit','test'];
+  document.getElementById('docTypeVisit').checked = ct.includes('visit');
+  document.getElementById('docTypeTest').checked = ct.includes('test');
+  document.getElementById('docTypeOperation').checked = ct.includes('operation');
+  document.getElementById('docTypeOther').checked = ct.includes('other');
+  document.getElementById('docTypeManual').checked = ct.includes('manual');
+  toggleDoctorTypeFields();
+  window.scrollTo(0,0);
+}
+function deleteDoctor(id) {
+  if (currentUser.role!=='admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন মুছতে পারবেন!'); return; }
+  const d = (appData.doctors||[]).find(x=>x.id===id); if (!d) return;
+  if (!confirm(`"${d.name}" কে মুছে ফেলতে চান? পুরনো কমিশন রেকর্ড থেকে যাবে, শুধু তালিকা থেকে সরে যাবেন।`)) return;
+  appData.doctors = appData.doctors.filter(x=>x.id!==id);
+  logActivity('delete','ডাক্তার', d.name);
+  saveData(); renderDoctorsPage();
+  showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+
+// ===== বিলের আইটেম থেকে কমিশন classification ও হিসাব =====
+function classifyBillItemForCommission(item) {
+  if (!item) return 'other';
+  const type = item.type || '';
+  if (type==='med' || type==='glass' || type==='surgical') return 'product';
+  if (type==='service' && item.feeId) {
+    const tf = (appData.testFees||[]).find(t=>t.id===item.feeId);
+    if (tf) {
+      if (tf.cat==='ভিজিট ফি') return 'visit';
+      if (tf.cat==='টেস্ট / পরীক্ষা') return 'test';
+      if (tf.cat==='অপারেশন') return 'operation';
+      return 'other';
+    }
+    return 'other';
+  }
+  if (type==='manual') return 'manual';
+  if (typeof type==='string') {
+    if (type.includes('ওষুধ') || type.includes('চশমা')) return 'product';
+    if (type.includes('ভিজিট')) return 'visit';
+    if (type.includes('টেস্ট') || type.includes('রিপোর্ট')) return 'test';
+    if (type.includes('অপারেশন')) return 'operation';
+  }
+  return 'other';
+}
+function getDoctorCommissionBaseAmount(items, doctor) {
+  if (!doctor || !doctor.commissionEnabled) return 0;
+  const types = doctor.commissionTypes && doctor.commissionTypes.length ? doctor.commissionTypes : ['visit','test'];
+  return (items||[]).reduce((sum,item)=>{
+    const cls = classifyBillItemForCommission(item);
+    if (cls==='product') return sum;
+    if (types.includes(cls)) return sum + (item.subtotal||0);
+    return sum;
+  }, 0);
+}
+function isAfterDutyTimeNow(doctor) {
+  if (!doctor || !doctor.dutyEnd) return false;
+  const now = new Date();
+  const cur = now.getHours()*60+now.getMinutes();
+  const parts = (doctor.dutyEnd||'17:00').split(':').map(Number);
+  return cur > (parts[0]*60+(parts[1]||0));
+}
+function _getBillItemsForCommission(p) {
+  if (p==='r') return (typeof getServices==='function') ? getServices() : [];
+  if (p==='nb_') return (typeof _getItems==='function') ? _getItems('nb_') : [];
+  if (p==='ab') return (typeof getAdminBillServices==='function') ? getAdminBillServices() : [];
+  return [];
+}
+function populateDoctorSelect(selId) {
+  const sel = document.getElementById(selId); if (!sel) return;
+  const prev = sel.value;
+  const docs = (appData.doctors||[]).filter(d=>d.status==='active');
+  sel.innerHTML = '<option value="">-- কোনো ডাক্তার/কমিশন নেই --</option>' + docs.map(d=>
+    `<option value="${d.id}">${d.name} ${d.type==='salaried'?'(বেতনভুক্ত)':'(পার্টটাইমার)'}</option>`
+  ).join('');
+  if (prev) sel.value = prev;
+}
+function onDocSelectChange(p) {
+  const sel = document.getElementById(p+'DocSelect');
+  const doctorId = sel ? sel.value : '';
+  const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
+  const afterDutyRow = document.getElementById(p+'DocAfterDutyRow');
+  if (afterDutyRow) afterDutyRow.style.display = (doctor && doctor.commissionEnabled && doctor.type==='salaried') ? '' : 'none';
+  if (doctor && doctor.commissionEnabled && doctor.type==='salaried') {
+    const cb = document.getElementById(p+'DocAfterDuty');
+    if (cb) cb.checked = isAfterDutyTimeNow(doctor);
+  }
+  updateDocCommissionPreview(p);
+}
+function updateDocCommissionPreview(p) {
+  const previewEl = document.getElementById(p+'DocCommissionPreview');
+  if (!previewEl) return;
+  const sel = document.getElementById(p+'DocSelect');
+  const doctorId = sel ? sel.value : '';
+  const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
+  if (!doctor) { previewEl.textContent=''; return; }
+  if (!doctor.commissionEnabled) { previewEl.innerHTML = `<span style="color:#94a3b8">এই ডাক্তারের জন্য কমিশন প্রযোজ্য নয়</span>`; return; }
+  const items = _getBillItemsForCommission(p);
+  const base = getDoctorCommissionBaseAmount(items, doctor);
+  let percent = 0, applies = true;
+  if (doctor.type==='salaried') {
+    const cb = document.getElementById(p+'DocAfterDuty');
+    applies = !!(cb && cb.checked);
+    percent = doctor.afterDutyPercent||0;
+  } else {
+    percent = doctor.commissionPercent||0;
+  }
+  const amount = applies ? Math.round(base*percent/100) : 0;
+  if (!applies && doctor.type==='salaried') {
+    previewEl.innerHTML = `<span style="color:#94a3b8">ডিউটির পরে দেখা হয়েছে টিক না দিলে কমিশন প্রযোজ্য হবে না</span>`;
+  } else {
+    previewEl.innerHTML = `যোগ্য এমাউন্ট: ৳${fmt(base)} × ${percent}% = <strong style="color:var(--success)">৳${fmt(amount)}</strong> কমিশন`;
+  }
+}
+function computeDoctorCommissionForSave(p) {
+  const sel = document.getElementById(p+'DocSelect');
+  const doctorId = sel ? sel.value : '';
+  const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
+  if (!doctor || !doctor.commissionEnabled) return null;
+  const items = _getBillItemsForCommission(p);
+  const base = getDoctorCommissionBaseAmount(items, doctor);
+  let percent=0, afterDuty=false, applies=true;
+  if (doctor.type==='salaried') {
+    const cb = document.getElementById(p+'DocAfterDuty');
+    afterDuty = !!(cb && cb.checked);
+    applies = afterDuty;
+    percent = doctor.afterDutyPercent||0;
+  } else {
+    percent = doctor.commissionPercent||0;
+  }
+  if (!applies || base<=0 || percent<=0) return null;
+  const amount = Math.round(base*percent/100);
+  if (amount<=0) return null;
+  return { doctor, base, percent, amount, afterDuty };
+}
+function recordDoctorCommission(p, date, memoNo, visitId) {
+  const calc = computeDoctorCommissionForSave(p);
+  if (!calc) return;
+  if (!appData.doctorCommissions) appData.doctorCommissions=[];
+  appData.doctorCommissions.push({
+    id: Date.now()+Math.floor(Math.random()*1000), date, visitId, memoNo,
+    doctorId: calc.doctor.id, doctorName: calc.doctor.name, doctorType: calc.doctor.type,
+    baseAmount: calc.base, percent: calc.percent, amount: calc.amount, afterDuty: calc.afterDuty,
+    by: currentUser.name
+  });
+}
+function clearDocSelectUI(p) {
+  const sel = document.getElementById(p+'DocSelect'); if (sel) sel.value='';
+  const cb = document.getElementById(p+'DocAfterDuty'); if (cb) cb.checked=false;
+  const row = document.getElementById(p+'DocAfterDutyRow'); if (row) row.style.display='none';
+  const prev = document.getElementById(p+'DocCommissionPreview'); if (prev) prev.textContent='';
+}
+function calcDoctorMonthlyCommission(doctorId, month, year) {
+  const prefix = `${year}-${String(month).padStart(2,'0')}`;
+  return (appData.doctorCommissions||[]).filter(c=>String(c.doctorId)===String(doctorId) && (c.date||'').startsWith(prefix)).reduce((s,c)=>s+c.amount,0);
+}
+
+// ===== পার্টটাইমার ডে-বেসিস পেমেন্ট =====
+function updateDpAmountFromDays() {
+  const sel = document.getElementById('dpDoctor'); if (!sel) return;
+  const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(sel.value));
+  const days = parseFloat(document.getElementById('dpDays').value)||1;
+  if (doctor && doctor.dayRate) {
+    document.getElementById('dpAmount').value = Math.round(doctor.dayRate*days);
+  }
+}
+function updateDpNote() {
+  updateDpAmountFromDays();
+  const dateEl = document.getElementById('dpDate');
+  if (dateEl && dateEl.value) { document.getElementById('dpVoucher').value = generateNextVoucherNo(dateEl.value); }
+}
+function onDpPayModeChange() {
+  const mode = document.querySelector('input[name="dpPayMode"]:checked')?.value||'cash';
+  const bankRow = document.getElementById('dpBankRow');
+  if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (mode==='bank') updateNextCheckNo('dpCheckbook','dpCheckNo');
+}
+function clearDpForm() {
+  const dateEl=document.getElementById('dpDate'); if(dateEl) dateEl.value = todayStr();
+  ['dpDoctor','dpAmount','dpNote'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  const daysEl=document.getElementById('dpDays'); if(daysEl) daysEl.value=1;
+  const cashEl=document.getElementById('dpPayCash'); if(cashEl) cashEl.checked=true;
+  onDpPayModeChange();
+  const vEl=document.getElementById('dpVoucher'); if(vEl) vEl.value = generateNextVoucherNo(todayStr());
+}
+function saveDoctorDayPayment() {
+  if (currentUser.role!=='admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন পেমেন্ট এন্ট্রি করতে পারবেন!'); return; }
+  const doctorId = document.getElementById('dpDoctor').value;
+  const date = document.getElementById('dpDate').value;
+  const amt = parseFloat(document.getElementById('dpAmount').value);
+  const note = document.getElementById('dpNote').value.trim();
+  let voucher = document.getElementById('dpVoucher').value.trim();
+  if (!voucher) voucher = generateNextVoucherNo(date);
+  const payMode = document.querySelector('input[name="dpPayMode"]:checked')?.value||'cash';
+  if (!doctorId || !date || isNaN(amt) || amt<=0) { showToast('⚠️ ডাক্তার, তারিখ ও পরিমাণ আবশ্যক!'); return; }
+  const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
+  if (!doctor) { showToast('⚠️ ডাক্তার খুঁজে পাওয়া যায়নি!'); return; }
+  let checkNo='', checkbookId='', clearDate=date, status='cleared';
+  if (payMode==='bank') {
+    checkNo = (document.getElementById('dpCheckNo')||{}).value.trim()||'';
+    checkbookId = (document.getElementById('dpCheckbook')||{}).value||'';
+    if (checkbookId && checkNo) {
+      const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      if (cb) cb.lastUsed = parseInt(checkNo);
+    }
+  }
+  const payId = Date.now();
+  if (!appData.doctorDayPayments) appData.doctorDayPayments=[];
+  appData.doctorDayPayments.push({ id: payId, date, doctorId: doctor.id, doctorName: doctor.name, amount: amt, voucher, note, payMode, checkNo, checkbookId, clearDate, status, by: currentUser.name });
+  if (!appData.expense) appData.expense=[];
+  appData.expense.push({
+    id: payId+1, date, category: `👨‍⚕️ ডাক্তার পেমেন্ট (ডে-বেসিস) — ${doctor.name}`, subCategory:'', amount: amt, voucher, note,
+    payMode, payPerson:'', checkNo, checkbookId, clearDate, status, actualClearedDate: clearDate, by: currentUser.name,
+    doctorDayPaymentId: payId, doctorId: doctor.id
+  });
+  logActivity('add','ডাক্তার ডে-পেমেন্ট', `${doctor.name} — ৳${fmt(amt)} (${voucher})`);
+  saveData(); clearDpForm(); renderDoctorsPage(); renderExpenseTable(); refreshDashboard();
+  showToast('✅ পেমেন্ট সেভ হয়েছে! ভাউচার: '+voucher);
+}
+
+function saveGlobalDutyEndTime() {
+  const el = document.getElementById('globalDutyEndTime'); if (!el) return;
+  if (!appData.settings) appData.settings = {};
+  appData.settings.regularDutyEndTime = el.value || '17:00';
+  saveData();
+  showToast('✅ নিয়মিত ডিউটি সময় সেভ হয়েছে');
+}
+function isAfterGlobalDutyTime() {
+  const cutoff = (appData.settings && appData.settings.regularDutyEndTime) || '17:00';
+  const now = new Date();
+  const cur = now.getHours()*60+now.getMinutes();
+  const parts = cutoff.split(':').map(Number);
+  return cur > (parts[0]*60+(parts[1]||0));
+}
+function checkDoctorCommissionAlarm(p) {
+  if (!isAfterGlobalDutyTime()) return true;
+  const sel = document.getElementById(p+'DocSelect');
+  const doctorId = sel ? sel.value : '';
+  if (doctorId) return true;
+  return confirm('⚠️ এখন প্রতিষ্ঠানের নিয়মিত ডিউটি সময়ের পরে, কিন্তু কোনো ডাক্তার/কমিশন নির্বাচন করা হয়নি!\n\nএই ডাক্তারের কমিশন প্রযোজ্য না হলে "OK" চাপুন, নাহলে "Cancel" চেপে ডাক্তার নির্বাচন করুন।');
+}
+// ===== রেন্ডার =====
+function renderDoctorsPage() {
+  const esc = s => (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  populateDocLinkedStaffSelect();
+  toggleDoctorTypeFields();
+  const gdEl = document.getElementById('globalDutyEndTime');
+  if (gdEl) gdEl.value = (appData.settings && appData.settings.regularDutyEndTime) || '17:00';
+  const month = new Date().getMonth()+1, year = new Date().getFullYear();
+  const tbody = document.getElementById('doctorListTable');
+  if (tbody) {
+    const docs = appData.doctors||[];
+    if (!docs.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">এখনো কোনো ডাক্তার যোগ করা হয়নি</td></tr>`;
+    } else {
+      tbody.innerHTML = docs.map(d=>{
+        const comm = calcDoctorMonthlyCommission(d.id, month, year);
+        const linkedStaff = d.linkedStaffId ? (appData.staff||[]).find(s=>s.id===d.linkedStaffId) : null;
+        let detail;
+        if (!d.commissionEnabled) {
+          detail = `কমিশন প্রযোজ্য নয়`;
+        } else if (d.type==='salaried') {
+          detail = `ডিউটি: ${d.dutyStart||'—'}–${d.dutyEnd||'—'} | ডিউটির পরে ${d.afterDutyPercent||0}%`;
+        } else {
+          detail = `ডে-রেট: ৳${fmt(d.dayRate||0)} | কমিশন ${d.commissionPercent||0}%`;
+        }
+        if (linkedStaff) detail += ` | লিংকড স্টাফ: ${esc(linkedStaff.name)}`;
+        return `<tr>
+          <td style="font-weight:600">${esc(d.name)}</td>
+          <td>${d.type==='salaried'?'🏥 বেতনভুক্ত':'🕒 পার্টটাইমার'}${d.commissionEnabled?'':' <span style="color:#94a3b8;font-size:11px">(কমিশন নেই)</span>'}</td>
+          <td style="font-size:12px;color:var(--text-light)">${detail}</td>
+          <td style="font-weight:700;color:var(--success)">৳ ${fmt(comm)}</td>
+          <td><span class="badge ${d.status==='active'?'badge-income':'badge-expense'}">${d.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span></td>
+          <td class="admin-only"><button class="btn btn-primary btn-sm" onclick="editDoctor(${d.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteDoctor(${d.id})">🗑️</button></td>
+        </tr>`;
+      }).join('');
+    }
+  }
+  ['rDocSelect','nb_DocSelect','abDocSelect'].forEach(id=>populateDoctorSelect(id));
+  const dpSel = document.getElementById('dpDoctor');
+  if (dpSel) {
+    const prev = dpSel.value;
+    const parttimers = (appData.doctors||[]).filter(d=>d.status==='active'&&d.type==='parttime');
+    dpSel.innerHTML = '<option value="">-- ডাক্তার নির্বাচন করুন --</option>' + parttimers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    if (prev) dpSel.value = prev;
+  }
+  const dateEl=document.getElementById('dpDate'); if (dateEl && !dateEl.value) dateEl.value = todayStr();
+  if (typeof populateCheckbookSelect==='function') populateCheckbookSelect('dpCheckbook','dpCheckNo');
+  onDpPayModeChange();
+  const filterSel = document.getElementById('docCommFilter');
+  if (filterSel) {
+    const prev = filterSel.value;
+    filterSel.innerHTML = '<option value="">-- সকল ডাক্তার --</option>' + (appData.doctors||[]).map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    if (prev) filterSel.value = prev;
+  }
+  renderDoctorDayPayTable();
+  renderDoctorCommissionHistory();
+}
+function renderDoctorDayPayTable() {
+  const tbody = document.getElementById('doctorDayPayTable'); if (!tbody) return;
+  const rows = (appData.doctorDayPayments||[]).slice().sort((a,b)=>b.id-a.id);
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">এখনো কোনো পেমেন্ট হয়নি</td></tr>'; return; }
+  tbody.innerHTML = rows.map(p=>{
+    const payBadge = p.payMode==='bank'
+      ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক</span>`
+      : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">💵 ক্যাশ</span>`;
+    return `<tr>
+      <td>${formatDate(p.date)}</td>
+      <td style="color:var(--warning);font-weight:600;font-size:12px">${p.voucher||'—'}</td>
+      <td style="font-weight:600">${p.doctorName}</td>
+      <td style="color:var(--text-light)">${p.note||'—'}</td>
+      <td>${payBadge}</td>
+      <td style="text-align:right;font-weight:700;color:var(--danger)">৳ ${fmt(p.amount)}</td>
+    </tr>`;
+  }).join('');
+}
+function renderDoctorCommissionHistory() {
+  const tbody = document.getElementById('docCommHistTable'); if (!tbody) return;
+  const filterId = (document.getElementById('docCommFilter')||{}).value||'';
+  let rows = (appData.doctorCommissions||[]).slice().sort((a,b)=>b.id-a.id);
+  if (filterId) rows = rows.filter(c=>String(c.doctorId)===String(filterId));
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">কোনো কমিশন এন্ট্রি নেই</td></tr>'; return; }
+  tbody.innerHTML = rows.map(c=>`<tr>
+    <td>${formatDate(c.date)}</td>
+    <td style="color:var(--accent);font-weight:600;font-size:12px">${c.memoNo||'—'}</td>
+    <td style="font-weight:600">${c.doctorName}</td>
+    <td style="text-align:right">৳ ${fmt(c.baseAmount)}</td>
+    <td>${c.percent}%</td>
+    <td style="text-align:right;font-weight:700;color:var(--success)">৳ ${fmt(c.amount)}</td>
+    <td>${c.doctorType==='salaried' ? (c.afterDuty?'✅ হ্যাঁ':'—') : '—'}</td>
+  </tr>`).join('');
+}
+
 // ===== USER MANAGEMENT =====
 const ALL_FEATURES = [
   { id:'dashboard', label:'ড্যাশবোর্ড' },
@@ -14997,14 +15627,72 @@ function saveStaff() {
       const after={name,desig,phone,basic,status};
       saveEditHistory('কর্মী', s.id, name, before, after);
       s.name=name; s.desig=desig; s.phone=phone; s.basic=basic; s.join=join; s.status=status; s.profile=profile;
+      syncDoctorFromStaff(s.id, name, desig, status);
     }
   } else {
-    appData.staff.push({ id:Date.now(), name, desig, phone, basic, join, status, profile });
+    const newStaffId = Date.now();
+    appData.staff.push({ id:newStaffId, name, desig, phone, basic, join, status, profile });
+    syncDoctorFromStaff(newStaffId, name, desig, status);
   }
   saveData(); clearStaffForm(); renderSalarySheet();
+  if (typeof renderDoctorsPage==='function' && document.getElementById('doctorListTable')) renderDoctorsPage();
   showToast(editId ? '✅ কর্মী আপডেট হয়েছে!' : '✅ কর্মী যোগ হয়েছে!');
 }
+// ডাক্তার পদবির কর্মী স্যালারি শিটে যোগ/সম্পাদনা হলে ডাক্তার পেজে স্বয়ংক্রিয়ভাবে লিংকড ডাক্তার এন্ট্রি তৈরি/আপডেট করে
+function syncDoctorFromStaff(staffId, name, desig, status) {
+  if (!appData.doctors) appData.doctors = [];
+  let doc = appData.doctors.find(d => d.linkedStaffId === staffId);
+  const isDoctor = (desig||'').trim() === 'ডাক্তার';
+  if (isDoctor) {
+    if (!doc) {
+      doc = {
+        id: Date.now()+Math.floor(Math.random()*1000),
+        name, type: 'salaried', status: status==='active' ? 'active' : 'inactive',
+        commissionEnabled: false,
+        linkedStaffId: staffId,
+        dutyStart: '09:00', dutyEnd: '17:00', afterDutyPercent: 0,
+        dayRate: 0, commissionPercent: 0,
+        commissionTypes: ['visit','test']
+      };
+      appData.doctors.push(doc);
+    } else {
+      doc.name = name;
+      doc.status = status==='active' ? 'active' : 'inactive';
+    }
+  } else if (doc) {
+    // পদবি পরিবর্তন হয়ে গেছে — লিংক রেখে দেওয়া হলো (কমিশন ইতিহাস অক্ষত থাকবে), শুধু নিষ্ক্রিয় করা হলো
+    doc.status = 'inactive';
+  }
+}
 
+function populateSfDesigSelect() {
+  const sel = document.getElementById('sfDesig'); if (!sel) return;
+  const prev = sel.value;
+  const base = ['ডাক্তার','নার্স','রিসেপশনিস্ট','ফার্মাসিস্ট','অফিস সহকারী','ক্লিনার','নিরাপত্তাকর্মী'];
+  const custom = (appData.settings && appData.settings.staffDesignations) || [];
+  const used = (appData.staff||[]).map(s=>s.desig).filter(Boolean);
+  const all = [...new Set([...base, ...custom, ...used])];
+  sel.innerHTML = '<option value="">-- পদবি নির্বাচন করুন --</option>' + all.map(d=>`<option value="${d}">${d}</option>`).join('');
+  if (prev) sel.value = prev;
+}
+function toggleSfAddDesig() {
+  const row = document.getElementById('sfAddDesigRow'); if (!row) return;
+  row.style.display = row.style.display==='none' ? '' : 'none';
+  if (row.style.display!=='none') { const el=document.getElementById('sfNewDesig'); if(el) el.focus(); }
+}
+function addSfDesig() {
+  const inp = document.getElementById('sfNewDesig');
+  const val = inp.value.trim();
+  if (!val) { showToast('⚠️ পদবির নাম লিখুন!'); return; }
+  if (!appData.settings.staffDesignations) appData.settings.staffDesignations = [];
+  if (!appData.settings.staffDesignations.includes(val)) appData.settings.staffDesignations.push(val);
+  saveData();
+  inp.value = '';
+  toggleSfAddDesig();
+  populateSfDesigSelect();
+  document.getElementById('sfDesig').value = val;
+  showToast('✅ নতুন পদবি যোগ হয়েছে: '+val);
+}
 function clearStaffForm() {
   ['sfName','sfDesig','sfPhone','sfBasic','sfJoinDate','sfEditId',
    'sfDob','sfNid','sfEmail','sfAddress','sfAddressCurrent',
@@ -15013,11 +15701,14 @@ function clearStaffForm() {
   });
   document.getElementById('sfStatus').value='active';
   document.getElementById('staffFormBody').style.display='none';
+  populateSfDesigSelect();
+  const addRow=document.getElementById('sfAddDesigRow'); if(addRow) addRow.style.display='none';
 }
 
 function editStaff(id) {
   const s = appData.staff.find(s=>s.id===id);
   if (!s) return;
+  populateSfDesigSelect();
   document.getElementById('sfName').value      = s.name;
   document.getElementById('sfDesig').value     = s.desig;
   document.getElementById('sfPhone').value     = s.phone||'';
@@ -15255,7 +15946,8 @@ function printSalarySlips() {
   const slips = activeStaff.map(s=>{
     const key = getSalaryKey(s.id, month, year);
     const sal = appData.salaries&&appData.salaries[key] ? appData.salaries[key] : {bonus:0,cut:0,paid:false};
-    const net = s.basic + (sal.bonus||0) - (sal.cut||0) - (sal.absentCut||0);
+    const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
+    const net = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - (sal.absentCut||0);
     return `
       <div style="border:2px solid #0f4c81;border-radius:6px;padding:0;page-break-inside:avoid;background:white;width:6.7in;height:2.7in;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12);display:flex;flex-direction:column">
         <!-- Header strip -->
@@ -15280,8 +15972,8 @@ function printSalarySlips() {
               <div style="font-size:11px;font-weight:800;color:#166534;margin-top:0px">৳ ${fmt(s.basic)}</div>
             </div>
             <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:5px;padding:3px;text-align:center">
-              <div style="font-size:7px;color:#166534;font-weight:700;text-transform:uppercase">বোনাস</div>
-              <div style="font-size:11px;font-weight:800;color:#2ecc71;margin-top:0px">৳ ${fmt(sal.bonus||0)}</div>
+              <div style="font-size:7px;color:#166534;font-weight:700;text-transform:uppercase">বোনাস${docComm>0?' + ডাক্তার কমিশন':''}</div>
+              <div style="font-size:11px;font-weight:800;color:#2ecc71;margin-top:0px">৳ ${fmt((sal.bonus||0)+docComm)}</div>
             </div>
             <div style="background:#fff0f0;border:1px solid #fca5a5;border-radius:5px;padding:3px;text-align:center">
               <div style="font-size:7px;color:#991b1b;font-weight:700;text-transform:uppercase">সাধারণ কাটা</div>
@@ -15417,7 +16109,13 @@ function getSalaryKey(staffId, month, year) {
   return `sal_${staffId}_${year}_${String(month).padStart(2,'0')}`;
 }
 
+function getLinkedDoctorCommission(staffId, month, year) {
+  const doc = (appData.doctors||[]).find(d=>d.linkedStaffId===staffId && d.type==='salaried');
+  if (!doc) return 0;
+  return calcDoctorMonthlyCommission(doc.id, month, year);
+}
 function renderSalarySheet() {
+  if (typeof populateSfDesigSelect==='function') populateSfDesigSelect();
   const month = parseInt(document.getElementById('salMonth').value);
   const year  = parseInt(document.getElementById('salYear').value);
   const tbody = document.getElementById('salaryTable');
@@ -15425,17 +16123,19 @@ function renderSalarySheet() {
   const activeStaff = appData.staff.filter(s=>s.status==='active');
 
   if (!activeStaff.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:40px">কোনো কর্মী নেই। প্রথমে কর্মী যোগ করুন।</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:40px">কোনো কর্মী নেই। প্রথমে কর্মী যোগ করুন।</td></tr>';
     tfoot.innerHTML = '';
     return;
   }
 
-  let totalBasic=0, totalBonus=0, totalCut=0, totalNet=0;
+  let totalBasic=0, totalBonus=0, totalDocComm=0, totalCut=0, totalNet=0;
   tbody.innerHTML = activeStaff.map((s,i) => {
     const key   = getSalaryKey(s.id, month, year);
     const sal   = appData.salaries && appData.salaries[key] ? appData.salaries[key] : { bonus:0, cut:0, paid:false, note:'' };
-    const net   = s.basic + (sal.bonus||0) - (sal.cut||0);
-    totalBasic += s.basic; totalBonus += sal.bonus||0;
+    const linkedDoc = (appData.doctors||[]).find(d=>d.linkedStaffId===s.id && d.type==='salaried');
+    const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
+    const net   = s.basic + (sal.bonus||0) + docComm - (sal.cut||0);
+    totalBasic += s.basic; totalBonus += sal.bonus||0; totalDocComm += docComm;
     totalCut   += sal.cut||0; totalNet  += net;
     const isAdmin = currentUser.role === 'admin';
     return `<tr>
@@ -15448,6 +16148,7 @@ function renderSalarySheet() {
           ? `<input type="number" value="${sal.bonus||0}" min="0" style="width:90px;padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateSalEntry(${s.id},${month},${year},'bonus',this.value)" />`
           : `৳ ${fmt(sal.bonus||0)}`}
       </td>
+      <td style="color:var(--success);font-weight:600">${linkedDoc ? '৳ '+fmt(docComm)+(sal.paid?'':' <span title="মাস শেষ না হওয়া পর্যন্ত পরিবর্তন হতে পারে" style=\'color:#94a3b8;font-size:10px\'>(লাইভ)</span>') : '—'}</td>
       <td>
         ${isAdmin
           ? `<input type="number" value="${sal.cut||0}" min="0" style="width:90px;padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateSalEntry(${s.id},${month},${year},'cut',this.value)" />`
@@ -15474,6 +16175,7 @@ function renderSalarySheet() {
     <td colspan="3">সর্বমোট (${activeStaff.length} জন)</td>
     <td>৳ ${fmt(totalBasic)}</td>
     <td>৳ ${fmt(totalBonus)}</td>
+    <td>৳ ${fmt(totalDocComm)}</td>
     <td>৳ ${fmt(totalCut)}</td>
     <td>৳ ${fmt(totalNet)}</td>
     <td colspan="2"></td>
@@ -15491,7 +16193,7 @@ function updateSalEntry(staffId, month, year, field, value) {
     const staff = (appData.staff||[]).find(s=>s.id===staffId);
     const expEntry = (appData.expense||[]).find(e=>e.id===sal.expenseId);
     if (staff && expEntry) {
-      expEntry.amount = (staff.basic||0) + (sal.bonus||0) - (sal.cut||0);
+      expEntry.amount = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0);
     }
   }
   saveData();
@@ -15510,11 +16212,14 @@ function toggleSalPaid(staffId, month, year) {
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
 
   if (sal.paid) {
+    // পরিশোধের মুহূর্তে ডাক্তার কমিশনের পরিমাণ ফ্রিজ করে রাখি (পরে নতুন কমিশন যোগ হলেও এই রেকর্ড পাল্টাবে না)
+    sal.doctorCommission = getLinkedDoctorCommission(staffId, month, year);
     // স্যালারি পরিশোধ — অটো ভাউচার নাম্বারে ব্যয় এন্ট্রি তৈরি
     if (staff) {
-      const net = (staff.basic||0) + (sal.bonus||0) - (sal.cut||0);
+      const net = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0);
       const payDate = todayStr();
       const voucher = generateNextVoucherNo(payDate);
+      const docCommNote = sal.doctorCommission>0 ? ` (এর মধ্যে ডাক্তার কমিশন ৳${fmt(sal.doctorCommission)})` : '';
       const expEntry = {
         id: Date.now(),
         date: payDate,
@@ -15522,7 +16227,7 @@ function toggleSalPaid(staffId, month, year) {
         amount: net,
         voucher,
         ref: staff.name,
-        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)`,
+        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)${docCommNote}`,
         by: currentUser.name,
         salaryRef: key
       };
@@ -15536,6 +16241,7 @@ function toggleSalPaid(staffId, month, year) {
       appData.expense = (appData.expense||[]).filter(e => e.id !== sal.expenseId);
       sal.expenseId = null;
       sal.voucher = null;
+      sal.doctorCommission = null;
     }
   }
 
@@ -15744,12 +16450,13 @@ function removeServiceRow(id) {
 }
 function getServices() {
   return Array.from(document.querySelectorAll('#serviceRows .service-row')).map(r=>{
-    const rid=r.id.split('-')[1];
+    const rid=r.getAttribute('data-rid')||r.id.split('-')[1];
     const name=(document.getElementById('sName-'+rid)||{}).value||'';
-    const type=(document.getElementById('sType-'+rid)||{}).value||'';
+    const type=r.getAttribute('data-type')||(document.getElementById('sType-'+rid)||{}).value||'';
     const qty=parseFloat((document.getElementById('sQty-'+rid)||{}).value)||1;
     const price=parseFloat((document.getElementById('sPrice-'+rid)||{}).value)||0;
-    return { name:name||type, type, qty, price, subtotal:qty*price };
+    const feeId=r.getAttribute('data-type')==='service'?parseInt((document.getElementById('sName-'+rid)||{}).value)||null:null;
+    return { name:name||type, type, qty, price, subtotal:qty*price, feeId };
   }).filter(s=>s.price>0);
 }
 function getDiscountLimit() {
@@ -15784,6 +16491,7 @@ function updateSummary() {
   // সীমা দেখানো
   const limit = getDiscountLimit();
   document.getElementById('rDiscountLimit').textContent = `সর্বোচ্চ ${limit}% পর্যন্ত দিতে পারবেন`;
+  if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview('r');
 }
 
 function applyDiscountPct() {
@@ -15851,8 +16559,9 @@ function saveBill() {
     services, total, discAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
   };
+  if (!checkDoctorCommissionAlarm('r')) return;
   appData.visits.push(visit);
-  // income এ অটো যোগ
+  recordDoctorCommission('r', date, memoNo, visit.id);
   if (cashPaid > 0) {
     appData.income.push({
       id:Date.now()+1, date,
@@ -15903,6 +16612,7 @@ function clearBillForm() {
   const ddRow=document.getElementById('rDeliveryDateRow'); if(ddRow) ddRow.style.display='none';
   const ddEl=document.getElementById('rDeliveryDate'); if(ddEl) ddEl.value='';
   window._returnedDraftId=null;
+  clearDocSelectUI('r');
   initServiceRows();
   updateSummary();
 }
@@ -16133,6 +16843,7 @@ function initAdminBillPage() {
   if (!adminBillRowCount) addAdminBillRow();
   renderDraftBills();
   renderAdminBillHistory();
+  if (typeof populateDoctorSelect==='function') populateDoctorSelect('abDocSelect');
 }
 function addAdminBillRow() {
   adminBillRowCount++;
@@ -16178,6 +16889,7 @@ function updateAdminBillSummary() {
   else dRow.style.display='none';
   const paid = parseFloat(document.getElementById('abCashPaid').value)||0;
   document.getElementById('abDue').textContent = '৳ '+fmt(Math.max(0,netBill-paid));
+  if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview('ab');
 }
 function saveAdminBill() {
   const patName = document.getElementById('abPatName').value.trim();
@@ -16200,10 +16912,12 @@ function saveAdminBill() {
   const deliveryDate = (document.getElementById('abDeliveryDate')||{}).value||'';
   if (sendToDelivery && !deliveryDate) { showToast('⚠️ ডেলিভারির তারিখ দিন!'); return; }
   const bill = {id:Date.now(),date,memoNo,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,discPct,netBill,cashPaid,due,by:currentUser.name,time:new Date().toLocaleTimeString('bn-BD')};
+  if (!checkDoctorCommissionAlarm('ab')) return;
   if(!appData.adminBills) appData.adminBills=[];
   appData.adminBills.push(bill);
   // visits এ যোগ
   appData.visits.push({id:Date.now()+1,date,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,netBill,cashPaid,due,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
+  recordDoctorCommission('ab', date, memoNo, bill.id);
   // income এ যোগ
   if(cashPaid>0) appData.income.push({id:Date.now()+2,date,category:'অ্যাডমিন বিল',amount:cashPaid,ref:patName,note:`${memoNo} — ${patName}`,by:currentUser.name});
   if (sendToDelivery) {
@@ -16214,6 +16928,7 @@ function saveAdminBill() {
 }
 function clearAdminBillForm() {
   ['abPatName','abPatPhone','abPatAge','abPatDoc','abDiscPct','abCashPaid'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  clearDocSelectUI('ab');
   document.getElementById('abBillDate').value=todayStr();
   document.getElementById('adminBillRows').innerHTML='';
   adminBillRowCount=0;
@@ -16668,6 +17383,7 @@ function initNewBillPage() {
   renderNewBillDrafts(); updateDraftBadge(); renderNewBillHistory();
   window._adminDraftId=null;
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
+  if (typeof populateDoctorSelect==='function') populateDoctorSelect('nb_DocSelect');
 }
 
 function nbApplyDiscAmt() { _applyAmt('nb_'); }
@@ -16688,6 +17404,7 @@ function nbClearForm() {
   if(document.getElementById('nb_MemoNo')) document.getElementById('nb_MemoNo').value=generateNextMemoNo();
   if(document.getElementById('nb_DiscountRow')) document.getElementById('nb_DiscountRow').style.display='none';
   window._adminDraftId=null;
+  clearDocSelectUI('nb_');
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   const nbSdEl=document.getElementById('nb_SendToDelivery'); if(nbSdEl) nbSdEl.checked=false;
   const nbDdRow=document.getElementById('nb_DeliveryDateRow'); if(nbDdRow) nbDdRow.style.display='none';
@@ -17036,6 +17753,7 @@ function _billSave(p) {
   const total=items.reduce((s,i)=>s+i.subtotal,0);
   const netBill=Math.max(0,total-discAmt);
   const due=Math.max(0,netBill-cashPaid);
+  if (nb && !checkDoctorCommissionAlarm('nb_')) return;
 
   // স্টক কমাই
   items.filter(i=>i.stockId).forEach(item=>{
@@ -17067,6 +17785,7 @@ function _billSave(p) {
   if (sendToDelivery && !deliveryDate) { showToast('⚠️ ডেলিভারির তারিখ দিন!'); return; }
 
   appData.visits.push({id:Date.now(),date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
+  if (nb) recordDoctorCommission('nb_', date, memoNo, null);
   if(cashPaid>0) appData.income.push({id:Date.now()+1,date,category:'রিসেপশন আয়',amount:cashPaid,ref:patName,note:`${memoNo} — ${patName}`,by:byLabel});
   if (sendToDelivery) {
     createDeliveryFromBill({ name:patName, phone:patPhone, orderDate:date, item:items.map(i=>i.name).join(', '), total:netBill, advance:cashPaid, deliveryDate, note:`মেমো: ${memoNo}` });
@@ -17164,6 +17883,7 @@ function _renderSummary(p) {
     if(discAmt>0){if(_('rDiscountRow'))_('rDiscountRow').style.display='';if(_('rDiscountShow'))_('rDiscountShow').textContent='- ৳ '+fmt(discAmt);}
     else if(_('rDiscountRow'))_('rDiscountRow').style.display='none';
   }
+  if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview(nb?'nb_':'r');
 }
 
 function adminLoadDraft(draftId) {
