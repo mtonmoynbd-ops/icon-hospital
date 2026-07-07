@@ -5962,7 +5962,9 @@ function startFirebaseSync() {
         if (wasLegacyArray) legacyMigrations.push({ module: m, normalized });
       });
       console.log('[HMS] onValue: appData প্রতিস্থাপন হচ্ছে — সার্ভার issuedChecks সংখ্যা =', (normalizedOverrides.issuedChecks||[]).length);
+      console.log('[HMS-DEBUG] onValue: প্রতিস্থাপনের আগে appData.doctors= ' + _docsSummary(appData.doctors) + ' || সার্ভার থেকে আসা doctors= ' + _docsSummary(normalizedOverrides.doctors));
       appData = { ...def, ...data, ...normalizedOverrides };
+      console.log('[HMS-DEBUG] onValue: প্রতিস্থাপনের পরে appData.doctors= ' + _docsSummary(appData.doctors));
       PATH_SYNCED_MODULES.forEach(m => { _lastSyncedMaps[m] = snapshotModuleMap(m); });
       // ✅ একবারই: পুরনো (array-index ভিত্তিক) ডাটাকে id-keyed object এ রূপান্তর করে দেয়, যাতে ভবিষ্যতে প্রতি-এন্ট্রি ডিলিট/আপডেট সঠিক পাথে হয়
       // ⚠️ এই migration নিজেই root-এর child পাথে set() করে, যা root-এ বসানো এই একই onValue লিসেনারকে আবার ফায়ার করায় —
@@ -6222,28 +6224,57 @@ function fbSafeKey(id) {
   return String(id).replace(/[.#$\/\[\]]/g, '_');
 }
 
+// ✅ Firebase 'undefined' মান একদমই গ্রহণ করে না — কোনো ফিল্ডে ভুলবশত undefined (যেমন voucher:someVar||undefined)
+// থেকে গেলে পুরো write সিঙ্ক্রোনাসভাবে থ্রো করে, যা বিল/এন্ট্রি সেভের চেইন ভেঙে দিতে পারে। তাই Firebase-এ পাঠানোর
+// আগে recursively সব undefined কে null-এ রূপান্তর করে নেওয়া হয় — ডাটার অর্থ অক্ষুণ্ণ থাকে, শুধু write নিরাপদ হয়
+function _sanitizeForFirebase(obj) {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(_sanitizeForFirebase);
+  const out = {};
+  Object.keys(obj).forEach(k => { out[k] = _sanitizeForFirebase(obj[k]); });
+  return out;
+}
 function syncModuleDiff(module) {
-  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(module); if(module==='issuedChecks') console.warn('[HMS] syncModuleDiff(issuedChecks): Firebase এখনো রেডি না'); return; }
+  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(module); if(module==='issuedChecks') console.warn('[HMS] syncModuleDiff(issuedChecks): Firebase এখনো রেডি না'); if(module==='doctors') console.warn('[HMS-DEBUG] syncModuleDiff(doctors): Firebase এখনো রেডি না'); return; }
   const current = snapshotModuleMap(module);
   const prev = _lastSyncedMaps[module] || {};
   const toWrite = [], toDelete = [];
   Object.keys(current).forEach(id => { if (prev[id] !== current[id]) toWrite.push(id); });
   Object.keys(prev).forEach(id => { if (!(id in current)) toDelete.push(id); });
   if (module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): toWrite=', toWrite, 'toDelete=', toDelete);
+  if (module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): toWrite=' + JSON.stringify(toWrite) + ' toDelete=' + JSON.stringify(toDelete) + ' _fbWritesInFlight(আগে)=' + _fbWritesInFlight);
   if (toWrite.length === 0 && toDelete.length === 0) return;
-  const promises = [];
-  toWrite.forEach(id => {
-    const entry = (appData[module] || []).find(e => String(e.id) === String(id));
-    if (entry) promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + fbSafeKey(id)), entry));
-  });
-  toDelete.forEach(id => {
-    promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + fbSafeKey(id)), null));
-  });
+  // ⚠️ গুরুত্বপূর্ণ ক্রম: beginFbWrite() অবশ্যই window._fbSet() কল করার *আগে* ডাকতে হবে —
+  // Firebase-এর লোকাল onValue লিসেনার নিজের write-এর সাথে সাথেই (সার্ভার থেকে ack আসার আগেই) সিঙ্ক্রোনাসভাবে
+  // ট্রিগার হতে পারে; সেটা যদি counter বাড়ানোর আগেই ঘটে, তাহলে onValue-এর গার্ড (hasSyncPending/_fbWritesInFlight)
+  // এই ইন-ফ্লাইট write-টা ধরতে পারে না, ফলে অন্য কোনো মডিউলের (যেমন doctors) তখনো-সিঙ্ক-না-হওয়া পরিবর্তন
+  // সার্ভারের পুরনো ডাটা দিয়ে ওভাররাইট হয়ে যেতে পারে — এটাই ছিল "কমিশন সেভ হয় কিন্তু রিফ্রেশে হারিয়ে যায়" বাগের মূল কারণ
   beginFbWrite();
-  Promise.all(promises)
-    .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(module); if(module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): সফলভাবে Firebase-এ লেখা হয়েছে ✅'); })
-    .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(module); }) // এই মডিউলটাই পেন্ডিং থাকবে, অন্য মডিউলের সফল সিঙ্ক একে মুছবে না
-    .finally(() => endFbWrite());
+  try {
+    const promises = [];
+    toWrite.forEach(id => {
+      const entry = (appData[module] || []).find(e => String(e.id) === String(id));
+      // ✅ Firebase 'undefined' মান গ্রহণ করে না (সরাসরি এরর থ্রো করে, যা বিল/এন্ট্রি সেভের পুরো চেইনকে ভেঙে দিতে পারে) —
+      // তাই পাঠানোর আগে যেকোনো undefined ফিল্ডকে null-এ রূপান্তর করে নেওয়া হচ্ছে
+      if (entry) promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + fbSafeKey(id)), _sanitizeForFirebase(entry)));
+    });
+    toDelete.forEach(id => {
+      promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + fbSafeKey(id)), null));
+    });
+    if (module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): beginFbWrite() ডাকা হলো (fbSet এর আগে), _fbWritesInFlight(পরে)=' + _fbWritesInFlight);
+    Promise.all(promises)
+      .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(module); if(module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): সফলভাবে Firebase-এ লেখা হয়েছে ✅'); if(module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): সফলভাবে Firebase-এ লেখা হয়েছে ✅'); })
+      .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(module); if(module==='doctors') console.error('[HMS-DEBUG] syncModuleDiff(doctors): ব্যর্থ হয়েছে ❌', e); }) // এই মডিউলটাই পেন্ডিং থাকবে, অন্য মডিউলের সফল সিঙ্ক একে মুছবে না
+      .finally(() => { endFbWrite(); if(module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): endFbWrite() ডাকা হলো, _fbWritesInFlight(শেষে)=' + _fbWritesInFlight); });
+  } catch (e) {
+    // ⚠️ সুরক্ষা: window._fbSet() কখনো কখনো সিঙ্ক্রোনাসভাবেই throw করতে পারে (যেমন invalid data validation error) —
+    // এটা ধরা না হলে পুরো কল-চেইন (saveData -> _billSave -> ...) ভেঙে যায় এবং বিল/এন্ট্রি সেভ অসম্পূর্ণ থেকে যায়,
+    // আর beginFbWrite() এর কাউন্টার চিরস্থায়ীভাবে বেড়ে থেকে ভবিষ্যতের সব সার্ভার-সিঙ্ক আটকে দেয়
+    console.error('[HMS] syncModuleDiff(' + module + '): সিঙ্ক্রোনাস এরর ধরা পড়েছে, এই মডিউলটা পেন্ডিং হিসেবে চিহ্নিত করা হলো:', e);
+    markSyncPending(module);
+    endFbWrite();
+  }
 }
 
 function syncAllPathModules() { PATH_SYNCED_MODULES.forEach(syncModuleDiff); }
@@ -6278,16 +6309,24 @@ function saveData() {
   if (window._fbDb && window._fbRef && window._fbUpdate) {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
     beginFbWrite();
-    window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
-      .then(() => clearSyncPending('root'))
-      .catch(e => { console.error('Firebase save error:', e); markSyncPending('root'); })
-      .finally(() => endFbWrite());
+    try {
+      window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), _sanitizeForFirebase(buildRootSyncPayload()))
+        .then(() => clearSyncPending('root'))
+        .catch(e => { console.error('Firebase save error:', e); markSyncPending('root'); })
+        .finally(() => endFbWrite());
+    } catch (e) {
+      console.error('[HMS] saveData root update: সিঙ্ক্রোনাস এরর ধরা পড়েছে:', e);
+      markSyncPending('root');
+      endFbWrite();
+    }
     // ✅ দৈনিক snapshot backup (Firebase এ আলাদা node এ)
     const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
     const backupKey = 'hms_last_backup_' + today;
     if (!localStorage.getItem(backupKey)) {
       const backupRef = window._fbRef(window._fbDb, 'hms_backups/' + today);
-      window._fbSet(backupRef, appData)
+      beginFbWrite();
+      try {
+        window._fbSet(backupRef, _sanitizeForFirebase(appData))
         .then(() => {
           localStorage.setItem(backupKey, '1');
           console.log('[HMS] দৈনিক Firebase backup সম্পন্ন:', today);
@@ -6313,7 +6352,12 @@ function saveData() {
             }).catch(()=>{});
           }
         })
-        .catch(e => console.warn('Firebase backup error:', e));
+        .catch(e => console.warn('Firebase backup error:', e))
+        .finally(() => endFbWrite());
+      } catch (e) {
+        console.error('[HMS] দৈনিক backup: সিঙ্ক্রোনাস এরর ধরা পড়েছে:', e);
+        endFbWrite();
+      }
     }
   } else {
     // Firebase এখনো রেডি হয়নি — পরে রেডি হলে সিঙ্ক হবে
@@ -11234,6 +11278,10 @@ function renderFundExpenseHistTable() {
 }
 
 // ===== ডাক্তার ব্যবস্থাপনা ও কমিশন =====
+// ✅ ডিবাগ helper: ডাক্তার তালিকাকে সরাসরি পড়ার মতো টেক্সটে রূপান্তর করে (কনসোলে অবজেক্ট এক্সপ্যান্ড না করেই দেখা যাবে)
+function _docsSummary(arr) {
+  return (arr||[]).map(d=>`[id:${d.id}, নাম:${d.name}, commissionEnabled:${d.commissionEnabled}, type:${d.type}, linkedStaffId:${d.linkedStaffId}]`).join(' | ') || '(খালি)';
+}
 function toggleDoctorTypeFields() {
   const typeEl = document.getElementById('docType'); if (!typeEl) return;
   const type = typeEl.value;
@@ -11292,16 +11340,27 @@ function saveDoctor() {
     commissionTypes
   };
   if (!appData.doctors) appData.doctors=[];
+  console.log('[HMS-DEBUG] saveDoctor: editId=' + editId + ' doc.id=' + doc.id + ' commissionEnabled=' + doc.commissionEnabled + ' || বর্তমান doctors তালিকা (সেভের আগে)= ' + _docsSummary(appData.doctors));
   if (editId) {
-    const idx = appData.doctors.findIndex(d=>d.id===doc.id);
-    if (idx>=0) appData.doctors[idx]=doc;
+    const idx = appData.doctors.findIndex(d=>String(d.id)===String(doc.id));
+    console.log('[HMS-DEBUG] saveDoctor: idx=', idx);
+    if (idx>=0) {
+      appData.doctors[idx]=doc;
+    } else {
+      // ⚠️ সুরক্ষা: এডিট করা এন্ট্রির আইডি তালিকায় খুঁজে পাওয়া যায়নি (সম্ভবত ইতিমধ্যে merge/backfill হয়ে আইডি পরিবর্তন হয়েছে) —
+      // তাই পরিবর্তনগুলো হারিয়ে না ফেলে নতুন এন্ট্রি হিসেবে যোগ করা হচ্ছে; পরের রেন্ডারে mergeDuplicateDoctors() একে ঠিক জায়গায় মিলিয়ে দেবে
+      console.warn('[HMS] saveDoctor: editId (' + editId + ') এর সাথে মিলে এমন ডাক্তার এন্ট্রি পাওয়া যায়নি, নতুন এন্ট্রি হিসেবে যোগ করা হলো');
+      appData.doctors.push(doc);
+    }
   } else {
     appData.doctors.push(doc);
   }
+  console.log('[HMS-DEBUG] saveDoctor: সেভের পরে doctors তালিকা= ' + _docsSummary(appData.doctors));
   logActivity(editId?'edit':'add', 'ডাক্তার', `${name} (${type==='salaried'?'বেতনভুক্ত':'পার্টটাইমার'})`);
   saveData(); clearDoctorForm();
   const body=document.getElementById('docFormBody'); if(body) body.style.display='none';
   renderDoctorsPage();
+  console.log('[HMS-DEBUG] saveDoctor: renderDoctorsPage এর পরে doctors তালিকা= ' + _docsSummary(appData.doctors));
   showToast('✅ ডাক্তার সেভ হয়েছে!');
   } catch (err) {
     console.error('[HMS] saveDoctor error:', err);
@@ -11564,6 +11623,7 @@ function checkDoctorCommissionAlarm(p) {
 }
 // ===== রেন্ডার =====
 function renderDoctorsPage() {
+  backfillDoctorsFromStaff();
   const esc = s => (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   populateDocLinkedStaffSelect();
   toggleDoctorTypeFields();
@@ -14962,7 +15022,7 @@ function saveStockItem() {
         category: 'ওষুধ/সরঞ্জাম কেনা',
         amount: totalCost, ref: name,
         note: `স্টক ইন — ${qty} ${unit} × ৳${fmt(buyPrice)} (অটো)${voucherRef?' | ভাউচার:'+voucherRef:''}`,
-        voucher: voucherRef||undefined,
+        voucher: voucherRef||null,
         by: currentUser.name, autoStock: true
       });
       logActivity('add', 'স্টক', `${name} — ${qty} ${unit} যোগ, ব্যয় অটো ৳${fmt(totalCost)}`);
@@ -15664,6 +15724,81 @@ function syncDoctorFromStaff(staffId, name, desig, status) {
     doc.status = 'inactive';
   }
 }
+// ✅ backfill: যেসব "ডাক্তার" পদবির কর্মী আগে থেকেই স্যালারি শিটে আছে (এই অটো-লিংক ফিচার আসার আগে যোগ হয়েছিল,
+// অথবা তারপর থেকে আর এডিট করা হয়নি) তাদের জন্য এখনো কোনো লিংকড ডাক্তার এন্ট্রি তৈরি হয়নি — এই ফাংশনটা
+// ডাক্তার পেজ/স্যালারি শিট রেন্ডার হওয়ার সময় সেই ফাঁকা এন্ট্রিগুলো স্বয়ংক্রিয়ভাবে তৈরি করে দেয়
+function backfillDoctorsFromStaff() {
+  console.log('[HMS-DEBUG] backfillDoctorsFromStaff শুরু, doctors= ' + _docsSummary(appData.doctors));
+  mergeDuplicateDoctors();
+  if (!appData.staff || !appData.staff.length) return;
+  if (!appData.doctors) appData.doctors = [];
+  let changed = false;
+  appData.staff.forEach(s => {
+    if ((s.desig||'').trim() !== 'ডাক্তার') return;
+    const linked = appData.doctors.find(d => d.linkedStaffId === s.id);
+    if (linked) return;
+    // ✅ নাম মিলিয়ে আগে থেকে (স্টাফ-লিংক ছাড়া) ম্যানুয়ালি যোগ করা ডাক্তার এন্ট্রি আছে কিনা চেক করা হচ্ছে —
+    // থাকলে নতুন ডুপ্লিকেট তৈরি না করে সেটাকেই এই স্টাফের সাথে লিংক করে দেওয়া হয়, যাতে আগে সেট করা কমিশন হারিয়ে না যায়
+    const byName = appData.doctors.find(d => !d.linkedStaffId && (d.name||'').trim() === (s.name||'').trim());
+    if (byName) {
+      console.log('[HMS-DEBUG] backfill: স্টাফ', s.name, 'এর জন্য নামে-মিল পাওয়া এন্ট্রি লিংক করা হলো, id=', byName.id);
+      byName.linkedStaffId = s.id;
+      changed = true;
+      return;
+    }
+    console.log('[HMS-DEBUG] backfill: স্টাফ', s.name, 'এর জন্য কোনো লিংকড/নাম-মিল এন্ট্রি পাওয়া যায়নি, নতুন এন্ট্রি তৈরি হচ্ছে');
+    appData.doctors.push({
+      id: Date.now()+Math.floor(Math.random()*1000)+appData.doctors.length,
+      name: s.name, type: 'salaried', status: s.status==='active' ? 'active' : 'inactive',
+      commissionEnabled: false,
+      linkedStaffId: s.id,
+      dutyStart: '09:00', dutyEnd: '17:00', afterDutyPercent: 0,
+      dayRate: 0, commissionPercent: 0,
+      commissionTypes: ['visit','test']
+    });
+    changed = true;
+  });
+  if (changed) { console.log('[HMS-DEBUG] backfillDoctorsFromStaff: পরিবর্তন হয়েছে, saveData() কল হচ্ছে'); saveData(); }
+  console.log('[HMS-DEBUG] backfillDoctorsFromStaff শেষ, doctors= ' + _docsSummary(appData.doctors));
+}
+// ✅ একই নামে একাধিক ডাক্তার এন্ট্রি (যেমন একটা স্টাফ-লিংকড অটো-তৈরি, আরেকটা আগে ম্যানুয়ালি যোগ করা কমিশন-সহ)
+// থাকলে সেগুলোকে একটাতে মার্জ করে দেয় — নাহলে বিলের ডাক্তার সিলেক্টে একই নামে দুইটা অপশন দেখা যায় এবং ভুল
+// এন্ট্রি সিলেক্ট হলে কমিশন সেট করা থাকলেও "কমিশন প্রযোজ্য নয়" দেখায়। কমিশন হিস্ট্রির পুরনো রেকর্ডও নতুন আইডিতে সরিয়ে দেওয়া হয়।
+function mergeDuplicateDoctors() {
+  if (!appData.doctors || appData.doctors.length < 2) return;
+  const groups = {};
+  appData.doctors.forEach(d => {
+    const key = (d.name||'').trim();
+    if (!key) return;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(d);
+  });
+  let changed = false;
+  Object.values(groups).forEach(group => {
+    if (group.length < 2) return;
+    console.log('[HMS-DEBUG] mergeDuplicateDoctors: ডুপ্লিকেট গ্রুপ পাওয়া গেছে, নাম=' + group[0].name + ' এন্ট্রিগুলো= ' + _docsSummary(group));
+    // যেটাতে কমিশন সেট করা আছে সেটাকেই মূল/প্রাইমারি এন্ট্রি ধরা হচ্ছে; না থাকলে যেটা স্টাফ-লিংকড সেটা; নাহলে প্রথমটা
+    const primary = group.find(d=>d.commissionEnabled) || group.find(d=>d.linkedStaffId) || group[0];
+    console.log('[HMS-DEBUG] mergeDuplicateDoctors: প্রাইমারি নির্বাচিত হলো, id=', primary.id, 'commissionEnabled=', primary.commissionEnabled);
+    group.forEach(d => {
+      if (d === primary) return;
+      // প্রাইমারিতে যা নেই (লিংকড স্টাফ/কমিশন তথ্য) তা ডুপ্লিকেট থেকে তুলে আনা হচ্ছে
+      if (!primary.linkedStaffId && d.linkedStaffId) primary.linkedStaffId = d.linkedStaffId;
+      if (!primary.commissionEnabled && d.commissionEnabled) {
+        primary.commissionEnabled = true;
+        primary.type = d.type; primary.dutyStart = d.dutyStart; primary.dutyEnd = d.dutyEnd;
+        primary.afterDutyPercent = d.afterDutyPercent; primary.dayRate = d.dayRate;
+        primary.commissionPercent = d.commissionPercent; primary.commissionTypes = d.commissionTypes;
+      }
+      // পুরনো কমিশন/পেমেন্ট হিস্ট্রি প্রাইমারির আইডিতে রিম্যাপ করা হচ্ছে, যাতে হিসাব না হারায়
+      (appData.doctorCommissions||[]).forEach(c => { if (c.doctorId===d.id) c.doctorId = primary.id; });
+      (appData.doctorDayPayments||[]).forEach(p => { if (p.doctorId===d.id) p.doctorId = primary.id; });
+      appData.doctors = appData.doctors.filter(x => x !== d);
+      changed = true;
+    });
+  });
+  if (changed) { console.log('[HMS-DEBUG] mergeDuplicateDoctors: পরিবর্তন হয়েছে, saveData() কল হচ্ছে, doctors= ' + _docsSummary(appData.doctors)); saveData(); }
+}
 
 function populateSfDesigSelect() {
   const sel = document.getElementById('sfDesig'); if (!sel) return;
@@ -16115,6 +16250,7 @@ function getLinkedDoctorCommission(staffId, month, year) {
   return calcDoctorMonthlyCommission(doc.id, month, year);
 }
 function renderSalarySheet() {
+  if (typeof backfillDoctorsFromStaff==='function') backfillDoctorsFromStaff();
   if (typeof populateSfDesigSelect==='function') populateSfDesigSelect();
   const month = parseInt(document.getElementById('salMonth').value);
   const year  = parseInt(document.getElementById('salYear').value);
