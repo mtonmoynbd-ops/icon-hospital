@@ -5943,6 +5943,14 @@ const REALTIME_SAFE_PAGE_REFRESH = {
   patients:     () => { if (typeof renderPatientDB==='function') renderPatientDB(); },
   recdeposit:   () => { if (typeof renderRecDepositList==='function') renderRecDepositList(); },
   report:       () => { if (typeof renderReport==='function') renderReport(); },
+  // ✅ newbill পেজে বিলের মূল ফর্ম আছে (সেটা টাচ করা হয় না), কিন্তু নিচের "বিলের ইতিহাস" ও "পেন্ডিং ড্রাফট"
+  // অংশ দুটো সম্পূর্ণ আলাদা টেবিল — এগুলো রিফ্রেশ করলে ফর্মে টাইপ করা কোনো ডাটা প্রভাবিত হয় না
+  newbill:      () => {
+    if (typeof renderNewBillHistory==='function') renderNewBillHistory();
+    if (typeof renderNewBillDrafts==='function') renderNewBillDrafts();
+  },
+  // ✅ adminbill পেজের মূল ফর্মও টাচ করা হয় না, শুধু "পেন্ডিং ড্রাফট" তালিকা রিফ্রেশ হয়
+  adminbill:    () => { if (typeof renderDraftBills==='function') renderDraftBills(); },
 };
 function startFirebaseSync() {
   if (!window._fbDb || !window._fbRef || !window._fbOnValue) { setTimeout(startFirebaseSync, 500); return; }
@@ -6312,7 +6320,22 @@ function syncModuleDiff(module) {
   }
 }
 
-function syncAllPathModules() { PATH_SYNCED_MODULES.forEach(syncModuleDiff); }
+function syncAllPathModules() {
+  // ✅ গুরুত্বপূর্ণ ক্রম: আগে সব মডিউল চেক করে দেখা হয় কোনগুলোতে পরিবর্তন হয়েছে, এবং *সবগুলোকেই একসাথে*
+  // "পেন্ডিং" হিসেবে চিহ্নিত করে দেওয়া হয় — তারপরই একে একে সিঙ্ক শুরু হয়। এটা জরুরি কারণ: PATH_SYNCED_MODULES
+  // তালিকায় 'income' 'visits'-এর আগে আছে; income-এর write শুরু হওয়ার সাথে সাথেই Firebase-এর নিজের onValue
+  // লিসেনার ট্রিগার হয়ে যেতে পারে (সার্ভার ack আসার আগেই) — যদি সেই মুহূর্তে 'visits' এখনো "পেন্ডিং" হিসেবে
+  // চিহ্নিত না থাকে (কারণ তার নিজের সিঙ্ক তখনো শুরুই হয়নি), onValue সেটাকে অরক্ষিত পেয়ে স্টেল সার্ভার ডাটা দিয়ে
+  // ওভাররাইট করে ফেলতে পারে — যার ফলে সদ্য যোগ করা বিল/এন্ট্রি লোকাল মেমোরি থেকেই হারিয়ে যায়, তার নিজের write
+  // শুরু হওয়ার আগেই। আগে থেকে সব পরিবর্তিত মডিউল চিহ্নিত করে রাখলে এই ফাঁকটা বন্ধ হয়ে যায়।
+  const changedModules = PATH_SYNCED_MODULES.filter(m => {
+    const current = snapshotModuleMap(m);
+    const prev = _lastSyncedMaps[m] || {};
+    return Object.keys(current).some(id => prev[id] !== current[id]) || Object.keys(prev).some(id => !(id in current));
+  });
+  changedModules.forEach(m => markSyncPending(m));
+  changedModules.forEach(syncModuleDiff);
+}
 
 // ✅ root-এ যা পাঠানো হবে তা থেকে PATH_SYNCED_MODULES বাদ দিয়ে দেয় — যাতে সেগুলোর জন্য পুরো array ওভাররাইট না হয়
 function buildRootSyncPayload() {
@@ -6340,10 +6363,14 @@ setInterval(() => { if (hasSyncPending()) trySyncNow(false); }, 20000);
 
 function saveData() {
   localStorage.setItem('hms_data', JSON.stringify(appData));
+  // ✅ path-module সিঙ্ক শুরুর আগেই root-কেও "পেন্ডিং" হিসেবে চিহ্নিত করে রাখা হয় — একই কারণে যেমনটা path-module গুলোর
+  // জন্য করা হয়েছে (নিচের syncAllPathModules() কমেন্ট দ্রষ্টব্য): কোনো path-module এর write শুরু হওয়ার সাথে সাথেই
+  // ট্রিগার হওয়া onValue যেন root-এর (তখনো সিঙ্ক শুরু না হওয়া) সেটিংস/ইউজার ইত্যাদি স্টেল সার্ভার ডাটা দিয়ে মুছে না ফেলে
+  const canFb = window._fbDb && window._fbRef && window._fbUpdate;
+  if (canFb) beginFbWrite('__root__');
   syncAllPathModules();
-  if (window._fbDb && window._fbRef && window._fbUpdate) {
+  if (canFb) {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
-    beginFbWrite('__root__');
     try {
       window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), _sanitizeForFirebase(buildRootSyncPayload()))
         .then(() => clearSyncPending('root'))
