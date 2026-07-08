@@ -1339,7 +1339,7 @@ function openPrintWindow(htmlContent, title) {
             <button class="btn btn-warning" onclick="nbPrint()">🖨️ প্রিন্ট মেমো</button>
             <button class="btn btn-warning" id="nbSendBackBtn" style="display:none" onclick="nbSendBackToRec()">↩️ রিসেপশনিস্টকে ফেরত পাঠান</button>
             <button class="btn btn-outline" style="border-color:var(--warning);color:var(--warning)" onclick="nbSendToReception()">📨 রিসেপশনিস্টে পাঠান</button>
-            <button class="btn btn-success" onclick="nbSaveBill()">✅ সেভ করুন</button>
+            <button class="btn btn-success" id="nbSaveBillBtn" onclick="nbSaveBill()">✅ সেভ করুন</button>
           </div>
         </div>
       </div>
@@ -5933,18 +5933,23 @@ function isDataSuspectEmpty(data) {
 
 let _legacyMigrationAttempted = false; // ✅ migration write নিজেই onValue আবার ফায়ার করে — তাই সেশনে একবারই migration চেষ্টা করা হয়
 
+// ✅ শুধু এই পেজগুলোই "পড়ার জন্য" (তালিকা/হিস্ট্রি, কোনো এন্ট্রি-ফর্ম নেই) — তাই এগুলোতে নতুন ডাটা এলে
+// স্বয়ংক্রিয়ভাবে রিফ্রেশ করা নিরাপদ। আয়/ব্যয়/বিল/ডাক্তার/স্টক/ক্যাম্প ইত্যাদি পেজে যেহেতু সক্রিয় ফর্ম থাকে
+// (যেখানে ইউজার হয়তো এই মুহূর্তে টাইপ করছেন), সেগুলো ইচ্ছাকৃতভাবে এই তালিকার বাইরে রাখা হয়েছে।
+const REALTIME_SAFE_PAGE_REFRESH = {
+  due:          () => { if (typeof renderAdminDue==='function') renderAdminDue(); },
+  balancesheet: () => { if (typeof renderBalanceSheet==='function') renderBalanceSheet(); },
+  delivery:     () => { if (typeof renderDeliveryTable==='function') renderDeliveryTable('all'); },
+  patients:     () => { if (typeof renderPatientDB==='function') renderPatientDB(); },
+  recdeposit:   () => { if (typeof renderRecDepositList==='function') renderRecDepositList(); },
+  report:       () => { if (typeof renderReport==='function') renderReport(); },
+};
 function startFirebaseSync() {
   if (!window._fbDb || !window._fbRef || !window._fbOnValue) { setTimeout(startFirebaseSync, 500); return; }
   const dataRef = window._fbRef(window._fbDb, window._fbDBREF);
   window._fbOnValue(dataRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      // ✅ সুরক্ষা: এই ডিভাইসে এখনো Firebase-এ পুশ না হওয়া (offline-এ করা) এন্ট্রি থাকলে, সার্ভারের পুরনো ডাটা দিয়ে ওভাররাইট করবে না —
-      // নাহলে অফলাইনে করা এন্ট্রিগুলো হারিয়ে যেতে পারে। আগে লোকাল পেন্ডিং ডাটা পুশ হবে, তারপর এই লিসেনার আবার স্বাভাবিকভাবে চলবে।
-      if (hasSyncPending() || _fbWritesInFlight > 0) {
-        console.warn('[HMS] লোকাল ডাটা এখনো Firebase-এ পুশ হচ্ছে (বা ব্যর্থ হয়েছে) — এই মুহূর্তে সার্ভার ডাটা দিয়ে ওভাররাইট করা হচ্ছে না।');
-        return;
-      }
       // ✅ সুরক্ষা: Firebase থেকে সন্দেহজনক খালি ডাটা আসলে overwrite করবে না
       if (isDataSuspectEmpty(data)) {
         console.warn('[HMS] Firebase ডাটা সন্দেহজনকভাবে খালি — overwrite বন্ধ রাখা হয়েছে। localStorage ডাটা সুরক্ষিত।');
@@ -5961,11 +5966,37 @@ function startFirebaseSync() {
         normalizedOverrides[m] = normalized;
         if (wasLegacyArray) legacyMigrations.push({ module: m, normalized });
       });
-      console.log('[HMS] onValue: appData প্রতিস্থাপন হচ্ছে — সার্ভার issuedChecks সংখ্যা =', (normalizedOverrides.issuedChecks||[]).length);
-      console.log('[HMS-DEBUG] onValue: প্রতিস্থাপনের আগে appData.doctors= ' + _docsSummary(appData.doctors) + ' || সার্ভার থেকে আসা doctors= ' + _docsSummary(normalizedOverrides.doctors));
-      appData = { ...def, ...data, ...normalizedOverrides };
-      console.log('[HMS-DEBUG] onValue: প্রতিস্থাপনের পরে appData.doctors= ' + _docsSummary(appData.doctors));
-      PATH_SYNCED_MODULES.forEach(m => { _lastSyncedMaps[m] = snapshotModuleMap(m); });
+      // ✅ প্রতি-মডিউল সুরক্ষা: 'doctors' এ একটা লোকাল write চলমান থাকলে *শুধু doctors* সার্ভার-ওভাররাইট থেকে বাঁচবে —
+      // income/visits/stock/staff ইত্যাদি বাকি সব মডিউল স্বাভাবিকভাবেই রিয়েল-টাইম আপডেট হতে থাকবে, পুরো অ্যাপ থেমে থাকবে না
+      const newAppData = { ...appData };
+      const rootPending = isModuleWriting('__root__') || _fbPendingKeys.has('root') || _fbPendingKeys.has('general') || _fbPendingKeys.has('offline');
+      if (!rootPending) {
+        Object.keys(def).forEach(k => {
+          if (PATH_SYNCED_MODULES.includes(k)) return; // এগুলো নিচে আলাদাভাবে (প্রতি-মডিউল ভিত্তিতে) হ্যান্ডেল হবে
+          newAppData[k] = (data[k] !== undefined) ? data[k] : def[k];
+        });
+      }
+      let anyModuleApplied = false;
+      PATH_SYNCED_MODULES.forEach(m => {
+        const modulePending = isModuleWriting(m) || _fbPendingKeys.has(m);
+        if (!modulePending) {
+          newAppData[m] = normalizedOverrides[m];
+          anyModuleApplied = true;
+        }
+      });
+      appData = newAppData;
+      // ✅ দুই ভিন্ন ডিভাইস থেকে (যেমন এডমিন ও রিসেপশনিস্ট) একই মুহূর্তে বিল সেভ হলে বিরল ক্ষেত্রে একই মেমো নম্বর
+      // দুইটা বিলে চলে যেতে পারে — এই দুই বিলই যখন একসাথে সিঙ্ক হয়ে এই ডিভাইসে আসে, তখন স্বয়ংক্রিয়ভাবে সংঘর্ষ
+      // ধরে (যেটা আগে তৈরি হয়েছে সেটা নম্বরটা রাখবে, পরেরটাকে পরবর্তী খালি নম্বরে সরিয়ে দেওয়া হয়) ঠিক করে দেওয়া হয়
+      if (!(isModuleWriting('visits') || _fbPendingKeys.has('visits'))) detectAndFixDuplicateMemos();
+      // ✅ একইভাবে ভাউচার/চেক নম্বর সংঘর্ষও চেক করা হয় — তবে এর জন্য সংশ্লিষ্ট সব মডিউল (expense/issuedChecks/
+      // bankTx/shareholderWithdrawals/doctorDayPayments) এই মুহূর্তে পেন্ডিং না থাকা জরুরি, নাহলে ভুল সিদ্ধান্ত হতে পারে
+      if (['expense','issuedChecks','bankTx','shareholderWithdrawals','doctorDayPayments'].every(m => !(isModuleWriting(m) || _fbPendingKeys.has(m)))) {
+        detectAndFixDuplicateVouchersAndChecks();
+      }
+      // ✅ শুধু যেসব মডিউল এই মুহূর্তে আপডেট করা হলো, তাদেরই "সর্বশেষ সিঙ্ক" স্ন্যাপশট রিফ্রেশ হবে — যেগুলো পেন্ডিং
+      // ছিল বলে স্কিপ করা হলো, সেগুলোর নিজের syncModuleDiff() কল শেষ হলে এমনিতেই ঠিক সময়ে আপডেট হয়ে যাবে
+      PATH_SYNCED_MODULES.forEach(m => { if (!(isModuleWriting(m) || _fbPendingKeys.has(m))) _lastSyncedMaps[m] = snapshotModuleMap(m); });
       // ✅ একবারই: পুরনো (array-index ভিত্তিক) ডাটাকে id-keyed object এ রূপান্তর করে দেয়, যাতে ভবিষ্যতে প্রতি-এন্ট্রি ডিলিট/আপডেট সঠিক পাথে হয়
       // ⚠️ এই migration নিজেই root-এর child পাথে set() করে, যা root-এ বসানো এই একই onValue লিসেনারকে আবার ফায়ার করায় —
       // তাই _legacyMigrationAttempted ফ্ল্যাগ দিয়ে পুরো সেশনে এই ব্লকটা শুধু একবারই চালানো হয়, নাহলে বার বার ফায়ার হয়ে ক্যাসকেডিং লুপ তৈরি হয়
@@ -5984,6 +6015,12 @@ function startFirebaseSync() {
       rebuildUsers();
       if (currentUser) {
         refreshDashboard();
+        // ✅ শুধু "পড়ার জন্য" তালিকা/হিস্ট্রি পেজগুলো — যেখানে ফর্ম-ইনপুট নেই যা এই রিফ্রেশে হারিয়ে যেতে পারে —
+        // নতুন ডাটা সিঙ্ক হলে স্বয়ংক্রিয়ভাবে রিফ্রেশ হয়ে যায়। যেসব পেজে সক্রিয় এন্ট্রি-ফর্ম আছে (আয়/ব্যয়/বিল/ডাক্তার
+        // ইত্যাদি) সেগুলো ইচ্ছাকৃতভাবে বাদ রাখা হয়েছে, যাতে অন্য কারো এন্ট্রির কারণে এই ইউজারের টাইপ করা ডাটা মুছে না যায়
+        if (anyModuleApplied && currentActivePage && REALTIME_SAFE_PAGE_REFRESH[currentActivePage]) {
+          try { REALTIME_SAFE_PAGE_REFRESH[currentActivePage](); } catch(e) { console.warn('[HMS] রিয়েল-টাইম পেজ রিফ্রেশ ব্যর্থ:', e); }
+        }
         // ফিচার অ্যাক্সেস রিয়েলটাইম আপডেট
         if (currentUser.role === 'moderator') {
           document.querySelectorAll('.nav-item[data-page]').forEach(el=>{
@@ -6160,14 +6197,14 @@ function renderActivityLog() {
 // পরেও তালিকা থেকে হারিয়ে যাওয়া। এখন প্রতিটা মডিউল/কী আলাদাভাবে ট্র্যাক করা হয় একটা Set-এ।
 let _fbPendingKeys = new Set();
 function hasSyncPending() { return _fbPendingKeys.size > 0; }
-// ✅ এই মুহূর্তে কয়টা Firebase write (root update + প্রতিটা module-এর diff write) চলমান আছে তার কাউন্ট।
-// saveData() একইসাথে root update() এবং প্রতিটা path-synced module-এর জন্য আলাদা set() কল করে —
-// এগুলো আলাদা আলাদা promise, এবং যেকোনো একটা আগে শেষ হলে onValue লিসেনার ফায়ার করতে পারে, যখন বাকিগুলো
-// এখনো সার্ভারে পৌঁছায়নি। এই কাউন্টার শূন্যে না নামা পর্যন্ত onValue-কে স্থানীয় ডাটা ওভাররাইট করতে দেওয়া হয় না —
-// নাহলে সবে যোগ করা এন্ট্রি (যেমন নতুন ইস্যু করা চেক) স্টেল সার্ভার ডাটা দিয়ে মুছে যেতে পারে।
-let _fbWritesInFlight = 0;
-function beginFbWrite() { _fbWritesInFlight++; }
-function endFbWrite() { _fbWritesInFlight = Math.max(0, _fbWritesInFlight - 1); }
+// ✅ প্রতিটা মডিউল/রুটের জন্য আলাদাভাবে "এখন write চলছে কিনা" ট্র্যাক করা হয় (আগে এটা একটামাত্র গ্লোবাল কাউন্টার ছিল,
+// যার ফলে "doctors" মডিউলে একটা এন্ট্রি সেভ চলাকালীন সময়ে income/visits/stock ইত্যাদি — সম্পূর্ণ অসম্পর্কিত মডিউলেও —
+// অন্য ডিভাইস/ইউজারের করা রিয়েল-টাইম আপডেট আসা বন্ধ হয়ে যেত। এখন থেকে শুধু যে নির্দিষ্ট মডিউলের write চলছে,
+// শুধু সেটাই সাময়িকভাবে সার্ভার-ওভাররাইট থেকে সুরক্ষিত থাকে — বাকি সব মডিউল স্বাভাবিকভাবে রিয়েল-টাইম আপডেট হতে থাকে)
+let _fbModuleWriteCounts = {};
+function beginFbWrite(key) { key = key || '__root__'; _fbModuleWriteCounts[key] = (_fbModuleWriteCounts[key]||0) + 1; }
+function endFbWrite(key) { key = key || '__root__'; _fbModuleWriteCounts[key] = Math.max(0, (_fbModuleWriteCounts[key]||0) - 1); }
+function isModuleWriting(key) { return (_fbModuleWriteCounts[key]||0) > 0; }
 
 // ✅ যেসব মডিউল এখন থেকে "প্রতি-এন্ট্রি" পাথে আলাদাভাবে সিঙ্ক হয় (পুরো array ওভাররাইট না) —
 // এতে যেকোনো দুইজন (অ্যাডমিন, মডারেটর, রিসেপশনিস্ট, ক্যাম্পেইনার — যে কেউ) একসাথে/কাছাকাছি সময়ে এন্ট্রি দিলেও
@@ -6236,21 +6273,20 @@ function _sanitizeForFirebase(obj) {
   return out;
 }
 function syncModuleDiff(module) {
-  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(module); if(module==='issuedChecks') console.warn('[HMS] syncModuleDiff(issuedChecks): Firebase এখনো রেডি না'); if(module==='doctors') console.warn('[HMS-DEBUG] syncModuleDiff(doctors): Firebase এখনো রেডি না'); return; }
+  if (!window._fbDb || !window._fbRef || !window._fbSet) { markSyncPending(module); if(module==='issuedChecks') console.warn('[HMS] syncModuleDiff(issuedChecks): Firebase এখনো রেডি না'); return; }
   const current = snapshotModuleMap(module);
   const prev = _lastSyncedMaps[module] || {};
   const toWrite = [], toDelete = [];
   Object.keys(current).forEach(id => { if (prev[id] !== current[id]) toWrite.push(id); });
   Object.keys(prev).forEach(id => { if (!(id in current)) toDelete.push(id); });
   if (module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): toWrite=', toWrite, 'toDelete=', toDelete);
-  if (module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): toWrite=' + JSON.stringify(toWrite) + ' toDelete=' + JSON.stringify(toDelete) + ' _fbWritesInFlight(আগে)=' + _fbWritesInFlight);
   if (toWrite.length === 0 && toDelete.length === 0) return;
-  // ⚠️ গুরুত্বপূর্ণ ক্রম: beginFbWrite() অবশ্যই window._fbSet() কল করার *আগে* ডাকতে হবে —
+  // ⚠️ গুরুত্বপূর্ণ ক্রম: beginFbWrite(module) অবশ্যই window._fbSet() কল করার *আগে* ডাকতে হবে —
   // Firebase-এর লোকাল onValue লিসেনার নিজের write-এর সাথে সাথেই (সার্ভার থেকে ack আসার আগেই) সিঙ্ক্রোনাসভাবে
-  // ট্রিগার হতে পারে; সেটা যদি counter বাড়ানোর আগেই ঘটে, তাহলে onValue-এর গার্ড (hasSyncPending/_fbWritesInFlight)
-  // এই ইন-ফ্লাইট write-টা ধরতে পারে না, ফলে অন্য কোনো মডিউলের (যেমন doctors) তখনো-সিঙ্ক-না-হওয়া পরিবর্তন
-  // সার্ভারের পুরনো ডাটা দিয়ে ওভাররাইট হয়ে যেতে পারে — এটাই ছিল "কমিশন সেভ হয় কিন্তু রিফ্রেশে হারিয়ে যায়" বাগের মূল কারণ
-  beginFbWrite();
+  // ট্রিগার হতে পারে; সেটা যদি counter বাড়ানোর আগেই ঘটে, তাহলে onValue-এর গার্ড এই ইন-ফ্লাইট write-টা ধরতে পারে না।
+  // ⚠️ প্রতি-মডিউল ট্র্যাকিং: শুধু *এই নির্দিষ্ট মডিউলটার* জন্য গার্ড সক্রিয় হয় — অন্য মডিউল (income/visits/stock ইত্যাদি)
+  // তখনো স্বাভাবিকভাবে রিয়েল-টাইম আপডেট পেতে থাকে, যাতে একটা এন্ট্রি সেভ চলাকালীন পুরো অ্যাপের রিয়েল-টাইম সিঙ্ক থেমে না যায়
+  beginFbWrite(module);
   try {
     const promises = [];
     toWrite.forEach(id => {
@@ -6262,18 +6298,17 @@ function syncModuleDiff(module) {
     toDelete.forEach(id => {
       promises.push(window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module + '/' + fbSafeKey(id)), null));
     });
-    if (module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): beginFbWrite() ডাকা হলো (fbSet এর আগে), _fbWritesInFlight(পরে)=' + _fbWritesInFlight);
     Promise.all(promises)
-      .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(module); if(module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): সফলভাবে Firebase-এ লেখা হয়েছে ✅'); if(module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): সফলভাবে Firebase-এ লেখা হয়েছে ✅'); })
-      .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(module); if(module==='doctors') console.error('[HMS-DEBUG] syncModuleDiff(doctors): ব্যর্থ হয়েছে ❌', e); }) // এই মডিউলটাই পেন্ডিং থাকবে, অন্য মডিউলের সফল সিঙ্ক একে মুছবে না
-      .finally(() => { endFbWrite(); if(module==='doctors') console.log('[HMS-DEBUG] syncModuleDiff(doctors): endFbWrite() ডাকা হলো, _fbWritesInFlight(শেষে)=' + _fbWritesInFlight); });
+      .then(() => { _lastSyncedMaps[module] = current; clearSyncPending(module); if(module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): সফলভাবে Firebase-এ লেখা হয়েছে ✅'); })
+      .catch(e => { console.error('[HMS] ' + module + ' সিঙ্ক ব্যর্থ:', e); markSyncPending(module); }) // এই মডিউলটাই পেন্ডিং থাকবে, অন্য মডিউলের সফল সিঙ্ক একে মুছবে না
+      .finally(() => { endFbWrite(module); });
   } catch (e) {
     // ⚠️ সুরক্ষা: window._fbSet() কখনো কখনো সিঙ্ক্রোনাসভাবেই throw করতে পারে (যেমন invalid data validation error) —
     // এটা ধরা না হলে পুরো কল-চেইন (saveData -> _billSave -> ...) ভেঙে যায় এবং বিল/এন্ট্রি সেভ অসম্পূর্ণ থেকে যায়,
-    // আর beginFbWrite() এর কাউন্টার চিরস্থায়ীভাবে বেড়ে থেকে ভবিষ্যতের সব সার্ভার-সিঙ্ক আটকে দেয়
+    // আর beginFbWrite() এর কাউন্টার চিরস্থায়ীভাবে বেড়ে থেকে এই মডিউলের ভবিষ্যতের সব সার্ভার-সিঙ্ক আটকে দেয়
     console.error('[HMS] syncModuleDiff(' + module + '): সিঙ্ক্রোনাস এরর ধরা পড়েছে, এই মডিউলটা পেন্ডিং হিসেবে চিহ্নিত করা হলো:', e);
     markSyncPending(module);
-    endFbWrite();
+    endFbWrite(module);
   }
 }
 
@@ -6308,23 +6343,23 @@ function saveData() {
   syncAllPathModules();
   if (window._fbDb && window._fbRef && window._fbUpdate) {
     // ✅ মূল ডাটা সেভ — update() দিয়ে merge (income এর মতো path-synced মডিউল বাদে), পুরো tree ওভাররাইট হয় না
-    beginFbWrite();
+    beginFbWrite('__root__');
     try {
       window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), _sanitizeForFirebase(buildRootSyncPayload()))
         .then(() => clearSyncPending('root'))
         .catch(e => { console.error('Firebase save error:', e); markSyncPending('root'); })
-        .finally(() => endFbWrite());
+        .finally(() => endFbWrite('__root__'));
     } catch (e) {
       console.error('[HMS] saveData root update: সিঙ্ক্রোনাস এরর ধরা পড়েছে:', e);
       markSyncPending('root');
-      endFbWrite();
+      endFbWrite('__root__');
     }
-    // ✅ দৈনিক snapshot backup (Firebase এ আলাদা node এ)
+    // ✅ দৈনিক snapshot backup ('hms_backups/...' — সম্পূর্ণ আলাদা Firebase পাথ, 'hms_data' onValue লিসেনারের
+    // আওতার বাইরে) — তাই এখানে beginFbWrite() গার্ডের দরকার নেই; এটা কখনো hms_data-এর রিয়েল-টাইম শোনাকে ব্লক করবে না
     const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
     const backupKey = 'hms_last_backup_' + today;
     if (!localStorage.getItem(backupKey)) {
       const backupRef = window._fbRef(window._fbDb, 'hms_backups/' + today);
-      beginFbWrite();
       try {
         window._fbSet(backupRef, _sanitizeForFirebase(appData))
         .then(() => {
@@ -6352,11 +6387,9 @@ function saveData() {
             }).catch(()=>{});
           }
         })
-        .catch(e => console.warn('Firebase backup error:', e))
-        .finally(() => endFbWrite());
+        .catch(e => console.warn('Firebase backup error:', e));
       } catch (e) {
         console.error('[HMS] দৈনিক backup: সিঙ্ক্রোনাস এরর ধরা পড়েছে:', e);
-        endFbWrite();
       }
     }
   } else {
@@ -6940,12 +6973,140 @@ function generateNextMemoNo() {
   const next = Math.max(maxNum + 1, start);
   return 'Memo-' + String(next).padStart(4,'0');
 }
+// ✅ দুই ভিন্ন ডিভাইস (যেমন এডমিন ও রিসেপশনিস্ট) একদম একই মুহূর্তে বিল সেভ করলে বিরল ক্ষেত্রে একই মেমো নম্বর
+// দুইটা আলাদা বিলে বসে যেতে পারে (যেহেতু বিল সেভ ইন্টারনেটের জন্য অপেক্ষা করে না, সাথে সাথেই হয়)। এই ফাংশনটা
+// Firebase থেকে ডাটা সিঙ্ক হওয়ার পর প্রতিবার চেক করে এমন সংঘর্ষ আছে কিনা — থাকলে যেই বিলটা আগে তৈরি হয়েছে
+// (id অনুযায়ী) সেটাই আসল নম্বরটা রাখে, বাকিগুলোকে স্বয়ংক্রিয়ভাবে পরবর্তী খালি নম্বরে সরিয়ে দেওয়া হয়।
+// একই নিয়ম সব ডিভাইসেই একইভাবে প্রয়োগ হয় বলে, একাধিক ডিভাইস স্বাধীনভাবে চেক করলেও একই সিদ্ধান্তে পৌঁছাবে।
+function detectAndFixDuplicateMemos() {
+  if (!appData.visits || appData.visits.length < 2) return;
+  const groups = {};
+  appData.visits.forEach(v => {
+    const key = (v.memoNo || v.rcptNo || '').trim();
+    if (!key) return;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(v);
+  });
+  let changed = false;
+  Object.keys(groups).forEach(memo => {
+    const group = groups[memo];
+    if (group.length < 2) return;
+    // আইডি (তৈরির সময়) অনুযায়ী সাজানো হচ্ছে — সবচেয়ে আগে তৈরি হওয়া বিলটাই এই মেমো নম্বর ধরে রাখবে
+    group.sort((a,b) => (a.id||0) - (b.id||0));
+    for (let i = 1; i < group.length; i++) {
+      const v = group[i];
+      const oldMemo = v.memoNo || v.rcptNo;
+      const newMemo = generateNextMemoNo();
+      console.warn('[HMS] মেমো সংঘর্ষ শনাক্ত হয়েছে: "' + oldMemo + '" একাধিক বিলে ব্যবহৃত হয়েছিল — রোগী "' + v.patName + '" (তারিখ: ' + v.date + ') এর বিলের মেমো স্বয়ংক্রিয়ভাবে "' + newMemo + '" তে পরিবর্তন করা হলো');
+      if (v.memoNo === oldMemo) v.memoNo = newMemo;
+      if (v.rcptNo === oldMemo) v.rcptNo = newMemo;
+      logActivity('edit', 'বিল', `মেমো নম্বর সংঘর্ষ সংশোধন: ${oldMemo} → ${newMemo} (রোগী: ${v.patName})`);
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveData();
+    showToast('⚠️ দুইটা বিলে একই মেমো নম্বর পাওয়া গিয়েছিল — স্বয়ংক্রিয়ভাবে সংশোধন করা হয়েছে, বিস্তারিত কার্যকলাপ লগে দেখুন');
+  }
+}
+// ✅ মেমোর মতোই — ভাউচার নম্বর ও চেক নম্বরের ক্ষেত্রেও দুইটা ভিন্ন ডিভাইস থেকে ঠিক একই মুহূর্তে সেভ করলে বিরল
+// ক্ষেত্রে একই নম্বর দুই এন্ট্রিতে বসে যেতে পারে। সিঙ্ক হওয়ার পর এই ফাংশনটা সেই সংঘর্ষ ধরে — যেটা আগে তৈরি
+// হয়েছে সেটাই নম্বরটা রাখে, বাকিগুলো পরবর্তী খালি নম্বরে সরিয়ে দেওয়া হয়।
+function detectAndFixDuplicateVouchersAndChecks() {
+  const sources = [
+    { arr: appData.expense, name: 'expense' },
+    { arr: appData.issuedChecks, name: 'issuedChecks' },
+    { arr: appData.shareholderWithdrawals, name: 'shareholderWithdrawals' },
+    { arr: appData.bankTx, name: 'bankTx' },
+    { arr: appData.doctorDayPayments, name: 'doctorDayPayments' },
+  ];
+  let changed = false;
+
+  // --- ভাউচার নম্বর সংঘর্ষ চেক ---
+  const allEntries = [];
+  sources.forEach(({arr}) => { (arr||[]).forEach(e => allEntries.push(e)); });
+  const voucherGroups = {};
+  allEntries.forEach(e => {
+    const key = (e.voucher||'').trim();
+    if (!key) return;
+    if (!voucherGroups[key]) voucherGroups[key] = [];
+    voucherGroups[key].push(e);
+  });
+  Object.keys(voucherGroups).forEach(voucher => {
+    const group = voucherGroups[voucher];
+    if (group.length < 2) return;
+    group.sort((a,b) => (a.id||0) - (b.id||0));
+    for (let i = 1; i < group.length; i++) {
+      const e = group[i];
+      const oldVoucher = e.voucher;
+      const newVoucher = generateNextVoucherNo(e.date || e.issueDate || todayStr());
+      console.warn('[HMS] ভাউচার সংঘর্ষ শনাক্ত হয়েছে: "' + oldVoucher + '" একাধিক এন্ট্রিতে ব্যবহৃত হয়েছিল — স্বয়ংক্রিয়ভাবে "' + newVoucher + '" তে পরিবর্তন করা হলো');
+      e.voucher = newVoucher;
+      logActivity('edit', 'ভাউচার', `ভাউচার নম্বর সংঘর্ষ সংশোধন: ${oldVoucher} → ${newVoucher}`);
+      changed = true;
+    }
+  });
+
+  // --- চেক নম্বর সংঘর্ষ চেক (একই চেক বইয়ের মধ্যে) ---
+  const checkEntries = [];
+  sources.forEach(({arr, name}) => { (arr||[]).forEach(e => { if (e.checkbookId && e.checkNo) checkEntries.push({e, arrName:name}); }); });
+  const checkGroups = {};
+  checkEntries.forEach(({e}) => {
+    const key = e.checkbookId + '|' + parseInt(e.checkNo);
+    if (!checkGroups[key]) checkGroups[key] = [];
+    checkGroups[key].push(e);
+  });
+  Object.keys(checkGroups).forEach(key => {
+    const group = checkGroups[key];
+    if (group.length < 2) return;
+    group.sort((a,b) => (a.id||0) - (b.id||0));
+    const checkbookId = group[0].checkbookId;
+    const cb = (appData.checkbooks||[]).find(b => b.id == checkbookId);
+    for (let i = 1; i < group.length; i++) {
+      const e = group[i];
+      const oldCheckNo = e.checkNo;
+      const newCheckNo = ensureUniqueCheckNo(oldCheckNo, checkbookId);
+      console.warn('[HMS] চেক নম্বর সংঘর্ষ শনাক্ত হয়েছে: "' + oldCheckNo + '" এই চেক বইয়ে একাধিক এন্ট্রিতে ব্যবহৃত হয়েছিল — স্বয়ংক্রিয়ভাবে "' + newCheckNo + '" তে পরিবর্তন করা হলো');
+      e.checkNo = newCheckNo;
+      if (e.ref === oldCheckNo) e.ref = newCheckNo;
+      if (cb) cb.lastUsed = Math.max(cb.lastUsed||0, parseInt(newCheckNo));
+      logActivity('edit', 'চেক', `চেক নম্বর সংঘর্ষ সংশোধন: ${oldCheckNo} → ${newCheckNo}`);
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    saveData();
+    showToast('⚠️ ভাউচার/চেক নম্বরে সংঘর্ষ পাওয়া গিয়েছিল — স্বয়ংক্রিয়ভাবে সংশোধন করা হয়েছে, বিস্তারিত কার্যকলাপ লগে দেখুন');
+  }
+}
 function generateNextRcptNo() {
   const start = appData.settings.startRcptNum || 1;
   const allNums = (appData.visits||[]).map(v => parseInt((v.rcptNo||'0').replace(/\D/g,''))||0);
   const maxNum = allNums.length ? Math.max(...allNums) : 0;
   const next = Math.max(maxNum + 1, start);
   return 'Rcpt-' + String(next).padStart(4,'0');
+}
+// ✅ চূড়ান্ত সুরক্ষা: চেক নম্বরও (ভাউচারের মতোই) একই চেক বইয়ে দুইটা আলাদা এন্ট্রিতে বসে যেতে পারে যদি দুইটা
+// ডিভাইস একসাথে কাজ করে। সাবমিট করার ঠিক সময়ে এই নির্দিষ্ট চেক বইয়ে এই নম্বরটা আগে থেকে ব্যবহৃত কিনা চেক করে,
+// থাকলে পরবর্তী খালি পাতা নম্বর বসিয়ে দেওয়া হয়।
+function ensureUniqueCheckNo(checkNo, checkbookId) {
+  if (!checkNo || !checkbookId) return checkNo;
+  const cb = (appData.checkbooks||[]).find(b => b.id == checkbookId);
+  if (!cb) return checkNo;
+  const used = new Set([
+    ...(appData.expense||[]).filter(e=>e.checkbookId==checkbookId).map(e=>parseInt(e.checkNo)),
+    ...(appData.issuedChecks||[]).filter(c=>c.checkbookId==checkbookId).map(c=>parseInt(c.checkNo)),
+    ...(appData.bankTx||[]).filter(t=>t.checkbookId==checkbookId).map(t=>parseInt(t.checkNo)),
+    ...(appData.shareholderWithdrawals||[]).filter(w=>w.checkbookId==checkbookId).map(w=>parseInt(w.checkNo)),
+    ...(appData.doctorDayPayments||[]).filter(p=>p.checkbookId==checkbookId).map(p=>parseInt(p.checkNo)),
+  ]);
+  const n = parseInt(checkNo);
+  if (!n || !used.has(n)) return checkNo;
+  console.warn('[HMS] চেক নম্বর ' + checkNo + ' এই চেক বইয়ে ইতিমধ্যে ব্যবহৃত হয়ে গেছে — পরবর্তী খালি পাতা বসানো হলো');
+  let next = n + 1;
+  while (used.has(next) && next <= cb.end) next++;
+  return String(next);
 }
 function generateNextVoucherNo(dateStr) {
   const vDate = getVoucherDate(dateStr);
@@ -6962,6 +7123,25 @@ function generateNextVoucherNo(dateStr) {
     if (seq > maxSeq) maxSeq = seq;
   });
   return prefix + String(maxSeq + 1).padStart(2,'0');
+}
+// ✅ চূড়ান্ত সুরক্ষা: ফর্মে ভাউচার নম্বর দেখানোর পর (হয় স্বয়ংক্রিয়ভাবে বসানো, বা ম্যানুয়ালি টাইপ করা) যদি
+// সাবমিট করার আগেই অন্য কোনো ডিভাইস থেকে একই নম্বর ব্যবহার হয়ে যায় (বিরল, দুই ডিভাইস একসাথে কাজ করলে),
+// সাবমিট করার ঠিক সময়ে আরেকবার চেক করে প্রয়োজনে পরবর্তী খালি নম্বরে সরিয়ে দেওয়া হয় — তাই দুইটা এন্ট্রি
+// কখনো একই ভাউচার নম্বর পাবে না, এবং তালিকায় সবসময় প্রকৃত (যেটা আসলে ব্যবহৃত) নম্বরই দেখাবে
+function ensureUniqueVoucher(voucher, dateStr) {
+  if (!voucher) return generateNextVoucherNo(dateStr);
+  const allVouchers = [
+    ...(appData.expense||[]).map(e => e.voucher||''),
+    ...(appData.issuedChecks||[]).map(c => c.voucher||''),
+    ...(appData.shareholderWithdrawals||[]).map(w => w.voucher||''),
+    ...(appData.bankTx||[]).map(t => t.voucher||''),
+    ...(appData.doctorDayPayments||[]).map(p => p.voucher||'')
+  ];
+  if (allVouchers.includes(voucher)) {
+    console.warn('[HMS] ভাউচার নম্বর ' + voucher + ' ইতিমধ্যে ব্যবহৃত হয়ে গেছে — স্বয়ংক্রিয়ভাবে পরবর্তী খালি নম্বর বসানো হলো');
+    return generateNextVoucherNo(dateStr);
+  }
+  return voucher;
 }
 
 function saveIncome() {
@@ -7064,7 +7244,7 @@ function saveExpense() {
   const subCat=(document.getElementById('expSubCategory')||{}).value||'';
   const amt=parseFloat(document.getElementById('expAmount').value);
   let voucher=document.getElementById('expVoucher').value.trim();
-  if (!voucher) voucher = generateNextVoucherNo(date);
+  voucher = ensureUniqueVoucher(voucher, date);
   const note=document.getElementById('expNote').value.trim();
   // পেমেন্ট মাধ্যম
   const payMode = document.querySelector('input[name="expPayMode"]:checked')?.value || 'cash';
@@ -7077,6 +7257,7 @@ function saveExpense() {
     // ব্যবহৃত চেক আপডেট (পাতা এখনই রিজার্ভ হবে — ভাঙ্গানো নিশ্চিত না হলেও)
     if (checkbookId && checkNo) {
       const cb = (appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
       if (cb) { cb.lastUsed = parseInt(checkNo); }
     }
     if (clearDate > todayStr()) { status='pending'; actualClearedDate=''; }
@@ -7311,14 +7492,14 @@ function updateCiVoucher() {
 }
 function issueCheck() {
   const checkbookId=document.getElementById('ciCheckbook')?.value||'';
-  const checkNo=(document.getElementById('ciCheckNo')?.value||'').trim();
+  let checkNo=(document.getElementById('ciCheckNo')?.value||'').trim();
   const payee=(document.getElementById('ciPayee')?.value||'').trim();
   const amount=parseFloat(document.getElementById('ciAmount')?.value)||0;
   const issueDate=document.getElementById('ciIssueDate')?.value||todayStr();
   const dueDate=document.getElementById('ciDueDate')?.value||'';
   const note=(document.getElementById('ciNote')?.value||'').trim();
   let voucher=(document.getElementById('ciVoucher')?.value||'').trim();
-  if (!voucher) voucher = generateNextVoucherNo(issueDate);
+  voucher = ensureUniqueVoucher(voucher, issueDate);
   if (!checkbookId) { showToast('⚠️ চেক বই নির্বাচন করুন!'); return; }
   if (!checkNo) { showToast('⚠️ চেক নম্বর পাওয়া যায়নি — চেক বইয়ের পাতা শেষ কিনা দেখুন!'); return; }
   if (!payee) { showToast('⚠️ প্রাপকের নাম লিখুন!'); return; }
@@ -7326,6 +7507,7 @@ function issueCheck() {
   if (!dueDate) { showToast('⚠️ চেক ভাঙ্গানোর তারিখ (due date) দিন!'); return; }
   const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
   if (!cb) { showToast('⚠️ চেক বই খুঁজে পাওয়া যায়নি!'); return; }
+  checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
   cb.lastUsed = parseInt(checkNo); // পাতা এখনই ব্যবহৃত হিসেবে চিহ্নিত — কিন্তু ব্যাংক ব্যালেন্সে প্রভাব পরে, ভাঙ্গানো নিশ্চিত হলে
   if (!appData.issuedChecks) appData.issuedChecks=[];
   appData.issuedChecks.push({
@@ -9947,7 +10129,7 @@ function saveBankTx() {
   const note=document.getElementById('bankTxNote').value.trim();
   const ref=document.getElementById('bankTxRef').value.trim();
   let voucher=(document.getElementById('bankTxVoucher')?.value||'').trim();
-  if (!voucher) voucher = generateNextVoucherNo(date);
+  voucher = ensureUniqueVoucher(voucher, date);
   if(!amount||!date){showToast('⚠️ পরিমাণ ও তারিখ আবশ্যক!');return;}
   let checkNo='', checkbookId='';
   if (type==='bank_out' || type==='bank_to_cash') {
@@ -9956,6 +10138,7 @@ function saveBankTx() {
     // ব্যবহৃত চেক আপডেট (ব্যাংক থেকে টাকা বের হলে চেকের মাধ্যমেই হয়)
     if (checkbookId && checkNo) {
       const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
       if (cb) { cb.lastUsed = parseInt(checkNo); }
     }
   }
@@ -10846,12 +11029,12 @@ function saveShareholderWithdrawal() {
   const method = document.querySelector('input[name="wdMethod"]:checked')?.value || 'cash';
   const person = document.getElementById('wdPerson').value;
   const checkbookId = document.getElementById('wdCheckbook')?.value || '';
-  const chequeNo = document.getElementById('wdChequeNo').value.trim();
+  let chequeNo = document.getElementById('wdChequeNo').value.trim();
   const postDated = method==='cheque' && document.getElementById('wdPostDated')?.checked;
   const dueDate = document.getElementById('wdDueDate')?.value || '';
   const note = document.getElementById('wdNote').value.trim();
   let voucher = document.getElementById('wdVoucher').value.trim();
-  if (!voucher) voucher = generateNextVoucherNo(date);
+  voucher = ensureUniqueVoucher(voucher, date);
   if (!shId || !date || isNaN(amount) || amount<=0) { showToast('⚠️ শেয়ারহোল্ডার, তারিখ ও সঠিক পরিমাণ দিন!'); return; }
   const sh = (appData.shareholders||[]).find(s=>String(s.id)===shId);
   if (!sh) { showToast('⚠️ শেয়ারহোল্ডার পাওয়া যায়নি!'); return; }
@@ -10870,6 +11053,7 @@ function saveShareholderWithdrawal() {
     // পোস্ট-ডেটেড চেক — এখনই ব্যাংক ব্যালেন্স কাটবে না, চেকের পাতা এখনই রিজার্ভ হবে। ভাউচার নম্বর ইস্যুর দিনেই বসে যাবে ও ভাঙ্গানো পর্যন্ত অপরিবর্তিত থাকবে।
     const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
     if (!cb) { showToast('⚠️ চেক বই খুঁজে পাওয়া যায়নি!'); return; }
+    chequeNo = ensureUniqueCheckNo(chequeNo, checkbookId);
     cb.lastUsed = parseInt(chequeNo);
     if (!appData.issuedChecks) appData.issuedChecks=[];
     linkedIssuedCheckId = wdId + 1;
@@ -10882,6 +11066,7 @@ function saveShareholderWithdrawal() {
     // তাৎক্ষণিক (ক্যাশ বা তাৎক্ষণিক চেক) — সাথে সাথেই ব্যাংক/ক্যাশ ব্যালেন্স থেকে কর্তন
     if (method==='cheque') {
       const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      chequeNo = ensureUniqueCheckNo(chequeNo, checkbookId);
       if (cb) cb.lastUsed = parseInt(chequeNo);
     }
     if (!appData.bankTx) appData.bankTx=[];
@@ -11211,7 +11396,7 @@ function saveFundExpense() {
   const amt = parseFloat(document.getElementById('feAmount').value);
   const note = document.getElementById('feNote').value.trim();
   let voucher = document.getElementById('feVoucher').value.trim();
-  if (!voucher) voucher = generateNextVoucherNo(date);
+  voucher = ensureUniqueVoucher(voucher, date);
   const payMode = document.querySelector('input[name="fePayMode"]:checked')?.value || 'cash';
   const payPerson = document.getElementById('fePerson').value || '';
   let checkNo='', checkbookId='', clearDate='', status='cleared', actualClearedDate='';
@@ -11228,6 +11413,7 @@ function saveFundExpense() {
     clearDate = (document.getElementById('feClearDate')||{}).value || date;
     if (checkbookId && checkNo) {
       const cb = (appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
       if (cb) { cb.lastUsed = parseInt(checkNo); }
     }
     if (clearDate > todayStr()) { status='pending'; actualClearedDate=''; }
@@ -11340,10 +11526,8 @@ function saveDoctor() {
     commissionTypes
   };
   if (!appData.doctors) appData.doctors=[];
-  console.log('[HMS-DEBUG] saveDoctor: editId=' + editId + ' doc.id=' + doc.id + ' commissionEnabled=' + doc.commissionEnabled + ' || বর্তমান doctors তালিকা (সেভের আগে)= ' + _docsSummary(appData.doctors));
   if (editId) {
     const idx = appData.doctors.findIndex(d=>String(d.id)===String(doc.id));
-    console.log('[HMS-DEBUG] saveDoctor: idx=', idx);
     if (idx>=0) {
       appData.doctors[idx]=doc;
     } else {
@@ -11355,12 +11539,10 @@ function saveDoctor() {
   } else {
     appData.doctors.push(doc);
   }
-  console.log('[HMS-DEBUG] saveDoctor: সেভের পরে doctors তালিকা= ' + _docsSummary(appData.doctors));
   logActivity(editId?'edit':'add', 'ডাক্তার', `${name} (${type==='salaried'?'বেতনভুক্ত':'পার্টটাইমার'})`);
   saveData(); clearDoctorForm();
   const body=document.getElementById('docFormBody'); if(body) body.style.display='none';
   renderDoctorsPage();
-  console.log('[HMS-DEBUG] saveDoctor: renderDoctorsPage এর পরে doctors তালিকা= ' + _docsSummary(appData.doctors));
   showToast('✅ ডাক্তার সেভ হয়েছে!');
   } catch (err) {
     console.error('[HMS] saveDoctor error:', err);
@@ -11572,7 +11754,7 @@ function saveDoctorDayPayment() {
   const amt = parseFloat(document.getElementById('dpAmount').value);
   const note = document.getElementById('dpNote').value.trim();
   let voucher = document.getElementById('dpVoucher').value.trim();
-  if (!voucher) voucher = generateNextVoucherNo(date);
+  voucher = ensureUniqueVoucher(voucher, date);
   const payMode = document.querySelector('input[name="dpPayMode"]:checked')?.value||'cash';
   if (!doctorId || !date || isNaN(amt) || amt<=0) { showToast('⚠️ ডাক্তার, তারিখ ও পরিমাণ আবশ্যক!'); return; }
   const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
@@ -11583,6 +11765,7 @@ function saveDoctorDayPayment() {
     checkbookId = (document.getElementById('dpCheckbook')||{}).value||'';
     if (checkbookId && checkNo) {
       const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
       if (cb) cb.lastUsed = parseInt(checkNo);
     }
   }
@@ -15728,7 +15911,6 @@ function syncDoctorFromStaff(staffId, name, desig, status) {
 // অথবা তারপর থেকে আর এডিট করা হয়নি) তাদের জন্য এখনো কোনো লিংকড ডাক্তার এন্ট্রি তৈরি হয়নি — এই ফাংশনটা
 // ডাক্তার পেজ/স্যালারি শিট রেন্ডার হওয়ার সময় সেই ফাঁকা এন্ট্রিগুলো স্বয়ংক্রিয়ভাবে তৈরি করে দেয়
 function backfillDoctorsFromStaff() {
-  console.log('[HMS-DEBUG] backfillDoctorsFromStaff শুরু, doctors= ' + _docsSummary(appData.doctors));
   mergeDuplicateDoctors();
   if (!appData.staff || !appData.staff.length) return;
   if (!appData.doctors) appData.doctors = [];
@@ -15741,12 +15923,10 @@ function backfillDoctorsFromStaff() {
     // থাকলে নতুন ডুপ্লিকেট তৈরি না করে সেটাকেই এই স্টাফের সাথে লিংক করে দেওয়া হয়, যাতে আগে সেট করা কমিশন হারিয়ে না যায়
     const byName = appData.doctors.find(d => !d.linkedStaffId && (d.name||'').trim() === (s.name||'').trim());
     if (byName) {
-      console.log('[HMS-DEBUG] backfill: স্টাফ', s.name, 'এর জন্য নামে-মিল পাওয়া এন্ট্রি লিংক করা হলো, id=', byName.id);
       byName.linkedStaffId = s.id;
       changed = true;
       return;
     }
-    console.log('[HMS-DEBUG] backfill: স্টাফ', s.name, 'এর জন্য কোনো লিংকড/নাম-মিল এন্ট্রি পাওয়া যায়নি, নতুন এন্ট্রি তৈরি হচ্ছে');
     appData.doctors.push({
       id: Date.now()+Math.floor(Math.random()*1000)+appData.doctors.length,
       name: s.name, type: 'salaried', status: s.status==='active' ? 'active' : 'inactive',
@@ -15758,8 +15938,7 @@ function backfillDoctorsFromStaff() {
     });
     changed = true;
   });
-  if (changed) { console.log('[HMS-DEBUG] backfillDoctorsFromStaff: পরিবর্তন হয়েছে, saveData() কল হচ্ছে'); saveData(); }
-  console.log('[HMS-DEBUG] backfillDoctorsFromStaff শেষ, doctors= ' + _docsSummary(appData.doctors));
+  if (changed) saveData();
 }
 // ✅ একই নামে একাধিক ডাক্তার এন্ট্রি (যেমন একটা স্টাফ-লিংকড অটো-তৈরি, আরেকটা আগে ম্যানুয়ালি যোগ করা কমিশন-সহ)
 // থাকলে সেগুলোকে একটাতে মার্জ করে দেয় — নাহলে বিলের ডাক্তার সিলেক্টে একই নামে দুইটা অপশন দেখা যায় এবং ভুল
@@ -15776,10 +15955,8 @@ function mergeDuplicateDoctors() {
   let changed = false;
   Object.values(groups).forEach(group => {
     if (group.length < 2) return;
-    console.log('[HMS-DEBUG] mergeDuplicateDoctors: ডুপ্লিকেট গ্রুপ পাওয়া গেছে, নাম=' + group[0].name + ' এন্ট্রিগুলো= ' + _docsSummary(group));
     // যেটাতে কমিশন সেট করা আছে সেটাকেই মূল/প্রাইমারি এন্ট্রি ধরা হচ্ছে; না থাকলে যেটা স্টাফ-লিংকড সেটা; নাহলে প্রথমটা
     const primary = group.find(d=>d.commissionEnabled) || group.find(d=>d.linkedStaffId) || group[0];
-    console.log('[HMS-DEBUG] mergeDuplicateDoctors: প্রাইমারি নির্বাচিত হলো, id=', primary.id, 'commissionEnabled=', primary.commissionEnabled);
     group.forEach(d => {
       if (d === primary) return;
       // প্রাইমারিতে যা নেই (লিংকড স্টাফ/কমিশন তথ্য) তা ডুপ্লিকেট থেকে তুলে আনা হচ্ছে
@@ -15797,7 +15974,7 @@ function mergeDuplicateDoctors() {
       changed = true;
     });
   });
-  if (changed) { console.log('[HMS-DEBUG] mergeDuplicateDoctors: পরিবর্তন হয়েছে, saveData() কল হচ্ছে, doctors= ' + _docsSummary(appData.doctors)); saveData(); }
+  if (changed) saveData();
 }
 
 function populateSfDesigSelect() {
@@ -17565,7 +17742,24 @@ function nbPrint() {
   showPrint({patName,services:items,total,discAmt,netBill,cashPaid,due,date:document.getElementById('nb_BillDate').value,patAge:(document.getElementById('nb_PatAge')||{}).value?.trim(),patGender:(document.getElementById('nb_PatGender')||{}).value||'',patAddress:(document.getElementById('nb_PatAddress')||{}).value?.trim(),patDoc:(document.getElementById('nb_PatDoc')||{}).value?.trim(),note:(document.getElementById('nb_Note')||{}).value?.trim(),billNo:memoNoN});
 }
 
-function nbSaveBill() { _billSave('nb_'); }
+let _billSaveInProgress = false;
+function nbSaveBill() {
+  // ⚠️ সুরক্ষা: বাটনে দ্রুত একাধিকবার ক্লিক করলে (যেমন সেভ হওয়ার সাথে সাথে তালিকায় না দেখে আবার ক্লিক করলে)
+  // একই বিল একাধিকবার তৈরি হয়ে যেতে পারত — তাই একবার সেভ চলাকালীন বাটন সাময়িক নিষ্ক্রিয় করে দেওয়া হয়
+  if (_billSaveInProgress) return;
+  _billSaveInProgress = true;
+  const btn = document.getElementById('nbSaveBillBtn');
+  const origText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ সেভ হচ্ছে...'; }
+  try {
+    _billSave('nb_');
+  } finally {
+    setTimeout(() => {
+      _billSaveInProgress = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = origText; }
+    }, 1200);
+  }
+}
 
 function nbSendBackToRec() {
   const draftId=window._adminDraftId;
@@ -17902,7 +18096,14 @@ function _billSave(p) {
   });
 
   const memoEl=nb?document.getElementById('nb_MemoNo'):null;
-  const memoNo=(memoEl&&memoEl.value.trim())?memoEl.value.trim():generateNextMemoNo();
+  let memoNo=(memoEl&&memoEl.value.trim())?memoEl.value.trim():generateNextMemoNo();
+  // ⚠️ চূড়ান্ত সুরক্ষা: এই মেমো নম্বরে ইতিমধ্যে কোনো বিল থাকলে (যেকোনো কারণেই হোক — দ্রুত একাধিকবার ক্লিক,
+  // সিঙ্ক বিলম্ব, বা ম্যানুয়ালি টাইপ করা পুরনো নম্বর), স্বয়ংক্রিয়ভাবে পরবর্তী খালি নম্বরে সরিয়ে নেওয়া হয় —
+  // যাতে একই মেমো নম্বরে দুইটা আলাদা বিল কখনো তৈরি না হয়
+  if ((appData.visits||[]).some(v => (v.memoNo||v.rcptNo||'') === memoNo)) {
+    console.warn('[HMS] বিল সেভ: মেমো নম্বর ' + memoNo + ' ইতিমধ্যে ব্যবহৃত — নতুন মেমো নম্বর তৈরি করা হচ্ছে');
+    memoNo = generateNextMemoNo();
+  }
 
   const isReturnedDraft=!nb&&!!window._returnedDraftId;
   const isAdminDraft=nb&&!!window._adminDraftId;
