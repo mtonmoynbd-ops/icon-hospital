@@ -817,6 +817,8 @@ function openPrintWindow(htmlContent, title) {
           <tbody id="pendingOpsTable"></tbody>
         </table></div></div>
       </div>
+      <!-- ✅ Cash Flow ও Profit & Loss — দুইটা আলাদা রিপোর্ট প্যানেল -->
+      <div id="dashCashFlowPnLPanel" style="display:none;margin-bottom:10px"></div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 সাম্প্রতিক এন্ট্রি</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -1123,6 +1125,7 @@ function openPrintWindow(htmlContent, title) {
           </div>
         </div>
         <div class="panel-body">
+          <div id="bsAssetSummary" style="display:none;margin-bottom:16px"></div>
           <div id="balanceSheetContainer">
             <p style="color:#aaa;text-align:center;padding:30px">লোড হচ্ছে...</p>
           </div>
@@ -1486,6 +1489,7 @@ function openPrintWindow(htmlContent, title) {
         <div class="panel-body stock-panel-body" id="stListBody">
           <!-- মূলধন সামারি -->
           <div id="stockCapitalSummary" style="display:none;margin-bottom:16px"></div>
+          <div id="stockMarginReport" style="display:none;margin-bottom:16px"></div>
           <!-- Low stock alert -->
           <div id="lowStockAlert" style="display:none;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e">
             ⚠️ <strong>কম স্টক সতর্কতা:</strong> <span id="lowStockItems"></span>
@@ -1944,8 +1948,10 @@ function openPrintWindow(htmlContent, title) {
 
       <!-- Summary cards -->
       <div class="stats-grid" id="rpSummaryCards">
-        <div class="stat-card income"><div class="stat-icon">💰</div><div class="stat-label">মোট আয়</div><div class="stat-value income" id="rpTotalIncome">৳ ০</div><div class="stat-change" id="rpIncomeCount">এন্ট্রি: ০টি</div></div>
-        <div class="stat-card expense"><div class="stat-icon">💸</div><div class="stat-label">মোট ব্যয়</div><div class="stat-value expense" id="rpTotalExpense">৳ ০</div><div class="stat-change" id="rpExpenseCount">এন্ট্রি: ০টি</div></div>
+        <div class="stat-card income"><div class="stat-icon">💰</div><div class="stat-label">মোট আয় (Revenue)</div><div class="stat-value income" id="rpTotalIncome">৳ ০</div><div class="stat-change" id="rpIncomeCount">এন্ট্রি: ০টি</div></div>
+        <div class="stat-card expense"><div class="stat-icon">📦</div><div class="stat-label">পণ্যের ক্রয়মূল্য (COGS)</div><div class="stat-value expense" id="rpCOGS">৳ ০</div><div class="stat-change">বিক্রি হওয়া ওষুধ/চশমা</div></div>
+        <div class="stat-card profit"><div class="stat-icon">🧮</div><div class="stat-label">গ্রস প্রফিট</div><div class="stat-value profit" id="rpGrossProfit">৳ ০</div><div class="stat-change">আয় - COGS</div></div>
+        <div class="stat-card expense"><div class="stat-icon">💸</div><div class="stat-label">পরিচালন ব্যয়</div><div class="stat-value expense" id="rpTotalExpense">৳ ০</div><div class="stat-change" id="rpExpenseCount">এন্ট্রি: ০টি</div></div>
         <div class="stat-card profit"><div class="stat-icon">📈</div><div class="stat-label">নেট লাভ/লস</div><div class="stat-value profit" id="rpNetProfit">৳ ০</div><div class="stat-change" id="rpProfitStatus">—</div></div>
         <div class="stat-card due"><div class="stat-icon">⏳</div><div class="stat-label">রিসেপশন আয়</div><div class="stat-value due" id="rpRecIncome">৳ ০</div><div class="stat-change" id="rpVisitCount">ভিজিট: ০টি</div></div>
       </div>
@@ -4400,6 +4406,7 @@ function openPrintWindow(htmlContent, title) {
     <div id="stockModalItemInfo" style="font-size:14px;color:var(--text-light);margin-bottom:16px"></div>
     <div class="form-row">
       <div class="field"><label>পরিমাণ *</label><input type="number" id="stModalQty" placeholder="০" min="1"></div>
+      <div class="field" id="stModalPriceField" style="display:none"><label>এই ব্যাচের ক্রয়মূল্য/একক (ঐচ্ছিক)</label><input type="number" id="stModalPrice" placeholder="আগেরটার মতোই হলে খালি রাখুন"></div>
       <div class="field"><label>কারণ / বিবরণ</label><input type="text" id="stModalNote" placeholder="যেমন: ক্রয়, বিক্রয়, নষ্ট"></div>
     </div>
     <div class="modal-footer">
@@ -4576,6 +4583,7 @@ let serviceCount = 0;
 // ===== INIT =====
 function init() {
   loadData();
+  migrateCogsSystem();
   const today = todayStr();
   ['incDate','expDate','rBillDate','recHistDate','fbBackupDate'].forEach(id => {
     const el = document.getElementById(id);
@@ -5912,6 +5920,23 @@ function loadData() {
   } catch(e){}
   setTimeout(startFirebaseSync, 1000);
 }
+// ✅ Inventory/COGS অ্যাকাউন্টিং সিস্টেম চালু হওয়ার সময় একবারই চলে — বর্তমানে গুদামে থাকা প্রতিটি স্টক আইটেমের
+// পুরো পরিমাণকে "আগে থেকেই ব্যয় হিসেবে গণনা হয়ে গেছে" (cogsExemptQty) হিসেবে চিহ্নিত করে দেয়, যাতে এই স্টক
+// পরে বিক্রি হলে তার জন্য আবার COGS (একই টাকা দুইবার হিসাবে) না ধরা হয়। এই তারিখের পর থেকে যা নতুন কেনা হবে,
+// শুধু সেটাই COGS-এর আওতায় আসবে। পুরনো/ক্লোজড মাসের হিসাব অক্ষত থাকে, নতুন লজিক শুধু আজ থেকে প্রযোজ্য।
+function migrateCogsSystem() {
+  if (appData.settings && appData.settings.cogsCutoverDate) return; // ইতিমধ্যে migrate হয়ে গেছে
+  if (!appData.stock) return;
+  appData.stock.forEach(s => {
+    s.cogsExemptQty = s.qty || 0; // বর্তমান পুরো স্টক — বিক্রি হলে COGS ধরা হবে না (আগেই ব্যয় হয়ে গেছে)
+    if (s.avgCost == null) s.avgCost = s.buyPrice || 0; // ওয়েটেড এভারেজ ক্রয়মূল্যের সূচনা বিন্দু
+  });
+  if (!appData.settings) appData.settings = {};
+  appData.settings.cogsCutoverDate = todayStr();
+  console.log('[HMS] Inventory/COGS সিস্টেম চালু হলো — কাটওভার তারিখ:', appData.settings.cogsCutoverDate);
+  // ✅ সাথে সাথেই সেভ করা হচ্ছে, নাহলে পরের সেশনে আবার migrate করার চেষ্টা করবে (লোকালস্টোরেজ/Firebase-এ কখনো লেখাই হবে না)
+  saveData();
+}
 // ===== DATA INTEGRITY CHECK =====
 function normalizeModuleData(val) {
   // Firebase-এ path-synced মডিউল (যেমন income) array অথবা id-keyed object — দুই ফরম্যাটেই থাকতে পারে; সবসময় array এ রূপান্তর করে
@@ -5990,6 +6015,8 @@ function startFirebaseSync() {
         if (!modulePending) {
           newAppData[m] = normalizedOverrides[m];
           anyModuleApplied = true;
+        } else {
+          console.warn('[HMS] "' + m + '" মডিউল এখনো পেন্ডিং/লেখা চলছে বলে সার্ভারের নতুন ডাটা এই মুহূর্তে প্রয়োগ হলো না (isModuleWriting=' + isModuleWriting(m) + ', pendingKey=' + _fbPendingKeys.has(m) + ')');
         }
       });
       appData = newAppData;
@@ -6288,7 +6315,15 @@ function syncModuleDiff(module) {
   Object.keys(current).forEach(id => { if (prev[id] !== current[id]) toWrite.push(id); });
   Object.keys(prev).forEach(id => { if (!(id in current)) toDelete.push(id); });
   if (module==='issuedChecks') console.log('[HMS] syncModuleDiff(issuedChecks): toWrite=', toWrite, 'toDelete=', toDelete);
-  if (toWrite.length === 0 && toDelete.length === 0) return;
+  if (toWrite.length === 0 && toDelete.length === 0) {
+    // ✅ সুরক্ষা: এই মডিউলে লেখার মতো কিছু নেই মানে এটা সার্ভারের সাথে ইতিমধ্যে মিলে আছে — তাই যদি কোনো কারণে
+    // (পুরনো ব্যর্থ সিঙ্কের রেশ, বা অন্য কোনো এজ-কেস) এটা এখনো "পেন্ডিং" হিসেবে চিহ্নিত থেকে যায়, সেটা এখানে
+    // পরিষ্কার করে দেওয়া হয় — নাহলে একটা "ভুতুড়ে" পেন্ডিং ফ্ল্যাগ চিরস্থায়ীভাবে আটকে থেকে এই মডিউলের জন্য
+    // ভবিষ্যতের সব রিয়েল-টাইম আপডেট (অন্য ডিভাইস থেকে আসা) বন্ধ করে দিতে পারে, যদিও আসলে সিঙ্ক করার কিছু নেই
+    _lastSyncedMaps[module] = current;
+    clearSyncPending(module);
+    return;
+  }
   // ⚠️ গুরুত্বপূর্ণ ক্রম: beginFbWrite(module) অবশ্যই window._fbSet() কল করার *আগে* ডাকতে হবে —
   // Firebase-এর লোকাল onValue লিসেনার নিজের write-এর সাথে সাথেই (সার্ভার থেকে ack আসার আগেই) সিঙ্ক্রোনাসভাবে
   // ট্রিগার হতে পারে; সেটা যদি counter বাড়ানোর আগেই ঘটে, তাহলে onValue-এর গার্ড এই ইন-ফ্লাইট write-টা ধরতে পারে না।
@@ -6709,17 +6744,20 @@ function refreshDashboard() {
   const dailyFixed = totalMonthlyFixed / 30;
 
   // Today income — campToday আলাদা যোগ করা হবে না কারণ camp income appData.income এ আছে
-  const manualInc = appData.income.filter(e=>e.date===today);
+  // ✅ visitId ট্যাগযুক্ত এন্ট্রি (বিল থেকে অটো তৈরি "রিসেপশন আয়"/"অ্যাডমিন বিল") বাদ — visit.cashPaid দিয়েই আগে থেকে গণনা হয়
+  const manualInc = appData.income.filter(e=>e.date===today && !e.visitId);
   const visits    = appData.visits.filter(v=>v.date===today);
   const totalTodayInc = manualInc.reduce((s,e)=>s+e.amount,0)
     + visits.reduce((s,v)=>s+v.cashPaid,0);
 
-  // Today expense (manual) — cash-basis: cash entries always count; bank entries count only when actually cleared today
-  const exp      = appData.expense.filter(e=>expenseEffectiveDate(e)===today);
+  // Today expense (manual, Operating Expense only) — cash-basis: cash entries always count; bank entries count only when actually cleared today
+  // ✅ isFundExpense/isInventoryPurchase বাদ (আগে এখানে ফিল্টার করা হতো না, ফলে ইনভেন্টরি ক্রয়ও "আজকের ব্যয়/লোকসান" এ ভুলভাবে ধরা পড়ত)
+  const exp      = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase);
   const totalExp = exp.reduce((s,e)=>s+e.amount,0);
+  const todayCOGS = getCOGSForPrefix(today);
 
-  // Today profit = income - manual expense - daily fixed share
-  const todayProfit = totalTodayInc - totalExp - dailyFixed;
+  // Today profit = income - COGS - manual operating expense - daily fixed share
+  const todayProfit = totalTodayInc - todayCOGS - totalExp - dailyFixed;
 
   // আজকের আয়/ব্যয় কার্ড ড্যাশবোর্ড থেকে বাদ দেওয়া হয়েছে (প্রারম্ভিক/সমাপনি ব্যালেন্স প্যানেল ব্যবহার হচ্ছে)
   const tiEl=document.getElementById('todayIncome'); if(tiEl) animateStatText(tiEl, totalTodayInc, v => '৳ ' + fmt(v));
@@ -6733,16 +6771,18 @@ function refreshDashboard() {
   showDashCharts();
   renderDashSparklines();
 
-  // Monthly profit
-  const mInc  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0);
-  const mVis  = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+v.cashPaid,0);
-  const mCamp = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
-  const mExp  = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix)).reduce((s,e)=>s+e.amount,0);
-  const mTotalInc = mInc + mVis + mCamp;
-  const mProfit   = mTotalInc - mExp - totalMonthlyFixed;
+  // Monthly profit — ✅ নতুন P&L লজিক: Revenue - COGS - Operating Expense - ফিক্সড খরচ
+  const pnl = calcProfitLossForPrefix(prefix);
+  const mTotalInc = pnl.totalRevenue;
+  const mExp = pnl.opEx;
+  const mCOGS = pnl.cogs;
+  const mCamp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+(c.totalIncome||0),0);
+  const mProfit = pnl.grossProfit - mExp - totalMonthlyFixed;
   animateStatText(document.getElementById('monthlyProfit'), mProfit, v => (v>=0?'৳ ':'- ৳ ') + fmt(Math.abs(v)));
   document.getElementById('monthlyProfit').style.color     = mProfit>=0 ? '#8e44ad' : 'var(--danger)';
   document.getElementById('monthlyProfitStatus').textContent = mProfit>=0 ? '✅ লাভজনক মাস' : '⚠️ লোকসানের মাস';
+  // ✅ Cash Flow ও P&L প্যানেল (এই মাসের জন্য)
+  renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed);
 
   // Camp income this month
   const campMonthInc = mCamp;
@@ -6833,7 +6873,7 @@ function showDashCardModal(cardId, modalId) {
   let icon='', title='', sub='', amtText='', amtColor='', body='';
 
   if (cardId === 'todayIncome') {
-    const manualInc = appData.income.filter(e=>e.date===today);
+    const manualInc = appData.income.filter(e=>e.date===today && !e.visitId);
     const vis       = appData.visits.filter(v=>v.date===today);
     const manualSum = manualInc.reduce((s,e)=>s+e.amount,0);
     const visSum    = vis.reduce((s,v)=>s+v.cashPaid,0);
@@ -6846,7 +6886,7 @@ function showDashCardModal(cardId, modalId) {
     ) + row('<strong>মোট</strong>', '<strong>৳ '+fmt(manualSum+visSum)+'</strong>', '#16a34a');
 
   } else if (cardId === 'todayExpense') {
-    const exp = appData.expense.filter(e=>expenseEffectiveDate(e)===today);
+    const exp = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase);
     const expSum = exp.reduce((s,e)=>s+e.amount,0);
     icon='💸'; title='আজকের ব্যয়'; sub=formatDate(today);
     amtText='৳ '+fmt(expSum+dailyFixed); amtColor='#e74c3c';
@@ -6858,32 +6898,36 @@ function showDashCardModal(cardId, modalId) {
     ) + row('<strong>মোট</strong>', '<strong>৳ '+fmt(Math.round(expSum+dailyFixed))+'</strong>', '#e74c3c');
 
   } else if (cardId === 'todayProfit') {
-    const manualInc = appData.income.filter(e=>e.date===today);
+    const manualInc = appData.income.filter(e=>e.date===today && !e.visitId);
     const vis       = appData.visits.filter(v=>v.date===today);
     const totalInc  = manualInc.reduce((s,e)=>s+e.amount,0)+vis.reduce((s,v)=>s+v.cashPaid,0);
-    const exp       = appData.expense.filter(e=>expenseEffectiveDate(e)===today);
+    const exp       = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase);
     const totalExp  = exp.reduce((s,e)=>s+e.amount,0);
-    const profit    = totalInc - totalExp - dailyFixed;
+    const todayCOGS = getCOGSForPrefix(today);
+    const profit    = totalInc - todayCOGS - totalExp - dailyFixed;
     icon='📈'; title='আজকের লাভ/লস'; sub=formatDate(today);
     amtText=(profit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(profit)); amtColor=profit>=0?'#16a34a':'#e74c3c';
     body = row('মোট আয়', '৳ '+fmt(totalInc), '#16a34a')
+      + row('পণ্যের ক্রয়মূল্য (COGS)', '- ৳ '+fmt(todayCOGS), '#e74c3c')
       + row('ম্যানুয়াল ব্যয়', '- ৳ '+fmt(totalExp), '#e74c3c')
       + row('ফিক্সড দৈনিক ভাগ', '- ৳ '+fmt(Math.round(dailyFixed)), '#e67e22')
       + row('<strong>নেট লাভ/লস</strong>', '<strong>'+(profit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(profit))+'</strong>', profit>=0?'#16a34a':'#e74c3c');
 
   } else if (cardId === 'monthlyProfit') {
-    const mInc  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0);
+    const mInc  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId).reduce((s,e)=>s+e.amount,0);
     const mVis  = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+v.cashPaid,0);
     const mCamp = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
     const mExp  = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix)).reduce((s,e)=>s+e.amount,0);
+    const mCOGS = getCOGSForPrefix(prefix);
     const mTotalInc = mInc+mVis+mCamp;
-    const mProfit = mTotalInc - mExp - totalMonthlyFixed;
+    const mProfit = mTotalInc - mCOGS - mExp - totalMonthlyFixed;
     icon='📅'; title='মাসিক লাভ/লস'; sub=prefix+' মাস';
     amtText=(mProfit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(mProfit)); amtColor=mProfit>=0?'#8e44ad':'#e74c3c';
     body = row('ম্যানুয়াল আয়', '৳ '+fmt(mInc), '#16a34a')
       + row('রিসেপশন আয়', '৳ '+fmt(mVis), '#16a34a')
       + row('ক্যাম্প আয়', '৳ '+fmt(mCamp), '#e67e22')
-      + row('মোট ব্যয়', '- ৳ '+fmt(mExp), '#e74c3c')
+      + row('পণ্যের ক্রয়মূল্য (COGS)', '- ৳ '+fmt(mCOGS), '#e74c3c')
+      + row('পরিচালন ব্যয়', '- ৳ '+fmt(mExp), '#e74c3c')
       + row('মাসিক ফিক্সড', '- ৳ '+fmt(totalMonthlyFixed), '#e74c3c')
       + row('<strong>নেট লাভ/লস</strong>', '<strong>'+(mProfit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(mProfit))+'</strong>', mProfit>=0?'#8e44ad':'#e74c3c');
 
@@ -8173,6 +8217,35 @@ function renderBalanceSheet() {
   const initCash = parseFloat((appData.settings||{}).cashBalance)||0;
   const initBank = parseFloat((appData.settings||{}).bankBalance)||0;
 
+  // ✅ বর্তমান মোট সম্পদ (Total Assets) — ক্যাশ + ব্যাংক + ইনভেন্টরি ভ্যালু (এন্ড-অফ-পিরিয়ড হিসাবের জন্য গুরুত্বপূর্ণ,
+  // যেহেতু মেডিসিন/চশমা এখন "সম্পদ" হিসেবে গণ্য, খরচ না — তাই এই মূল্যটা সম্পদের হিসাবে দেখানো জরুরি)
+  const assetDiv = document.getElementById('bsAssetSummary');
+  if (assetDiv) {
+    const { cash: liveCash, bank: liveBank } = calcCashBankBalance();
+    const inventoryValue = (appData.stock||[]).reduce((s,i) => s + (i.avgCost!=null?i.avgCost:(i.buyPrice||0)) * (i.qty||0), 0);
+    const totalAssets = liveCash + liveBank + inventoryValue;
+    assetDiv.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">ক্যাশ ব্যালেন্স</div>
+          <div style="font-size:17px;font-weight:800;color:var(--primary)">৳ ${fmt(liveCash)}</div>
+        </div>
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">ব্যাংক ব্যালেন্স</div>
+          <div style="font-size:17px;font-weight:800;color:#3498db">৳ ${fmt(liveBank)}</div>
+        </div>
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">ইনভেন্টরি ভ্যালু (ওষুধ+চশমা)</div>
+          <div style="font-size:17px;font-weight:800;color:#d97706">৳ ${fmt(inventoryValue)}</div>
+        </div>
+        <div style="background:#f0f4f8;border:1.5px solid var(--primary);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">মোট সম্পদ (Total Assets)</div>
+          <div style="font-size:17px;font-weight:800;color:var(--primary)">৳ ${fmt(totalAssets)}</div>
+        </div>
+      </div>`;
+    assetDiv.style.display = 'block';
+  }
+
   if (vm==='day') {
     let runningCash = initCash, runningBank = initBank;
     const rows = allDates
@@ -8648,7 +8721,10 @@ function confirmDuePayment() {
   if (!v) return;
   v.cashPaid += amt;
   v.due = Math.max(0, v.due - amt);
-  appData.income.push({ id:Date.now(), date:todayStr(), category:'বাকি পরিশোধ', amount:amt, ref:v.patName, note:'রিসেপশন বাকি পরিশোধ', by:currentUser.name });
+  // ✅ সংশোধন: আগে এখানে একটা আলাদা "আয়" এন্ট্রিও যোগ হতো ("বাকি পরিশোধ" ক্যাটাগরিতে) — কিন্তু v.cashPaid বাড়ানোর
+  // মাধ্যমেই এই টাকা রেভিনিউ হিসাবে ইতিমধ্যে গণনা হয়ে যায় (getTotalRevenueForPrefix() visits.cashPaid যোগ করে) —
+  // তাই আলাদা income এন্ট্রি থাকলে একই টাকা দুইবার রেভিনিউতে গণনা হয়ে যাচ্ছিল। এখন শুধু কার্যকলাপ লগে রাখা হচ্ছে (অডিট ট্রেইলের জন্য)।
+  logActivity('edit', 'বাকি পরিশোধ', `${v.patName} — মেমো: ${v.memoNo||v.rcptNo||'—'}, পরিশোধ: ৳${fmt(amt)}, বাকি: ৳${fmt(v.due)}`);
   saveData(); closeDueModal();
   if (currentUser.role==='receptionist') { renderRecDue(); renderRecHistory(); }
   else { renderAdminDue(); refreshDashboard(); }
@@ -8673,7 +8749,7 @@ function printBoardReport() {
   const address  = appData.settings.address||'';
 
   // ডেটা ফিল্টার
-  const incomes  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix));
+  const incomes  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId);
   const expenses = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix));
   const visits   = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix));
   const camps    = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix));
@@ -8686,10 +8762,12 @@ function printBoardReport() {
   const totalOpInc     = ops.reduce((s,o)=>s+o.fee,0);
   const grandInc       = totalManualInc + totalRecInc + totalCampInc;
   const totalExp       = expenses.reduce((s,e)=>s+e.amount,0);
+  const totalCOGS      = getCOGSForPrefix(prefix);
+  const grossProfit    = grandInc - totalCOGS;
   const totalOpFee     = ops.reduce((s,o)=>s+(o.sgFee||0),0);
   const fixedCost      = (appData.settings.rent||0)+(appData.settings.utility||0)+(appData.settings.otherFixed||0);
   const salCost        = appData.staff.filter(s=>s.status==='active').reduce((s,st)=>s+st.basic,0);
-  const netProfit      = grandInc - totalExp;
+  const netProfit      = grandInc - totalCOGS - totalExp;
 
   // CSS
   const css = `
@@ -8839,13 +8917,21 @@ function printBoardReport() {
 
   <!-- সারসংক্ষেপ -->
   <h2>১. মাসিক সারসংক্ষেপ</h2>
-  <div class="summary-grid">
+  <div class="summary-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="summary-box">
-      <div class="label">মোট আয়</div>
+      <div class="label">মোট আয় (Revenue)</div>
       <div class="value" style="color:#065f46">৳ ${fmt(grandInc)}</div>
     </div>
     <div class="summary-box">
-      <div class="label">মোট ব্যয়</div>
+      <div class="label">পণ্যের ক্রয়মূল্য (COGS)</div>
+      <div class="value" style="color:#991b1b">৳ ${fmt(totalCOGS)}</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">গ্রস প্রফিট</div>
+      <div class="value" style="color:#7c3aed">৳ ${fmt(grossProfit)}</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">পরিচালন ব্যয়</div>
       <div class="value" style="color:#991b1b">৳ ${fmt(totalExp)}</div>
     </div>
     <div class="summary-box">
@@ -8862,13 +8948,16 @@ function printBoardReport() {
     <tr><td>রিসেপশন আয় (ক্যাশ মেমো)</td><td style="text-align:right">৳ ${fmt(totalRecInc)} (${visits.length}জন রোগী)</td></tr>
     <tr><td>ক্যাম্প আয়</td><td style="text-align:right">৳ ${fmt(totalCampInc)} (${camps.length}টি ক্যাম্প)</td></tr>
     <tr><td>অপারেশন ফি</td><td style="text-align:right">৳ ${fmt(totalOpInc)} (${ops.length}টি)</td></tr>
-    <tr class="sum-row"><td><strong>মোট আয়</strong></td><td style="text-align:right"><strong>৳ ${fmt(grandInc)}</strong></td></tr>
-    <tr><td>মোট ব্যয়</td><td style="text-align:right">৳ ${fmt(totalExp)}</td></tr>
+    <tr class="sum-row"><td><strong>মোট আয় (Revenue)</strong></td><td style="text-align:right"><strong>৳ ${fmt(grandInc)}</strong></td></tr>
+    <tr><td>পণ্যের ক্রয়মূল্য (COGS) — বিক্রি হওয়া ওষুধ/চশমার ক্রয়মূল্য</td><td style="text-align:right">৳ ${fmt(totalCOGS)}</td></tr>
+    <tr class="sum-row"><td><strong>গ্রস প্রফিট (Revenue - COGS)</strong></td><td style="text-align:right"><strong>৳ ${fmt(grossProfit)}</strong></td></tr>
+    <tr><td>পরিচালন ব্যয় (Operating Expense)</td><td style="text-align:right">৳ ${fmt(totalExp)}</td></tr>
     <tr><td style="padding-left:20px">— সার্জন পারিশ্রমিক</td><td style="text-align:right">৳ ${fmt(totalOpFee)}</td></tr>
     <tr><td style="padding-left:20px">— মাসিক ফিক্সড খরচ (ভাড়া+ইউটিলিটি)</td><td style="text-align:right">৳ ${fmt(fixedCost)}</td></tr>
     <tr><td style="padding-left:20px">— স্যালারি খরচ</td><td style="text-align:right">৳ ${fmt(salCost)}</td></tr>
     <tr class="total-row"><td><strong>নেট লাভ/লস</strong></td><td style="text-align:right"><strong>${netProfit>=0?'':'- '}৳ ${fmt(Math.abs(netProfit))}</strong></td></tr>
   </table>
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* মেডিসিন/চশমার ক্রয়মূল্য এখানে "পরিচালন ব্যয়"-এ নেই — ক্রয়ের সময় নয়, শুধু বিক্রি হলে COGS হিসেবে ধরা হয়।</div>
 
   <!-- দৈনিক সারসংক্ষেপ -->
   <h2>২. দৈনিক সারসংক্ষেপ</h2>
@@ -8979,7 +9068,7 @@ function renderReport() {
   const prefix = `${year}-${pad(month)}`; // e.g. 2026-06
 
   // Filter data for this month
-  const incomes  = appData.income.filter(e => e.date && e.date.startsWith(prefix));
+  const incomes  = appData.income.filter(e => e.date && e.date.startsWith(prefix) && !e.visitId);
   const expenses = appData.expense.filter(e => expenseCountsInPrefix(e, prefix));
   const visits   = appData.visits.filter(v => v.date && v.date.startsWith(prefix));
 
@@ -8987,10 +9076,14 @@ function renderReport() {
   const totalRecInc = visits.reduce((s,v)=>s+v.cashPaid,0);
   const totalExp    = expenses.reduce((s,e)=>s+e.amount,0);
   const grandInc    = totalInc + totalRecInc;
-  const netProfit   = grandInc - totalExp;
+  const totalCOGS   = getCOGSForPrefix(prefix);
+  const grossProfit = grandInc - totalCOGS;
+  const netProfit   = grossProfit - totalExp;
 
   // Summary cards
   document.getElementById('rpTotalIncome').textContent  = '৳ ' + fmt(totalInc + totalRecInc);
+  document.getElementById('rpCOGS').textContent         = '৳ ' + fmt(totalCOGS);
+  document.getElementById('rpGrossProfit').textContent  = '৳ ' + fmt(grossProfit);
   document.getElementById('rpTotalExpense').textContent = '৳ ' + fmt(totalExp);
   document.getElementById('rpNetProfit').textContent    = (netProfit>=0?'৳ ':'- ৳ ') + fmt(Math.abs(netProfit));
   document.getElementById('rpNetProfit').style.color    = netProfit>=0 ? 'var(--success)' : 'var(--danger)';
@@ -9105,7 +9198,7 @@ function setRpGroupMode(mode) {
   const year=parseInt(document.getElementById('rpYear').value);
   const pad=n=>String(n).padStart(2,'0');
   const prefix=`${year}-${pad(month)}`;
-  const incomes=appData.income.filter(e=>e.date&&e.date.startsWith(prefix));
+  const incomes=appData.income.filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId);
   const expenses=appData.expense.filter(e=>expenseCountsInPrefix(e, prefix));
   const visits=appData.visits.filter(e=>e.date&&e.date.startsWith(prefix));
   renderRpDetailTable(incomes, expenses, visits, year, month, pad);
@@ -9208,6 +9301,8 @@ function printReport() {
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   const hospName  = appData.settings.hospName || 'ICON Eye Hospital';
   const totalInc  = document.getElementById('rpTotalIncome').textContent;
+  const totalCOGS = document.getElementById('rpCOGS').textContent;
+  const grossProfit = document.getElementById('rpGrossProfit').textContent;
   const totalExp  = document.getElementById('rpTotalExpense').textContent;
   const netProfit = document.getElementById('rpNetProfit').textContent;
   const detailHtml = document.getElementById('rpDetailTable').innerHTML;
@@ -9223,12 +9318,30 @@ function printReport() {
       <table style="margin-bottom:20px">
         <tr>
           <td style="padding:10px;background:#d1fae5;border-radius:8px;text-align:center;width:33%">
+            <div style="font-size:12px;color:#065f46;font-weight:600">মোট আয় (Revenue)</div>
+            <div style="font-size:20px;font-weight:800;color:#059669">${totalInc}</div>
+          </td>
+          <td style="width:2%"></td>
+          <td style="padding:10px;background:#fee2e2;border-radius:8px;text-align:center;width:33%">
+            <div style="font-size:12px;color:#991b1b;font-weight:600">পণ্যের ক্রয়মূল্য (COGS)</div>
+            <div style="font-size:20px;font-weight:800;color:#dc2626">${totalCOGS}</div>
+          </td>
+          <td style="width:2%"></td>
+          <td style="padding:10px;background:#ede9fe;border-radius:8px;text-align:center;width:33%">
+            <div style="font-size:12px;color:#5b21b6;font-weight:600">গ্রস প্রফিট</div>
+            <div style="font-size:20px;font-weight:800;color:#7c3aed">${grossProfit}</div>
+          </td>
+        </tr>
+      </table>
+      <table style="margin-bottom:20px">
+        <tr>
+          <td style="padding:10px;background:#d1fae5;border-radius:8px;text-align:center;width:33%">
             <div style="font-size:12px;color:#065f46;font-weight:600">মোট আয়</div>
             <div style="font-size:20px;font-weight:800;color:#059669">${totalInc}</div>
           </td>
           <td style="width:2%"></td>
           <td style="padding:10px;background:#fee2e2;border-radius:8px;text-align:center;width:33%">
-            <div style="font-size:12px;color:#991b1b;font-weight:600">মোট ব্যয়</div>
+            <div style="font-size:12px;color:#991b1b;font-weight:600">পরিচালন ব্যয়</div>
             <div style="font-size:20px;font-weight:800;color:#dc2626">${totalExp}</div>
           </td>
           <td style="width:2%"></td>
@@ -10009,8 +10122,12 @@ function saveVoucher() {
   appData.vouchers.push({id:Date.now(),vendorId,vendorName:vendor?.name||'—',voucher,date,amount,type,note,paid:type==='paid'});
   // শুধু পরিশোধ হলে ব্যয়ে যাবে (বাকি থাকলে শুধু দেনায় থাকবে)
   if(type==='paid'){
-    appData.expense.push({id:Date.now()+1,date,category:'ওষুধ/সরঞ্জাম কেনা',amount,ref:vendor?.name||'—',note:`ভাউচার: ${voucher} — পরিশোধ (অটো)`,by:currentUser.name});
-    showToast('✅ ভাউচার সেভ! ব্যয়ে অটো যোগ হয়েছে।');
+    // ✅ ভেন্ডর যদি ওষুধ/চশমা সরবরাহকারী হয়, তাহলে এই পরিশোধ ইনভেন্টরি ক্রয় হিসেবে গণ্য হবে (স্টক মডিউলের মতোই) —
+    // শুধু ক্যাশ/ব্যাংক থেকে কমবে, কিন্তু Operating Expense/P&L এ গণনা হবে না (COGS বিক্রির সময় আলাদাভাবে হিসাব হয়)।
+    // অন্য ক্যাটাগরির ভেন্ডর (সার্জিক্যাল/স্টেশনারি/সার্ভিস/অন্যান্য) আগের মতোই সরাসরি পরিচালন ব্যয়।
+    const isInventoryVendor = vendor && (vendor.cat === 'ওষুধ সরবরাহকারী' || vendor.cat === 'চশমা/লেন্স সরবরাহকারী');
+    appData.expense.push({id:Date.now()+1,date,category:'ওষুধ/সরঞ্জাম কেনা',amount,ref:vendor?.name||'—',note:`ভাউচার: ${voucher} — পরিশোধ (অটো)`,by:currentUser.name, isInventoryPurchase: isInventoryVendor});
+    showToast(isInventoryVendor ? '✅ ভাউচার সেভ! ইনভেন্টরি ক্রয় — ক্যাশ থেকে কমেছে (ব্যয় হিসেবে গণনা হয়নি)।' : '✅ ভাউচার সেভ! ব্যয়ে অটো যোগ হয়েছে।');
   } else {
     showToast('✅ ভাউচার সেভ! বাকি দেনায় যোগ হয়েছে।');
   }
@@ -10066,15 +10183,47 @@ function expenseEffectiveDate(e) {
 }
 function expenseCountsInPrefix(e, prefix) {
   if (e.isFundExpense) return false; // ফান্ড খরচ — নিট মুনাফা/লোকসান হিসাবে গণনা হয় না
+  // ✅ ইনভেন্টরি (ওষুধ/চশমা) ক্রয় — এটা এখন "সম্পদ", Operating Expense না। ক্যাশ/ব্যাংক ব্যালেন্স থেকে ঠিকই কমবে
+  // (calcCashBankBalance() নিচে অপরিবর্তিত থাকে, কোনো ফিল্টার ছাড়াই সব expense থেকে বিয়োগ করে) — কিন্তু P&L/নিট মুনাফায় গণনা হবে না।
+  // এর বদলে বিক্রি হওয়ার সময় COGS হিসেবে হিসাব হয় (দ্রষ্টব্য: getCOGSForPrefix())
+  if (e.isInventoryPurchase) return false;
   const eff = expenseEffectiveDate(e);
   return !!eff && eff.startsWith(prefix);
+}
+// ✅ নির্দিষ্ট তারিখ-প্রিফিক্স (যেমন 'YYYY-MM' বা 'YYYY-MM-DD') এর মধ্যে বিক্রি হওয়া ইনভেন্টরির মোট COGS —
+// stockLog এর 'out' এন্ট্রিগুলো থেকে হিসাব হয় (cogsAmount ফিল্ড, যা deductStockForSale() এ সেট হয়)
+function getCOGSForPrefix(prefix) {
+  return (appData.stockLog||[]).filter(l => l.move==='out' && !l.reversed && l.date && l.date.startsWith(prefix) && l.cogsAmount)
+    .reduce((s,l) => s + (l.cogsAmount||0), 0);
+}
+// ✅ মোট আয় (Total Revenue) — income + visits এর cashPaid + camp আয়, নির্দিষ্ট তারিখ-প্রিফিক্সের মধ্যে
+// ⚠️ গুরুত্বপূর্ণ: বিল সেভ হওয়ার সময় "রিসেপশন আয়"/"অ্যাডমিন বিল" ক্যাটাগরিতে যে income এন্ট্রি তৈরি হয় (visitId ট্যাগসহ),
+// সেটা শুধু আয়-তালিকায় দেখানোর জন্য — সেই একই টাকা visit.cashPaid এও আছে। তাই income যোগ করার সময় visitId-ট্যাগড
+// এন্ট্রি বাদ দেওয়া হয়, নাহলে একই বিলের টাকা দুইবার (income থেকে একবার, visits থেকে আরেকবার) গণনা হয়ে যেত।
+function getTotalRevenueForPrefix(prefix) {
+  const inc = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId).reduce((s,e)=>s+(e.amount||0),0);
+  const vis = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+(v.cashPaid||0),0);
+  const cmp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+(c.totalIncome||0),0);
+  return inc + vis + cmp;
+}
+// ✅ সম্পূর্ণ P&L (Profit & Loss) হিসাব — নির্দিষ্ট তারিখ-প্রিফিক্সের জন্য
+function calcProfitLossForPrefix(prefix) {
+  const totalRevenue = getTotalRevenueForPrefix(prefix);
+  const cogs = getCOGSForPrefix(prefix);
+  const grossProfit = totalRevenue - cogs;
+  const opEx = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e,prefix)).reduce((s,e)=>s+(e.amount||0),0);
+  const netProfit = grossProfit - opEx;
+  return { totalRevenue, cogs, grossProfit, opEx, netProfit };
 }
 function calcCashBankBalance() {
   // ক্যাশ = সব আয় - সব ব্যয় + bankTx অ্যাডজাস্টমেন্ট
   // income: manual income + visit cashPaid + camp totalIncome
   let cash = 0, bank = 0;
   // ১. Manual income → ক্যাশে যোগ
-  (appData.income||[]).forEach(e => { cash += (e.amount||0); });
+  // ⚠️ গুরুত্বপূর্ণ ফিক্স: বিল সেভ হওয়ার সময় "রিসেপশন আয়"/"অ্যাডমিন বিল" ক্যাটাগরিতে যে income এন্ট্রি অটো তৈরি হয়
+  // (visitId ট্যাগসহ), সেই একই টাকা নিচের ধাপ ২-এ visit.cashPaid থেকেও যোগ হয় — তাই visitId-ট্যাগড এন্ট্রি এখানে
+  // বাদ দেওয়া হচ্ছে, নাহলে একই বিলের ক্যাশ দুইবার যোগ হয়ে ক্যাশ/ব্যাংক ব্যালেন্স ভুলভাবে বেশি দেখাত।
+  (appData.income||[]).forEach(e => { if (!e.visitId) cash += (e.amount||0); });
   // ২. Receptionist visits → ক্যাশে যোগ
   (appData.visits||[]).forEach(v => { cash += (v.cashPaid||0); });
   // ৩. Camp income → ক্যাশে যোগ
@@ -10803,16 +10952,20 @@ const MC_MONTHS=['জানুয়ারি','ফেব্রুয়ার�
 function computeMonthlyAutoNet(month, year) {
   const prefix = `${year}-${String(month).padStart(2,'0')}`;
   const s = appData.settings;
-  const mInc  = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)).reduce((sum,e)=>sum+e.amount,0);
+  // ✅ visitId ট্যাগযুক্ত এন্ট্রি বাদ (বিল থেকে অটো তৈরি — visit.cashPaid দিয়েই আগে থেকে গণনা হয়, নাহলে ডাবল-কাউন্ট হয়ে যায়)
+  const mInc  = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId).reduce((sum,e)=>sum+e.amount,0);
   const mVis  = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).reduce((sum,v)=>sum+v.cashPaid,0);
   const mCamp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((sum,c)=>sum+(c.totalIncome||0),0);
   const mExp  = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, prefix)).reduce((sum,e)=>sum+e.amount,0);
+  // ✅ COGS — এই মাসে বিক্রি হওয়া ইনভেন্টরির (ওষুধ/চশমা) ক্রয়মূল্য। মেডিসিন কেনার সময় খরচ ধরা হয় না,
+  // শুধু বিক্রি হলে COGS হিসেবে হিসাব হয় — তাই শেয়ারহোল্ডার মুনাফা বণ্টনের সঠিক হিসাবের জন্য এটা বাদ দেওয়া আবশ্যক
+  const mCOGS = getCOGSForPrefix(prefix);
   const monthlyFixed = (s.rent||0) + (s.utility||0) + (s.otherFixed||0);
   const monthlySalary = (appData.staff||[]).filter(st=>st.status==='active').reduce((sum,st)=>sum+st.basic,0);
   const totalFixed = monthlyFixed + monthlySalary;
   const totalIncome = mInc + mVis + mCamp;
-  const totalExpense = mExp + totalFixed;
-  return { totalIncome, totalExpense, autoNet: totalIncome - totalExpense };
+  const totalExpense = mExp + totalFixed + mCOGS;
+  return { totalIncome, totalExpense, autoNet: totalIncome - totalExpense, cogs: mCOGS };
 }
 
 function previewMonthClose() {
@@ -10832,14 +10985,15 @@ function previewMonthClose() {
     _mcPreviewResult = null;
     return;
   }
-  const { totalIncome, totalExpense, autoNet } = computeMonthlyAutoNet(month, year);
+  const { totalIncome, totalExpense, autoNet, cogs } = computeMonthlyAutoNet(month, year);
   const accLoss = appData.settings.accumulatedLoss || 0;
   preview.style.display='block';
   preview.innerHTML = `
-    <div style="background:#f0f4f8;border-radius:8px;padding:12px;margin-bottom:10px;font-size:13px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-      <div>অটো আয়<br><strong style="color:var(--success);font-size:16px">৳ ${fmt(totalIncome.toFixed(2))}</strong></div>
-      <div>অটো ব্যয় (ফিক্সডসহ)<br><strong style="color:var(--danger);font-size:16px">৳ ${fmt(totalExpense.toFixed(2))}</strong></div>
-      <div>অটো নিট ফলাফল<br><strong style="font-size:16px;color:${autoNet>=0?'var(--success)':'var(--danger)'}">${autoNet>=0?'':'-'}৳ ${fmt(Math.abs(autoNet).toFixed(2))}</strong></div>
+    <div style="background:#f0f4f8;border-radius:8px;padding:12px;margin-bottom:10px;font-size:13px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      <div>অটো আয় (Revenue)<br><strong style="color:var(--success);font-size:16px">৳ ${fmt(totalIncome.toFixed(2))}</strong></div>
+      <div>পণ্যের ক্রয়মূল্য (COGS)<br><strong style="color:var(--danger);font-size:16px">৳ ${fmt((cogs||0).toFixed(2))}</strong></div>
+      <div>অটো ব্যয় (COGS+ফিক্সড+পরিচালন)<br><strong style="color:var(--danger);font-size:16px">৳ ${fmt(totalExpense.toFixed(2))}</strong></div>
+      <div>অটো নিট ফলাফল (Net Profit)<br><strong style="font-size:16px;color:${autoNet>=0?'var(--success)':'var(--danger)'}">${autoNet>=0?'':'-'}৳ ${fmt(Math.abs(autoNet).toFixed(2))}</strong></div>
     </div>
     ${accLoss>0?`<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:10px;color:#b91c1c;font-size:13px;font-weight:600">📉 পূর্বের সঞ্চিত লস: ৳ ${fmt(accLoss.toFixed(2))} — মুনাফা হলে প্রথমে এখান থেকে সমন্বয় হবে।</div>`:''}
     <div class="form-row">
@@ -12791,17 +12945,15 @@ function initOwnerPage() {
   const prefix= `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
   // Today stats
-  const todayInc = appData.income.filter(e=>e.date===today).reduce((s,e)=>s+e.amount,0)
-                 + appData.visits.filter(v=>v.date===today).reduce((s,v)=>s+v.cashPaid,0)
-                 + appData.camps.filter(c=>c.date===today).reduce((s,c)=>s+c.totalIncome,0);
-  const todayExp = appData.expense.filter(e=>expenseEffectiveDate(e)===today).reduce((s,e)=>s+e.amount,0);
-  const mInc = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+e.amount,0)
-             + appData.visits.filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+v.cashPaid,0)
-             + appData.camps.filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
+  const todayInc = getTotalRevenueForPrefix(today);
+  const todayExp = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase).reduce((s,e)=>s+e.amount,0);
+  const todayCOGS2 = getCOGSForPrefix(today);
+  const mInc = getTotalRevenueForPrefix(prefix);
   const mExp = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix)).reduce((s,e)=>s+e.amount,0);
+  const mCOGS = getCOGSForPrefix(prefix);
   const fixed = (appData.settings.rent||0)+(appData.settings.utility||0)+(appData.settings.otherFixed||0);
   const salCost = appData.staff.filter(s=>s.status==='active').reduce((s,st)=>s+st.basic,0);
-  const mProfit = mInc - mExp - fixed - salCost;
+  const mProfit = mInc - mCOGS - mExp - fixed - salCost;
 
   // দেনা
   const loanIn2 = (appData.loans||[]).filter(l=>l.type==='received').reduce((s,l)=>s+l.amount,0);
@@ -12816,7 +12968,7 @@ function initOwnerPage() {
   const campCount2 = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).length;
   // ক্যাশ/ব্যাংক
   const { cash: oCash, bank: oBank } = calcCashBankBalance();
-  const todayProfit2 = todayInc - todayExp;
+  const todayProfit2 = todayInc - todayCOGS2 - todayExp;
 
   const cards = document.getElementById('ownerCards');
   if (cards) cards.innerHTML = [
@@ -13177,7 +13329,12 @@ function savePastCampReturn(campId) {
     const qty = parseInt(document.getElementById('pret-' + item.itemId)?.value)||0;
     if (!qty) return;
     const s = (appData.stock||[]).find(x => x.id === item.itemId);
-    if (s) s.qty += qty;
+    if (s) {
+      s.qty += qty;
+      // ✅ যে অনুপাতে exempt স্টক নেওয়া হয়েছিল, একই অনুপাতে ফেরত আসা স্টকও exempt হিসেবে যোগ হচ্ছে
+      const exemptFraction = item.qtyTaken > 0 ? (item.exemptQtyTaken||0) / item.qtyTaken : 0;
+      s.cogsExemptQty = (s.cogsExemptQty||0) + Math.round(qty * exemptFraction);
+    }
     if (!appData.stockLog) appData.stockLog = [];
     appData.stockLog.push({
       id: Date.now()+Math.random(), date: camp.date,
@@ -13685,13 +13842,20 @@ function initCamperSession() {
     const stockItem = appData.stock.find(s => s.id === parseInt(itemSel.value));
     if (!stockItem) continue;
     if (qty > stockItem.qty) { showToast(`⚠️ ${stockItem.name} স্টকে মাত্র ${stockItem.qty}টি আছে!`); return; }
-    stockTaken.push({ itemId: stockItem.id, itemName: stockItem.name, qtyTaken: qty, qtySold: 0, unit: stockItem.unit });
+    // ✅ "আগে থেকে ব্যয় হওয়া" (cogsExempt) অংশ থেকে আগে নেওয়া হচ্ছে হিসেবের জন্য — পরে ক্যাম্প ক্লোজিং/স্টক ফেরতের
+    // সময় এই অনুপাত ব্যবহার করে সঠিক COGS ও exempt পরিমাণ হিসাব হবে
+    const exemptAvailable = stockItem.cogsExemptQty || 0;
+    const exemptQtyTaken = Math.min(exemptAvailable, qty);
+    stockTaken.push({ itemId: stockItem.id, itemName: stockItem.name, qtyTaken: qty, qtySold: 0, unit: stockItem.unit, exemptQtyTaken });
   }
 
   // Deduct from stock
   stockTaken.forEach(item => {
     const s = appData.stock.find(x => x.id === item.itemId);
-    if (s) s.qty = Math.max(0, s.qty - item.qtyTaken);
+    if (s) {
+      s.qty = Math.max(0, s.qty - item.qtyTaken);
+      s.cogsExemptQty = Math.max(0, (s.cogsExemptQty||0) - (item.exemptQtyTaken||0));
+    }
     if (!appData.stockLog) appData.stockLog = [];
     appData.stockLog.push({ id: Date.now()+Math.random(), date: schedule.date, itemId: item.itemId, itemName: item.itemName, move: 'out', qty: item.qtyTaken, note: `ক্যাম্প স্টক নেওয়া: ${schedule.name}`, by: currentUser.name });
   });
@@ -13864,13 +14028,17 @@ function finalizeCampClose() {
   const totalExpense = expenses.reduce((s,e) => s+e.amount, 0);
   const receiptEnd   = camperSession.receiptCurrent - 1;
 
-  // পণ্যের ক্রয়মূল্য (COGS)
+  // পণ্যের ক্রয়মূল্য (COGS) — ✅ camperSession.stockTaken এ রাখা exempt/নতুন অনুপাত ব্যবহার করে সঠিক COGS হিসাব
+  // (আগে-থেকে-থাকা/exempt স্টক বিক্রি হলে COGS ধরা হয় না, শুধু নতুন কেনা অংশের জন্য ধরা হয়)
   let totalCOGS = 0;
-  visits.forEach(v => {
-    (v.items||[]).forEach(item => {
-      const stockItem = (appData.stock||[]).find(s => s.id === parseInt(item.stockId));
-      if (stockItem && stockItem.buyPrice) totalCOGS += stockItem.buyPrice * (item.qty||1);
-    });
+  (camperSession.stockTaken||[]).forEach(st => {
+    const stockItem = (appData.stock||[]).find(s => s.id === st.itemId);
+    if (!stockItem) return;
+    const unitCost = stockItem.avgCost!=null ? stockItem.avgCost : (stockItem.buyPrice||0);
+    if (!unitCost) return;
+    const exemptFraction = st.qtyTaken > 0 ? (st.exemptQtyTaken||0) / st.qtyTaken : 0;
+    const nonExemptSoldQty = (st.qtySold||0) * (1 - exemptFraction);
+    totalCOGS += nonExemptSoldQty * unitCost;
   });
 
   // নিয়মিত কর্মীর দৈনিক বেতন (মাসিক ÷ ৩০) — শুধু এটাই আলাদা বাদ যাবে
@@ -14375,7 +14543,7 @@ function renderReturnStockRows() {
     </table></div>`;
 
   // ডেটা সেভ করি পরে ব্যবহারের জন্য
-  container.dataset.unsold = JSON.stringify(unsold.map(i => ({ itemId: i.itemId, itemName: i.itemName, unit: i.unit, unsold: i.unsold })));
+  container.dataset.unsold = JSON.stringify(unsold.map(i => ({ itemId: i.itemId, itemName: i.itemName, unit: i.unit, unsold: i.unsold, qtyTaken: i.qtyTaken, exemptQtyTaken: i.exemptQtyTaken||0 })));
 }
 
 function saveReturnStock() {
@@ -14392,7 +14560,12 @@ function saveReturnStock() {
     if (!qty) return;
     // স্টকে ফেরত যোগ
     const s = (appData.stock||[]).find(x => x.id === item.itemId);
-    if (s) s.qty += qty;
+    if (s) {
+      s.qty += qty;
+      // ✅ যে অনুপাতে exempt স্টক নেওয়া হয়েছিল, একই অনুপাতে ফেরত আসা স্টকও exempt হিসেবে যোগ হচ্ছে
+      const exemptFraction = item.qtyTaken > 0 ? (item.exemptQtyTaken||0) / item.qtyTaken : 0;
+      s.cogsExemptQty = (s.cogsExemptQty||0) + Math.round(qty * exemptFraction);
+    }
     // stockLog এ রেকর্ড
     if (!appData.stockLog) appData.stockLog = [];
     appData.stockLog.push({
@@ -15167,6 +15340,56 @@ function onStockCatChange() {
   autoCalcSellPrice();
 }
 
+// ✅ ফর্মের বাইরে থেকেও (যেমন স্টক-ইন এর সময় ওয়েটেড এভারেজ ক্রয়মূল্য বদলালে) বিক্রয়মূল্য অটো-ক্যালকুলেট করার জন্য —
+// autoCalcSellPrice() এর মতোই মার্জিন লজিক, শুধু DOM ফর্ম-ফিল্ডের বদলে সরাসরি প্যারামিটার নেয়
+// ✅ যেকোনো "বিক্রি/ব্যবহার" এর সময় স্টক কমানোর জন্য কেন্দ্রীয় ফাংশন — আগে "আগে থেকে ব্যয় হওয়া" (cogsExempt)
+// অংশ থেকে কমায় (COGS = ০, যেহেতু এই স্টক কেনার সময়ই আগে ব্যয় হিসেবে ধরা হয়ে গিয়েছিল), তারপর বাকি অংশের জন্য
+// avgCost অনুযায়ী প্রকৃত COGS হিসাব করে stockLog এন্ট্রিতে রেকর্ড করে রাখে। রিটার্ন করে মোট COGS।
+function deductStockForSale(stockId, qtySold, dateStr, note, visitId) {
+  const st = appData.stock.find(s => s.id === stockId);
+  if (!st || !qtySold) return 0;
+  if (st.cogsExemptQty == null) st.cogsExemptQty = 0;
+  if (st.avgCost == null) st.avgCost = st.buyPrice || 0;
+  const exemptUsed = Math.min(st.cogsExemptQty, qtySold);
+  const nonExemptUsed = qtySold - exemptUsed;
+  const cogsAmount = nonExemptUsed * (st.avgCost || 0);
+  st.cogsExemptQty -= exemptUsed;
+  st.qty = Math.max(0, st.qty - qtySold);
+  if (!appData.stockLog) appData.stockLog = [];
+  appData.stockLog.push({
+    id: Date.now()+Math.random(), date: dateStr, itemId: st.id, itemName: st.name,
+    move: 'out', qty: qtySold, note: note || 'বিল',
+    unitCost: st.avgCost || 0, cogsAmount, exemptQtyUsed: exemptUsed, visitId: visitId||null, by: currentUser.name
+  });
+  return cogsAmount;
+}
+// ✅ কোনো বিল ডিলিট হলে সেই বিলের জন্য কমানো স্টক ও হিসাব করা COGS ফেরত দেওয়ার জন্য — visitId দিয়ে সংশ্লিষ্ট
+// stockLog এন্ট্রি(গুলো) খুঁজে বের করে প্রতিটার exempt/non-exempt অনুপাত ঠিক রেখে স্টক ও cogsExemptQty ফেরত দেয়,
+// এবং সেই stockLog এন্ট্রিগুলোকে "বাতিল" চিহ্নিত করে (মুছে ফেলা হয় না, অডিট ট্রেইলের জন্য রেখে দেওয়া হয়)
+function reverseStockForVisit(visitId) {
+  if (!visitId || !appData.stockLog) return;
+  appData.stockLog.filter(l => l.visitId === visitId && l.move === 'out' && !l.reversed).forEach(l => {
+    const st = appData.stock.find(s => s.id === l.itemId);
+    if (st) {
+      st.qty = (st.qty||0) + (l.qty||0);
+      st.cogsExemptQty = (st.cogsExemptQty||0) + (l.exemptQtyUsed||0);
+    }
+    l.reversed = true; // এন্ট্রি মুছে ফেলা হয় না, শুধু "বাতিল" চিহ্নিত হয় — যাতে COGS/রিপোর্ট থেকে বাদ যায় কিন্তু ইতিহাস থেকে না
+  });
+}
+function calcAutoSellPriceFor(cat, buyPrice) {
+  const s = appData.settings||{};
+  if (!buyPrice) return null;
+  if (cat === 'ওষুধ') {
+    const profit = (s.medProfit||20) / 100;
+    return { sellPrice: Math.floor(buyPrice * (1 + profit)) };
+  } else if (cat === 'চশমা/লেন্স') {
+    const minP = (s.glassMinProfit||30) / 100;
+    const maxP = (s.glassMaxProfit||80) / 100;
+    return { sellMin: Math.floor(buyPrice * (1 + minP)), sellMax: Math.floor(buyPrice * (1 + maxP)) };
+  }
+  return null;
+}
 function autoCalcSellPrice() {
   const cat      = document.getElementById('stCat').value;
   const buyPrice = parseFloat(document.getElementById('stBuyPrice').value)||0;
@@ -15219,11 +15442,18 @@ function saveStockItem() {
       const after  = { name, code, cat, subCat, unit, qty, minQty, buyPrice, sellPrice, note };
       saveEditHistory('স্টক', s.id, name, before, after);
       s.name=name; s.code=code; s.cat=cat; s.subCat=subCat; s.unit=unit; s.qty=qty; s.minQty=minQty; s.buyPrice=buyPrice; s.sellPrice=sellPrice; s.sellMin=sellMin; s.sellMax=sellMax; s.note=note; s.voucherRef=voucherRef;
+      // ✅ এডিট থেকে ম্যানুয়াল সংশোধন — avgCost-ও সাথে সাথে মিলিয়ে দেওয়া হলো, যাতে ভবিষ্যতে COGS হিসাব সঠিক থাকে
+      s.avgCost = buyPrice;
+      if (s.cogsExemptQty == null) s.cogsExemptQty = 0;
     }
     logActivity('edit', 'স্টক', `${name} — qty: ${qty} ${unit}, ক্রয়মূল্য: ৳${fmt(buyPrice)}`);
     showToast('✅ আইটেম আপডেট হয়েছে!');
   } else {
-    const newItem = { id:Date.now(), name, code, cat, subCat, unit, qty, minQty, buyPrice, sellPrice, sellMin, sellMax, note, isOpening, voucherRef, addedDate: todayStr() };
+    // ✅ "ওষুধ" ও "চশমা/লেন্স" — বিক্রয়যোগ্য ইনভেন্টরি হিসেবে গণ্য হবে (কেনার সময় খরচ না ধরে, বিক্রির সময় COGS ধরা হবে)।
+    // "অফিস সামগ্রী" ইনভেন্টরির বাইরে — আগের মতোই সরাসরি পরিচালন ব্যয় (Operating Expense) হিসেবে গণনা হবে।
+    const isInventoryCat = (cat === 'ওষুধ' || cat === 'চশমা/লেন্স');
+    const newItem = { id:Date.now(), name, code, cat, subCat, unit, qty, minQty, buyPrice, sellPrice, sellMin, sellMax, note, isOpening, voucherRef, addedDate: todayStr(),
+      avgCost: buyPrice, cogsExemptQty: 0 };
     appData.stock.push(newItem);
     if (buyPrice > 0 && qty > 0 && !isOpening) {
       const totalCost = buyPrice * qty;
@@ -15233,10 +15463,18 @@ function saveStockItem() {
         amount: totalCost, ref: name,
         note: `স্টক ইন — ${qty} ${unit} × ৳${fmt(buyPrice)} (অটো)${voucherRef?' | ভাউচার:'+voucherRef:''}`,
         voucher: voucherRef||null,
-        by: currentUser.name, autoStock: true
+        by: currentUser.name, autoStock: true,
+        // ✅ ইনভেন্টরি ক্যাটাগরি হলে এটা শুধু ক্যাশ/ব্যাংক থেকে টাকা কমাবে (Cash Flow), কিন্তু Operating Expense/P&L এ গণনা হবে না —
+        // কারণ এটা এখন "সম্পদ" (ইনভেন্টরি), খরচ না। বিক্রি হওয়ার সময় COGS হিসেবে হিসাব হবে।
+        isInventoryPurchase: isInventoryCat
       });
-      logActivity('add', 'স্টক', `${name} — ${qty} ${unit} যোগ, ব্যয় অটো ৳${fmt(totalCost)}`);
-      showToast(`✅ আইটেম যোগ! ব্যয় অটো — ৳${fmt(totalCost)}`);
+      if (isInventoryCat) {
+        logActivity('add', 'স্টক', `${name} — ${qty} ${unit} যোগ, ইনভেন্টরি ক্রয় ৳${fmt(totalCost)} (ক্যাশ থেকে কমেছে, ব্যয় হিসেবে গণনা হয়নি)`);
+        showToast(`✅ আইটেম যোগ! ইনভেন্টরি ক্রয় — ৳${fmt(totalCost)} (ক্যাশ থেকে কমেছে)`);
+      } else {
+        logActivity('add', 'স্টক', `${name} — ${qty} ${unit} যোগ, ব্যয় অটো ৳${fmt(totalCost)}`);
+        showToast(`✅ আইটেম যোগ! ব্যয় অটো — ৳${fmt(totalCost)}`);
+      }
     } else {
       logActivity('add', 'স্টক', `${name} — ${qty} ${unit} (ওপেনিং/মূল্যহীন)`);
       showToast('✅ নতুন আইটেম যোগ হয়েছে!');
@@ -15400,6 +15638,9 @@ function renderStockTable() {
     return s + sp * i.qty;
   }, 0);
   const totalProfit   = totalSellVal - totalCapital;
+  // ✅ কত টাকার স্টক "আগে থেকে ব্যয় হওয়া" (cogsExempt, বিক্রি হলে COGS ধরা হবে না) বনাম "নতুন" (COGS-eligible)
+  const exemptValue = allItems.reduce((s,i) => s + (i.avgCost!=null?i.avgCost:(i.buyPrice||0)) * (i.cogsExemptQty||0), 0);
+  const newValue = allItems.reduce((s,i) => s + (i.avgCost!=null?i.avgCost:(i.buyPrice||0)) * Math.max(0,(i.qty||0)-(i.cogsExemptQty||0)), 0);
   const capitalDiv = document.getElementById('stockCapitalSummary');
   if (capitalDiv) {
     capitalDiv.innerHTML = `
@@ -15420,6 +15661,14 @@ function renderStockTable() {
           <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">মোট আইটেম</div>
           <div style="font-size:18px;font-weight:800;color:var(--primary)">${allItems.length} টি</div>
         </div>
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">আগে থেকে ব্যয়-হওয়া স্টক (COGS নেই)</div>
+          <div style="font-size:18px;font-weight:800;color:#16a34a">৳ ${fmt(exemptValue)}</div>
+        </div>
+        <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">নতুন স্টক (বিক্রিতে COGS ধরা হবে)</div>
+          <div style="font-size:18px;font-weight:800;color:#dc2626">৳ ${fmt(newValue)}</div>
+        </div>
       </div>`;
     capitalDiv.style.display = 'block';
   }
@@ -15429,9 +15678,43 @@ function renderStockTable() {
   const alertDiv = document.getElementById('lowStockAlert');
   if (lowItems.length) {
     alertDiv.style.display='block';
-    document.getElementById('lowStockItems').textContent = lowItems.map(s=>`${s.name} (${s.qty} ${s.unit})`).join(', ');
+    const lowValue = lowItems.reduce((s,i)=>s+(i.avgCost!=null?i.avgCost:(i.buyPrice||0))*(i.qty||0),0);
+    document.getElementById('lowStockItems').textContent = lowItems.map(s=>`${s.name} (${s.qty} ${s.unit})`).join(', ') + ` — মোট আটকে থাকা মূল্য: ৳${fmt(lowValue)}`;
   } else {
     alertDiv.style.display='none';
+  }
+
+  // ✅ প্রতি-আইটেম প্রফিট মার্জিন রিপোর্ট — সবচেয়ে বেশি/কম লাভজনক পণ্য
+  const marginDiv = document.getElementById('stockMarginReport');
+  if (marginDiv) {
+    const withMargin = appData.stock.filter(s=>s.buyPrice>0).map(s=>{
+      const sp = s.cat==='চশমা/লেন্স' ? (s.sellMin||0) : (s.sellPrice||0);
+      const marginPct = sp>0 ? ((sp-s.buyPrice)/s.buyPrice*100) : null;
+      return { ...s, sp, marginPct };
+    }).filter(s=>s.marginPct!=null);
+    if (withMargin.length) {
+      const sorted = [...withMargin].sort((a,b)=>b.marginPct-a.marginPct);
+      const top5 = sorted.slice(0,5);
+      const bottom5 = sorted.slice(-5).reverse();
+      const rowHtml = (s) => `<tr><td style="padding:6px 8px">${s.name}</td><td style="padding:6px 8px;text-align:right">৳${fmt(s.buyPrice)}</td><td style="padding:6px 8px;text-align:right">৳${fmt(s.sp)}</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:${s.marginPct>=0?'var(--success)':'var(--danger)'}">${s.marginPct.toFixed(1)}%</td></tr>`;
+      marginDiv.innerHTML = `
+        <div class="panel" style="margin:0">
+          <div class="panel-header"><div class="panel-title">📊 প্রতি-আইটেম লাভের মার্জিন রিপোর্ট</div></div>
+          <div class="panel-body" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--success);margin-bottom:6px">🔝 সবচেয়ে বেশি লাভজনক (৫টি)</div>
+              <table style="width:100%;font-size:12.5px"><thead><tr><th style="text-align:left;padding:4px 8px">পণ্য</th><th style="text-align:right;padding:4px 8px">ক্রয়</th><th style="text-align:right;padding:4px 8px">বিক্রয়</th><th style="text-align:right;padding:4px 8px">মার্জিন</th></tr></thead><tbody>${top5.map(rowHtml).join('')}</tbody></table>
+            </div>
+            <div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--danger);margin-bottom:6px">🔻 সবচেয়ে কম লাভজনক (৫টি)</div>
+              <table style="width:100%;font-size:12.5px"><thead><tr><th style="text-align:left;padding:4px 8px">পণ্য</th><th style="text-align:right;padding:4px 8px">ক্রয়</th><th style="text-align:right;padding:4px 8px">বিক্রয়</th><th style="text-align:right;padding:4px 8px">মার্জিন</th></tr></thead><tbody>${bottom5.map(rowHtml).join('')}</tbody></table>
+            </div>
+          </div>
+        </div>`;
+      marginDiv.style.display = 'block';
+    } else {
+      marginDiv.style.display = 'none';
+    }
   }
 
   const tbody = document.getElementById('stockTable');
@@ -15543,9 +15826,13 @@ function openStockModal(id, move) {
   const s = appData.stock.find(s=>s.id===id);
   if (!s) return;
   document.getElementById('stockModalTitle').textContent = move==='in' ? '📥 স্টক ইন' : '📤 স্টক আউট';
-  document.getElementById('stockModalItemInfo').innerHTML = `<strong>${s.name}</strong> &nbsp;|&nbsp; বর্তমান স্টক: <strong>${s.qty} ${s.unit}</strong>`;
+  document.getElementById('stockModalItemInfo').innerHTML = `<strong>${s.name}</strong> &nbsp;|&nbsp; বর্তমান স্টক: <strong>${s.qty} ${s.unit}</strong> &nbsp;|&nbsp; বর্তমান ক্রয়মূল্য/একক: <strong>৳${fmt(s.avgCost!=null?s.avgCost:(s.buyPrice||0))}</strong>`;
   document.getElementById('stModalQty').value  = '';
   document.getElementById('stModalNote').value = '';
+  const priceField = document.getElementById('stModalPriceField');
+  const priceInput  = document.getElementById('stModalPrice');
+  if (priceField) priceField.style.display = (move==='in' && s.cat!=='অফিস সামগ্রী') ? '' : 'none';
+  if (priceInput) priceInput.value = '';
   document.getElementById('stockModalBtn').className = `btn btn-sm ${move==='in'?'btn-success':'btn-danger'}`;
   document.getElementById('stockModalBtn').textContent = move==='in' ? '✅ স্টক ইন করুন' : '✅ স্টক আউট করুন';
   document.getElementById('stockModal').classList.add('open');
@@ -15555,33 +15842,76 @@ function closeStockModal() { document.getElementById('stockModal').classList.rem
 function confirmStockMove() {
   const qty  = parseFloat(document.getElementById('stModalQty').value);
   const note = document.getElementById('stModalNote').value.trim();
+  const newPriceInput = parseFloat((document.getElementById('stModalPrice')||{}).value);
   if (isNaN(qty)||qty<=0) { showToast('⚠️ পরিমাণ দিন!'); return; }
   const s = appData.stock.find(s=>s.id===activeStockId);
   if (!s) return;
   if (activeStockMove==='out' && qty > s.qty) { showToast('⚠️ স্টকের চেয়ে বেশি আউট করা যাবে না!'); return; }
+  if (s.cogsExemptQty == null) s.cogsExemptQty = 0;
+  if (s.avgCost == null) s.avgCost = s.buyPrice || 0;
 
-  s.qty = activeStockMove==='in' ? s.qty+qty : s.qty-qty;
+  const isInventoryCat = (s.cat === 'ওষুধ' || s.cat === 'চশমা/লেন্স');
+  let toastCostMsg = '';
 
-  // স্টক ইন হলে ব্যয় এন্ট্রি অটো (অফিস সামগ্রী বাদে)
-  if (activeStockMove==='in' && s.buyPrice>0 && s.cat!=='অফিস সামগ্রী') {
-    const totalCost = s.buyPrice * qty;
-    appData.expense.push({
-      id: Date.now()+1,
-      date: todayStr(),
-      category: 'ওষুধ/সরঞ্জাম কেনা',
-      amount: totalCost,
-      ref: s.name,
-      note: `স্টক ইন — ${qty} ${s.unit} × ৳${fmt(s.buyPrice)} (অটো)`,
-      by: currentUser.name,
-      autoStock: true
-    });
+  if (activeStockMove === 'in') {
+    if (isInventoryCat && s.buyPrice > 0 || (isInventoryCat && !isNaN(newPriceInput) && newPriceInput>0)) {
+      // ✅ ওয়েটেড এভারেজ ক্রয়মূল্য — এই ব্যাচের নতুন দাম (দিলে) আগের (exempt বাদে) পরিমাণের সাথে মিলিয়ে গড় করা হয়
+      const newPrice = (!isNaN(newPriceInput) && newPriceInput > 0) ? newPriceInput : (s.avgCost || s.buyPrice || 0);
+      const nonExemptBefore = Math.max(0, s.qty - (s.cogsExemptQty||0));
+      const denom = nonExemptBefore + qty;
+      const newAvgCost = denom > 0 ? ((nonExemptBefore * (s.avgCost||0)) + (qty * newPrice)) / denom : newPrice;
+      s.avgCost = newAvgCost;
+      s.buyPrice = newAvgCost; // ✅ প্রদর্শন/মার্জিন হিসাবের সাথে সামঞ্জস্যপূর্ণ রাখতে buyPrice-ও আপডেট
+      const autoSell = calcAutoSellPriceFor(s.cat, newAvgCost);
+      if (autoSell) {
+        if (autoSell.sellPrice != null) s.sellPrice = autoSell.sellPrice;
+        if (autoSell.sellMin != null) { s.sellMin = autoSell.sellMin; s.sellMax = autoSell.sellMax; }
+      }
+      const totalCost = newPrice * qty;
+      appData.expense.push({
+        id: Date.now()+1, date: todayStr(),
+        category: 'ওষুধ/সরঞ্জাম কেনা', amount: totalCost, ref: s.name,
+        note: `স্টক ইন — ${qty} ${s.unit} × ৳${fmt(newPrice)} (অটো)`,
+        by: currentUser.name, autoStock: true,
+        // ✅ ইনভেন্টরি ক্রয় — ক্যাশ/ব্যাংক থেকে কমবে, কিন্তু Operating Expense/P&L এ গণনা হবে না (সম্পদ, বিক্রি হলে COGS হবে)
+        isInventoryPurchase: true
+      });
+      toastCostMsg = ` — ইনভেন্টরি ক্রয় ৳${fmt(totalCost)} (ক্যাশ থেকে কমেছে, ব্যয় হিসেবে গণনা হয়নি)`;
+    } else if (!isInventoryCat && s.buyPrice > 0) {
+      // অফিস সামগ্রী — আগের মতোই সরাসরি পরিচালন ব্যয়
+      const totalCost = s.buyPrice * qty;
+      appData.expense.push({
+        id: Date.now()+1, date: todayStr(),
+        category: 'ওষুধ/সরঞ্জাম কেনা', amount: totalCost, ref: s.name,
+        note: `স্টক ইন — ${qty} ${s.unit} × ৳${fmt(s.buyPrice)} (অটো)`,
+        by: currentUser.name, autoStock: true
+      });
+      toastCostMsg = ` — ব্যয় ৳${fmt(totalCost)} অটো যোগ`;
+    }
+    s.qty = s.qty + qty;
+  } else {
+    // ✅ ম্যানুয়াল "স্টক আউট" (বিক্রি নয় — যেমন নষ্ট/মেয়াদোত্তীর্ণ/হারানো) — আগে "আগে থেকে ব্যয় হওয়া" (exempt) অংশ থেকে বাদ যাবে
+    // (কোনো নতুন ব্যয় হবে না, যেহেতু আগেই হিসাবে ধরা হয়ে গেছে), এরপর বাকি অংশের জন্য প্রকৃত ক্ষতি (লস) হিসেবে ব্যয় ধরা হবে
+    const exemptUsed = Math.min(s.cogsExemptQty||0, qty);
+    const nonExemptUsed = qty - exemptUsed;
+    s.cogsExemptQty = (s.cogsExemptQty||0) - exemptUsed;
+    s.qty = s.qty - qty;
+    if (isInventoryCat && nonExemptUsed > 0 && (s.avgCost||0) > 0) {
+      const lossAmount = nonExemptUsed * (s.avgCost||0);
+      appData.expense.push({
+        id: Date.now()+3, date: todayStr(),
+        category: 'অন্যান্য ব্যয়', amount: lossAmount, ref: s.name,
+        note: `স্টক ক্ষতি/নষ্ট — ${nonExemptUsed} ${s.unit} × ৳${fmt(s.avgCost)} (অটো)${note?' | '+note:''}`,
+        by: currentUser.name, autoStock: true
+      });
+      toastCostMsg = ` — ক্ষতি ৳${fmt(lossAmount)} ব্যয় হিসেবে যোগ`;
+    }
   }
 
   if (!appData.stockLog) appData.stockLog=[];
   appData.stockLog.push({ id:Date.now(), date:todayStr(), itemId:s.id, itemName:s.name, move:activeStockMove, qty, note, by:currentUser.name });
   saveData(); closeStockModal(); renderStockTable(); renderStockLog(); refreshDashboard();
-  const cost = activeStockMove==='in' && s.buyPrice>0 ? ` — ব্যয় ৳${fmt(s.buyPrice*qty)} অটো যোগ` : '';
-  showToast(activeStockMove==='in' ? `✅ ${qty} ${s.unit} স্টক ইন${cost}` : `✅ ${qty} ${s.unit} স্টক আউট`);
+  showToast((activeStockMove==='in' ? `✅ ${qty} ${s.unit} স্টক ইন` : `✅ ${qty} ${s.unit} স্টক আউট`) + toastCostMsg);
 }
 
 function renderStockLog() {
@@ -16906,7 +17236,7 @@ function saveBill() {
     appData.income.push({
       id:Date.now()+1, date,
       category:'রিসেপশন আয়',
-      amount:cashPaid, ref:patName,
+      amount:cashPaid, memo:memoNo, ref:patName,
       note:`${memoNo} — ${patName}`,
       by:currentUser.name, visitId:visit.id
     });
@@ -17012,14 +17342,19 @@ function deleteVisit(id) {
   const v = appData.visits.find(x=>x.id===id);
   if (!v) return;
   if (!confirm(`"${v.patName}" এর এই বিলটি সম্পূর্ণ মুছে ফেলতে চান? এই কাজ ফিরিয়ে আনা যাবে না।`)) return;
+  // ✅ এই বিলে যে স্টক কমেছিল ও COGS হিসাব হয়েছিল, সেটা ফেরত দেওয়া হচ্ছে (স্টক আবার বাড়বে, COGS বাদ যাবে)
+  reverseStockForVisit(id);
+  // ✅ এই বিলের সাথে তৈরি হওয়া "আয়" এন্ট্রিও (visitId দিয়ে লিংকড) মুছে ফেলা হচ্ছে — নাহলে বিল ডিলিট হলেও তার আয় থেকে যেত
+  appData.income = (appData.income||[]).filter(e => e.visitId !== id);
   appData.visits = appData.visits.filter(x=>x.id!==id);
-  logActivity('delete', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} (মেমো: ${v.memoNo||v.rcptNo||'—'})`);
+  logActivity('delete', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} (মেমো: ${v.memoNo||v.rcptNo||'—'}) — স্টক/আয় ফেরত দেওয়া হয়েছে`);
   saveData();
   closeRecVisitEdit();
   renderRecHistory();
   if (typeof renderRecDue==='function') renderRecDue();
+  if (typeof renderStockTable==='function') renderStockTable();
   if (typeof refreshDashboard==='function') refreshDashboard();
-  showToast('🗑️ বিল মুছে ফেলা হয়েছে');
+  showToast('🗑️ বিল মুছে ফেলা হয়েছে — স্টক ও আয় ফেরত দেওয়া হয়েছে');
 }
 
 
@@ -17256,10 +17591,11 @@ function saveAdminBill() {
   if(!appData.adminBills) appData.adminBills=[];
   appData.adminBills.push(bill);
   // visits এ যোগ
-  appData.visits.push({id:Date.now()+1,date,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,netBill,cashPaid,due,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
+  const abVisitId = Date.now()+1;
+  appData.visits.push({id:abVisitId,date,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,netBill,cashPaid,due,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
   recordDoctorCommission('ab', date, memoNo, bill.id);
-  // income এ যোগ
-  if(cashPaid>0) appData.income.push({id:Date.now()+2,date,category:'অ্যাডমিন বিল',amount:cashPaid,ref:patName,note:`${memoNo} — ${patName}`,by:currentUser.name});
+  // income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না, visit.cashPaid দিয়েই গণনা হয়)
+  if(cashPaid>0) appData.income.push({id:Date.now()+2,date,category:'অ্যাডমিন বিল',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:currentUser.name,visitId:abVisitId});
   if (sendToDelivery) {
     createDeliveryFromBill({ name:patName, phone:patPhone, orderDate:date, item:svcs.map(s=>s.name).join(', '), total:netBill, advance:cashPaid, deliveryDate, note:`মেমো: ${memoNo}` });
   }
@@ -17831,7 +18167,7 @@ function nbSendToReception() {
     patAddress:(document.getElementById('nb_PatAddress')||{}).value?.trim()||'',
     patDoc:(document.getElementById('nb_PatDoc')||{}).value?.trim()||'',
     note:(document.getElementById('nb_Note')||{}).value?.trim()||'',
-    services:items.map(i=>({name:i.name,qty:i.qty,price:i.price,subtotal:i.subtotal,type:i.type||'manual',sellMin:i.sellMin||0})),
+    services:items.map(i=>({name:i.name,qty:i.qty,price:i.price,subtotal:i.subtotal,type:i.type||'manual',sellMin:i.sellMin||0,stockId:i.stockId||null})),
     total, adminDiscAmt:discAmt, adminDiscPct:discPct,
     by:currentUser.name, sentAt:new Date().toLocaleTimeString('bn-BD'), returnedAt:new Date().toLocaleTimeString('bn-BD')
   });
@@ -18112,14 +18448,10 @@ function _billSave(p) {
   const due=Math.max(0,netBill-cashPaid);
   if (nb && !checkDoctorCommissionAlarm('nb_')) return;
 
-  // স্টক কমাই
+  const _billVisitId = Date.now();
+  // স্টক কমাই + COGS হিসাব (visitId ট্যাগ করা থাকছে, যাতে বিল ডিলিট হলে এই COGS/স্টক ফেরত দেওয়া যায়)
   items.filter(i=>i.stockId).forEach(item=>{
-    const st=appData.stock.find(s=>s.id===item.stockId);
-    if(st){
-      st.qty=Math.max(0,st.qty-item.qty);
-      if(!appData.stockLog) appData.stockLog=[];
-      appData.stockLog.push({id:Date.now()+Math.random(),date,itemId:st.id,itemName:item.name,move:'out',qty:item.qty,note:'বিল',by:currentUser.name});
-    }
+    deductStockForSale(item.stockId, item.qty, date, 'বিল', _billVisitId);
   });
 
   const memoEl=nb?document.getElementById('nb_MemoNo'):null;
@@ -18148,9 +18480,10 @@ function _billSave(p) {
   const deliveryDate=(document.getElementById(dlvPrefix+'DeliveryDate')||{}).value||'';
   if (sendToDelivery && !deliveryDate) { showToast('⚠️ ডেলিভারির তারিখ দিন!'); return; }
 
-  appData.visits.push({id:Date.now(),date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
+  appData.visits.push({id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
   if (nb) recordDoctorCommission('nb_', date, memoNo, null);
-  if(cashPaid>0) appData.income.push({id:Date.now()+1,date,category:'রিসেপশন আয়',amount:cashPaid,ref:patName,note:`${memoNo} — ${patName}`,by:byLabel});
+  // ✅ income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না)
+  if(cashPaid>0) appData.income.push({id:Date.now()+1,date,category:'রিসেপশন আয়',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:byLabel,visitId:_billVisitId});
   if (sendToDelivery) {
     createDeliveryFromBill({ name:patName, phone:patPhone, orderDate:date, item:items.map(i=>i.name).join(', '), total:netBill, advance:cashPaid, deliveryDate, note:`মেমো: ${memoNo}` });
   }
@@ -18292,8 +18625,15 @@ function adminSaveDraftDirect(draftId) {
   const netBill=Math.max(0,total-discAmt);
   const allV=appData.visits||[];
   const memoNo=generateNextMemoNo();
-  appData.visits.push({id:Date.now(),date:d.date||todayStr(),patName:d.patName,patPhone:d.patPhone||'',patAge:d.patAge||'',patDoc:d.patDoc||'',services:d.services,total,discAmt,netBill,cashPaid:netBill,due:0,note:d.note||'',memoNo,rcptNo:memoNo,by:`${d.by} (অ্যাডমিন অনুমোদিত)`,time:new Date().toLocaleTimeString('bn-BD'),adminApproved:true});
-  if(netBill>0) appData.income.push({id:Date.now()+1,date:d.date||todayStr(),category:'রিসেপশন আয়',amount:netBill,ref:d.patName,note:`${memoNo} — ${d.patName} (অ্যাডমিন অনুমোদিত)`,by:currentUser.name});
+  const _draftVisitId = Date.now();
+  // ✅ স্টক কমাই + COGS হিসাব — আগে এই ড্রাফট-অনুমোদন পথে stockId তথ্যই সংরক্ষিত হতো না, তাই মেডিসিন/চশমা
+  // বিক্রি হলেও স্টক/COGS কখনো হিসাব হতো না। এখন ঠিক করা হয়েছে।
+  (d.services||[]).filter(i=>i.stockId).forEach(item=>{
+    deductStockForSale(item.stockId, item.qty, d.date||todayStr(), 'বিল (ড্রাফট অনুমোদিত)', _draftVisitId);
+  });
+  appData.visits.push({id:_draftVisitId,date:d.date||todayStr(),patName:d.patName,patPhone:d.patPhone||'',patAge:d.patAge||'',patDoc:d.patDoc||'',services:d.services,total,discAmt,netBill,cashPaid:netBill,due:0,note:d.note||'',memoNo,rcptNo:memoNo,by:`${d.by} (অ্যাডমিন অনুমোদিত)`,time:new Date().toLocaleTimeString('bn-BD'),adminApproved:true});
+  // ✅ income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই ডাবল-কাউন্ট হবে না)
+  if(netBill>0) appData.income.push({id:Date.now()+1,date:d.date||todayStr(),category:'রিসেপশন আয়',amount:netBill,memo:memoNo,ref:d.patName,note:`${memoNo} — ${d.patName} (অ্যাডমিন অনুমোদিত)`,by:currentUser.name,visitId:_draftVisitId});
   appData.draftBills=(appData.draftBills||[]).filter(x=>x.id!==draftId);
   saveData(); renderNewBillDrafts(); updateDraftBadge(); refreshDashboard();
   showToast(`✅ বিল সেভ! মেমো: ${memoNo}`);
@@ -18683,9 +19023,7 @@ function getBarData(mode) {
       const d=new Date(now); d.setDate(d.getDate()-i);
       const ds=d.toISOString().split('T')[0];
       labels.push(`${d.getDate()}/${d.getMonth()+1}`);
-      inc.push((appData.income||[]).filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0)
-        +(appData.visits||[]).filter(v=>v.date===ds).reduce((s,v)=>s+v.cashPaid,0)
-        +(appData.camps||[]).filter(c=>c.date===ds).reduce((s,c)=>s+c.totalIncome,0));
+      inc.push(getTotalRevenueForPrefix(ds));
       exp.push((appData.expense||[]).filter(e=>expenseEffectiveDate(e)===ds).reduce((s,e)=>s+e.amount,0));
     }
   } else {
@@ -18693,9 +19031,7 @@ function getBarData(mode) {
       const d=new Date(now.getFullYear(),now.getMonth()-i,1);
       const pfx=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
       labels.push(mn[d.getMonth()]);
-      inc.push((appData.income||[]).filter(e=>e.date&&e.date.startsWith(pfx)).reduce((s,e)=>s+e.amount,0)
-        +(appData.visits||[]).filter(v=>v.date&&v.date.startsWith(pfx)).reduce((s,v)=>s+v.cashPaid,0)
-        +(appData.camps||[]).filter(c=>c.date&&c.date.startsWith(pfx)).reduce((s,c)=>s+c.totalIncome,0));
+      inc.push(getTotalRevenueForPrefix(pfx));
       exp.push((appData.expense||[]).filter(e=>expenseCountsInPrefix(e, pfx)).reduce((s,e)=>s+e.amount,0));
     }
   }
@@ -18970,11 +19306,13 @@ function renderMonthlyComparison(){
   const prevD = new Date(now.getFullYear(), now.getMonth()-1, 1);
   const prevYM = `${prevD.getFullYear()}-${String(prevD.getMonth()+1).padStart(2,'0')}`;
 
-  const curInc = _moCompSumByMonth(appData.income, curYM);
-  const prevInc = _moCompSumByMonth(appData.income, prevYM);
-  const curExp = _moCompSumByMonth(appData.expense, curYM);
-  const prevExp = _moCompSumByMonth(appData.expense, prevYM);
-  const curProfit = curInc-curExp, prevProfit = prevInc-prevExp;
+  const curInc = getTotalRevenueForPrefix(curYM);
+  const prevInc = getTotalRevenueForPrefix(prevYM);
+  const curExp = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, curYM)).reduce((s,e)=>s+(e.amount||0),0);
+  const prevExp = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, prevYM)).reduce((s,e)=>s+(e.amount||0),0);
+  const curCOGS = getCOGSForPrefix(curYM);
+  const prevCOGS = getCOGSForPrefix(prevYM);
+  const curProfit = curInc - curCOGS - curExp, prevProfit = prevInc - prevCOGS - prevExp;
 
   const monthNames=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   const lbl=document.getElementById('dashMoCompLabel');
@@ -19020,6 +19358,55 @@ function _checkStatusCol(label, count, amount, accentColor, divider, bgColor, on
     <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">${amount}</span>
     <span style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis">(${count.toLocaleString('bn-BD')}${countSuffix||'টি'})</span>
   </div>`;
+}
+// ✅ ড্যাশবোর্ডে দুটি আলাদা রিপোর্ট: Cash Flow (Cash In/Out/Balance) ও Profit & Loss (Revenue/COGS/Gross Profit/OpEx/Net Profit)
+// prefix = 'YYYY-MM' — চলতি মাসের হিসাব দেখায়
+function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
+  const wrap = document.getElementById('dashCashFlowPnLPanel');
+  if (!wrap) return;
+
+  // --- Cash Flow: এই মাসের ক্যাশ ইন/আউট ---
+  const cashIn  = getTotalRevenueForPrefix(prefix);
+  // ক্যাশ আউট — সব ব্যয় (ইনভেন্টরি ক্রয়সহ), শুধু effectively cleared হওয়া এন্ট্রি
+  const cashOut = (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).reduce((s,e)=>s+(e.amount||0),0);
+  const { cash: liveCash, bank: liveBank } = calcCashBankBalance();
+
+  const pnl = calcProfitLossForPrefix(prefix);
+  const netProfit = pnl.grossProfit - mExp - totalMonthlyFixed;
+
+  const monthNames=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const monthLabel = monthNames[parseInt(prefix.split('-')[1])-1] + ' ' + prefix.split('-')[0];
+
+  function row(label, val, color, bold) {
+    return `<div style="display:flex;justify-content:space-between;padding:4px 0;${bold?'border-top:1px solid var(--border);margin-top:2px;padding-top:6px':''}">
+      <span style="font-size:12.5px;${bold?'font-weight:700':''};color:${bold?'var(--text)':'var(--text-light)'}">${label}</span>
+      <span style="font-size:13px;font-weight:${bold?800:600};color:${color}">৳ ${fmt(val)}</span>
+    </div>`;
+  }
+
+  wrap.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="panel" style="margin:0">
+        <div class="panel-header"><div class="panel-title">💵 Cash Flow — ${monthLabel}</div></div>
+        <div class="panel-body">
+          ${row('ক্যাশ ইন (আয়)', cashIn, 'var(--success)')}
+          ${row('ক্যাশ আউট (সব ব্যয়, ইনভেন্টরি ক্রয়সহ)', cashOut, 'var(--danger)')}
+          ${row('বর্তমান ক্যাশ ব্যালেন্স', liveCash, 'var(--primary)', true)}
+          ${row('বর্তমান ব্যাংক ব্যালেন্স', liveBank, 'var(--primary)')}
+        </div>
+      </div>
+      <div class="panel" style="margin:0">
+        <div class="panel-header"><div class="panel-title">📊 Profit &amp; Loss — ${monthLabel}</div></div>
+        <div class="panel-body">
+          ${row('মোট আয় (Total Revenue)', pnl.totalRevenue, 'var(--success)')}
+          ${row('পণ্যের ক্রয়মূল্য (COGS)', pnl.cogs, 'var(--danger)')}
+          ${row('গ্রস প্রফিট (Gross Profit)', pnl.grossProfit, '#8e44ad', true)}
+          ${row('পরিচালন ব্যয় (Operating Expense + ফিক্সড)', mExp+totalMonthlyFixed, 'var(--danger)')}
+          ${row('নিট মুনাফা/লোকসান (Net Profit)', netProfit, netProfit>=0?'#8e44ad':'var(--danger)', true)}
+        </div>
+      </div>
+    </div>`;
+  wrap.style.display = 'block';
 }
 function renderDashCheckStatus(){
   const wrap=document.getElementById('dashCheckStatusWrap');
