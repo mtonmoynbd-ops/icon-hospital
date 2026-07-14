@@ -72,6 +72,8 @@
 
   /* MAIN CONTENT */
   .main-content { margin-left:260px; width:calc(100% - 260px); min-height:100vh; height:100vh; overflow-y:auto; padding:24px; display:flex; flex-direction:column; box-sizing:border-box; }
+  /* ✅ লোগো, টাইটেল ও সার্চ বার সবসময় উপরে স্থির থাকবে, শুধু নিচের পেজ কন্টেন্ট স্ক্রল হবে */
+  .sticky-header-wrap { position:sticky; top:-24px; z-index:30; background:var(--bg); margin:-24px -24px 0 -24px; padding:24px 24px 0 24px; flex-shrink:0; }
   .app-topbar-logo { height:var(--topbar-logo-h); width:auto; max-width:260px; object-fit:contain; flex-shrink:0; cursor:default; user-select:none; -webkit-user-select:none; }
   .top-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px; min-height:var(--topbar-logo-h); position:relative; flex-wrap:wrap; cursor:pointer; }
   .top-bar .page-title, .top-bar .page-sub, .top-bar .topbar-title-block { cursor:default; }
@@ -331,6 +333,7 @@
     .sidebar.open { transform:translateX(0); }
     .overlay.open { display:block; }
     .main-content { margin-left:0; width:100%; padding:16px; padding-top:60px; box-sizing:border-box; }
+    .sticky-header-wrap { top:-60px; margin:-60px -16px 0 -16px; padding:60px 16px 0 16px; }
     .form-row,.form-row.three { grid-template-columns:1fr; }
     .stats-grid { grid-template-columns:1fr 1fr; }
     .service-row { grid-template-columns:1fr 1fr; }
@@ -616,6 +619,7 @@ function openPrintWindow(htmlContent, title) {
     </div>
   </nav>
   <main class="main-content">
+    <div class="sticky-header-wrap">
     <div class="top-bar">
       <div class="topbar-title-block">
         <div class="page-title" id="pageTitle">ড্যাশবোর্ড</div>
@@ -655,10 +659,22 @@ function openPrintWindow(htmlContent, title) {
       </div>
     </div>
     <div id="appRoleFeatureBar" class="role-feature-bar" style="display:none"></div>
+    </div>
 
     <!-- DASHBOARD -->
     <div id="pg-dashboard" class="page-view active">
       <div id="dashCheckReminderBanner" style="display:none;margin-bottom:14px"></div>
+      <!-- ✅ Cash Flow ও Profit & Loss — কম্প্যাক্ট স্ট্রিপ (মাসিক তুলনার মতো ডিজাইন), ডিফল্ট কলাপ্সড, ক্লিক করলে বিস্তারিত এক্সপ্যান্ড হয় -->
+      <div style="background:#fffdf3;border-radius:var(--radius);border-top:1.5px solid var(--border);border-right:1.5px solid var(--border);border-bottom:1.5px solid var(--border);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto;cursor:pointer" onclick="toggleCashFlowPnLPanel()">
+          <div id="dashCashFlowPnLSummary" style="display:flex;align-items:stretch;flex:1;min-width:max-content"></div>
+          <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);white-space:nowrap">
+            <span style="font-size:12px;font-weight:700;color:var(--primary)">💵📊 Cash Flow / P&amp;L</span>
+            <span id="cfPnlToggleIcon" style="font-size:12px;color:var(--text-light);transition:transform .2s">▼</span>
+          </div>
+        </div>
+        <div id="dashCashFlowPnLPanel" style="overflow:hidden;max-height:0;transition:max-height .3s ease"></div>
+      </div>
       <div class="dash-layout">
         <!-- LEFT: 9 stat cards -->
         <div class="dash-cards-col" style="position:relative">
@@ -817,8 +833,6 @@ function openPrintWindow(htmlContent, title) {
           <tbody id="pendingOpsTable"></tbody>
         </table></div></div>
       </div>
-      <!-- ✅ Cash Flow ও Profit & Loss — দুইটা আলাদা রিপোর্ট প্যানেল -->
-      <div id="dashCashFlowPnLPanel" style="display:none;margin-bottom:10px"></div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 সাম্প্রতিক এন্ট্রি</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -1416,6 +1430,37 @@ function openPrintWindow(htmlContent, title) {
             <div class="field" id="stSellMinField" style="display:none">
               <label>সর্বনিম্ন বিক্রয়মূল্য (৳)</label>
               <input type="number" id="stSellMin" placeholder="০.০০" min="0"></div>
+          </div>
+          <!-- ✅ ক্রয়ের পেমেন্ট মাধ্যম — ক্যাশ/ব্যাংক(চেক), যাতে সঠিক ব্যালেন্স থেকে কাটে ও চেক ট্র্যাক হয় -->
+          <div class="form-row" style="margin-bottom:8px">
+            <div class="field">
+              <label>পেমেন্ট মাধ্যম</label>
+              <div style="display:flex;gap:10px;margin-top:6px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="stPayMode" value="cash" id="stPayCash" onchange="onStPayModeChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="stPayMode" value="bank" id="stPayBank" onchange="onStPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক/চেক
+                </label>
+              </div>
+            </div>
+          </div>
+          <div id="stBankRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field">
+              <label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+              <input type="text" id="stCheckNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+            </div>
+            <div class="field"><label>চেক বই</label>
+              <select id="stCheckbook" onchange="updateNextCheckNo('stCheckbook','stCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                <option value="">-- চেক বই নির্বাচন করুন --</option>
+              </select>
+            </div>
+          </div>
+          <div id="stClearDateRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field">
+              <label>ভাঙ্গানোর তারিখ * <span style="font-size:11px;color:var(--accent)">(ভবিষ্যতের তারিখ দিলে "পেন্ডিং" থাকবে)</span></label>
+              <input type="date" id="stClearDate">
+            </div>
           </div>
           <div class="form-row" id="stSellMaxRow" style="display:none">
             <div class="field">
@@ -2045,15 +2090,42 @@ function openPrintWindow(htmlContent, title) {
           </div>
           <div class="form-row-amt">
             <div class="field-stack">
-              <div class="field"><label>ধরন</label>
-                <select id="vcType">
-                  <option value="payable">পরিশোধযোগ্য (বাকি)</option>
-                  <option value="paid">নগদ পরিশোধ</option>
-                </select>
-              </div>
+              <div class="field"><label>এখনই কত পরিশোধ (৳) — বাকি রাখতে ০ দিন</label><input type="number" id="vcPaidNow" placeholder="০.০০" min="0" value="0" oninput="onVcPaidNowChange()"></div>
               <div class="field"><label>বিবরণ</label><input type="text" id="vcNote" placeholder="পণ্য/সার্ভিসের বিবরণ"></div>
             </div>
-            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="vcAmount" placeholder="০.০০" min="0"></div>
+            <div class="field amt-hl"><label>মোট পরিমাণ (৳) *</label><input type="number" id="vcAmount" placeholder="০.০০" min="0"></div>
+          </div>
+          <div id="vcPayModeSection" style="display:none">
+            <div class="form-row" style="margin-bottom:8px">
+              <div class="field">
+                <label>এই পরিশোধের মাধ্যম *</label>
+                <div style="display:flex;gap:10px;margin-top:6px">
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+                    <input type="radio" name="vcPayMode" value="cash" id="vcPayCash" onchange="onVcPayModeChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+                    <input type="radio" name="vcPayMode" value="bank" id="vcPayBank" onchange="onVcPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক/চেক
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div id="vcBankRow" class="form-row" style="display:none;margin-bottom:10px">
+              <div class="field">
+                <label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+                <input type="text" id="vcCheckNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+              </div>
+              <div class="field"><label>চেক বই</label>
+                <select id="vcCheckbook" onchange="updateNextCheckNo('vcCheckbook','vcCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                  <option value="">-- চেক বই নির্বাচন করুন --</option>
+                </select>
+              </div>
+            </div>
+            <div id="vcClearDateRow" class="form-row" style="display:none;margin-bottom:10px">
+              <div class="field">
+                <label>ভাঙ্গানোর তারিখ * <span style="font-size:11px;color:var(--accent)">(ভবিষ্যতের তারিখ দিলে "পেন্ডিং" থাকবে)</span></label>
+                <input type="date" id="vcClearDate">
+              </div>
+            </div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="clearVoucherForm()">🔄 রিসেট</button>
@@ -2091,7 +2163,7 @@ function openPrintWindow(htmlContent, title) {
         </div>
         <div class="panel-body">
           <div class="table-wrap"><table>
-            <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>সরবরাহকারী</th><th>বিবরণ</th><th>পরিমাণ</th><th>ধরন</th><th>অ্যাকশন</th></tr></thead>
+            <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>সরবরাহকারী</th><th>বিবরণ</th><th>মোট</th><th>পরিশোধিত</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
             <tbody id="voucherTable"></tbody>
           </table></div>
         </div>
@@ -4408,6 +4480,33 @@ function openPrintWindow(htmlContent, title) {
       <div class="field"><label>পরিমাণ *</label><input type="number" id="stModalQty" placeholder="০" min="1"></div>
       <div class="field" id="stModalPriceField" style="display:none"><label>এই ব্যাচের ক্রয়মূল্য/একক (ঐচ্ছিক)</label><input type="number" id="stModalPrice" placeholder="আগেরটার মতোই হলে খালি রাখুন"></div>
       <div class="field"><label>কারণ / বিবরণ</label><input type="text" id="stModalNote" placeholder="যেমন: ক্রয়, বিক্রয়, নষ্ট"></div>
+    </div>
+    <div id="stModalPayModeSection" style="display:none">
+      <div class="field" style="margin-bottom:8px">
+        <label>পেমেন্ট মাধ্যম</label>
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+            <input type="radio" name="stModalPayMode" value="cash" id="stModalPayCash" onchange="onStModalPayModeChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+            <input type="radio" name="stModalPayMode" value="bank" id="stModalPayBank" onchange="onStModalPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক/চেক
+          </label>
+        </div>
+      </div>
+      <div id="stModalBankRow" class="form-row" style="display:none">
+        <div class="field">
+          <label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+          <input type="text" id="stModalCheckNo" placeholder="অটো আসবে" style="font-weight:600;color:#3498db">
+        </div>
+        <div class="field"><label>চেক বই</label>
+          <select id="stModalCheckbook" onchange="updateNextCheckNo('stModalCheckbook','stModalCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+            <option value="">-- চেক বই --</option>
+          </select>
+        </div>
+      </div>
+      <div id="stModalClearDateRow" class="form-row" style="display:none">
+        <div class="field"><label>ভাঙ্গানোর তারিখ *</label><input type="date" id="stModalClearDate"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeStockModal()">বাতিল</button>
@@ -6800,7 +6899,7 @@ function refreshDashboard() {
   // দেনা = লোন বাকি + সরবরাহকারী বাকি ভাউচার
   const loanIn = (appData.loans||[]).filter(l=>l.type==='received').reduce((s,l)=>s+l.amount,0);
   const loanOut = (appData.loans||[]).filter(l=>l.type==='repaid').reduce((s,l)=>s+l.amount,0);
-  const vendorDue = (appData.vouchers||[]).filter(v=>v.type==='payable').reduce((s,v)=>s+v.amount,0);
+  const vendorDue = (appData.vouchers||[]).reduce((s,v)=>s+Math.max(0,v.amount-(v.paidAmount||0)),0);
   const totalDebt = Math.max(0, loanIn - loanOut) + vendorDue;
   const debtEl = document.getElementById('totalDebt'); if(debtEl) animateStatText(debtEl, totalDebt, v => '৳ ' + fmt(v));
 
@@ -6953,7 +7052,7 @@ function showDashCardModal(cardId, modalId) {
   } else if (cardId === 'totalDebt') {
     const loanIn  = (appData.loans||[]).filter(l=>l.type==='received').reduce((s,l)=>s+l.amount,0);
     const loanOut = (appData.loans||[]).filter(l=>l.type==='repaid').reduce((s,l)=>s+l.amount,0);
-    const vendorDue = (appData.vouchers||[]).filter(v=>v.type==='payable').reduce((s,v)=>s+v.amount,0);
+    const vendorDue = (appData.vouchers||[]).reduce((s,v)=>s+Math.max(0,v.amount-(v.paidAmount||0)),0);
     const netLoan = Math.max(0, loanIn-loanOut);
     icon='📉'; title='মোট দেনা'; sub='লোন + সরবরাহকারী বাকি';
     amtText='৳ '+fmt(netLoan+vendorDue); amtColor='#c0392b';
@@ -7596,7 +7695,8 @@ function issueCheck() {
 }
 function markCheckCleared(id) {
   const chk=(appData.issuedChecks||[]).find(c=>c.id===id); if (!chk) return;
-  const defaultDate = chk.dueDate || todayStr();
+  // ✅ ডিফল্টে আজকের তারিখ (যেদিন ক্লিক করা হচ্ছে) — চেকের পুরনো/মেয়াদোত্তীর্ণ দুই তারিখ নয়; চাইলে ম্যানুয়ালি বদলানো যাবে
+  const defaultDate = todayStr();
   const modal=document.createElement('div');
   modal.className='modal-overlay'; modal.style.display='flex';
   modal.innerHTML=`<div class="modal" style="max-width:420px">
@@ -7889,7 +7989,8 @@ function renderExpenseTable() {
 }
 function markExpenseCleared(id) {
   const e=(appData.expense||[]).find(x=>x.id===id); if (!e) return;
-  const defaultDate = e.clearDate || todayStr();
+  // ✅ ডিফল্টে আজকের তারিখ (যেদিন ক্লিক করা হচ্ছে) — চাইলে ম্যানুয়ালি বদলানো যাবে
+  const defaultDate = todayStr();
   const modal=document.createElement('div');
   modal.className='modal-overlay'; modal.style.display='flex';
   modal.innerHTML=`<div class="modal" style="max-width:420px">
@@ -10079,7 +10180,8 @@ function renderVendorList() {
   tbody.innerHTML=vendors.map(v=>{
     const vouchers=(appData.vouchers||[]).filter(vc=>vc.vendorId===v.id);
     const totalAmt=vouchers.reduce((s,vc)=>s+vc.amount,0);
-    const totalDue=vouchers.filter(vc=>vc.type==='payable'&&!vc.paid).reduce((s,vc)=>s+vc.amount,0);
+    // ✅ প্রতিটা ভাউচারের নিজস্ব paidAmount থেকে বাকি হিসাব — আংশিক পেমেন্ট সাপোর্ট করে
+    const totalDue=vouchers.reduce((s,vc)=>s+Math.max(0,vc.amount-(vc.paidAmount||0)),0);
     return `<tr>
       <td style="font-weight:600">${v.name}</td>
       <td><span class="badge badge-info">${v.cat}</span></td>
@@ -10088,12 +10190,131 @@ function renderVendorList() {
       <td>৳ ${fmt(totalAmt)}</td>
       <td style="font-weight:${totalDue>0?'700':'400'};color:${totalDue>0?'var(--danger)':'var(--success)'}">৳ ${fmt(totalDue)}</td>
       <td style="display:flex;gap:4px">
+        ${totalDue>0?`<button class="btn btn-success btn-sm" onclick="openVendorPayment(${v.id})">💳 পেমেন্ট</button>`:''}
         <button class="btn btn-primary btn-sm" onclick="editVendor(${v.id})">✏️</button>
         <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('ভেন্ডর',${v.id},'${v.name.replace(/'/g,"\\'")}')">🕐</button>
         <button class="btn btn-danger btn-sm" onclick="deleteVendor(${v.id})">🗑️</button>
       </td>
     </tr>`;
   }).join('');
+}
+// ✅ সরবরাহকারীর মোট বাকির বিপরীতে পেমেন্ট — সবচেয়ে পুরনো ভাউচার থেকে শুরু করে (FIFO) স্বয়ংক্রিয়ভাবে বণ্টন হয়ে যায়,
+// প্রতিটা ভাউচারের নিজস্ব বাকি/পরিশোধ ঠিকমতো আপডেট হয়। নির্দিষ্ট একটা ভাউচারে সরাসরি পেমেন্ট করতেও ব্যবহার করা যায়।
+function openVendorPayment(vendorId, voucherId) {
+  const vendor = (appData.vendors||[]).find(v=>v.id===vendorId); if (!vendor) return;
+  const dueVouchers = (appData.vouchers||[]).filter(vc=>vc.vendorId===vendorId && (vc.amount-(vc.paidAmount||0))>0.001).sort((a,b)=>a.id-b.id);
+  const totalDue = dueVouchers.reduce((s,vc)=>s+(vc.amount-(vc.paidAmount||0)),0);
+  if (!dueVouchers.length) { showToast('✅ এই সরবরাহকারীর কোনো বাকি নেই'); return; }
+  const specificVoucher = voucherId ? dueVouchers.find(vc=>vc.id===voucherId) : null;
+  const modal=document.createElement('div');
+  modal.className='modal-overlay'; modal.style.display='flex';
+  modal.innerHTML=`<div class="modal" style="max-width:460px">
+    <div class="modal-title">💳 ${vendor.name} — পেমেন্ট করুন</div>
+    <div style="font-size:13.5px;margin-bottom:14px;background:#f0f4f8;border-radius:8px;padding:10px 12px">
+      মোট বাকি: <strong style="color:var(--danger)">৳ ${fmt(totalDue)}</strong> (${dueVouchers.length}টি ভাউচারে)
+      ${specificVoucher ? `<br>শুধু ভাউচার <strong>${specificVoucher.voucher}</strong>-এ পেমেন্ট করা হবে (বাকি: ৳${fmt(specificVoucher.amount-(specificVoucher.paidAmount||0))})` : '<br><span style="font-size:11.5px;color:var(--text-light)">পেমেন্ট স্বয়ংক্রিয়ভাবে সবচেয়ে পুরনো ভাউচার থেকে শুরু করে বণ্টন হবে</span>'}
+    </div>
+    <div class="field"><label>পেমেন্টের তারিখ *</label><input type="date" id="vpDate" value="${todayStr()}"></div>
+    <div class="field amt-hl"><label>পেমেন্টের পরিমাণ (৳) *</label><input type="number" id="vpAmount" min="0" max="${specificVoucher?(specificVoucher.amount-(specificVoucher.paidAmount||0)):totalDue}" value="${specificVoucher?(specificVoucher.amount-(specificVoucher.paidAmount||0)):totalDue}"></div>
+    <div class="field">
+      <label>পেমেন্টের মাধ্যম *</label>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+          <input type="radio" name="vpPayMode" value="cash" id="vpPayCash" onchange="onVpPayModeChange()" checked style="accent-color:var(--success)"> 💵 ক্যাশ
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+          <input type="radio" name="vpPayMode" value="bank" id="vpPayBank" onchange="onVpPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক/চেক
+        </label>
+      </div>
+    </div>
+    <div id="vpBankRow" class="form-row" style="display:none;margin-top:10px">
+      <div class="field">
+        <label>চেক নম্বর <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+        <input type="text" id="vpCheckNo" placeholder="চেক নম্বর অটো আসবে" style="font-weight:600;color:#3498db">
+      </div>
+      <div class="field"><label>চেক বই</label>
+        <select id="vpCheckbook" onchange="updateNextCheckNo('vpCheckbook','vpCheckNo')" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+          <option value="">-- চেক বই নির্বাচন করুন --</option>
+        </select>
+      </div>
+    </div>
+    <div id="vpClearDateRow" style="display:none;margin-top:10px">
+      <div class="field">
+        <label>ভাঙ্গানোর তারিখ * <span style="font-size:11px;color:var(--accent)">(ভবিষ্যতের তারিখ দিলে "পেন্ডিং" থাকবে)</span></label>
+        <input type="date" id="vpClearDate">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বাতিল</button>
+      <button class="btn btn-success" onclick="confirmVendorPayment(${vendorId}${specificVoucher?','+specificVoucher.id:''})">✅ নিশ্চিত করুন</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  if (typeof populateCheckbookSelect==='function') populateCheckbookSelect('vpCheckbook','vpCheckNo');
+}
+function onVpPayModeChange() {
+  const mode = document.querySelector('input[name="vpPayMode"]:checked')?.value || 'cash';
+  const bankRow=document.getElementById('vpBankRow');
+  const clearDateRow=document.getElementById('vpClearDateRow');
+  if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
+  if (mode==='bank') {
+    updateNextCheckNo('vpCheckbook','vpCheckNo');
+    const cdEl=document.getElementById('vpClearDate'); if (cdEl && !cdEl.value) cdEl.value = todayStr();
+  }
+}
+function confirmVendorPayment(vendorId, voucherId) {
+  const vendor = (appData.vendors||[]).find(v=>v.id===vendorId); if (!vendor) return;
+  const date = document.getElementById('vpDate')?.value || todayStr();
+  let payAmount = parseFloat(document.getElementById('vpAmount')?.value)||0;
+  if (payAmount<=0) { showToast('⚠️ সঠিক পরিমাণ দিন'); return; }
+  const dueVouchers = voucherId
+    ? (appData.vouchers||[]).filter(vc=>vc.id===voucherId)
+    : (appData.vouchers||[]).filter(vc=>vc.vendorId===vendorId && (vc.amount-(vc.paidAmount||0))>0.001).sort((a,b)=>a.id-b.id);
+  const totalDue = dueVouchers.reduce((s,vc)=>s+(vc.amount-(vc.paidAmount||0)),0);
+  if (payAmount > totalDue) payAmount = totalDue; // অতিরিক্ত পেমেন্ট ঠেকানো
+  let remaining = payAmount;
+  const settledVouchers = [];
+  for (const vc of dueVouchers) {
+    if (remaining <= 0) break;
+    const vDue = vc.amount - (vc.paidAmount||0);
+    const applyAmt = Math.min(vDue, remaining);
+    vc.paidAmount = (vc.paidAmount||0) + applyAmt;
+    remaining -= applyAmt;
+    settledVouchers.push(`${vc.voucher} (৳${fmt(applyAmt)})`);
+  }
+  // ✅ ভেন্ডর যদি ওষুধ/চশমা সরবরাহকারী হয়, ইনভেন্টরি ক্রয় হিসেবে গণ্য (P&L এ না, শুধু ক্যাশ আউট)
+  const isInventoryVendor = vendor.cat === 'ওষুধ সরবরাহকারী' || vendor.cat === 'চশমা/লেন্স সরবরাহকারী';
+  const payMode = document.querySelector('input[name="vpPayMode"]:checked')?.value || 'cash';
+  const expId = Date.now();
+  let checkNo='', checkbookId='', clearDate=date;
+  // ✅ চেক দিয়ে পরিশোধ করলে issuedChecks-এ ট্র্যাক হয়, চেক নিষ্পত্তি স্ট্রিপে দেখা যায়, ব্যাংক ব্যালেন্স থেকে কাটে
+  if (payMode==='bank') {
+    checkNo = (document.getElementById('vpCheckNo')||{}).value.trim() || '';
+    checkbookId = (document.getElementById('vpCheckbook')||{}).value || '';
+    clearDate = (document.getElementById('vpClearDate')||{}).value || date;
+    if (checkbookId && checkNo) {
+      checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
+      const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+      if (cb) cb.lastUsed = parseInt(checkNo);
+      if (!appData.issuedChecks) appData.issuedChecks=[];
+      appData.issuedChecks.push({
+        id: Date.now()+1, checkbookId, checkNo, amount: payAmount, payee: vendor.name,
+        issueDate: date, dueDate: clearDate, purpose: `পাওনা পরিশোধ — ভাউচার: ${settledVouchers.join(', ')}`,
+        status: clearDate<=todayStr() ? 'cleared' : 'pending', by: currentUser.name,
+        source: 'vendorPayment', linkedExpenseId: expId
+      });
+    }
+  }
+  appData.expense.push({
+    id: expId, date, category:'ওষুধ/সরঞ্জাম কেনা', amount: payAmount, ref: vendor.name,
+    note: `পাওনা পরিশোধ — ভাউচার: ${settledVouchers.join(', ')}`, by: currentUser.name,
+    isInventoryPurchase: isInventoryVendor, payMode, checkNo:checkNo||undefined, checkbookId:checkbookId||undefined, clearDate: payMode==='bank'?clearDate:undefined
+  });
+  logActivity('edit', 'ভেন্ডর পেমেন্ট', `${vendor.name} — ৳${fmt(payAmount)} পরিশোধ (${settledVouchers.join(', ')})`);
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
+  saveData(); renderVendorList(); renderVoucherList(); refreshDashboard();
+  showToast(`✅ ৳${fmt(payAmount)} পরিশোধ করা হয়েছে`);
 }
 function editVendor(id) {
   const v=(appData.vendors||[]).find(v=>v.id===id); if(!v)return;
@@ -10107,11 +10328,29 @@ function editVendor(id) {
   document.getElementById('vendorFormBody').style.display='block';
   document.getElementById('vendorFormBody').scrollIntoView({behavior:'smooth'});
 }
+function onVcPaidNowChange() {
+  const paidNow = parseFloat(document.getElementById('vcPaidNow').value)||0;
+  const section = document.getElementById('vcPayModeSection');
+  if (section) section.style.display = paidNow>0 ? '' : 'none';
+  if (paidNow>0) onVcPayModeChange();
+}
+function onVcPayModeChange() {
+  const mode = document.querySelector('input[name="vcPayMode"]:checked')?.value || 'cash';
+  const bankRow=document.getElementById('vcBankRow');
+  const clearDateRow=document.getElementById('vcClearDateRow');
+  if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
+  if (mode==='bank') {
+    if (typeof populateCheckbookSelect==='function') populateCheckbookSelect('vcCheckbook','vcCheckNo');
+    updateNextCheckNo('vcCheckbook','vcCheckNo');
+    const cdEl=document.getElementById('vcClearDate'); if (cdEl && !cdEl.value) cdEl.value = todayStr();
+  }
+}
 function saveVoucher() {
   const vendorId=parseInt(document.getElementById('vcVendor').value);
   const date=document.getElementById('vcDate').value;
   const amount=parseFloat(document.getElementById('vcAmount').value)||0;
-  const type=document.getElementById('vcType').value;
+  const paidNow=Math.min(amount, Math.max(0, parseFloat(document.getElementById('vcPaidNow').value)||0));
   const note=document.getElementById('vcNote').value.trim();
   if(!vendorId||!date||!amount){showToast('⚠️ সরবরাহকারী, তারিখ ও পরিমাণ আবশ্যক!');return;}
   const vendor=(appData.vendors||[]).find(v=>v.id===vendorId);
@@ -10119,41 +10358,74 @@ function saveVoucher() {
   // ম্যানুয়াল ইনপুট অথবা অটো ভাউচার নম্বর (ব্যয় ভাউচারের মতো)
   const vcEl=document.getElementById('vcVoucher');
   const voucher = (vcEl&&vcEl.value.trim()) ? vcEl.value.trim() : generateNextVoucherNo(date);
-  appData.vouchers.push({id:Date.now(),vendorId,vendorName:vendor?.name||'—',voucher,date,amount,type,note,paid:type==='paid'});
-  // শুধু পরিশোধ হলে ব্যয়ে যাবে (বাকি থাকলে শুধু দেনায় থাকবে)
-  if(type==='paid'){
+  // ✅ প্রতিটা ভাউচার নিজস্ব paidAmount ট্র্যাক করে (আংশিক পেমেন্ট সাপোর্ট) — dueAmount সবসময় amount-paidAmount থেকে হিসাব হয়
+  appData.vouchers.push({id:Date.now(),vendorId,vendorName:vendor?.name||'—',voucher,date,amount,paidAmount:paidNow,note});
+  if(paidNow>0){
     // ✅ ভেন্ডর যদি ওষুধ/চশমা সরবরাহকারী হয়, তাহলে এই পরিশোধ ইনভেন্টরি ক্রয় হিসেবে গণ্য হবে (স্টক মডিউলের মতোই) —
     // শুধু ক্যাশ/ব্যাংক থেকে কমবে, কিন্তু Operating Expense/P&L এ গণনা হবে না (COGS বিক্রির সময় আলাদাভাবে হিসাব হয়)।
-    // অন্য ক্যাটাগরির ভেন্ডর (সার্জিক্যাল/স্টেশনারি/সার্ভিস/অন্যান্য) আগের মতোই সরাসরি পরিচালন ব্যয়।
     const isInventoryVendor = vendor && (vendor.cat === 'ওষুধ সরবরাহকারী' || vendor.cat === 'চশমা/লেন্স সরবরাহকারী');
-    appData.expense.push({id:Date.now()+1,date,category:'ওষুধ/সরঞ্জাম কেনা',amount,ref:vendor?.name||'—',note:`ভাউচার: ${voucher} — পরিশোধ (অটো)`,by:currentUser.name, isInventoryPurchase: isInventoryVendor});
-    showToast(isInventoryVendor ? '✅ ভাউচার সেভ! ইনভেন্টরি ক্রয় — ক্যাশ থেকে কমেছে (ব্যয় হিসেবে গণনা হয়নি)।' : '✅ ভাউচার সেভ! ব্যয়ে অটো যোগ হয়েছে।');
-  } else {
-    showToast('✅ ভাউচার সেভ! বাকি দেনায় যোগ হয়েছে।');
+    const payMode = document.querySelector('input[name="vcPayMode"]:checked')?.value || 'cash';
+    const expId = Date.now()+1;
+    let checkNo='', checkbookId='', clearDate=date;
+    // ✅ চেক/ব্যাংক দিয়ে পরিশোধ করলে issuedChecks-এ সঠিকভাবে ট্র্যাক হয়, চেক নিষ্পত্তি স্ট্রিপে দেখা যায়,
+    // ব্যাংক ব্যালেন্স থেকেই কাটে (ক্যাশ থেকে না), চেক বইয়ের পাতা নম্বরও (lastUsed) আপডেট হয়
+    if (payMode==='bank') {
+      checkNo = (document.getElementById('vcCheckNo')||{}).value.trim() || '';
+      checkbookId = (document.getElementById('vcCheckbook')||{}).value || '';
+      clearDate = (document.getElementById('vcClearDate')||{}).value || date;
+      if (checkbookId && checkNo) {
+        checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
+        const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+        if (cb) cb.lastUsed = parseInt(checkNo);
+        if (!appData.issuedChecks) appData.issuedChecks=[];
+        appData.issuedChecks.push({
+          id: Date.now()+2, checkbookId, checkNo, amount: paidNow, payee: vendor?.name||'—',
+          issueDate: date, dueDate: clearDate, purpose: `ভাউচার: ${voucher} — পরিশোধ`,
+          status: clearDate<=todayStr() ? 'cleared' : 'pending', by: currentUser.name,
+          source: 'vendorPayment', linkedExpenseId: expId
+        });
+      }
+    }
+    appData.expense.push({id:expId,date,category:'ওষুধ/সরঞ্জাম কেনা',amount:paidNow,ref:vendor?.name||'—',note:`ভাউচার: ${voucher} — পরিশোধ (অটো)`,by:currentUser.name, isInventoryPurchase: isInventoryVendor, payMode, checkNo:checkNo||undefined, checkbookId:checkbookId||undefined, clearDate: payMode==='bank'?clearDate:undefined});
   }
+  const due = amount - paidNow;
+  showToast(due<=0 ? '✅ ভাউচার সেভ! সম্পূর্ণ পরিশোধ হয়েছে।' : paidNow>0 ? `✅ ভাউচার সেভ! ৳${fmt(paidNow)} পরিশোধ, ৳${fmt(due)} বাকি রইল।` : '✅ ভাউচার সেভ! পুরোটাই বাকি রইল।');
   saveData(); clearVoucherForm(); renderVoucherList(); renderVendorList(); refreshDashboard();
 }
 function clearVoucherForm() {
-  ['vcVendor','vcAmount','vcNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['vcVendor','vcAmount','vcNote','vcCheckNo','vcCheckbook'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('vcDate').value=todayStr();
-  document.getElementById('vcType').value='payable';
+  const paidNowEl=document.getElementById('vcPaidNow'); if(paidNowEl) paidNowEl.value='0';
   const vcEl=document.getElementById('vcVoucher'); if(vcEl) vcEl.value=generateNextVoucherNo(todayStr());
+  const cashRadio=document.getElementById('vcPayCash'); if(cashRadio) cashRadio.checked=true;
+  const section = document.getElementById('vcPayModeSection'); if(section) section.style.display='none';
+  const bankRow=document.getElementById('vcBankRow'); if(bankRow) bankRow.style.display='none';
+  const clearDateRow=document.getElementById('vcClearDateRow'); if(clearDateRow) clearDateRow.style.display='none';
   document.getElementById('voucherFormBody').style.display='none';
 }
 function renderVoucherList() {
   const vfId=parseInt(document.getElementById('vcVendorFilter')?.value)||0;
   let list=(appData.vouchers||[]).filter(v=>!vfId||v.vendorId===vfId).sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('voucherTable');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">কোনো ভাউচার নেই</td></tr>';return;}
-  tbody.innerHTML=list.map(v=>`<tr id="voucher-row-${v.id}">
+  if(!list.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো ভাউচার নেই</td></tr>';return;}
+  tbody.innerHTML=list.map(v=>{
+    const paid = v.paidAmount||0;
+    const due = Math.max(0, v.amount-paid);
+    const statusBadge = due<=0.001 ? '<span class="badge badge-income">✅ সম্পূর্ণ পরিশোধ</span>' : paid>0 ? '<span class="badge badge-warning">⏳ আংশিক</span>' : '<span class="badge badge-warning">⏳ বাকি</span>';
+    return `<tr id="voucher-row-${v.id}">
     <td>${formatDate(v.date)}</td>
     <td style="color:var(--warning);font-weight:600">${v.voucher||'—'}</td>
     <td style="font-weight:600">${v.vendorName||'—'}</td>
-    <td style="color:var(--text-light)">${v.note||'—'}</td>
-    <td style="font-weight:700;color:var(--danger)">৳ ${fmt(v.amount)}</td>
-    <td><span class="badge ${v.type==='paid'?'badge-income':'badge-warning'}">${v.type==='paid'?'✅ পরিশোধ':'⏳ বাকি'}</span></td>
-    <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteVoucher(${v.id})">🗑️</button>`:'—'}</td>
-  </tr>`).join('');
+    <td style="color:var(--text-light)">${v.note||'—'}${due>0.001?'<br>'+statusBadge:''}</td>
+    <td style="font-weight:700">৳ ${fmt(v.amount)}</td>
+    <td style="color:var(--success)">৳ ${fmt(paid)}</td>
+    <td style="font-weight:${due>0?'700':'400'};color:${due>0?'var(--danger)':'var(--success)'}">৳ ${fmt(due)}</td>
+    <td style="display:flex;gap:4px">
+      ${due>0.001?`<button class="btn btn-success btn-sm" onclick="openVendorPayment(${v.vendorId},${v.id})">💳</button>`:''}
+      ${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteVoucher(${v.id})">🗑️</button>`:''}
+    </td>
+  </tr>`;
+  }).join('');
 }
 function deleteVoucher(id) {
   if(!confirm('মুছবেন?'))return;
@@ -12958,7 +13230,7 @@ function initOwnerPage() {
   // দেনা
   const loanIn2 = (appData.loans||[]).filter(l=>l.type==='received').reduce((s,l)=>s+l.amount,0);
   const loanOut2 = (appData.loans||[]).filter(l=>l.type==='repaid').reduce((s,l)=>s+l.amount,0);
-  const vendorDue2 = (appData.vouchers||[]).filter(v=>v.type==='payable').reduce((s,v)=>s+v.amount,0);
+  const vendorDue2 = (appData.vouchers||[]).reduce((s,v)=>s+Math.max(0,v.amount-(v.paidAmount||0)),0);
   const totalDebt2 = Math.max(0, loanIn2 - loanOut2) + vendorDue2;
   // বাকি
   const dueVisits2 = (appData.visits||[]).filter(v=>v.due>0);
@@ -15457,13 +15729,35 @@ function saveStockItem() {
     appData.stock.push(newItem);
     if (buyPrice > 0 && qty > 0 && !isOpening) {
       const totalCost = buyPrice * qty;
+      const expId = Date.now()+1;
+      const payMode = document.querySelector('input[name="stPayMode"]:checked')?.value || 'cash';
+      let checkNo='', checkbookId='', clearDate=todayStr();
+      // ✅ ব্যাংক/চেক দিয়ে কেনা হলে issuedChecks-এ ট্র্যাক হয়, ব্যাংক ব্যালেন্স থেকে কাটে, চেক নিষ্পত্তি স্ট্রিপে দেখা যায়
+      if (payMode==='bank') {
+        checkNo = (document.getElementById('stCheckNo')||{}).value.trim() || '';
+        checkbookId = (document.getElementById('stCheckbook')||{}).value || '';
+        clearDate = (document.getElementById('stClearDate')||{}).value || todayStr();
+        if (checkbookId && checkNo) {
+          checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
+          const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+          if (cb) cb.lastUsed = parseInt(checkNo);
+          if (!appData.issuedChecks) appData.issuedChecks=[];
+          appData.issuedChecks.push({
+            id: Date.now()+3, checkbookId, checkNo, amount: totalCost, payee: name,
+            issueDate: todayStr(), dueDate: clearDate, purpose: `স্টক ক্রয়: ${name}`,
+            status: clearDate<=todayStr() ? 'cleared' : 'pending', by: currentUser.name,
+            source: 'stockPurchase', linkedExpenseId: expId
+          });
+        }
+      }
       appData.expense.push({
-        id: Date.now()+1, date: todayStr(),
+        id: expId, date: todayStr(),
         category: 'ওষুধ/সরঞ্জাম কেনা',
         amount: totalCost, ref: name,
         note: `স্টক ইন — ${qty} ${unit} × ৳${fmt(buyPrice)} (অটো)${voucherRef?' | ভাউচার:'+voucherRef:''}`,
         voucher: voucherRef||null,
         by: currentUser.name, autoStock: true,
+        payMode, checkNo:checkNo||undefined, checkbookId:checkbookId||undefined, clearDate: payMode==='bank'?clearDate:undefined,
         // ✅ ইনভেন্টরি ক্যাটাগরি হলে এটা শুধু ক্যাশ/ব্যাংক থেকে টাকা কমাবে (Cash Flow), কিন্তু Operating Expense/P&L এ গণনা হবে না —
         // কারণ এটা এখন "সম্পদ" (ইনভেন্টরি), খরচ না। বিক্রি হওয়ার সময় COGS হিসেবে হিসাব হবে।
         isInventoryPurchase: isInventoryCat
@@ -15485,13 +15779,28 @@ function saveStockItem() {
   saveData(); clearStockForm(); renderStockTable(); renderStockLog(); populatePurchaseMonthFilter(); renderPurchaseRecord(); refreshDashboard();
 }
 
+function onStPayModeChange() {
+  const mode = document.querySelector('input[name="stPayMode"]:checked')?.value || 'cash';
+  const bankRow=document.getElementById('stBankRow');
+  const clearDateRow=document.getElementById('stClearDateRow');
+  if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
+  if (mode==='bank') {
+    if (typeof populateCheckbookSelect==='function') populateCheckbookSelect('stCheckbook','stCheckNo');
+    updateNextCheckNo('stCheckbook','stCheckNo');
+    const cdEl=document.getElementById('stClearDate'); if (cdEl && !cdEl.value) cdEl.value = todayStr();
+  }
+}
 function clearStockForm() {
-  ['stName','stCode','stQty','stMinQty','stBuyPrice','stSellPrice','stSellMin','stSellMax','stNote','stNoteNormal','stEditId'].forEach(id=>{
+  ['stName','stCode','stQty','stMinQty','stBuyPrice','stSellPrice','stSellMin','stSellMax','stNote','stNoteNormal','stEditId','stCheckNo','stCheckbook'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   const cbEl = document.getElementById('stIsOpening'); if(cbEl) cbEl.checked=false;
   const subSel=document.getElementById('stSubCat'); if(subSel) subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি --</option>';
   const vRef=document.getElementById('stVoucherRef'); if(vRef) vRef.value='';
+  const cashRadio=document.getElementById('stPayCash'); if(cashRadio) cashRadio.checked=true;
+  const bankRow=document.getElementById('stBankRow'); if(bankRow) bankRow.style.display='none';
+  const clearDateRow=document.getElementById('stClearDateRow'); if(clearDateRow) clearDateRow.style.display='none';
   toggleOpeningStock();
   document.getElementById('stCat').value='';
   document.getElementById('stUnit').value='পিস';
@@ -15831,11 +16140,31 @@ function openStockModal(id, move) {
   document.getElementById('stModalNote').value = '';
   const priceField = document.getElementById('stModalPriceField');
   const priceInput  = document.getElementById('stModalPrice');
-  if (priceField) priceField.style.display = (move==='in' && s.cat!=='অফিস সামগ্রী') ? '' : 'none';
+  const isPurchase = (move==='in' && s.cat!=='অফিস সামগ্রী');
+  if (priceField) priceField.style.display = isPurchase ? '' : 'none';
   if (priceInput) priceInput.value = '';
+  // ✅ পেমেন্ট মাধ্যম সেকশন শুধু ক্রয়ের (স্টক ইন) সময়ই দেখাবে
+  const payModeSection = document.getElementById('stModalPayModeSection');
+  if (payModeSection) payModeSection.style.display = isPurchase ? '' : 'none';
+  const cashRadio = document.getElementById('stModalPayCash'); if (cashRadio) cashRadio.checked = true;
+  const bankRow = document.getElementById('stModalBankRow'); if (bankRow) bankRow.style.display = 'none';
+  const clearDateRow = document.getElementById('stModalClearDateRow'); if (clearDateRow) clearDateRow.style.display = 'none';
+  ['stModalCheckNo','stModalCheckbook','stModalClearDate'].forEach(i=>{const el=document.getElementById(i); if(el) el.value='';});
   document.getElementById('stockModalBtn').className = `btn btn-sm ${move==='in'?'btn-success':'btn-danger'}`;
   document.getElementById('stockModalBtn').textContent = move==='in' ? '✅ স্টক ইন করুন' : '✅ স্টক আউট করুন';
   document.getElementById('stockModal').classList.add('open');
+}
+function onStModalPayModeChange() {
+  const mode = document.querySelector('input[name="stModalPayMode"]:checked')?.value || 'cash';
+  const bankRow=document.getElementById('stModalBankRow');
+  const clearDateRow=document.getElementById('stModalClearDateRow');
+  if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
+  if (mode==='bank') {
+    if (typeof populateCheckbookSelect==='function') populateCheckbookSelect('stModalCheckbook','stModalCheckNo');
+    updateNextCheckNo('stModalCheckbook','stModalCheckNo');
+    const cdEl=document.getElementById('stModalClearDate'); if (cdEl && !cdEl.value) cdEl.value = todayStr();
+  }
 }
 function closeStockModal() { document.getElementById('stockModal').classList.remove('open'); activeStockId=null; }
 
@@ -15854,6 +16183,30 @@ function confirmStockMove() {
   let toastCostMsg = '';
 
   if (activeStockMove === 'in') {
+    // ✅ এই স্টক-ইন লেনদেনের পেমেন্ট মাধ্যম (ক্যাশ/ব্যাংক-চেক) — একবার হিসাব করে উভয় ধরনের (ইনভেন্টরি/অফিস) ক্রয়েই ব্যবহার হবে
+    const payMode = document.querySelector('input[name="stModalPayMode"]:checked')?.value || 'cash';
+    function buildPayFields(amount, itemName) {
+      let checkNo='', checkbookId='', clearDate=todayStr();
+      const expId = Date.now()+1;
+      if (payMode==='bank') {
+        checkNo = (document.getElementById('stModalCheckNo')||{}).value.trim() || '';
+        checkbookId = (document.getElementById('stModalCheckbook')||{}).value || '';
+        clearDate = (document.getElementById('stModalClearDate')||{}).value || todayStr();
+        if (checkbookId && checkNo) {
+          checkNo = ensureUniqueCheckNo(checkNo, checkbookId);
+          const cb=(appData.checkbooks||[]).find(b=>b.id==checkbookId);
+          if (cb) cb.lastUsed = parseInt(checkNo);
+          if (!appData.issuedChecks) appData.issuedChecks=[];
+          appData.issuedChecks.push({
+            id: Date.now()+2, checkbookId, checkNo, amount, payee: itemName,
+            issueDate: todayStr(), dueDate: clearDate, purpose: `স্টক ইন: ${itemName}`,
+            status: clearDate<=todayStr() ? 'cleared' : 'pending', by: currentUser.name,
+            source: 'stockPurchase', linkedExpenseId: expId
+          });
+        }
+      }
+      return { expId, payMode, checkNo:checkNo||undefined, checkbookId:checkbookId||undefined, clearDate: payMode==='bank'?clearDate:undefined };
+    }
     if (isInventoryCat && s.buyPrice > 0 || (isInventoryCat && !isNaN(newPriceInput) && newPriceInput>0)) {
       // ✅ ওয়েটেড এভারেজ ক্রয়মূল্য — এই ব্যাচের নতুন দাম (দিলে) আগের (exempt বাদে) পরিমাণের সাথে মিলিয়ে গড় করা হয়
       const newPrice = (!isNaN(newPriceInput) && newPriceInput > 0) ? newPriceInput : (s.avgCost || s.buyPrice || 0);
@@ -15868,11 +16221,13 @@ function confirmStockMove() {
         if (autoSell.sellMin != null) { s.sellMin = autoSell.sellMin; s.sellMax = autoSell.sellMax; }
       }
       const totalCost = newPrice * qty;
+      const payFields = buildPayFields(totalCost, s.name);
       appData.expense.push({
-        id: Date.now()+1, date: todayStr(),
+        id: payFields.expId, date: todayStr(),
         category: 'ওষুধ/সরঞ্জাম কেনা', amount: totalCost, ref: s.name,
         note: `স্টক ইন — ${qty} ${s.unit} × ৳${fmt(newPrice)} (অটো)`,
         by: currentUser.name, autoStock: true,
+        payMode: payFields.payMode, checkNo: payFields.checkNo, checkbookId: payFields.checkbookId, clearDate: payFields.clearDate,
         // ✅ ইনভেন্টরি ক্রয় — ক্যাশ/ব্যাংক থেকে কমবে, কিন্তু Operating Expense/P&L এ গণনা হবে না (সম্পদ, বিক্রি হলে COGS হবে)
         isInventoryPurchase: true
       });
@@ -15880,11 +16235,13 @@ function confirmStockMove() {
     } else if (!isInventoryCat && s.buyPrice > 0) {
       // অফিস সামগ্রী — আগের মতোই সরাসরি পরিচালন ব্যয়
       const totalCost = s.buyPrice * qty;
+      const payFields = buildPayFields(totalCost, s.name);
       appData.expense.push({
-        id: Date.now()+1, date: todayStr(),
+        id: payFields.expId, date: todayStr(),
         category: 'ওষুধ/সরঞ্জাম কেনা', amount: totalCost, ref: s.name,
         note: `স্টক ইন — ${qty} ${s.unit} × ৳${fmt(s.buyPrice)} (অটো)`,
-        by: currentUser.name, autoStock: true
+        by: currentUser.name, autoStock: true,
+        payMode: payFields.payMode, checkNo: payFields.checkNo, checkbookId: payFields.checkbookId, clearDate: payFields.clearDate
       });
       toastCostMsg = ` — ব্যয় ৳${fmt(totalCost)} অটো যোগ`;
     }
@@ -17380,15 +17737,76 @@ function openRecVisitEdit(id) {
     </div>
     <div class="form-row">
       <div class="field"><label>মেমো নং</label><input type="text" id="rveMemo" value="${esc(v.memoNo||v.rcptNo)}"></div>
-      <div class="field amt-hl"><label>মোট বিল (৳)</label><input type="number" id="rveTotal" value="${v.total||0}" min="0"></div>
+      <div class="field amt-hl"><label>ডিসকাউন্ট (৳)</label><input type="number" id="rveDisc" value="${v.discAmt||0}" min="0" oninput="rveRecalc()"></div>
     </div>
-    <div class="form-row">
-      <div class="field amt-hl"><label>ডিসকাউন্ট (৳)</label><input type="number" id="rveDisc" value="${v.discAmt||0}" min="0"></div>
+    <div style="margin:10px 0 6px;font-weight:700;color:var(--primary);font-size:13.5px">🧾 সার্ভিস/পণ্যের তালিকা</div>
+    <div id="rveItemsContainer" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="rveAddItemRow()">+ আইটেম যোগ করুন</button>
+    <div style="display:flex;justify-content:flex-end;gap:20px;margin-top:10px;font-size:13.5px;font-weight:700">
+      <span>মোট: <span id="rveTotalDisplay">৳ 0</span></span>
+      <span>নেট: <span id="rveNetDisplay">৳ 0</span></span>
+    </div>
+    <div class="form-row" style="margin-top:8px">
       <div class="field amt-hl"><label>পরিশোধিত (৳)</label><input type="number" id="rvePaid" value="${v.cashPaid||0}" min="0"></div>
     </div>
     <div class="field"><label>নোট</label><input type="text" id="rveNote" value="${esc(v.note)}"></div>
-    <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">ℹ️ সার্ভিস তালিকা এখান থেকে পরিবর্তন করা যাবে না — শুধু বিলের তথ্য সংশোধন করা যাবে।</div>`;
+    <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">⚠️ আইটেম তালিকা পরিবর্তন করলে স্টক ও COGS স্বয়ংক্রিয়ভাবে পুনঃহিসাব হবে (আগের হিসাব বাতিল করে নতুন করে হবে)।</div>`;
+  (v.services||[]).forEach(it => rveAddItemRow(it));
+  if (!(v.services||[]).length) rveAddItemRow();
   document.getElementById('recVisitEditModal').classList.add('open');
+}
+let _rveItemCount = 0;
+function rveAddItemRow(item) {
+  _rveItemCount++;
+  const rid = _rveItemCount;
+  const stockOptions = (appData.stock||[]).map(s => `<option value="${s.id}" data-price="${(s.cat==='চশমা/লেন্স'?(s.sellMin||0):(s.sellPrice||0))}" ${item&&item.stockId===s.id?'selected':''}>${s.name} (স্টকে ${s.qty} ${s.unit})</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'rve-item-row';
+  div.id = 'rveRow-'+rid;
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center';
+  div.innerHTML = `
+    <select id="rveStockSel-${rid}" onchange="rveStockSelChange(${rid})" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12.5px">
+      <option value="">-- কাস্টম/ফি আইটেম --</option>${stockOptions}
+    </select>
+    <input type="text" id="rveName-${rid}" placeholder="নাম" value="${item&&!item.stockId?(item.name||'').replace(/"/g,'&quot;'):(item?item.name.replace(/"/g,'&quot;'):'')}" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12.5px" oninput="rveRecalc()">
+    <input type="number" id="rveQty-${rid}" placeholder="পরিমাণ" value="${item?item.qty:1}" min="0.01" step="0.01" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12.5px" oninput="rveRecalc()">
+    <input type="number" id="rvePrice-${rid}" placeholder="দাম" value="${item?item.price:0}" min="0" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12.5px" oninput="rveRecalc()">
+    <button type="button" class="btn-icon-del" onclick="rveRemoveRow(${rid})">✕</button>`;
+  document.getElementById('rveItemsContainer').appendChild(div);
+  if (item && item.stockId) document.getElementById('rveStockSel-'+rid).value = item.stockId;
+  rveRecalc();
+}
+function rveStockSelChange(rid) {
+  const sel = document.getElementById('rveStockSel-'+rid);
+  const stockId = sel.value ? parseInt(sel.value) : null;
+  if (stockId) {
+    const opt = sel.options[sel.selectedIndex];
+    document.getElementById('rveName-'+rid).value = opt.text.split(' (স্টকে')[0];
+    document.getElementById('rvePrice-'+rid).value = opt.getAttribute('data-price')||0;
+    document.getElementById('rveName-'+rid).readOnly = true;
+  } else {
+    document.getElementById('rveName-'+rid).readOnly = false;
+  }
+  rveRecalc();
+}
+function rveRemoveRow(rid) {
+  const el = document.getElementById('rveRow-'+rid);
+  if (el) el.remove();
+  rveRecalc();
+}
+function rveRecalc() {
+  const rows = document.querySelectorAll('.rve-item-row');
+  let total = 0;
+  rows.forEach(r => {
+    const rid = r.id.split('-')[1];
+    const qty = parseFloat(document.getElementById('rveQty-'+rid)?.value)||0;
+    const price = parseFloat(document.getElementById('rvePrice-'+rid)?.value)||0;
+    total += qty*price;
+  });
+  const disc = parseFloat((document.getElementById('rveDisc')||{}).value)||0;
+  const net = Math.max(0, total-disc);
+  const totalEl = document.getElementById('rveTotalDisplay'); if (totalEl) totalEl.textContent = '৳ '+fmt(total);
+  const netEl = document.getElementById('rveNetDisplay'); if (netEl) netEl.textContent = '৳ '+fmt(net);
 }
 function closeRecVisitEdit() {
   const m = document.getElementById('recVisitEditModal');
@@ -17402,24 +17820,54 @@ function saveRecVisitEdit() {
   const gv = i => { const el=document.getElementById(i); return el ? el.value.trim() : ''; };
   const patName = gv('rveName');
   if (!patName) { showToast('⚠️ রোগীর নাম দিন'); return; }
-  const before = {...v};
-  const total = parseFloat(gv('rveTotal')) || 0;
+
+  // ✅ নতুন আইটেম তালিকা সংগ্রহ
+  const newItems = [];
+  document.querySelectorAll('.rve-item-row').forEach(r => {
+    const rid = r.id.split('-')[1];
+    const stockSel = document.getElementById('rveStockSel-'+rid);
+    const stockId = stockSel && stockSel.value ? parseInt(stockSel.value) : null;
+    const name = (document.getElementById('rveName-'+rid)?.value||'').trim();
+    const qty = parseFloat(document.getElementById('rveQty-'+rid)?.value)||0;
+    const price = parseFloat(document.getElementById('rvePrice-'+rid)?.value)||0;
+    if (!name || qty<=0) return;
+    newItems.push({ name, qty, price, subtotal: qty*price, stockId, type: stockId?'med':'manual' });
+  });
+  if (!newItems.length) { showToast('⚠️ অন্তত একটা আইটেম দিন'); return; }
+
+  const before = {...v, services: JSON.parse(JSON.stringify(v.services||[]))};
+  const total = newItems.reduce((s,i)=>s+i.subtotal,0);
   const discAmt = parseFloat(gv('rveDisc')) || 0;
   const cashPaid = parseFloat(gv('rvePaid')) || 0;
   const netBill = Math.max(0, total - discAmt);
   const due = Math.max(0, netBill - cashPaid);
+
+  // ✅ পুরনো আইটেমের স্টক/COGS সম্পূর্ণ ফেরত দিয়ে, নতুন আইটেম অনুযায়ী আবার হিসাব করা হচ্ছে — এটাই সবচেয়ে
+  // নির্ভরযোগ্য পদ্ধতি (আংশিক পরিবর্তন ট্র্যাক করার চেয়ে), যাতে স্টক পরিমাণ ও COGS সবসময় বিলের সাথে মিলে থাকে
+  reverseStockForVisit(v.id);
+  newItems.filter(i=>i.stockId).forEach(item => {
+    deductStockForSale(item.stockId, item.qty, v.date, 'বিল (সংশোধিত)', v.id);
+  });
+
   v.patName=patName; v.patPhone=gv('rvePhone'); v.patAge=gv('rveAge'); v.patGender=gv('rveGender');
   v.patAddress=gv('rveAddress'); v.patDoc=gv('rveDoc'); v.memoNo=gv('rveMemo');
-  v.total=total; v.discAmt=discAmt; v.netBill=netBill; v.cashPaid=cashPaid; v.due=due; v.note=gv('rveNote');
+  v.services=newItems; v.total=total; v.discAmt=discAmt; v.netBill=netBill; v.cashPaid=cashPaid; v.due=due; v.note=gv('rveNote');
+  // ✅ আয়-মিরর এন্ট্রিও (visitId ট্যাগড) নতুন cashPaid দিয়ে আপডেট করা হচ্ছে
+  const incMirror = (appData.income||[]).find(e => e.visitId === v.id);
+  if (incMirror) incMirror.amount = cashPaid;
+  else if (cashPaid > 0) appData.income.push({ id:Date.now(), date:v.date, category:'রিসেপশন আয়', amount:cashPaid, memo:v.memoNo, ref:v.patName, note:`${v.memoNo} — ${v.patName} (সংশোধিত)`, by:currentUser.name, visitId:v.id });
+
   saveEditHistory('রোগীর বিল', v.id, `${v.patName} — ৳${fmt(v.total)}`, before, v);
-  logActivity('edit', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} সংশোধিত`);
+  logActivity('edit', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} সংশোধিত (আইটেম/স্টক পুনঃহিসাব)`);
   saveData();
   closeRecVisitEdit();
   renderRecHistory();
   if (typeof renderRecDue==='function') renderRecDue();
+  if (typeof renderStockTable==='function') renderStockTable();
   if (typeof refreshDashboard==='function') refreshDashboard();
-  showToast('✅ এন্ট্রি সংশোধন করা হয়েছে');
+  showToast('✅ এন্ট্রি সংশোধন করা হয়েছে — স্টক ও COGS পুনঃহিসাব করা হয়েছে');
 }
+
 
 // ===== PRINT =====
 function printCurrentReceipt() {
@@ -19318,13 +19766,16 @@ function renderMonthlyComparison(){
   const lbl=document.getElementById('dashMoCompLabel');
   if(lbl) lbl.textContent = `${monthNames[now.getMonth()]} বনাম ${monthNames[prevD.getMonth()]}`;
 
-  function moCol(label, curVal, prevVal, accentColor, divider, bgColor) {
+  function moCol(label, curVal, prevVal, accentColor, divider, bgColor, inverse) {
     let pct=0, dir='same';
     if(prevVal>0){ pct=((curVal-prevVal)/prevVal)*100; }
     else if(curVal>0){ pct=100; }
     if(curVal>prevVal) dir='up'; else if(curVal<prevVal) dir='down';
     const pctTxt = (prevVal===0&&curVal===0) ? '০%' : (dir==='up'?'▲':dir==='down'?'▼':'—')+Math.abs(pct).toFixed(1)+'%';
-    const pctColor = dir==='up' ? '#16a34a' : dir==='down' ? '#e74c3c' : '#94a3b8';
+    // ✅ ব্যয়ের ক্ষেত্রে সূচক উল্টো আচরণ করে — বাড়লে (খারাপ) লাল, কমলে (ভালো) সবুজ
+    const goodDir = inverse ? 'down' : 'up';
+    const badDir  = inverse ? 'up' : 'down';
+    const pctColor = dir===goodDir ? '#16a34a' : dir===badDir ? '#e74c3c' : '#94a3b8';
     const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
     return `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
       <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
@@ -19336,7 +19787,7 @@ function renderMonthlyComparison(){
 
   body.innerHTML =
     moCol('আয়', curInc, prevInc, '#16a34a', true, 'rgba(22,163,74,0.06)') +
-    moCol('ব্যয়', curExp, prevExp, '#e74c3c', true, 'rgba(231,76,60,0.06)') +
+    moCol('ব্যয়', curExp, prevExp, '#e74c3c', true, 'rgba(231,76,60,0.06)', true) +
     moCol('নিট মুনাফা', curProfit, prevProfit, curProfit>=0?'#0f4c81':'#e74c3c', false, curProfit>=0?'rgba(15,76,129,0.06)':'rgba(231,76,60,0.06)');
 
   wrap.style.display = 'block';
@@ -19384,8 +19835,25 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
     </div>`;
   }
 
+  // ✅ কলাপ্সড অবস্থায় দেখানোর জন্য কম্প্যাক্ট এক-লাইন সামারি (মাসিক তুলনা স্ট্রিপের ডিজাইনে, কাউন্ট ছাড়া শুধু এমাউন্ট)
+  function summaryCol(label, amount, accentColor, divider, bgColor) {
+    const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
+    return `<div onclick="toggleCashFlowPnLPanel()" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
+      <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
+      <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">${amount}</span>
+    </div>`;
+  }
+  const summaryEl = document.getElementById('dashCashFlowPnLSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML =
+      summaryCol('ক্যাশ ইন', '৳ '+fmt(cashIn), '#16a34a', true, 'rgba(22,163,74,0.06)')
+      + summaryCol('ক্যাশ আউট', '৳ '+fmt(cashOut), '#dc2626', true, 'rgba(220,38,38,0.06)')
+      + summaryCol('ক্যাশ ব্যালেন্স', '৳ '+fmt(liveCash), 'var(--primary)', true, 'rgba(99,102,241,0.06)')
+      + summaryCol('নিট মুনাফা/লোকসান', (netProfit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(netProfit)), netProfit>=0?'#8e44ad':'#dc2626', false, 'rgba(142,68,173,0.06)');
+  }
+
   wrap.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="panel" style="margin:0">
         <div class="panel-header"><div class="panel-title">💵 Cash Flow — ${monthLabel}</div></div>
         <div class="panel-body">
@@ -19406,7 +19874,22 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
         </div>
       </div>
     </div>`;
-  wrap.style.display = 'block';
+  // ✅ প্যানেলটা এক্সপ্যান্ডেড থাকলে (ইউজার আগেই খুলেছিল) নতুন কন্টেন্টের উচ্চতা অনুযায়ী max-height আপডেট করা হয়
+  if (_cfPnlExpanded) wrap.style.maxHeight = wrap.scrollHeight + 'px';
+}
+let _cfPnlExpanded = false;
+function toggleCashFlowPnLPanel() {
+  _cfPnlExpanded = !_cfPnlExpanded;
+  const wrap = document.getElementById('dashCashFlowPnLPanel');
+  const icon = document.getElementById('cfPnlToggleIcon');
+  if (!wrap) return;
+  if (_cfPnlExpanded) {
+    wrap.style.maxHeight = wrap.scrollHeight + 'px';
+    if (icon) icon.style.transform = 'rotate(180deg)';
+  } else {
+    wrap.style.maxHeight = '0px';
+    if (icon) icon.style.transform = 'rotate(0deg)';
+  }
 }
 function renderDashCheckStatus(){
   const wrap=document.getElementById('dashCheckStatusWrap');
