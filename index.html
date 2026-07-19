@@ -588,7 +588,7 @@ function openPrintWindow(htmlContent, title) {
 }
 
 .lc-cloud {
-  animation: lc-cloud-drift 46s linear infinite;
+  animation: lc-cloud-drift 46s ease-in-out infinite;
   animation-delay: var(--lc-cloud-delay, 0s);
 }
 
@@ -615,9 +615,18 @@ function openPrintWindow(htmlContent, title) {
   animation: lc-fog-drift 34s linear infinite;
 }
 
+.lc-fog-band-2 {
+  animation: lc-fog-drift-2 21s linear infinite;
+}
+
 @keyframes lc-fog-drift {
   0%   { transform: translateX(0); }
   100% { transform: translateX(6%); }
+}
+
+@keyframes lc-fog-drift-2 {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-5%); }
 }
 
 /* ---------------- Mountains ---------------- */
@@ -632,6 +641,18 @@ function openPrintWindow(htmlContent, title) {
 
 .lc-tree {
   transition: transform 0.4s ease;
+  animation: lc-tree-sway 6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+.lc-tree:nth-child(3n)   { animation-duration: 6.6s; animation-delay: -1.1s; }
+.lc-tree:nth-child(3n+1) { animation-duration: 5.4s; animation-delay: -2.8s; }
+.lc-tree:nth-child(3n+2) { animation-duration: 7.1s; animation-delay: -0.4s; }
+
+@keyframes lc-tree-sway {
+  0%, 100% { rotate: -0.6deg; }
+  50%      { rotate: 0.6deg; }
 }
 
 .lc-highlight circle {
@@ -718,7 +739,7 @@ function openPrintWindow(htmlContent, title) {
 /* ---------------- Reduced motion ---------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .lc-cloud, .lc-bird, .lc-fog-band, .lc-sun, .lc-highlight circle {
+  .lc-cloud, .lc-bird, .lc-fog-band, .lc-fog-band-2, .lc-sun, .lc-highlight circle, .lc-tree {
     animation: none !important;
   }
   .lc-mountain-main, .lc-ridge-line, .lc-tree {
@@ -20272,11 +20293,12 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
       this.layerTrees = el('g', { class: 'lc-layer-trees' });
       this.layerAxis = el('g', { class: 'lc-layer-axis' });
       this.layerInteract = el('g', { class: 'lc-layer-interact' });
+      this.layerGrade = el('g', { class: 'lc-layer-grade', style: 'pointer-events:none' });
 
       [
         this.layerSky, this.layerFar, this.layerGrid,
         this.layerIncome, this.layerExpense, this.layerFog,
-        this.layerTrees, this.layerAxis, this.layerInteract
+        this.layerTrees, this.layerAxis, this.layerInteract, this.layerGrade
       ].forEach((g) => this.svg.appendChild(g));
 
       this.container.appendChild(this.svg);
@@ -20358,15 +20380,20 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
       this._renderTrees();
       this._renderAxis();
       this._renderInteractionLayer();
+      this._renderColorGrade();
     }
 
     _renderDefs() {
       const theme = this.config.theme;
       this.defs.innerHTML = '';
 
-      // Sky gradient
+      // Sky gradient — multi-stop for a richer, less flat wash, with a subtle
+      // warm horizon glow near the base where sky meets the mountain line.
       this.defs.appendChild(this._linearGradient('lc-sky-grad', [
-        [0, theme.sky.top], [1, theme.sky.bottom]
+        [0, theme.sky.top],
+        [0.55, this._mixColors(theme.sky.top, theme.sky.bottom, 0.5)],
+        [0.86, this._mixColors(theme.sky.bottom, '#FFF6E5', 0.35)],
+        [1, theme.sky.bottom]
       ], '0%', '0%', '0%', '100%'));
 
       // Income / Expense mountain gradients (top -> base)
@@ -20381,12 +20408,26 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
         this.defs.appendChild(this._linearGradient(`lc-${key}-ao`, [
           [0, 'rgba(0,0,0,0)'], [1, c.shadow]
         ], '0%', '0%', '0%', '100%'));
+        const hazeTop = this.config.theme.sky.top;
+        const hazeStrength = key === 'income' ? 0.30 : 0.10;
+        this.defs.appendChild(this._linearGradient(`lc-${key}-haze`, [
+          [0, this._withAlpha(hazeTop, hazeStrength)],
+          [0.55, this._withAlpha(hazeTop, hazeStrength * 0.35)],
+          [1, this._withAlpha(hazeTop, 0)]
+        ], '0%', '0%', '0%', '100%'));
       });
 
       // Soft blur filters (shadow / depth)
       this.defs.appendChild(this._blurFilter('lc-blur-soft', 3));
       this.defs.appendChild(this._blurFilter('lc-blur-fog', 6));
       this.defs.appendChild(this._blurFilter('lc-blur-cloud', 4));
+
+      // Tree drop-shadow — safe to reference SourceGraphic here since it's
+      // always applied to actual tree artwork (real fills), never an unfilled
+      // rect, so this can't trigger the opaque-black-overlay pitfall.
+      this.defs.appendChild(el('filter', { id: 'lc-tree-shadow', x: '-60%', y: '-60%', width: '220%', height: '220%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feDropShadow', { dx: 0.4, dy: 0.8, stdDeviation: 0.6, 'flood-opacity': 0.28 })
+      ]));
 
       // Terrain noise filter (rock/erosion texture)
       // NOTE: must NOT reference SourceGraphic — the rect this filter is applied to
@@ -20423,6 +20464,15 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
       ]);
       this.defs.appendChild(sun);
 
+      // Vignette (color grading) — very subtle darkening toward the corners,
+      // transparent in the center, for a cohesive final "graded" look.
+      const vignette = el('radialGradient', { id: 'lc-vignette', cx: '50%', cy: '42%', r: '75%' }, [
+        el('stop', { offset: '0%', 'stop-color': '#000000', 'stop-opacity': '0' }),
+        el('stop', { offset: '72%', 'stop-color': '#000000', 'stop-opacity': '0' }),
+        el('stop', { offset: '100%', 'stop-color': this._mixColors(theme.income.shadow, theme.expense.shadow, 0.5), 'stop-opacity': '0.14' })
+      ]);
+      this.defs.appendChild(vignette);
+
       // Clip paths for mountain silhouettes (used for texture/shading overlays)
       ['income', 'expense'].forEach((key) => {
         const pts = key === 'income' ? this._geom.incomeRidge : this._geom.expenseRidge;
@@ -20441,9 +20491,34 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
     }
 
     _blurFilter(id, dev) {
-      return el('filter', { id, x: '-50%', y: '-50%', width: '200%', height: '200%' }, [
+      return el('filter', { id, x: '-50%', y: '-50%', width: '200%', height: '200%', 'color-interpolation-filters': 'sRGB' }, [
         el('feGaussianBlur', { stdDeviation: String(dev) })
       ]);
+    }
+
+    /** Convert a #rrggbb (or #rgb) hex color to an rgba() string at the given alpha. */
+    _withAlpha(hex, alpha) {
+      let h = String(hex).replace('#', '');
+      if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+      const r = parseInt(h.substring(0, 2), 16) || 0;
+      const g = parseInt(h.substring(2, 4), 16) || 0;
+      const b = parseInt(h.substring(4, 6), 16) || 0;
+      return `rgba(${r},${g},${b},${clamp(alpha, 0, 1)})`;
+    }
+
+    /** Linearly blend two #rrggbb hex colors; t=0 -> a, t=1 -> b. */
+    _mixColors(a, b, t) {
+      const parse = (hex) => {
+        let h = String(hex).replace('#', '');
+        if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+        return [parseInt(h.substring(0, 2), 16) || 0, parseInt(h.substring(2, 4), 16) || 0, parseInt(h.substring(4, 6), 16) || 0];
+      };
+      const [ar, ag, ab] = parse(a);
+      const [br, bg, bb] = parse(b);
+      const r = Math.round(lerp(ar, br, t));
+      const g = Math.round(lerp(ag, bg, t));
+      const bch = Math.round(lerp(ab, bb, t));
+      return `rgb(${r},${g},${bch})`;
     }
 
     /* ---------------- Sky: gradient, sun glow, clouds, birds ---------------- */
@@ -20493,19 +20568,26 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
     _cloudGroup(cx, cy, scale, idx) {
       const g = el('g', {
         class: 'lc-cloud',
-        style: `--lc-cloud-delay:${idx * 3.4}s`,
-        opacity: 0.55
+        style: `--lc-cloud-delay:${idx * 3.4}s`
       });
-      const puffs = [
-        [0, 0, 16], [14, -4, 12], [-14, -3, 11], [26, 2, 9], [-26, 3, 8]
-      ];
-      puffs.forEach(([dx, dy, r]) => {
+      const rng = mulberry32((this._geom.seed + idx * 619) >>> 0);
+      const puffCount = 4 + Math.floor(rng() * 3); // 4-6 puffs, varies per cloud
+      // center anchor puff first, then satellites scattered radially around it
+      g.appendChild(el('ellipse', {
+        cx, cy, rx: 15 * scale, ry: 9 * scale, fill: '#FFFFFF', opacity: 0.5 + rng() * 0.15
+      }));
+      for (let i = 0; i < puffCount; i++) {
+        const ang = (i / puffCount) * Math.PI * 2 + rng() * 0.6;
+        const dist = (10 + rng() * 16) * scale;
+        const dx = Math.cos(ang) * dist;
+        const dy = Math.sin(ang) * dist * 0.35 - rng() * 3 * scale;
+        const r = (7 + rng() * 8) * scale;
         g.appendChild(el('ellipse', {
-          cx: cx + dx * scale, cy: cy + dy * scale,
-          rx: r * scale, ry: r * 0.62 * scale,
-          fill: '#FFFFFF'
+          cx: cx + dx, cy: cy + dy,
+          rx: r, ry: r * (0.55 + rng() * 0.15),
+          fill: '#FFFFFF', opacity: 0.4 + rng() * 0.22
         }));
-      });
+      }
       return g;
     }
 
@@ -20571,6 +20653,17 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
         d: mountainAreaPath(ghostPts, baseY),
         fill: theme.light, opacity: 0.16, filter: 'url(#lc-blur-soft)'
       }));
+
+      // 2b) Extra-far background range (income only — it's the back layer, so a
+      // 3rd receding ridge reads as a proper multi-range vista instead of a
+      // single mountain + one ghost).
+      if (key === 'income') {
+        const farPts = ridgePts.map((p) => ({ x: p.x, y: p.y + (baseY - p.y) * 0.34 - 14 }));
+        layer.appendChild(el('path', {
+          d: mountainAreaPath(farPts, baseY),
+          fill: theme.highlight, opacity: 0.12, filter: 'url(#lc-blur-fog)'
+        }));
+      }
 
       // 3) Main mountain body
       const mainPath = el('path', {
@@ -20689,10 +20782,52 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
       }
       layer.appendChild(rockGroup);
 
+      // 5b) Ground details — small grass tufts and pebbles right along the
+      // valley floor (distinct from the mid-slope erosion patches above),
+      // grounding the mountain into its base line.
+      const groundGroup = el('g', { 'clip-path': `url(#lc-clip-${key})` });
+      const groundRng = mulberry32((this._geom.seed + (key === 'income' ? 419 : 523)) >>> 0);
+      const tuftCount = 10;
+      for (let i = 0; i < tuftCount; i++) {
+        const gx = this._geom.padding.left + groundRng() * this._geom.innerW;
+        const gy = baseY - 1 - groundRng() * 5;
+        if (groundRng() > 0.4) {
+          // grass tuft: 3 small curved blades
+          const tuft = el('g', {});
+          for (let b = 0; b < 3; b++) {
+            const lean = (b - 1) * 2.2 + (groundRng() - 0.5);
+            const h = 3 + groundRng() * 3;
+            tuft.appendChild(el('path', {
+              d: `M ${gx},${gy} Q ${gx + lean * 0.6},${gy - h * 0.6} ${gx + lean},${gy - h}`,
+              fill: 'none', stroke: theme.primary, 'stroke-width': 0.8, 'stroke-linecap': 'round',
+              opacity: 0.45 + groundRng() * 0.25
+            }));
+          }
+          groundGroup.appendChild(tuft);
+        } else {
+          // small pebble
+          groundGroup.appendChild(el('ellipse', {
+            cx: gx, cy: gy, rx: 1.4 + groundRng() * 1.6, ry: 0.9 + groundRng() * 0.8,
+            fill: theme.shadow, opacity: 0.22 + groundRng() * 0.15
+          }));
+        }
+      }
+      layer.appendChild(groundGroup);
+
       // 6) Fine noise texture overlay (subtle grain, clipped)
       layer.appendChild(el('rect', {
         x: 0, y: 0, width: this.config.width, height: this.config.height,
         fill: 'none', 'clip-path': `url(#lc-clip-${key})`, filter: 'url(#lc-noise)', opacity: 1
+      }));
+
+      // 6b) Atmospheric perspective — a sky-colored haze wash, strongest near the
+      // peaks and fading out toward the base. Income sits farther back (rendered
+      // first, "behind"), so it gets a noticeably stronger haze than expense
+      // (the "in front" layer), which keeps the foreground crisp by contrast —
+      // this contrast IS the atmospheric-perspective depth cue.
+      layer.appendChild(el('rect', {
+        x: 0, y: 0, width: this.config.width, height: this.config.height,
+        fill: `url(#lc-${key}-haze)`, 'clip-path': `url(#lc-clip-${key})`
       }));
 
       // 7) Rim light along ridge (soft lighting)
@@ -20720,13 +20855,37 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
       this.layerFog.innerHTML = '';
       if (!this.config.showFog) return;
       const cfg = this.config;
-      const y = this._geom.baseY - this._geom.innerH * 0.14;
-      const band = el('g', { class: 'lc-fog-band', filter: 'url(#lc-blur-fog)' });
-      band.appendChild(el('rect', {
-        x: -cfg.width, y: y - 18, width: cfg.width * 2, height: 34,
-        fill: 'url(#lc-fog-grad)'
-      }));
-      this.layerFog.appendChild(band);
+      const rng = mulberry32((this._geom.seed + 811) >>> 0);
+
+      // wavy top edge (the visible "surface" of the mist) + straight bottom
+      // edge offset by `thickness` — simple, robust, and reads as soft,
+      // irregular fog rather than a flat rectangle.
+      const wavyBandPath = (cy, amp, waves, thickness) => {
+        const w2 = cfg.width * 2;
+        const steps = 22;
+        const top = [];
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const x = -cfg.width + t * w2;
+          const wobble = Math.sin(t * Math.PI * waves + rng() * 0.001) * amp;
+          top.push({ x, y: cy - thickness / 2 + wobble });
+        }
+        const topD = smoothLinePath(top);
+        const last = top[top.length - 1], first = top[0];
+        return `${topD} L ${last.x},${last.y + thickness} L ${first.x},${first.y + thickness} Z`;
+      };
+
+      // primary mist band, low in the valley
+      const y1 = this._geom.baseY - this._geom.innerH * 0.14;
+      const band1 = el('g', { class: 'lc-fog-band', filter: 'url(#lc-blur-fog)' });
+      band1.appendChild(el('path', { d: wavyBandPath(y1, 5, 3, 30), fill: 'url(#lc-fog-grad)' }));
+      this.layerFog.appendChild(band1);
+
+      // thinner secondary layer, sits a little lower/closer, drifts independently
+      const y2 = this._geom.baseY - this._geom.innerH * 0.05;
+      const band2 = el('g', { class: 'lc-fog-band lc-fog-band-2', filter: 'url(#lc-blur-fog)' });
+      band2.appendChild(el('path', { d: wavyBandPath(y2, 3.5, 4, 16), fill: 'url(#lc-fog-grad)', opacity: 0.6 }));
+      this.layerFog.appendChild(band2);
     }
 
     /* ---------------- Tree Engine ---------------- */
@@ -20742,7 +20901,7 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
       if (points.length < 2 || this.config.treeDensity <= 0) return;
       const theme = this.config.theme[key];
       const rng = mulberry32(seed);
-      const group = el('g', { class: `lc-trees-${key}` });
+      const group = el('g', { class: `lc-trees-${key}`, filter: 'url(#lc-tree-shadow)' });
 
       // density scales with available ridge width so trees don't overcrowd on small charts
       const ridgeLen = points.length - 1;
@@ -20754,9 +20913,21 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
         const jitterY = (rng() - 0.5) * 4;
         const scale = 0.65 + rng() * 0.75;
         const rotation = (rng() - 0.5) * 10;
+
+        // ground-contact shadow: a soft flattened ellipse right at the base,
+        // so the tree reads as planted in the terrain instead of floating on it
+        group.appendChild(el('ellipse', {
+          cx: pos.x, cy: pos.y + jitterY + 1.5 * scale,
+          rx: 4.2 * scale, ry: 1.3 * scale,
+          fill: theme.shadow, opacity: 0.18
+        }));
+
         const treeEl = key === 'income'
           ? this._pineTree(pos.x, pos.y + jitterY, scale, rotation, theme, rng)
           : this._dryTree(pos.x, pos.y + jitterY, scale, rotation, theme, rng);
+        // blend the canopy slightly toward the mountain surface tone so it
+        // doesn't read as a flat sticker pasted on top of the gradient fill
+        treeEl.style.opacity = String(0.92 + rng() * 0.08);
         group.appendChild(treeEl);
       }
       this.layerTrees.appendChild(group);
@@ -20769,17 +20940,19 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
         transform: `translate(${x} ${y}) rotate(${rotation}) scale(${scale})`,
         class: 'lc-tree lc-tree-pine'
       });
-      g.appendChild(el('rect', {
-        x: -1.3, y: -6, width: 2.6, height: 7, fill: '#5B4632', rx: 0.6
+      g.appendChild(el('path', {
+        d: 'M -1.1,1 L -0.7,-6 L 0.7,-6 L 1.1,1 Z',
+        fill: '#5B4632'
       }));
-      const tiers = 3;
+      const tiers = rng() > 0.65 ? 4 : 3;
       for (let t = 0; t < tiers; t++) {
-        const w = 8 - t * 1.7 - rng() * 0.6;
-        const yBase = -6 - t * 4.6;
-        const yTop = yBase - 7.5 + t * 0.6;
-        const fillColor = t === tiers - 1 ? theme.highlight : (t === 1 ? theme.mid : theme.primary);
+        const w = (8 - t * (7 / tiers)) * (tiers === 4 ? 0.85 : 1) - rng() * 0.6;
+        const asym = (rng() - 0.5) * w * 0.3; // slight left/right lean per tier, not a perfect symmetric triangle
+        const yBase = -6 - t * (13.8 / tiers);
+        const yTop = yBase - (7.5 - tiers * 0.4) + t * 0.6;
+        const fillColor = t === tiers - 1 ? theme.highlight : (t % 2 === 1 ? theme.mid : theme.primary);
         g.appendChild(el('path', {
-          d: `M 0,${yTop} L ${-w},${yBase} Q 0,${yBase + 1.6} ${w},${yBase} Z`,
+          d: `M ${asym * 0.3},${yTop} L ${-w + asym},${yBase} Q ${asym * 0.3},${yBase + 1.6} ${w + asym},${yBase} Z`,
           fill: fillColor, stroke: theme.shadow, 'stroke-width': 0.3, 'stroke-opacity': 0.4
         }));
       }
@@ -20792,19 +20965,34 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
         transform: `translate(${x} ${y}) rotate(${rotation}) scale(${scale})`,
         class: 'lc-tree lc-tree-dry'
       });
+      // procedural branch skeleton: a trunk plus 2-3 forking branches at varied
+      // angles/lengths per instance, instead of one fixed hardcoded path
+      const branchCount = 2 + Math.floor(rng() * 2);
+      let d = 'M 0,0 L -0.3,-6';
+      const tips = [[-0.3, -6]];
+      for (let i = 0; i < branchCount; i++) {
+        const fromIdx = Math.floor(rng() * tips.length);
+        const [fx, fy] = tips[fromIdx];
+        const ang = -Math.PI / 2 + (rng() - 0.5) * 1.9;
+        const len = 2.6 + rng() * 2.6;
+        const tx = fx + Math.cos(ang) * len;
+        const ty = fy + Math.sin(ang) * len;
+        d += ` M ${fx},${fy} L ${tx},${ty}`;
+        tips.push([tx, ty]);
+      }
       g.appendChild(el('path', {
-        d: 'M 0,0 L -0.4,-6 L -3.2,-9 M -0.4,-6 L 2.6,-8.6 M 0,-3.4 L 2.4,-5.6',
-        fill: 'none', stroke: '#6B4A3A', 'stroke-width': 1, 'stroke-linecap': 'round'
+        d, fill: 'none', stroke: '#6B4A3A', 'stroke-width': 1, 'stroke-linecap': 'round'
       }));
-      const blobs = [[-3.2, -9.6], [2.6, -9.2], [0, -11.4]];
-      blobs.forEach(([dx, dy], idx) => {
-        const r = 2.1 + rng() * 1;
+      const blobCount = 2 + Math.floor(rng() * 2);
+      for (let i = 0; i < blobCount; i++) {
+        const [bx, by] = tips[1 + Math.floor(rng() * (tips.length - 1))];
+        const r = 1.8 + rng() * 1.3;
         g.appendChild(el('circle', {
-          cx: dx, cy: dy, r,
-          fill: idx % 2 === 0 ? theme.mid : theme.primary,
-          opacity: 0.9
+          cx: bx + (rng() - 0.5) * 1.2, cy: by - rng() * 1.5, r,
+          fill: i % 2 === 0 ? theme.mid : theme.primary,
+          opacity: 0.85 + rng() * 0.1
         }));
-      });
+      }
       return g;
     }
 
@@ -20861,9 +21049,10 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
       g.appendChild(el('circle', {
         cx: point.x, cy: point.y - 4, r: 9, fill: theme.primary, opacity: 0.16
       }));
+      const highlightRng = mulberry32((this._geom.seed + (key === 'income' ? 9001 : 9002)) >>> 0);
       const marker = key === 'income'
-        ? this._pineTree(point.x, point.y + 1, 1.3, 0, theme, Math.random)
-        : this._dryTree(point.x, point.y + 1, 1.3, 0, theme, Math.random);
+        ? this._pineTree(point.x, point.y + 1, 1.3, 0, theme, highlightRng)
+        : this._dryTree(point.x, point.y + 1, 1.3, 0, theme, highlightRng);
       g.appendChild(marker);
       this.layerInteract.appendChild(g);
     }
@@ -20926,6 +21115,17 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
 
     _hideTooltip() {
       this.tooltip.classList.remove('lc-tooltip-visible');
+    }
+
+    /* ---------------- Color grading (Pass 13): final vignette wash ---------------- */
+
+    _renderColorGrade() {
+      this.layerGrade.innerHTML = '';
+      const cfg = this.config;
+      this.layerGrade.appendChild(el('rect', {
+        x: 0, y: 0, width: cfg.width, height: cfg.height,
+        fill: 'url(#lc-vignette)'
+      }));
     }
 
     /* ---------------- Events ---------------- */
