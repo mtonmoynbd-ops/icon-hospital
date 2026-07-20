@@ -380,7 +380,7 @@
     #ownerPage > div[style*="padding:16px 16px 84px"] { padding:16px 12px 84px !important; }
     #ownerCards { grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:5px !important; }
     #ownerCards > div { min-height:auto; }
-    #ownerPieCanvas, #ownerBarCanvas { display:block; width:100% !important; max-width:100%; }
+    #ownerBarCanvas { display:block; width:100% !important; max-width:100%; }
   }
 
   @media print {
@@ -426,8 +426,19 @@
   .pie-period { display:flex; gap:4px; }
   .pie-period button { padding:1px 6px; border-radius:6px; border:1.5px solid var(--border); background:white; font-family:inherit; font-size:9.5px; font-weight:600; cursor:pointer; color:var(--text-light); transition:.15s; }
   .pie-period button.active { background:var(--accent); color:white; border-color:var(--accent); }
+  .pie-chart-wrap .lcw-toggle, #ownerPieVizToggle { padding:2px; gap:2px; background:#f1f5f9; border-radius:8px; margin:0; }
+  .pie-chart-wrap .lcw-toggle-btn, #ownerPieVizToggle .lcw-toggle-btn { padding:2px 8px; font-size:10px; gap:3px; border-radius:6px; }
+  .pie-chart-wrap .lcw-toggle-btn span, #ownerPieVizToggle .lcw-toggle-btn span { display:none; }
+  @media (min-width:520px) {
+    .pie-chart-wrap .lcw-toggle-btn span { display:inline; }
+  }
   .pie-chart-wrap canvas { width:100%; height:0; min-height:225px; flex:1 1 auto; display:block; cursor:pointer; }
   .pie-chart-wrap #dashPieLegend { flex-shrink:0; }
+  .pie-chart-wrap .lcw-embed { width:100%; min-height:225px; flex:1 1 auto; display:flex; flex-direction:column; }
+  .pie-chart-wrap .lcw-chart-host { flex:1 1 auto; min-height:180px; }
+  #ownerPieWidget.lcw-embed { width:100%; }
+  #ownerPieWidget .lcw-chart-host { aspect-ratio:auto; min-height:170px; }
+  #dashPieVizToggle, #ownerPieVizToggle { margin:0; }
   .pie-detail-panel { display:none; position:absolute; inset:0; background:white; border-radius:14px; z-index:10; flex-direction:column; padding:8px 10px; overflow-y:auto; }
   .pie-detail-panel.show { display:flex; }
   .pie-detail-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-shrink:0; }
@@ -756,6 +767,315 @@ function openPrintWindow(htmlContent, title) {
 }
 
 </style>
+
+<style>
+/* ==================== LandscapeRidgeChart — bundled CSS ==================== */
+/*!
+ * LandscapeRidgeChart — stylesheet
+ * Shares the same visual language as landscape-chart.css / landscape-donut-chart.css:
+ * same tooltip (.lc-tooltip reused as-is), same legend classes, same typography scale.
+ */
+
+.lcr-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Hind Siliguri', sans-serif;
+}
+
+.lcr-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lcr-axis-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: #6B7280;
+}
+
+/* ---------------- Ridges ---------------- */
+
+.lcr-ridge {
+  cursor: pointer;
+  transition: filter 0.25s ease;
+}
+
+.lcr-ridge-content {
+  transition: transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1), filter 0.25s ease;
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+.lcr-ridge-hover .lcr-ridge-content {
+  transform: translateY(-3px) scale(1.015);
+  filter: brightness(1.07) saturate(1.06);
+}
+
+.lcr-ridge-dim .lcr-ridge-content {
+  filter: brightness(0.97) saturate(0.92);
+  opacity: 0.86;
+}
+
+.lcr-tree {
+  transition: transform 0.25s ease;
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+.lcr-ridge-hover .lcr-tree {
+  transform: scale(1.06);
+}
+
+/* ---------------- Tooltip (reuses .lc-tooltip; no overrides needed) ---------------- */
+
+.lcr-tooltip {}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcr-ridge-content, .lcr-tree { transition: none !important; }
+}
+
+@media (max-width: 480px) {
+  .lcr-axis-label { font-size: 9px; }
+}
+
+</style>
+<style>
+/* ==================== LandscapeDonutChart — bundled CSS ==================== */
+/*!
+ * LandscapeDonutChart — stylesheet
+ * Deliberately shares the same visual language as landscape-chart.css:
+ * same tooltip look (.lc-tooltip is reused as-is), same premium card
+ * container treatment, same typography scale.
+ */
+
+.lcd-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Hind Siliguri', sans-serif;
+}
+
+.lcd-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------- Slices ---------------- */
+
+.lcd-slice {
+  cursor: pointer;
+  transition: filter 0.25s ease;
+}
+
+.lcd-slice > g:first-child {
+  transition: transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1), filter 0.25s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* raise + brighten the hovered slice slightly, along its own outward
+   direction — set inline via --lcd-lift-x/--lcd-lift-y per slice */
+.lcd-slice-hover > g:first-child {
+  transform: translate(var(--lcd-lift-x, 0px), var(--lcd-lift-y, 0px));
+  filter: brightness(1.06);
+}
+
+/* gently blur/dim the non-hovered slices so the hovered one pops, without
+   any exaggerated motion */
+.lcd-slice-dim > g:first-child {
+  filter: brightness(0.97) saturate(0.94);
+  opacity: 0.88;
+}
+
+.lcd-slice-dim .lcd-slice-blur-target {
+  filter: blur(0.6px);
+}
+
+/* ---------------- Center ---------------- */
+
+.lcd-center-icon {
+  font-size: 20px;
+}
+
+.lcd-center-label {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #6B7280;
+  letter-spacing: 0.2px;
+}
+
+.lcd-center-value {
+  font-size: 18px;
+  font-weight: 800;
+  fill: #1F2937;
+}
+
+/* ---------------- Tooltip (reuses .lc-tooltip base styling from landscape-chart.css; this file only adds the small extra) ---------------- */
+
+.lcd-tooltip {
+  /* inherits everything from .lc-tooltip; no overrides needed — this keeps
+     the two charts visually identical, as required */
+}
+
+/* ---------------- Legend ---------------- */
+
+.lcd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.lcd-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.lcd-legend-item.lcd-legend-dim {
+  opacity: 0.45;
+}
+
+.lcd-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  display: inline-block;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.lcd-legend-pct {
+  font-weight: 800;
+  color: #1F2937;
+}
+
+/* ---------------- Reduced motion ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .lcd-slice > g:first-child {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .lcd-center-icon { font-size: 16px; }
+  .lcd-center-label { font-size: 9.5px; }
+  .lcd-center-value { font-size: 14px; }
+}
+
+</style>
+<style>
+/* ==================== LandscapeDistributionWidget — bundled CSS ==================== */
+/*!
+ * LandscapeDistributionWidget — stylesheet
+ * Premium segmented toggle + fade/morph transition, matching the same
+ * typography and card language as the rest of the Landscape engine family.
+ */
+
+.lcw-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Hind Siliguri', sans-serif;
+}
+
+/* ---------------- Segmented toggle ---------------- */
+
+.lcw-toggle {
+  display: inline-flex;
+  gap: 3px;
+  background: #F3F4F6;
+  padding: 3px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.lcw-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6B7280;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lcw-toggle-btn span {
+  line-height: 1;
+}
+
+.lcw-toggle-btn:hover {
+  color: #374151;
+}
+
+.lcw-toggle-btn.active {
+  background: #FFFFFF;
+  color: #1F2937;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
+/* ---------------- Stage + fade/morph transition ---------------- */
+
+.lcw-stage {
+  position: relative;
+}
+
+.lcw-chart-mount {
+  width: 100%;
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+  transition:
+    opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lcw-chart-mount.lcw-fade-out {
+  opacity: 0;
+  transform: scale(0.97);
+  filter: blur(2px);
+}
+
+.lcw-chart-mount.lcw-fade-in {
+  animation: lcw-morph-in 320ms cubic-bezier(0.34, 1.15, 0.64, 1);
+}
+
+@keyframes lcw-morph-in {
+  0%   { opacity: 0; transform: scale(0.97); filter: blur(2px); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+.lcw-chart-host {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.lcw-legend-mount {
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcw-chart-mount, .lcw-chart-mount.lcw-fade-in {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+</style>
 </head>
 <body>
 
@@ -1020,10 +1340,13 @@ function openPrintWindow(htmlContent, title) {
                   <button id="piePeriodMonth" class="active" onclick="setDashPiePeriod('month')">মাস</button>
                   <button id="piePeriodYear" onclick="setDashPiePeriod('year')">বছর</button>
                 </div>
+                <div class="lcw-toggle" id="dashPieVizToggle">
+                  <button type="button" class="lcw-toggle-btn" data-mode="ridge">🌄<span>Ridge</span></button>
+                  <button type="button" class="lcw-toggle-btn" data-mode="ring">⭕<span>Ring</span></button>
+                </div>
               </div>
             </div>
-            <canvas id="dashPieCanvas" width="280" height="240"></canvas>
-            <div id="dashPieLegend" style="margin-top:2px;font-size:11.5px;display:flex;flex-direction:row;flex-wrap:wrap;gap:3px 10px;row-gap:3px"></div>
+            <div id="dashPieWidget" class="lcw-embed"></div>
             <!-- Pie segment detail panel -->
             <div id="dashPieDetail" class="pie-detail-panel">
               <div class="pie-detail-header">
@@ -4117,10 +4440,13 @@ function openPrintWindow(htmlContent, title) {
                 <button id="ownerPiePMonth" onclick="setOwnerPiePeriod('month')" style="padding:1px 5px;border-radius:4px;border:1.5px solid #e67e22;background:#e67e22;color:white;font-size:9px;font-weight:600;cursor:pointer">মাস</button>
                 <button id="ownerPiePYear" onclick="setOwnerPiePeriod('year')" style="padding:1px 5px;border-radius:4px;border:1.5px solid #d0dce8;background:white;color:#5a7a9a;font-size:9px;font-weight:600;cursor:pointer">বছর</button>
               </div>
+              <div class="lcw-toggle" id="ownerPieVizToggle" style="transform:scale(0.88);transform-origin:right center">
+                <button type="button" class="lcw-toggle-btn" data-mode="ridge">🌄<span>Ridge</span></button>
+                <button type="button" class="lcw-toggle-btn" data-mode="ring">⭕<span>Ring</span></button>
+              </div>
             </div>
           </div>
-          <canvas id="ownerPieCanvas" width="320" height="215" style="width:100%;height:215px;display:block;cursor:pointer"></canvas></canvas>
-          <div id="ownerPieLegend" style="margin-top:4px;font-size:9px;display:flex;flex-wrap:wrap;gap:3px 6px"></div>
+          <div id="ownerPieWidget" class="lcw-embed" style="min-height:190px"></div>
           <!-- Owner Pie Detail Panel -->
           <div id="ownerPieDetail" style="display:none;position:absolute;inset:0;background:white;border-radius:10px;z-index:10;flex-direction:column;padding:10px;overflow-y:auto">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0">
@@ -19891,76 +20217,7 @@ function setupHiDPICanvas(canvas, logicalW, logicalH){
   return { ctx, w: cssW, h: cssH };
 }
 
-function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
-  const { ctx, w, h } = setupHiDPICanvas(canvas, canvas.width, canvas.height);
-  ctx.clearRect(0,0,w,h);
-  const labels = Object.keys(map), values = Object.values(map);
-  const total = values.reduce((a,b)=>a+b,0);
-
-  if (total === 0) {
-    // ডাটা না থাকলেও "কোনো ডেটা নেই" না দেখিয়ে একরঙা নীল পাই/ডোনাট দেখানো হবে
-    const isTopPie = canvas.id==='dashPieCanvas' || canvas.id==='ownerPieCanvas';
-    const cx = w/2;
-    const r = isTopPie ? Math.min(cx, 112) * 0.90 : Math.min(cx, h/2) * 0.90;
-    const ir = r * 0.52;
-    const cy = isTopPie ? r + 6 : h/2;
-    const emptyColor = '#bfdbfe'; // হালকা মানানসই নীল
-    ctx.beginPath(); ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,r,0,2*Math.PI); ctx.closePath();
-    ctx.fillStyle = emptyColor; ctx.fill();
-    // hole
-    ctx.beginPath(); ctx.arc(cx,cy,ir,0,2*Math.PI);
-    ctx.fillStyle='white'; ctx.fill();
-    // center text
-    ctx.fillStyle='#0f4c81'; ctx.font='bold 13px Hind Siliguri,sans-serif';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('৳ ০', cx, cy);
-    canvas._pieArcs = [];
-    if (legendEl) legendEl.innerHTML = '';
-    return;
-  }
-
-  const isTopPie = canvas.id === 'dashPieCanvas' || canvas.id === 'ownerPieCanvas';
-  const cx = w/2;
-  const r = isTopPie ? Math.min(cx, 112) * 0.90 : Math.min(cx, h/2) * 0.90;
-  const ir = r * 0.52;
-  const cy = isTopPie ? r + 6 : h/2;
-  let sa = -Math.PI/2;
-  // Store arc geometry for click detection
-  canvas._pieArcs = [];
-  values.forEach((v,i)=>{
-    const sweep = (v/total)*2*Math.PI;
-    const isHl = highlightIdx === i;
-    const rOuter = isHl ? r*1.04 : r;
-    ctx.beginPath(); ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,rOuter,sa,sa+sweep); ctx.closePath();
-    ctx.fillStyle = PIE_COLORS[i%PIE_COLORS.length]; ctx.fill();
-    ctx.strokeStyle='white'; ctx.lineWidth=isHl?2.5:2; ctx.stroke();
-    canvas._pieArcs.push({ sa, ea: sa+sweep, r: rOuter, ir, cx, cy, label: labels[i], value: v, color: PIE_COLORS[i%PIE_COLORS.length], pct: Math.round(v/total*100) });
-    sa += sweep;
-  });
-  // hole
-  ctx.beginPath(); ctx.arc(cx,cy,ir,0,2*Math.PI);
-  ctx.fillStyle='white'; ctx.fill();
-  // center text
-  ctx.fillStyle='#0f4c81'; ctx.font='bold 13px Hind Siliguri,sans-serif';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('৳ '+fmt(total), cx, cy);
-
-  if (legendEl) {
-    const isOwner = canvas.id === 'ownerPieCanvas';
-    const detailFn = isOwner ? 'showOwnerPieDetailForIdx' : 'showDashPieDetailForIdx';
-    legendEl.innerHTML = labels.map((l,i)=>{
-      const pct = Math.round(values[i]/total*100);
-      const col = PIE_COLORS[i%PIE_COLORS.length];
-      return `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer" onclick="${detailFn}(${i})">
-          <span style="width:9px;height:9px;border-radius:3px;background:${col};display:inline-block;flex-shrink:0"></span>
-          <span style="color:#374151">${l}</span>
-          <span style="font-weight:700;color:#111">${pct}%</span>
-        </span>`;
-    }).join('');
-  }
-}
+// (drawDonut removed — Income Distribution now renders via LandscapeDistributionWidget, see _ensureDashPieWidget/_ensureOwnerPieWidget)
 
 // Draws a smooth line chart of net (income - expense) values with a highlighted
 // reference point. Stores geometry on the canvas element so hover can find the
@@ -21145,6 +21402,1180 @@ function drawDonut(canvas, legendEl, map, centerLabel, highlightIdx) {
 });
 
 
+/* ==================== LandscapeRidgeChart (unmodified, bundled) ==================== */
+/*!
+ * LandscapeRidgeChart — Forest Ridge Bar Chart
+ * Same visual engine/techniques as LandscapeChart/LandscapeDonutChart (sky,
+ * moss/terrain shading, procedural trees, rim light, ambient shadow, SVG
+ * filters, color grading). Each category becomes one grassy ridge instead
+ * of a rectangular bar — baseline-aligned, height proportional to value.
+ * Pure vanilla JS, no dependencies, no bitmap assets.
+ * -----------------------------------------------------------------------
+ */
+(function (root, factory) {
+  var mod = factory();
+  if (typeof module === 'object' && module.exports) { module.exports = mod; }
+  if (typeof define === 'function' && define.amd) { define([], function () { return mod; }); }
+  if (root) { root.LandscapeRidgeChart = mod; }
+})(typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : this), function () {
+  'use strict';
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  /* ---------------- shared utilities (same conventions as LandscapeChart) ---------------- */
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashString(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function el(name, attrs, children) {
+    const node = document.createElementNS(SVG_NS, name);
+    if (attrs) { for (const k in attrs) { if (attrs[k] === undefined || attrs[k] === null) continue; node.setAttribute(k, attrs[k]); } }
+    if (children) children.forEach((c) => c && node.appendChild(c));
+    return node;
+  }
+  function deepMerge(target, source) {
+    const out = Object.assign({}, target);
+    for (const k in source) {
+      if (source[k] && typeof source[k] === 'object' && !Array.isArray(source[k])) out[k] = deepMerge(target[k] || {}, source[k]);
+      else out[k] = source[k];
+    }
+    return out;
+  }
+  function hexParts(hex) {
+    let h = String(hex).replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    return [parseInt(h.substring(0, 2), 16) || 0, parseInt(h.substring(2, 4), 16) || 0, parseInt(h.substring(4, 6), 16) || 0];
+  }
+  function toHex(r, g, b) {
+    const c = (n) => clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0');
+    return `#${c(r)}${c(g)}${c(b)}`;
+  }
+  function shade(hex, t) {
+    const [r, g, b] = hexParts(hex);
+    if (t >= 0) return toHex(lerp(r, 255, t), lerp(g, 255, t), lerp(b, 255, t));
+    return toHex(lerp(r, 0, -t), lerp(g, 0, -t), lerp(b, 0, -t));
+  }
+  function mixColors(a, b, t) {
+    const [ar, ag, ab] = hexParts(a), [br, bg, bb] = hexParts(b);
+    return `rgb(${Math.round(lerp(ar, br, t))},${Math.round(lerp(ag, bg, t))},${Math.round(lerp(ab, bb, t))})`;
+  }
+  let uidCounter = 0;
+  function uid(prefix) { uidCounter += 1; return `${prefix}-${uidCounter}-${Date.now().toString(36)}`; }
+
+  function paletteFromColor(base) {
+    return {
+      primary: base,
+      highlight: shade(base, 0.55),
+      light: shade(base, 0.32),
+      mid: shade(base, 0.05),
+      baseTone: shade(base, -0.12),
+      shadow: shade(base, -0.42)
+    };
+  }
+
+  const DEFAULT_CONFIG = {
+    width: 640,
+    height: 340,
+    padding: { top: 26, right: 18, bottom: 32, left: 18 },
+    gap: 0.28,             // fraction of column width left as gap between ridges
+    tooltip: true,
+    valueFormatter: (v) => String(v),
+    sky: { top: '#F8FBFF', bottom: '#EEF7FF' }
+  };
+
+  class LandscapeRidgeChart {
+    constructor(container, config) {
+      this.container = typeof container === 'string' ? document.querySelector(container) : container;
+      if (!this.container) throw new Error('LandscapeRidgeChart: container not found');
+      this.config = deepMerge(DEFAULT_CONFIG, config || {});
+      this.data = [];
+      this._listeners = {};
+      this._hoverIndex = null;
+      this._buildDom();
+      if (config && config.data) this.setData(config.data);
+    }
+
+    /* ---------------- Public API ---------------- */
+
+    setData(data) {
+      this.data = (data || []).map((d) => ({ label: d.label, value: Math.max(0, Number(d.value) || 0), color: d.color || '#5C8F2D' }));
+      this._recompute();
+      this._render();
+      this._emit('data', this.data);
+      return this;
+    }
+    setConfig(partial) { this.config = deepMerge(this.config, partial || {}); this._recompute(); this._render(); return this; }
+    on(evt, cb) { (this._listeners[evt] = this._listeners[evt] || []).push(cb); return this; }
+    off(evt, cb) { if (this._listeners[evt]) this._listeners[evt] = this._listeners[evt].filter((f) => f !== cb); return this; }
+    destroy() { this._unbindEvents(); this.container.innerHTML = ''; this._emit('destroy'); }
+    _emit(evt, payload) { (this._listeners[evt] || []).forEach((cb) => { try { cb(payload); } catch (e) {} }); }
+
+    /* ---------------- DOM scaffold ---------------- */
+
+    _buildDom() {
+      this.container.classList.add('lcr-container');
+      this.container.innerHTML = '';
+      const cfg = this.config;
+      this.svg = el('svg', {
+        class: 'lcr-svg', width: '100%', height: '100%',
+        viewBox: `0 0 ${cfg.width} ${cfg.height}`, preserveAspectRatio: 'xMidYMid meet',
+        role: 'img', 'aria-label': 'Category distribution forest ridge chart'
+      });
+      this.defs = el('defs');
+      this.svg.appendChild(this.defs);
+
+      this.layerSky = el('g', { class: 'lcr-layer-sky' });
+      this.layerRidges = el('g', { class: 'lcr-layer-ridges' });
+      this.layerAxis = el('g', { class: 'lcr-layer-axis' });
+      [this.layerSky, this.layerRidges, this.layerAxis].forEach((g) => this.svg.appendChild(g));
+      this.container.appendChild(this.svg);
+
+      this.tooltip = document.createElement('div');
+      this.tooltip.className = 'lc-tooltip lcr-tooltip';
+      this.container.appendChild(this.tooltip);
+
+      this._boundLeaveAll = () => this._setHover(null);
+      this.container.addEventListener('pointerleave', this._boundLeaveAll);
+    }
+    _unbindEvents() { if (this._boundLeaveAll) this.container.removeEventListener('pointerleave', this._boundLeaveAll); }
+
+    /* ---------------- Geometry ---------------- */
+
+    _recompute() {
+      const cfg = this.config;
+      const innerW = cfg.width - cfg.padding.left - cfg.padding.right;
+      const innerH = cfg.height - cfg.padding.top - cfg.padding.bottom;
+      const baseY = cfg.padding.top + innerH;
+      const n = Math.max(this.data.length, 1);
+      const colW = innerW / n;
+      const maxVal = Math.max(...this.data.map((d) => d.value), 0.0001);
+      const total = this.data.reduce((s, d) => s + d.value, 0) || 1;
+
+      const seedSrc = this.data.map((d) => d.label + ':' + d.value).join('|') || 'lcr-default';
+      const seed = hashString(seedSrc);
+
+      const ridges = this.data.map((d, i) => {
+        const cxCol = cfg.padding.left + colW * (i + 0.5);
+        const w = colW * (1 - cfg.gap);
+        const heightFrac = clamp(d.value / maxVal, 0, 1);
+        const h = innerH * (0.12 + heightFrac * 0.82); // always a visible sliver, never fully flat
+        const treeCount = heightFrac > 0.62 ? (3 + Math.round(heightFrac * 2)) : heightFrac > 0.3 ? 2 : (heightFrac > 0.06 ? 1 : 0);
+        return {
+          index: i, label: d.label, value: d.value, color: d.color,
+          palette: paletteFromColor(d.color), pct: d.value / total,
+          cx: cxCol, w, h, top: baseY - h, base: baseY,
+          treeCount: clamp(treeCount, 0, 5),
+          seed: (seed + i * 733) >>> 0
+        };
+      });
+
+      this._geom = { innerW, innerH, baseY, n, colW, maxVal, total, ridges, seed, padding: cfg.padding };
+    }
+
+    /* ---------------- Render pipeline ---------------- */
+
+    _render() {
+      if (!this._geom) return;
+      this._renderDefs();
+      this._renderSky();
+      this._renderRidges();
+      this._renderAxis();
+    }
+
+    _renderDefs() {
+      this.defs.innerHTML = '';
+      const cfg = this.config;
+
+      this.defs.appendChild(this._linearGradient('lcr-sky-grad', [
+        [0, cfg.sky.top], [1, cfg.sky.bottom]
+      ], '0%', '0%', '0%', '100%'));
+
+      this.defs.appendChild(el('filter', { id: 'lcr-blur-soft', x: '-50%', y: '-50%', width: '200%', height: '200%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feGaussianBlur', { stdDeviation: 2 })
+      ]));
+      this.defs.appendChild(el('filter', { id: 'lcr-ridge-shadow', x: '-50%', y: '-50%', width: '200%', height: '200%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feDropShadow', { dx: 0, dy: 2, stdDeviation: 2.4, 'flood-opacity': 0.18 })
+      ]));
+      this.defs.appendChild(el('filter', { id: 'lcr-ridge-shadow-hover', x: '-60%', y: '-60%', width: '220%', height: '220%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feDropShadow', { dx: 0, dy: 4, stdDeviation: 4.5, 'flood-opacity': 0.26 })
+      ]));
+      this.defs.appendChild(el('filter', { id: 'lcr-noise', x: '-20%', y: '-20%', width: '140%', height: '140%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.85 0.85', numOctaves: '2', seed: String(this._geom.seed % 100), result: 'noise' }),
+        el('feColorMatrix', { in: 'noise', type: 'matrix', values: '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0' })
+      ]));
+
+      this._geom.ridges.forEach((r) => {
+        const p = r.palette;
+        this.defs.appendChild(this._linearGradient(`lcr-hill-${r.index}`, [
+          [0, p.highlight], [0.4, p.light], [0.75, p.mid], [1, p.baseTone]
+        ], '0%', '0%', '0%', '100%'));
+        this.defs.appendChild(this._linearGradient(`lcr-rim-${r.index}`, [
+          [0, p.highlight], [1, p.primary]
+        ], '0%', '0%', '100%', '0%'));
+        this.defs.appendChild(this._linearGradient(`lcr-ao-${r.index}`, [
+          [0, 'rgba(0,0,0,0)'], [1, p.shadow]
+        ], '0%', '0%', '0%', '100%'));
+      });
+    }
+
+    _linearGradient(id, stops, x1, y1, x2, y2) {
+      const grad = el('linearGradient', { id, x1, y1, x2, y2 });
+      stops.forEach(([offset, color]) => grad.appendChild(el('stop', { offset: `${offset * 100}%`, 'stop-color': color })));
+      return grad;
+    }
+
+    _renderSky() {
+      this.layerSky.innerHTML = '';
+      const cfg = this.config;
+      this.layerSky.appendChild(el('rect', { x: 0, y: 0, width: cfg.width, height: cfg.height, fill: 'url(#lcr-sky-grad)' }));
+      const rng = mulberry32((this._geom.seed + 41) >>> 0);
+      const cloudGroup = el('g', { opacity: 0.3, filter: 'url(#lcr-blur-soft)' });
+      for (let i = 0; i < 2; i++) {
+        const cx = cfg.width * (0.2 + rng() * 0.6);
+        const cy = cfg.height * (0.1 + rng() * 0.12);
+        [0, 1, 2].forEach((p) => {
+          cloudGroup.appendChild(el('ellipse', { cx: cx + p * 11 - 11, cy: cy - Math.abs(p - 1) * 2, rx: 11 - p * 1.6, ry: 6, fill: '#FFFFFF' }));
+        });
+      }
+      this.layerSky.appendChild(cloudGroup);
+    }
+
+    /* ---------------- Ridge rendering (the core forest-ridge-bar technique) ---------------- */
+
+    _renderRidges() {
+      this.layerRidges.innerHTML = '';
+      const { baseY } = this._geom;
+
+      this._geom.ridges.forEach((r) => {
+        const group = el('g', { class: 'lcr-ridge', 'data-index': r.index, filter: 'url(#lcr-ridge-shadow)' });
+        const content = el('g', { class: 'lcr-ridge-content' });
+
+        const rng = mulberry32(r.seed);
+        const halfW = r.w / 2;
+        const steps = 16;
+        const ridgePts = [];
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const x = r.cx - halfW + r.w * t;
+          const dome = Math.sin(Math.PI * t); // 0 at edges -> baseline, 1 at center -> full height
+          const jitter = (rng() - 0.5) * r.h * 0.05 * dome;
+          const y = r.base - r.h * dome + jitter;
+          ridgePts.push({ x, y });
+        }
+        let hillD = `M ${r.cx - halfW},${r.base} `;
+        ridgePts.forEach((p) => { hillD += `L ${p.x},${p.y} `; });
+        hillD += `L ${r.cx + halfW},${r.base} Z`;
+
+        // soft ambient shadow silhouette (very subtle, offset down)
+        content.appendChild(el('path', {
+          d: hillD.replace(/,(-?[\d.]+)/g, (m, y) => `,${(Number(y) + 3).toFixed(2)}`),
+          fill: r.palette.shadow, opacity: 0.12, filter: 'url(#lcr-blur-soft)'
+        }));
+
+        // main grassy hill
+        content.appendChild(el('path', { d: hillD, fill: `url(#lcr-hill-${r.index})`, class: 'lcr-hill-main' }));
+
+        // moss/terrain grain (clipped to the hill shape itself via a matching clipPath)
+        const clipId = uid('lcr-clip');
+        this.defs.appendChild(el('clipPath', { id: clipId }, [el('path', { d: hillD })]));
+        content.appendChild(el('rect', {
+          x: r.cx - halfW, y: r.top - 4, width: r.w, height: r.h + 8,
+          fill: 'none', 'clip-path': `url(#${clipId})`, filter: 'url(#lcr-noise)', opacity: 0.45
+        }));
+
+        // base ambient occlusion (valley-floor shading where the ridge meets the baseline)
+        content.appendChild(el('rect', {
+          x: r.cx - halfW, y: r.base - Math.min(14, r.h * 0.3), width: r.w, height: Math.min(14, r.h * 0.3),
+          fill: `url(#lcr-ao-${r.index})`, opacity: 0.35, 'clip-path': `url(#${clipId})`
+        }));
+
+        // rim light along the ridge line
+        let ridgeD = `M ${ridgePts[0].x},${ridgePts[0].y} `;
+        ridgePts.forEach((p, i) => { if (i > 0) ridgeD += `L ${p.x},${p.y} `; });
+        content.appendChild(el('path', {
+          d: ridgeD, fill: 'none', stroke: `url(#lcr-rim-${r.index})`, 'stroke-width': 1.6,
+          'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.9
+        }));
+
+        // trees, count already computed by size tier (3-5 / 2-3 / 1 / 0)
+        for (let i = 0; i < r.treeCount; i++) {
+          const t = r.treeCount === 1 ? 0.5 : (i + 0.5) / r.treeCount;
+          const idx = clamp(Math.round(t * steps), 0, steps);
+          const p = ridgePts[idx];
+          content.appendChild(this._miniTree(p.x, p.y, 0.5 + rng() * 0.3, r.palette));
+        }
+        // when there are no trees (tiny ridge), scatter a couple of grass tufts instead
+        if (r.treeCount === 0) {
+          for (let i = 0; i < 3; i++) {
+            const gx = r.cx - halfW + rng() * r.w;
+            const gy = r.base - 1 - rng() * Math.max(2, r.h * 0.3);
+            content.appendChild(el('path', {
+              d: `M ${gx},${gy} Q ${gx + 1.4},${gy - 3} ${gx + 2.6},${gy - 5.5}`,
+              fill: 'none', stroke: r.palette.primary, 'stroke-width': 0.8, 'stroke-linecap': 'round', opacity: 0.5
+            }));
+          }
+        }
+
+        group.appendChild(content);
+
+        group.addEventListener('pointerenter', () => this._setHover(r.index));
+        group.addEventListener('pointermove', (ev) => this._positionTooltip(ev, r));
+        group.addEventListener('pointerleave', () => this._setHover(null));
+        group.addEventListener('click', () => this._emit('ridgeClick', this._ridgePayload(r)));
+
+        this.layerRidges.appendChild(group);
+      });
+    }
+
+    _miniTree(x, y, scale, palette) {
+      const g = el('g', { transform: `translate(${x} ${y}) scale(${scale})`, class: 'lcr-tree' });
+      g.appendChild(el('path', { d: 'M -0.6,0.6 L -0.4,-3 L 0.4,-3 L 0.6,0.6 Z', fill: shade(palette.shadow, -0.1) }));
+      const tiers = [[0, -3, 3.4, palette.mid], [0, -5, 2.6, palette.primary], [0, -6.6, 1.8, palette.highlight]];
+      tiers.forEach(([tx, ty, w, color]) => {
+        g.appendChild(el('path', { d: `M ${tx},${ty - 2.2} L ${tx - w},${ty} L ${tx + w},${ty} Z`, fill: color }));
+      });
+      return g;
+    }
+
+    _renderAxis() {
+      this.layerAxis.innerHTML = '';
+      this._geom.ridges.forEach((r) => {
+        const t = el('text', { x: r.cx, y: this.config.height - 9, 'text-anchor': 'middle', class: 'lcr-axis-label' });
+        t.textContent = r.label;
+        this.layerAxis.appendChild(t);
+      });
+    }
+
+    /* ---------------- Hover interaction ---------------- */
+
+    _setHover(index) {
+      if (this._hoverIndex === index) return;
+      this._hoverIndex = index;
+      this.layerRidges.querySelectorAll('.lcr-ridge').forEach((node) => {
+        const i = Number(node.getAttribute('data-index'));
+        node.classList.remove('lcr-ridge-hover', 'lcr-ridge-dim');
+        if (index === null) { node.setAttribute('filter', 'url(#lcr-ridge-shadow)'); return; }
+        if (i === index) {
+          node.classList.add('lcr-ridge-hover');
+          node.setAttribute('filter', 'url(#lcr-ridge-shadow-hover)');
+        } else {
+          node.classList.add('lcr-ridge-dim');
+          node.setAttribute('filter', 'url(#lcr-ridge-shadow)');
+        }
+      });
+      if (index === null) { this._hideTooltip(); this._emit('leave'); }
+      else { const r = this._geom.ridges[index]; if (r) this._emit('hover', this._ridgePayload(r)); }
+    }
+
+    _ridgePayload(r) { return { index: r.index, label: r.label, value: r.value, pct: r.pct, color: r.color }; }
+
+    _positionTooltip(ev, r) {
+      if (!this.config.tooltip) return;
+      const rect = this.container.getBoundingClientRect();
+      const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+      const fmt = this.config.valueFormatter;
+      this.tooltip.innerHTML = `
+        <div class="lc-tooltip-label">${r.label}</div>
+        <div class="lc-tooltip-row" style="color:${shade(r.color, -0.3)}"><span class="lc-tooltip-dot" style="background:${r.color}"></span>${fmt(r.value)} &nbsp;(${Math.round(r.pct * 100)}%)</div>
+      `;
+      const tw = this.tooltip.offsetWidth || 120;
+      let left = x + 14; if (left + tw > rect.width) left = x - tw - 14;
+      this.tooltip.style.left = `${left}px`;
+      this.tooltip.style.top = `${Math.max(8, y - 46)}px`;
+      this.tooltip.classList.add('lc-tooltip-visible');
+    }
+    _hideTooltip() { this.tooltip.classList.remove('lc-tooltip-visible'); }
+
+    /* ---------------- Legend (same helper shape as LandscapeDonutChart) ---------------- */
+
+    renderLegendInto(legendContainer, options) {
+      const target = typeof legendContainer === 'string' ? document.querySelector(legendContainer) : legendContainer;
+      if (!target) return;
+      const fmt = (options && options.showValue) ? this.config.valueFormatter : null;
+      target.classList.add('lcd-legend');
+      target.innerHTML = '';
+      this._geom.ridges.forEach((r) => {
+        const item = document.createElement('div');
+        item.className = 'lcd-legend-item';
+        item.innerHTML = `
+          <span class="lcd-legend-swatch" style="background:${r.color}"></span>
+          <span>${r.label}</span>
+          <span class="lcd-legend-pct">${Math.round(r.pct * 100)}%</span>
+          ${fmt ? `<span class="lcd-legend-val">${fmt(r.value)}</span>` : ''}
+        `;
+        item.addEventListener('pointerenter', () => this._setHover(r.index));
+        item.addEventListener('pointerleave', () => this._setHover(null));
+        target.appendChild(item);
+      });
+      this._legendEl = target;
+      this.on('hover', (p) => this._syncLegendDim(p.index));
+      this.on('leave', () => this._syncLegendDim(null));
+    }
+    _syncLegendDim(index) {
+      if (!this._legendEl) return;
+      [...this._legendEl.children].forEach((item, i) => item.classList.toggle('lcd-legend-dim', index !== null && i !== index));
+    }
+  }
+
+  LandscapeRidgeChart.VERSION = '1.0.0';
+  return LandscapeRidgeChart;
+});
+
+
+/* ==================== LandscapeDonutChart (unmodified, bundled) ==================== */
+/*!
+ * LandscapeDonutChart — Premium SVG Landscape Donut Chart
+ * Same visual engine/techniques as LandscapeChart (sky, mountains, trees,
+ * lighting, fog, filters, color grading) applied to a category-distribution
+ * donut. Pure vanilla JS, no dependencies, no bitmap assets.
+ * -----------------------------------------------------------------------
+ * THE OUTER/INNER RING IS ALWAYS A MATHEMATICALLY PERFECT CIRCLE.
+ * Every slice's landscape (hill height, trees, texture) is rendered inside
+ * an SVG <clipPath> that is the exact annular-sector shape of that slice —
+ * so nothing can ever visually escape the circular silhouette, structurally
+ * guaranteed by the clip, not just by careful math.
+ * -----------------------------------------------------------------------
+ */
+(function (root, factory) {
+  var mod = factory();
+  if (typeof module === 'object' && module.exports) { module.exports = mod; }
+  if (typeof define === 'function' && define.amd) { define([], function () { return mod; }); }
+  if (root) { root.LandscapeDonutChart = mod; }
+})(typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : this), function () {
+  'use strict';
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  /* ---------------- shared utilities (same conventions as LandscapeChart) ---------------- */
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashString(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function el(name, attrs, children) {
+    const node = document.createElementNS(SVG_NS, name);
+    if (attrs) {
+      for (const k in attrs) {
+        if (attrs[k] === undefined || attrs[k] === null) continue;
+        node.setAttribute(k, attrs[k]);
+      }
+    }
+    if (children) children.forEach((c) => c && node.appendChild(c));
+    return node;
+  }
+  function deepMerge(target, source) {
+    const out = Object.assign({}, target);
+    for (const k in source) {
+      if (source[k] && typeof source[k] === 'object' && !Array.isArray(source[k])) out[k] = deepMerge(target[k] || {}, source[k]);
+      else out[k] = source[k];
+    }
+    return out;
+  }
+  let uidCounter = 0;
+  function uid(prefix) { uidCounter += 1; return `${prefix}-${uidCounter}-${Date.now().toString(36)}`; }
+
+  function hexParts(hex) {
+    let h = String(hex).replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    return [parseInt(h.substring(0, 2), 16) || 0, parseInt(h.substring(2, 4), 16) || 0, parseInt(h.substring(4, 6), 16) || 0];
+  }
+  function toHex(r, g, b) {
+    const c = (n) => clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0');
+    return `#${c(r)}${c(g)}${c(b)}`;
+  }
+  /** Lighten/darken a hex color by t in [-1,1] (negative darkens toward black, positive lightens toward white). */
+  function shade(hex, t) {
+    const [r, g, b] = hexParts(hex);
+    if (t >= 0) return toHex(lerp(r, 255, t), lerp(g, 255, t), lerp(b, 255, t));
+    return toHex(lerp(r, 0, -t), lerp(g, 0, -t), lerp(b, 0, -t));
+  }
+  function withAlpha(hex, alpha) {
+    const [r, g, b] = hexParts(hex);
+    return `rgba(${r},${g},${b},${clamp(alpha, 0, 1)})`;
+  }
+  function mixColors(a, b, t) {
+    const [ar, ag, ab] = hexParts(a), [br, bg, bb] = hexParts(b);
+    return `rgb(${Math.round(lerp(ar, br, t))},${Math.round(lerp(ag, bg, t))},${Math.round(lerp(ab, bb, t))})`;
+  }
+
+  /** Derive a full landscape palette (primary/highlight/light/mid/base/shadow) from one base category color — mirrors LandscapeChart's income/expense theme structure so any category "just works" with the same rendering techniques. */
+  function paletteFromColor(base) {
+    return {
+      primary: base,
+      highlight: shade(base, 0.55),
+      light: shade(base, 0.32),
+      mid: shade(base, 0.05),
+      baseTone: shade(base, -0.12),
+      shadow: shade(base, -0.42)
+    };
+  }
+
+  const DEFAULT_CONFIG = {
+    size: 360,
+    innerRadiusRatio: 0.56,
+    gapDeg: 1.4,           // small gap between slices for separation
+    tooltip: true,
+    animate: true,
+    valueFormatter: (v) => String(v),
+    centerIcon: '🌿',
+    centerLabel: 'মোট আয়',
+    sky: { top: '#F8FBFF', bottom: '#EEF7FF' }
+  };
+
+  class LandscapeDonutChart {
+    constructor(container, config) {
+      this.container = typeof container === 'string' ? document.querySelector(container) : container;
+      if (!this.container) throw new Error('LandscapeDonutChart: container not found');
+      this.config = deepMerge(DEFAULT_CONFIG, config || {});
+      this.data = [];
+      this._listeners = {};
+      this._hoverIndex = null;
+      this._buildDom();
+      if (config && config.data) this.setData(config.data);
+    }
+
+    /* ---------------- Public API ---------------- */
+
+    setData(data) {
+      this.data = (data || []).map((d) => ({ label: d.label, value: Number(d.value) || 0, color: d.color || '#4F8A3D' }));
+      this._recompute();
+      this._render();
+      this._emit('data', this.data);
+      return this;
+    }
+    setConfig(partial) { this.config = deepMerge(this.config, partial || {}); this._recompute(); this._render(); return this; }
+    on(evt, cb) { (this._listeners[evt] = this._listeners[evt] || []).push(cb); return this; }
+    off(evt, cb) { if (this._listeners[evt]) this._listeners[evt] = this._listeners[evt].filter((f) => f !== cb); return this; }
+    destroy() { this._unbindEvents(); this.container.innerHTML = ''; this._emit('destroy'); }
+
+    _emit(evt, payload) { (this._listeners[evt] || []).forEach((cb) => { try { cb(payload); } catch (e) {} }); }
+
+    /* ---------------- DOM scaffold ---------------- */
+
+    _buildDom() {
+      this.container.classList.add('lcd-container');
+      this.container.innerHTML = '';
+
+      const size = this.config.size;
+      this.svg = el('svg', {
+        class: 'lcd-svg', width: '100%', height: '100%',
+        viewBox: `0 0 ${size} ${size}`, preserveAspectRatio: 'xMidYMid meet',
+        role: 'img', 'aria-label': 'Distribution landscape donut chart'
+      });
+      this.defs = el('defs');
+      this.svg.appendChild(this.defs);
+
+      this.layerSky = el('g', { class: 'lcd-layer-sky' });
+      this.layerSlices = el('g', { class: 'lcd-layer-slices' });
+      this.layerCenter = el('g', { class: 'lcd-layer-center' });
+      [this.layerSky, this.layerSlices, this.layerCenter].forEach((g) => this.svg.appendChild(g));
+      this.container.appendChild(this.svg);
+
+      this.tooltip = document.createElement('div');
+      this.tooltip.className = 'lc-tooltip lcd-tooltip';
+      this.container.appendChild(this.tooltip);
+
+      this._boundLeaveAll = () => this._setHover(null);
+      this.container.addEventListener('pointerleave', this._boundLeaveAll);
+    }
+
+    _unbindEvents() {
+      if (this._boundLeaveAll) this.container.removeEventListener('pointerleave', this._boundLeaveAll);
+    }
+
+    /* ---------------- Geometry ---------------- */
+
+    _recompute() {
+      const cfg = this.config;
+      const size = cfg.size;
+      const cx = size / 2, cy = size / 2;
+      const outerR = size * 0.42;
+      const innerR = outerR * cfg.innerRadiusRatio;
+      const total = this.data.reduce((s, d) => s + Math.max(0, d.value), 0) || 1;
+      const maxVal = Math.max(...this.data.map((d) => d.value), 0.0001);
+
+      const seedSrc = this.data.map((d) => d.label + ':' + d.value).join('|') || 'lcd-default';
+      const seed = hashString(seedSrc);
+
+      let angle = -Math.PI / 2; // start at 12 o'clock, same convention as a normal pie
+      const slices = this.data.map((d, i) => {
+        const frac = Math.max(0, d.value) / total;
+        const sweep = frac * Math.PI * 2;
+        const gap = (cfg.gapDeg * Math.PI / 180);
+        const a0 = angle + gap / 2;
+        const a1 = angle + sweep - gap / 2;
+        angle += sweep;
+        return {
+          index: i, label: d.label, value: d.value, pct: frac, color: d.color,
+          palette: paletteFromColor(d.color),
+          a0: Math.max(a0, angle - sweep), a1: Math.min(a1, angle),
+          seed: (seed + i * 733) >>> 0
+        };
+      }).filter((s) => s.a1 > s.a0);
+
+      this._geom = { cx, cy, outerR, innerR, total, slices, seed };
+    }
+
+    /* ---------------- Render pipeline ---------------- */
+
+    _render() {
+      if (!this._geom) return;
+      this._renderDefs();
+      this._renderSky();
+      this._renderSlices();
+      this._renderCenter();
+    }
+
+    _renderDefs() {
+      this.defs.innerHTML = '';
+      const cfg = this.config;
+
+      this.defs.appendChild(this._linearGradient('lcd-sky-grad', [
+        [0, cfg.sky.top], [0.6, mixColors(cfg.sky.top, cfg.sky.bottom, 0.5)], [1, cfg.sky.bottom]
+      ], '0%', '0%', '0%', '100%'));
+
+      this.defs.appendChild(el('filter', { id: 'lcd-blur-soft', x: '-50%', y: '-50%', width: '200%', height: '200%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feGaussianBlur', { stdDeviation: 1.4 })
+      ]));
+      this.defs.appendChild(el('filter', { id: 'lcd-blur-dim', x: '-50%', y: '-50%', width: '200%', height: '200%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feGaussianBlur', { stdDeviation: 1.1 })
+      ]));
+      this.defs.appendChild(el('filter', { id: 'lcd-slice-shadow', x: '-60%', y: '-60%', width: '220%', height: '220%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feDropShadow', { dx: 0, dy: 2, stdDeviation: 3, 'flood-opacity': 0.22 })
+      ]));
+      this.defs.appendChild(el('filter', { id: 'lcd-slice-shadow-hover', x: '-70%', y: '-70%', width: '240%', height: '240%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feDropShadow', { dx: 0, dy: 4, stdDeviation: 6, 'flood-opacity': 0.32 })
+      ]));
+
+      // terrain grain noise (same self-contained approach as LandscapeChart — no SourceGraphic reference)
+      this.defs.appendChild(el('filter', { id: 'lcd-noise', x: '-20%', y: '-20%', width: '140%', height: '140%', 'color-interpolation-filters': 'sRGB' }, [
+        el('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.8 0.8', numOctaves: '2', seed: String(this._geom.seed % 100), result: 'noise' }),
+        el('feColorMatrix', { in: 'noise', type: 'matrix', values: '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0' })
+      ]));
+
+      this._geom.slices.forEach((s) => {
+        const p = s.palette;
+        this.defs.appendChild(this._linearGradient(`lcd-hill-${s.index}`, [
+          [0, p.highlight], [0.4, p.light], [0.75, p.mid], [1, p.baseTone]
+        ], '0%', '0%', '0%', '100%'));
+        this.defs.appendChild(this._linearGradient(`lcd-rim-${s.index}`, [
+          [0, p.highlight], [1, p.primary]
+        ], '0%', '0%', '100%', '0%'));
+        this.defs.appendChild(this._linearGradient(`lcd-ao-${s.index}`, [
+          [0, withAlpha(p.shadow, 0.22)], [0.35, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']
+        ], '0%', '0%', '0%', '100%'));
+        // sunlight sweep — fixed direction (top-left to bottom-right) in
+        // absolute chart space, identical across every slice, so the whole
+        // ring reads as one consistently-lit surface rather than each slice
+        // having its own independently-rotated highlight.
+        const size = this.config.size;
+        this.defs.appendChild(el('linearGradient', {
+          id: `lcd-sun-${s.index}`, gradientUnits: 'userSpaceOnUse',
+          x1: size * 0.12, y1: size * 0.08, x2: size * 0.72, y2: size * 0.82
+        }, [
+          el('stop', { offset: '0%', 'stop-color': '#FFFDF0', 'stop-opacity': 0.4 }),
+          el('stop', { offset: '45%', 'stop-color': '#FFFDF0', 'stop-opacity': 0 }),
+          el('stop', { offset: '100%', 'stop-color': '#000000', 'stop-opacity': 0 })
+        ]));
+      });
+    }
+
+    _linearGradient(id, stops, x1, y1, x2, y2) {
+      const grad = el('linearGradient', { id, x1, y1, x2, y2 });
+      stops.forEach(([offset, color]) => grad.appendChild(el('stop', { offset: `${offset * 100}%`, 'stop-color': color })));
+      return grad;
+    }
+
+    _renderSky() {
+      this.layerSky.innerHTML = '';
+      const size = this.config.size;
+      this.layerSky.appendChild(el('circle', {
+        cx: size / 2, cy: size / 2, r: this._geom.outerR + 2, fill: 'url(#lcd-sky-grad)'
+      }));
+      // a couple of very soft, subtle clouds behind the ring (barely-there, same restraint as the line chart's sky)
+      const rng = mulberry32((this._geom.seed + 17) >>> 0);
+      const cloudGroup = el('g', { opacity: 0.35, filter: 'url(#lcd-blur-soft)' });
+      for (let i = 0; i < 2; i++) {
+        const cx = size * (0.25 + rng() * 0.5);
+        const cy = size * (0.12 + rng() * 0.14);
+        [0, 1, 2].forEach((p) => {
+          cloudGroup.appendChild(el('ellipse', {
+            cx: cx + p * 9 - 9, cy: cy - Math.abs(p - 1) * 2,
+            rx: 9 - p * 1.5, ry: 5, fill: '#FFFFFF'
+          }));
+        });
+      }
+      this.layerSky.appendChild(cloudGroup);
+    }
+
+    /* ---------------- Slice rendering (the core landscape-in-a-ring technique) ---------------- */
+
+    _renderSlices() {
+      this.layerSlices.innerHTML = '';
+      const { cx, cy, outerR, innerR } = this._geom;
+
+      this._geom.slices.forEach((s) => {
+        const sliceClipId = uid('lcd-clip');
+        const slicePath = this._annularSectorPath(cx, cy, innerR, outerR, s.a0, s.a1);
+        const clip = el('clipPath', { id: sliceClipId }, [el('path', { d: slicePath })]);
+        this.defs.appendChild(clip);
+
+        // ---- everything below is rendered freely, then hard-clipped to the
+        // exact annular-sector shape above — this is what GUARANTEES the
+        // perfect circular silhouette. Every slice uses the SAME shape
+        // (innerR -> outerR, full thickness); only color/texture vary by
+        // value, never geometry. Landscape exists purely as surface
+        // rendering (moss/terrain texture, sunlight, trees, shadow) — no
+        // raised hill, no mountain silhouette.
+        const sliceGroup = el('g', {
+          class: 'lcd-slice', 'data-index': s.index,
+          filter: 'url(#lcd-slice-shadow)'
+        });
+        const content = el('g', { 'clip-path': `url(#${sliceClipId})` });
+        const midAng = (s.a0 + s.a1) / 2;
+        content.style.setProperty('--lcd-lift-x', `${(Math.cos(midAng) * 4).toFixed(2)}px`);
+        content.style.setProperty('--lcd-lift-y', `${(Math.sin(midAng) * 4).toFixed(2)}px`);
+
+        // 1) full-thickness moss/terrain fill — same shape for every slice
+        content.appendChild(el('path', { d: slicePath, fill: `url(#lcd-hill-${s.index})` }));
+
+        // 2) soft sunlight sweep — a directional highlight gradient overlay,
+        // same light direction across the whole ring (reused radial from defs)
+        content.appendChild(el('path', { d: slicePath, fill: `url(#lcd-sun-${s.index})`, opacity: 0.5 }));
+
+        // 3) subtle moss/terrain grain (self-contained noise filter, no SourceGraphic reference)
+        content.appendChild(el('path', { d: slicePath, fill: 'none', filter: 'url(#lcd-noise)', opacity: 0.5 }));
+
+        // 4) ambient shadow along the inner edge (the ring's "valley" reads
+        // slightly recessed, same treatment on every slice)
+        content.appendChild(el('path', {
+          d: slicePath, fill: `url(#lcd-ao-${s.index})`, opacity: 0.4
+        }));
+
+        // 5) crisp rim highlight along the outer arc only (soft sunlit edge)
+        const outerArcD = this._arcPath(cx, cy, outerR, s.a0, s.a1);
+        content.appendChild(el('path', {
+          d: outerArcD, fill: 'none', stroke: `url(#lcd-rim-${s.index})`, 'stroke-width': 1.4,
+          'stroke-linecap': 'round', opacity: 0.85
+        }));
+
+        // 6) tiny trees scattered across the slice surface (varied radius AND
+        // angle within the band — not confined to a ridge line, since there
+        // is no ridge). Density scales gently with the slice's angular size.
+        const rng = mulberry32(s.seed);
+        const sweepDeg = (s.a1 - s.a0) * 180 / Math.PI;
+        const treeCount = clamp(Math.round(sweepDeg / 22), 1, 5);
+        for (let i = 0; i < treeCount; i++) {
+          const ang = lerp(s.a0, s.a1, (i + 0.5 + (rng() - 0.5) * 0.5) / treeCount);
+          const rr = lerp(innerR, outerR, 0.3 + rng() * 0.5);
+          const tx = cx + Math.cos(ang) * rr, ty = cy + Math.sin(ang) * rr;
+          content.appendChild(this._miniTree(tx, ty, 0.42 + rng() * 0.22, s.palette));
+        }
+
+        sliceGroup.appendChild(content);
+
+        // crisp outer + inner rim stroke (extra guarantee the circle reads perfectly clean)
+        sliceGroup.appendChild(el('path', {
+          d: slicePath, fill: 'none', stroke: 'rgba(255,255,255,0.6)', 'stroke-width': 1
+        }));
+
+        sliceGroup.addEventListener('pointerenter', () => this._setHover(s.index));
+        sliceGroup.addEventListener('pointermove', (ev) => this._positionTooltip(ev, s));
+        sliceGroup.addEventListener('pointerleave', () => this._setHover(null));
+        sliceGroup.addEventListener('click', () => this._emit('sliceClick', this._slicePayload(s)));
+
+        this.layerSlices.appendChild(sliceGroup);
+      });
+    }
+
+    /** Exact SVG path for an annular sector (donut slice) — the ONE authoritative shape used both to clip the landscape content and to define the crisp outer rim. This is what makes the perfect-circle rule structurally unbreakable. */
+    _annularSectorPath(cx, cy, r0, r1, a0, a1) {
+      const large = (a1 - a0) > Math.PI ? 1 : 0;
+      const p = (r, a) => `${cx + Math.cos(a) * r},${cy + Math.sin(a) * r}`;
+      return [
+        `M ${p(r0, a0)}`,
+        `L ${p(r1, a0)}`,
+        `A ${r1} ${r1} 0 ${large} 1 ${p(r1, a1)}`,
+        `L ${p(r0, a1)}`,
+        `A ${r0} ${r0} 0 ${large} 0 ${p(r0, a0)}`,
+        'Z'
+      ].join(' ');
+    }
+
+    /** Just the outer arc line (no radial edges), used for the rim-light stroke. */
+    _arcPath(cx, cy, r, a0, a1) {
+      const large = (a1 - a0) > Math.PI ? 1 : 0;
+      const p = (a) => `${cx + Math.cos(a) * r},${cy + Math.sin(a) * r}`;
+      return `M ${p(a0)} A ${r} ${r} 0 ${large} 1 ${p(a1)}`;
+    }
+
+    _miniTree(x, y, scale, palette) {
+      const g = el('g', { transform: `translate(${x} ${y}) scale(${scale})` });
+      g.appendChild(el('path', { d: 'M -0.6,0.6 L -0.4,-3 L 0.4,-3 L 0.6,0.6 Z', fill: shade(palette.shadow, -0.1) }));
+      const tiers = [[0, -3, 3.4, palette.mid], [0, -5, 2.6, palette.primary], [0, -6.6, 1.8, palette.highlight]];
+      tiers.forEach(([tx, ty, w, color]) => {
+        g.appendChild(el('path', { d: `M ${tx},${ty - 2.2} L ${tx - w},${ty} L ${tx + w},${ty} Z`, fill: color }));
+      });
+      return g;
+    }
+
+    /* ---------------- Center ---------------- */
+
+    _renderCenter() {
+      this.layerCenter.innerHTML = '';
+      const { cx, cy, innerR } = this._geom;
+      const cfg = this.config;
+      const total = this.data.reduce((s, d) => s + Math.max(0, d.value), 0);
+
+      this.layerCenter.appendChild(el('circle', {
+        cx, cy, r: innerR - 2, fill: '#FFFFFF'
+      }));
+
+      const icon = el('text', {
+        x: cx, y: cy - innerR * 0.28, 'text-anchor': 'middle', class: 'lcd-center-icon'
+      });
+      icon.textContent = cfg.centerIcon;
+      this.layerCenter.appendChild(icon);
+
+      const label = el('text', {
+        x: cx, y: cy + innerR * 0.08, 'text-anchor': 'middle', class: 'lcd-center-label'
+      });
+      label.textContent = cfg.centerLabel;
+      this.layerCenter.appendChild(label);
+
+      const value = el('text', {
+        x: cx, y: cy + innerR * 0.42, 'text-anchor': 'middle', class: 'lcd-center-value'
+      });
+      value.textContent = cfg.valueFormatter(total);
+      this.layerCenter.appendChild(value);
+    }
+
+    /* ---------------- Hover interaction ---------------- */
+
+    _setHover(index) {
+      if (this._hoverIndex === index) return;
+      this._hoverIndex = index;
+      this.layerSlices.querySelectorAll('.lcd-slice').forEach((node) => {
+        const i = Number(node.getAttribute('data-index'));
+        node.classList.remove('lcd-slice-hover', 'lcd-slice-dim');
+        if (index === null) return;
+        if (i === index) {
+          node.classList.add('lcd-slice-hover');
+          node.setAttribute('filter', 'url(#lcd-slice-shadow-hover)');
+        } else {
+          node.classList.add('lcd-slice-dim');
+          node.setAttribute('filter', 'url(#lcd-slice-shadow)');
+        }
+      });
+      if (index === null) {
+        this.layerSlices.querySelectorAll('.lcd-slice').forEach((n) => n.setAttribute('filter', 'url(#lcd-slice-shadow)'));
+        this._hideTooltip();
+        this._emit('leave');
+      } else {
+        const s = this._geom.slices[index];
+        if (s) this._emit('hover', this._slicePayload(s));
+      }
+    }
+
+    _slicePayload(s) {
+      return { index: s.index, label: s.label, value: s.value, pct: s.pct, color: s.color };
+    }
+
+    _positionTooltip(ev, s) {
+      if (!this.config.tooltip) return;
+      const rect = this.container.getBoundingClientRect();
+      const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+      const fmt = this.config.valueFormatter;
+      this.tooltip.innerHTML = `
+        <div class="lc-tooltip-label">${s.label}</div>
+        <div class="lc-tooltip-row" style="color:${shade(s.color, -0.3)}"><span class="lc-tooltip-dot" style="background:${s.color}"></span>${fmt(s.value)} &nbsp;(${Math.round(s.pct * 100)}%)</div>
+      `;
+      const tw = this.tooltip.offsetWidth || 120;
+      let left = x + 14;
+      if (left + tw > rect.width) left = x - tw - 14;
+      this.tooltip.style.left = `${left}px`;
+      this.tooltip.style.top = `${Math.max(8, y - 46)}px`;
+      this.tooltip.classList.add('lc-tooltip-visible');
+    }
+
+    _hideTooltip() {
+      this.tooltip.classList.remove('lc-tooltip-visible');
+    }
+
+    /* ---------------- Legend (same design system, existing behavior kept: category + %) ---------------- */
+
+    renderLegendInto(legendContainer, options) {
+      const el2 = typeof legendContainer === 'string' ? document.querySelector(legendContainer) : legendContainer;
+      if (!el2) return;
+      const fmt = (options && options.showValue) ? this.config.valueFormatter : null;
+      el2.classList.add('lcd-legend');
+      el2.innerHTML = '';
+      this._geom.slices.forEach((s) => {
+        const item = document.createElement('div');
+        item.className = 'lcd-legend-item';
+        item.innerHTML = `
+          <span class="lcd-legend-swatch" style="background:${s.color}"></span>
+          <span>${s.label}</span>
+          <span class="lcd-legend-pct">${Math.round(s.pct * 100)}%</span>
+          ${fmt ? `<span class="lcd-legend-val">${fmt(s.value)}</span>` : ''}
+        `;
+        item.addEventListener('pointerenter', () => this._setHover(s.index));
+        item.addEventListener('pointerleave', () => this._setHover(null));
+        el2.appendChild(item);
+      });
+      this._legendEl = el2;
+      this.on('hover', (p) => this._syncLegendDim(p.index));
+      this.on('leave', () => this._syncLegendDim(null));
+    }
+
+    _syncLegendDim(index) {
+      if (!this._legendEl) return;
+      [...this._legendEl.children].forEach((item, i) => {
+        item.classList.toggle('lcd-legend-dim', index !== null && i !== index);
+      });
+    }
+  }
+
+  LandscapeDonutChart.VERSION = '1.0.0';
+  return LandscapeDonutChart;
+});
+
+
+/* ==================== LandscapeDistributionWidget (unmodified, bundled) ==================== */
+/*!
+ * LandscapeDistributionWidget
+ * Combines LandscapeRidgeChart (default) and LandscapeDonutChart (alternative)
+ * behind one premium segmented toggle for the same dataset. Same Landscape
+ * rendering engine, same data, two views. Selection persists across sessions.
+ * Requires: landscape-ridge-chart.js, landscape-donut-chart.js (and their CSS)
+ * already loaded on the page.
+ * -----------------------------------------------------------------------
+ */
+(function (root, factory) {
+  var mod = factory();
+  if (typeof module === 'object' && module.exports) { module.exports = mod; }
+  if (typeof define === 'function' && define.amd) { define([], function () { return mod; }); }
+  if (root) { root.LandscapeDistributionWidget = mod; }
+})(typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : this), function () {
+  'use strict';
+
+  const DEFAULT_CONFIG = {
+    storageKey: 'lcd-widget-mode',
+    defaultMode: 'ridge',      // 'ridge' | 'ring'
+    transitionMs: 300,
+    data: [],
+    valueFormatter: (v) => String(v),
+    centerIcon: '🌿',
+    centerLabel: 'মোট আয়',
+    showLegend: true,
+    showToggle: true
+  };
+
+  function readStoredMode(key, fallback) {
+    try {
+      const v = window.localStorage ? window.localStorage.getItem(key) : null;
+      return (v === 'ridge' || v === 'ring') ? v : fallback;
+    } catch (e) { return fallback; }
+  }
+  function writeStoredMode(key, mode) {
+    try { if (window.localStorage) window.localStorage.setItem(key, mode); } catch (e) {}
+  }
+
+  class LandscapeDistributionWidget {
+    constructor(container, config) {
+      this.container = typeof container === 'string' ? document.querySelector(container) : container;
+      if (!this.container) throw new Error('LandscapeDistributionWidget: container not found');
+      this.config = Object.assign({}, DEFAULT_CONFIG, config || {});
+      this.data = this.config.data || [];
+      this._listeners = {};
+      this.mode = readStoredMode(this.config.storageKey, this.config.defaultMode);
+      this._buildDom();
+      this._mountChart(this.mode, false);
+    }
+
+    /* ---------------- Public API ---------------- */
+
+    setData(data) {
+      this.data = data || [];
+      if (this.chart) this.chart.setData(this.data);
+      if (this._legendMount && this.chart) this.chart.renderLegendInto(this._legendMount, { showValue: false });
+      return this;
+    }
+
+    setConfig(partial) {
+      Object.assign(this.config, partial || {});
+      if (this.chart && this.mode === 'ring') {
+        this.chart.setConfig({ centerIcon: this.config.centerIcon, centerLabel: this.config.centerLabel });
+      }
+      return this;
+    }
+
+    setMode(mode, animate) {
+      if (mode !== 'ridge' && mode !== 'ring') return this;
+      if (mode === this.mode) return this;
+      this.mode = mode;
+      writeStoredMode(this.config.storageKey, mode);
+      this._updateToggleUI();
+      this._mountChart(mode, animate !== false);
+      this._emit('mode', mode);
+      return this;
+    }
+
+    on(evt, cb) { (this._listeners[evt] = this._listeners[evt] || []).push(cb); return this; }
+    off(evt, cb) { if (this._listeners[evt]) this._listeners[evt] = this._listeners[evt].filter((f) => f !== cb); return this; }
+    _emit(evt, payload) { (this._listeners[evt] || []).forEach((cb) => { try { cb(payload); } catch (e) {} }); }
+
+    destroy() {
+      if (this.chart) this.chart.destroy();
+      this.container.innerHTML = '';
+    }
+
+    /* ---------------- DOM ---------------- */
+
+    _buildDom() {
+      this.container.classList.add('lcw-container');
+      this.container.innerHTML = '';
+
+      if (this.config.showToggle) {
+        const toggle = document.createElement('div');
+        toggle.className = 'lcw-toggle';
+        toggle.innerHTML = `
+          <button type="button" class="lcw-toggle-btn" data-mode="ridge">🌄 <span>Ridge</span></button>
+          <button type="button" class="lcw-toggle-btn" data-mode="ring">⭕ <span>Ring</span></button>
+        `;
+        toggle.querySelectorAll('.lcw-toggle-btn').forEach((btn) => {
+          btn.addEventListener('click', () => this.setMode(btn.getAttribute('data-mode')));
+        });
+        this.container.appendChild(toggle);
+        this._toggleEl = toggle;
+      }
+
+      // Optionally bind an externally-placed toggle element (e.g. one that
+      // lives in an existing header row alongside other controls) instead of
+      // creating our own. Any element with .lcw-toggle-btn[data-mode] children.
+      if (this.config.externalToggle) {
+        const ext = typeof this.config.externalToggle === 'string'
+          ? document.querySelector(this.config.externalToggle) : this.config.externalToggle;
+        if (ext) {
+          this._toggleEl = ext;
+          ext.querySelectorAll('.lcw-toggle-btn').forEach((btn) => {
+            btn.addEventListener('click', () => this.setMode(btn.getAttribute('data-mode')));
+          });
+        }
+      }
+
+      const stage = document.createElement('div');
+      stage.className = 'lcw-stage';
+      this.container.appendChild(stage);
+      this._stage = stage;
+
+      const chartMount = document.createElement('div');
+      chartMount.className = 'lcw-chart-mount';
+      stage.appendChild(chartMount);
+      this._chartMount = chartMount;
+
+      if (this.config.showLegend) {
+        const legend = document.createElement('div');
+        legend.className = 'lcw-legend-mount';
+        this.container.appendChild(legend);
+        this._legendMount = legend;
+      }
+
+      this._updateToggleUI();
+    }
+
+    _updateToggleUI() {
+      if (!this._toggleEl) return;
+      this._toggleEl.querySelectorAll('.lcw-toggle-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === this.mode);
+      });
+    }
+
+    /* ---------------- Chart mounting with fade+morph transition ---------------- */
+
+    _mountChart(mode, animate) {
+      const cfg = this.config;
+      const doMount = () => {
+        if (this.chart) { this.chart.destroy(); this.chart = null; }
+        this._chartMount.innerHTML = '';
+        const chartHost = document.createElement('div');
+        chartHost.className = 'lcw-chart-host';
+        this._chartMount.appendChild(chartHost);
+
+        const sharedOpts = {
+          data: this.data,
+          valueFormatter: cfg.valueFormatter,
+          tooltip: true
+        };
+
+        if (mode === 'ridge') {
+          this.chart = new window.LandscapeRidgeChart(chartHost, sharedOpts);
+        } else {
+          this.chart = new window.LandscapeDonutChart(chartHost, Object.assign({
+            centerIcon: cfg.centerIcon, centerLabel: cfg.centerLabel
+          }, sharedOpts));
+        }
+
+        // Normalize per-mode event names (ridge emits 'ridgeClick', donut
+        // emits 'sliceClick') into one consistent widget-level API, and
+        // re-bind on every remount since the underlying chart instance is
+        // recreated each time the mode switches.
+        this.chart.on('ridgeClick', (p) => this._emit('itemClick', p));
+        this.chart.on('sliceClick', (p) => this._emit('itemClick', p));
+        this.chart.on('hover', (p) => this._emit('hover', p));
+        this.chart.on('leave', () => this._emit('leave'));
+
+        if (this._legendMount) {
+          this.chart.renderLegendInto(this._legendMount, { showValue: false });
+        }
+
+        this._emit('chartMounted', this.chart);
+
+        if (animate) {
+          this._chartMount.classList.remove('lcw-fade-in');
+          // force reflow so the class removal/addition retriggers the transition
+          void this._chartMount.offsetWidth;
+          this._chartMount.classList.add('lcw-fade-in');
+        }
+      };
+
+      if (!animate || !this.chart) { doMount(); return; }
+
+      this._chartMount.classList.add('lcw-fade-out');
+      setTimeout(doMount, cfg.transitionMs);
+    }
+  }
+
+  LandscapeDistributionWidget.VERSION = '1.0.0';
+  return LandscapeDistributionWidget;
+});
+
+
 /* ==================== LandscapeChart Integration Adapter — Income vs Expense ====================
    Maps existing getBarData()/fmt() output directly into the engine. Both the Main Dashboard
    and Owner Mobile Dashboard reuse this single engine + identical visual config, so the two
@@ -21265,6 +22696,7 @@ function onDashDateChange(val) {
 
 // --- Dashboard pie state ---
 let _dPieType='income', _dPiePeriod='month';
+let _dashPieWidget=null;
 function setDashPieType(t){
   _dPieType=t;
   document.getElementById('pieToggleInc').classList.toggle('active',t==='income');
@@ -21283,70 +22715,48 @@ function setDashPiePeriod(p){
   hideDashPieDetail();
   renderDashPieChart();
 }
+// ✅ buildPieData()-এর {label: amount} ম্যাপকে LandscapeDistributionWidget-এর
+// প্রত্যাশিত [{label, value, color}] অ্যারেতে রূপান্তর করে — পুরনো PIE_COLORS
+// প্যালেট অপরিবর্তিত রেখে (index অনুযায়ী), যেন রঙ আগের মতোই সামঞ্জস্যপূর্ণ থাকে।
+function _pieMapToArray(map){
+  return Object.keys(map).map((label,i)=>({ label, value: map[label], color: PIE_COLORS[i%PIE_COLORS.length] }));
+}
+function _ensureDashPieWidget(){
+  if (_dashPieWidget) return _dashPieWidget;
+  const host=document.getElementById('dashPieWidget');
+  if (!host || typeof LandscapeDistributionWidget === 'undefined') return null;
+  _dashPieWidget = new LandscapeDistributionWidget(host, {
+    storageKey: 'icon-hms-dash-pie-viz-mode',
+    valueFormatter: (v) => '৳ ' + fmt(v),
+    centerIcon: '🌿', centerLabel: '', showLegend: true,
+    showToggle: false, externalToggle: '#dashPieVizToggle'
+  });
+  _dashPieWidget.on('itemClick', (p)=> showDashPieDetailForIdx(p.index));
+  return _dashPieWidget;
+}
+// (toggle active-state sync now handled automatically by the widget's externalToggle option)
 function renderDashPieChart(){
-  const canvas=document.getElementById('dashPieCanvas');
-  const leg=document.getElementById('dashPieLegend');
-  if(!canvas) return;
+  const widget=_ensureDashPieWidget(); if(!widget) return;
   const map=buildPieData(_dPieType,_dPiePeriod);
-  drawDonut(canvas,leg,map,'');
-  // Attach click once
-  if(!canvas._pieClickAttached){
-    canvas._pieClickAttached=true;
-    canvas.addEventListener('click', function(e){
-      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
-      const rect=canvas.getBoundingClientRect();
-      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
-      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
-      const {cx,cy,ir}=arcs[0];
-      const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<ir) return; // clicked hole center
-      let angle=Math.atan2(dy,dx);
-      if(angle<-Math.PI/2) angle+=2*Math.PI;
-      // normalize so -π/2 maps to 0
-      const norm=angle+Math.PI/2;
-      const normAngle=norm<0?norm+2*Math.PI:norm;
-      for(let i=0;i<arcs.length;i++){
-        const a=arcs[i];
-        let sa=a.sa+Math.PI/2; if(sa<0) sa+=2*Math.PI;
-        let ea=a.ea+Math.PI/2; if(ea<0) ea+=2*Math.PI;
-        if(ea<sa) ea+=2*Math.PI;
-        const na=normAngle<sa?normAngle+2*Math.PI:normAngle;
-        if(na>=sa && na<=ea && dist<=a.r){
-          showDashPieDetailForIdx(i); return;
-        }
-      }
-    });
-    canvas.addEventListener('mousemove', function(e){
-      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
-      const rect=canvas.getBoundingClientRect();
-      const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
-      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
-      const {cx,cy,ir}=arcs[0];
-      const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<ir){ canvas.style.cursor='default'; return; }
-      canvas.style.cursor='pointer';
-    });
-    canvas.addEventListener('mouseleave', function(){ canvas.style.cursor='default'; });
-  }
+  widget.setConfig({ centerLabel: _dPieType==='income' ? 'মোট আয়' : 'মোট ব্যয়' });
+  widget.setData(_pieMapToArray(map));
 }
 
 function showDashPieDetailForIdx(idx){
-  const canvas=document.getElementById('dashPieCanvas');
-  const arcs=canvas&&canvas._pieArcs;
-  if(!arcs||!arcs[idx]) return;
-  const arc=arcs[idx];
-  const total=arcs.reduce((s,a)=>s+a.value,0);
-
-  // Get itemised entries for this category
   const map=buildPieData(_dPieType,_dPiePeriod);
-  const catLabel=arc.label;
+  const entries=Object.keys(map).map(label=>({label, value:map[label]}));
+  if(!entries[idx]) return;
+  const total=entries.reduce((s,e)=>s+e.value,0)||1;
+  const catLabel=entries[idx].label;
+  const color=PIE_COLORS[idx%PIE_COLORS.length];
+  const pct=Math.round(entries[idx].value/total*100);
 
   const panel=document.getElementById('dashPieDetail');
   const titleEl=document.getElementById('dashPieDetailTitle');
   const listEl=document.getElementById('dashPieDetailList');
   const totalEl=document.getElementById('dashPieDetailTotal');
 
-  titleEl.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:${arc.color};display:inline-block"></span>${catLabel} (${arc.pct}%)</span>`;
+  titleEl.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:${color};display:inline-block"></span>${catLabel} (${pct}%)</span>`;
 
   // Build detailed rows from raw data
   const rows=getDashPieDetailRows(catLabel, _dPieType, _dPiePeriod);
@@ -21360,11 +22770,10 @@ function showDashPieDetailForIdx(idx){
   } else {
     listEl.innerHTML=`<div style="color:#aaa;font-size:11px;padding:10px 0;text-align:center">কোনো বিস্তারিত তথ্য নেই</div>`;
   }
-  totalEl.textContent='মোট: ৳ '+fmt(arc.value);
+  totalEl.textContent='মোট: ৳ '+fmt(entries[idx].value);
 
-  // Highlight segment
-  const leg=document.getElementById('dashPieLegend');
-  drawDonut(canvas,leg,map,'',idx);
+  // Highlight the clicked slice/ridge while the detail panel is open
+  if(_dashPieWidget && _dashPieWidget.chart) _dashPieWidget.chart._setHover(idx);
 
   panel.classList.add('show');
 }
@@ -21372,12 +22781,7 @@ function showDashPieDetailForIdx(idx){
 function hideDashPieDetail(){
   const panel=document.getElementById('dashPieDetail');
   if(panel) panel.classList.remove('show');
-  // Redraw without highlight
-  const canvas=document.getElementById('dashPieCanvas');
-  const leg=document.getElementById('dashPieLegend');
-  if(!canvas) return;
-  const map=buildPieData(_dPieType,_dPiePeriod);
-  drawDonut(canvas,leg,map,'');
+  if(_dashPieWidget && _dashPieWidget.chart) _dashPieWidget.chart._setHover(null);
 }
 
 function getDashPieDetailRows(catLabel, type, period){
@@ -21785,6 +23189,7 @@ function showChequeBookPagesDetail(){
 
 // ---- Owner page chart state ----
 let _oPieType='income', _oPiePeriod='month', _oBarMode='day';
+let _ownerPieWidget=null;
 
 function setOwnerPieType(t){
   _oPieType=t;
@@ -21805,54 +23210,43 @@ function setOwnerPiePeriod(p){
   hideOwnerPieDetail();
   renderOwnerPieChart();
 }
+function _ensureOwnerPieWidget(){
+  if (_ownerPieWidget) return _ownerPieWidget;
+  const host=document.getElementById('ownerPieWidget');
+  if (!host || typeof LandscapeDistributionWidget === 'undefined') return null;
+  _ownerPieWidget = new LandscapeDistributionWidget(host, {
+    storageKey: 'icon-hms-owner-pie-viz-mode',
+    valueFormatter: (v) => '৳ ' + fmt(v),
+    centerIcon: '🌿', centerLabel: '', showLegend: true,
+    showToggle: false, externalToggle: '#ownerPieVizToggle'
+  });
+  _ownerPieWidget.on('itemClick', (p)=> showOwnerPieDetailForIdx(p.index));
+  return _ownerPieWidget;
+}
 function renderOwnerPieChart(){
-  const canvas=document.getElementById('ownerPieCanvas');
-  const leg=document.getElementById('ownerPieLegend');
-  if(!canvas) return;
+  const widget=_ensureOwnerPieWidget(); if(!widget) return;
   const map=buildPieData(_oPieType,_oPiePeriod);
-  drawDonut(canvas,leg,map,'');
-  if(!canvas._pieClickAttached){
-    canvas._pieClickAttached=true;
-    // Prevent blue tap highlight on mobile
-    canvas.style.webkitTapHighlightColor='transparent';
-    canvas.style.outline='none';
-    canvas.addEventListener('click', function(e){
-      const arcs=canvas._pieArcs; if(!arcs||!arcs.length) return;
-      const rect=canvas.getBoundingClientRect();
-      // Arc coords are CSS pixels (from setupHiDPICanvas w,h) — use CSS coords directly
-      const mx=e.clientX-rect.left, my=e.clientY-rect.top;
-      const {cx,cy,ir}=arcs[0];
-      const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<ir) return;
-      let angle=Math.atan2(dy,dx);
-      if(angle<-Math.PI/2) angle+=2*Math.PI;
-      const normAngle=angle+Math.PI/2<0?angle+Math.PI/2+2*Math.PI:angle+Math.PI/2;
-      for(let i=0;i<arcs.length;i++){
-        const a=arcs[i];
-        let sa=a.sa+Math.PI/2; if(sa<0) sa+=2*Math.PI;
-        let ea=a.ea+Math.PI/2; if(ea<0) ea+=2*Math.PI;
-        if(ea<sa) ea+=2*Math.PI;
-        const na=normAngle<sa?normAngle+2*Math.PI:normAngle;
-        if(na>=sa && na<=ea && dist<=a.r){ showOwnerPieDetailForIdx(i); return; }
-      }
-    });
-  }
+  widget.setConfig({ centerLabel: _oPieType==='income' ? 'মোট আয়' : 'মোট ব্যয়' });
+  widget.setData(_pieMapToArray(map));
 }
 
 function showOwnerPieDetailForIdx(idx){
-  const canvas=document.getElementById('ownerPieCanvas');
-  const arcs=canvas&&canvas._pieArcs;
-  if(!arcs||!arcs[idx]) return;
-  const arc=arcs[idx];
+  const map=buildPieData(_oPieType,_oPiePeriod);
+  const entries=Object.keys(map).map(label=>({label, value:map[label]}));
+  if(!entries[idx]) return;
+  const total=entries.reduce((s,e)=>s+e.value,0)||1;
+  const catLabel=entries[idx].label;
+  const color=PIE_COLORS[idx%PIE_COLORS.length];
+  const pct=Math.round(entries[idx].value/total*100);
 
   const panel=document.getElementById('ownerPieDetail');
   const titleEl=document.getElementById('ownerPieDetailTitle');
   const listEl=document.getElementById('ownerPieDetailList');
   const totalEl=document.getElementById('ownerPieDetailTotal');
 
-  titleEl.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:${arc.color};display:inline-block"></span>${arc.label} (${arc.pct}%)</span>`;
+  titleEl.innerHTML=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:2px;background:${color};display:inline-block"></span>${catLabel} (${pct}%)</span>`;
 
-  const rows=getDashPieDetailRows(arc.label, _oPieType, _oPiePeriod);
+  const rows=getDashPieDetailRows(catLabel, _oPieType, _oPiePeriod);
   if(rows.length){
     listEl.innerHTML=rows.map(r=>`
       <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:11px;gap:6px">
@@ -21863,12 +23257,10 @@ function showOwnerPieDetailForIdx(idx){
   } else {
     listEl.innerHTML=`<div style="color:#aaa;font-size:11px;padding:14px 0;text-align:center">কোনো বিস্তারিত তথ্য নেই</div>`;
   }
-  totalEl.textContent='মোট: ৳ '+fmt(arc.value);
+  totalEl.textContent='মোট: ৳ '+fmt(entries[idx].value);
 
-  // Highlight segment in chart
-  const leg=document.getElementById('ownerPieLegend');
-  const map=buildPieData(_oPieType,_oPiePeriod);
-  drawDonut(canvas,leg,map,'',idx);
+  // Highlight the clicked slice/ridge while the detail panel is open
+  if(_ownerPieWidget && _ownerPieWidget.chart) _ownerPieWidget.chart._setHover(idx);
 
   panel.style.display='flex';
   panel.style.flexDirection='column';
@@ -21877,12 +23269,7 @@ function showOwnerPieDetailForIdx(idx){
 function hideOwnerPieDetail(){
   const panel=document.getElementById('ownerPieDetail');
   if(panel) panel.style.display='none';
-  // Redraw without highlight
-  const canvas=document.getElementById('ownerPieCanvas');
-  const leg=document.getElementById('ownerPieLegend');
-  if(!canvas) return;
-  const map=buildPieData(_oPieType,_oPiePeriod);
-  drawDonut(canvas,leg,map,'');
+  if(_ownerPieWidget && _ownerPieWidget.chart) _ownerPieWidget.chart._setHover(null);
 }
 function setOwnerBarMode(m){
   _oBarMode=m;
