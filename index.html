@@ -444,7 +444,7 @@
   .pie-chart-wrap .lcw-embed { width:100%; min-height:150px; display:flex; flex-direction:column; overflow:hidden; }
   #ownerPieWidget.lcw-embed { width:100%; min-height:150px; display:flex; flex-direction:column; overflow:hidden; }
   #ownerPieWidget .lcr-axis-label { font-size:15px; }
-  #dashPieVizToggle, #ownerPieVizToggle { margin:0; }
+  #dashPieVizToggle { margin:0; }
   .pie-detail-panel { display:none; position:absolute; inset:0; background:white; border-radius:14px; z-index:10; flex-direction:column; padding:8px 10px; overflow-y:auto; }
   .pie-detail-panel.show { display:flex; }
   .pie-detail-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-shrink:0; }
@@ -4455,9 +4455,6 @@ function openPrintWindow(htmlContent, title) {
                 <button id="ownerPiePDay" onclick="setOwnerPiePeriod('day')" style="padding:2px 7px;border-radius:6px;border:1.5px solid transparent;background:transparent;color:#6B7280;font-size:9px;font-weight:700;cursor:pointer">আজ</button>
                 <button id="ownerPiePMonth" onclick="setOwnerPiePeriod('month')" style="padding:2px 7px;border-radius:6px;border:1.5px solid transparent;background:#2E7D32;color:white;font-size:9px;font-weight:700;cursor:pointer">মাস</button>
                 <button id="ownerPiePYear" onclick="setOwnerPiePeriod('year')" style="padding:2px 7px;border-radius:6px;border:1.5px solid transparent;background:transparent;color:#6B7280;font-size:9px;font-weight:700;cursor:pointer">বছর</button>
-              </div>
-              <div class="lcw-toggle" id="ownerPieVizToggle" style="transform:scale(0.88);transform-origin:right center">
-                <button type="button" class="lcw-toggle-btn" data-mode="ridge">🌄</button>
               </div>
             </div>
           </div>
@@ -23298,11 +23295,17 @@ function _ensureOwnerPieWidget(){
   if (!host || typeof LandscapeDistributionWidget === 'undefined') return null;
   _ownerPieWidget = new LandscapeDistributionWidget(host, {
     storageKey: 'icon-hms-owner-pie-viz-mode',
+    defaultMode: 'ring',
     valueFormatter: (v) => '৳ ' + fmt(v),
     centerIcon: '🌿', centerLabel: '', showLegend: true,
-    showToggle: false, externalToggle: '#ownerPieVizToggle',
+    showToggle: false,
     treeDensity: 0.55, showNoise: false
   });
+  // Ring-only for now (Ridge had a rendering issue specific to this panel
+  // on mobile that we couldn't reproduce/verify without a real device to
+  // test on) — force it back to ring in case an old 'ridge' value is
+  // still sitting in this browser's localStorage from before.
+  if (_ownerPieWidget.mode !== 'ring') _ownerPieWidget.setMode('ring', false);
   _ownerPieWidget.on('itemClick', (p)=> showOwnerPieDetailForIdx(p.index));
   return _ownerPieWidget;
 }
