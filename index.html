@@ -22456,9 +22456,30 @@ function setupHiDPICanvas(canvas, logicalW, logicalH){
       this.config = Object.assign({}, DEFAULT_CONFIG, config || {});
       this.data = this.config.data || [];
       this._listeners = {};
-      this.mode = readStoredMode(this.config.storageKey, this.config.defaultMode);
+      this.mode = readStoredMode(this.config.storageKey, this.config.defaultMode) || 'ridge';
       this._buildDom();
       this._mountChart(this.mode, false);
+      this._setupResizeObserver();
+    }
+
+    _setupResizeObserver() {
+      // Re-measure and correct the chart host's height once the container
+      // reports a real, non-zero width — this covers the case where the
+      // widget first mounts inside a hidden (display:none) tab/panel, so the
+      // very first height calculation only had a fallback width to work
+      // with. Safe to call repeatedly: it only ever adjusts the host div's
+      // own height style, it never rebuilds the chart.
+      if (typeof ResizeObserver === 'undefined') return;
+      let lastWidth = 0;
+      this._resizeObserver = new ResizeObserver((entries) => {
+        const w = Math.round(entries[0].contentRect.width);
+        if (w > 0 && Math.abs(w - lastWidth) > 4) {
+          lastWidth = w;
+          const chartHost = this._chartMount && this._chartMount.querySelector('.lcw-chart-host');
+          if (chartHost) chartHost.style.height = Math.max(120, Math.round(w / 2.15)) + 'px';
+        }
+      });
+      this._resizeObserver.observe(this.container);
     }
 
     /* ---------------- Public API ---------------- */
@@ -22494,6 +22515,7 @@ function setupHiDPICanvas(canvas, logicalW, logicalH){
     _emit(evt, payload) { (this._listeners[evt] || []).forEach((cb) => { try { cb(payload); } catch (e) {} }); }
 
     destroy() {
+      if (this._resizeObserver) { this._resizeObserver.disconnect(); this._resizeObserver = null; }
       if (this.chart) this.chart.destroy();
       this.container.innerHTML = '';
     }
@@ -22568,6 +22590,16 @@ function setupHiDPICanvas(canvas, logicalW, logicalH){
         this._chartMount.innerHTML = '';
         const chartHost = document.createElement('div');
         chartHost.className = 'lcw-chart-host';
+        // Explicit, JS-computed pixel height — deliberately NOT relying on the
+        // CSS `aspect-ratio` property (unsupported on some older Android
+        // WebViews) or on flex-grow propagating a definite height through
+        // several nested divs (fragile: any missing link anywhere in that
+        // chain silently collapses the box to 0 height). Both Ridge and Ring
+        // get the exact same formula, so neither mode can size differently.
+        const measuredWidth = this._chartMount.clientWidth || this.container.clientWidth || 300;
+        chartHost.style.width = '100%';
+        chartHost.style.height = Math.max(120, Math.round(measuredWidth / 2.15)) + 'px';
+        chartHost.style.display = 'block';
         this._chartMount.appendChild(chartHost);
 
         const sharedOpts = {
