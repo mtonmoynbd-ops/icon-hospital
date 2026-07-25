@@ -1174,6 +1174,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="nav-item admin-only" data-page="settings"><span class="nav-icon">⚙️</span> সেটিংস</div>
       <div class="nav-item admin-only" data-page="officialpad"><span class="nav-icon">📄</span> অফিসিয়াল প্যাড</div>
       <div class="nav-item" data-page="memorandum"><span class="nav-icon">📜</span> মেমোরেন্ডাম ও TOR</div>
+      <div class="nav-item" data-page="accounting-principles"><span class="nav-icon">📖</span> হিসাবরক্ষণ নীতিমালা</div>
     </div>
     <div class="nav-section">
       <div class="nav-label">অ্যাকাউন্টস</div>
@@ -1305,6 +1306,12 @@ function openPrintWindow(htmlContent, title) {
               <div class="stat-value" id="dashBankBalance" style="color:#3498db">৳ ০</div>
               <div class="stat-change" id="dashBankName">ব্যাংক একাউন্ট</div>
               <div class="stat-change" id="dashBankFundNote" style="font-size:10.5px;color:#94a3b8;margin-top:2px"></div>
+            </div>
+            <div data-card-id="dashMfsBalance" class="stat-card" style="border-left-color:#d63384;cursor:pointer" onclick="showDashCardModal('dashMfsBalance')">
+              <span class="stat-card-bg-icon" style="--wm-icon-color:#d63384">📱</span>
+              <div class="stat-card-header"><div class="stat-label">মোবাইল ব্যাংকিং</div></div>
+              <div class="stat-value" id="dashMfsBalance" style="color:#d63384">৳ ০</div>
+              <div class="stat-change" id="dashMfsAccCount">০টি একাউন্ট</div>
             </div>
           </div>
           <!-- কার্ড ডিটেইল মোডাল — stats-grid এর ভেতরেই, একই এরিয়া জুড়ে -->
@@ -1439,6 +1446,29 @@ function openPrintWindow(htmlContent, title) {
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="incAmount" placeholder="০.০০" min="0"></div>
           </div>
+          <div class="form-row" style="margin-bottom:10px">
+            <div class="field">
+              <label>পেমেন্ট মাধ্যম</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--success);background:#f0fdf4;border:2px solid #86efac;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="incPayMode" value="cash" id="incPayCash" checked onchange="onIncPayModeChange()" style="accent-color:var(--success)"> 💵 ক্যাশ
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="incPayMode" value="bank" id="incPayBank" onchange="onIncPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#d63384;background:#fdf2f8;border:2px solid #f9a8d4;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="incPayMode" value="mfs" id="incPayMfs" onchange="onIncPayModeChange()" style="accent-color:#d63384"> 📱 মোবাইল ব্যাংকিং
+                </label>
+              </div>
+            </div>
+          </div>
+          <div id="incMfsRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field"><label>একাউন্ট নির্বাচন *</label>
+              <select id="incMfsAccount" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                <option value="">-- একাউন্ট নির্বাচন করুন --</option>
+              </select>
+            </div>
+          </div>
           <div class="form-row three">
             <div class="field"><label>মেমো নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label><input type="text" id="incMemo" placeholder="যেমন: Memo-0001" style="font-weight:600;color:var(--accent)"></div>
             <div class="field"><label>রোগীর নাম / রেফারেন্স</label><input type="text" id="incRef" placeholder="ঐচ্ছিক"></div>
@@ -1504,7 +1534,18 @@ function openPrintWindow(htmlContent, title) {
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
                   <input type="radio" name="expPayMode" value="bank" id="expPayBank" onchange="onExpPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক
                 </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#d63384;background:#fdf2f8;border:2px solid #f9a8d4;border-radius:8px;padding:8px 14px;font-size:13px">
+                  <input type="radio" name="expPayMode" value="mfs" id="expPayMfs" onchange="onExpPayModeChange()" style="accent-color:#d63384"> 📱 মোবাইল ব্যাংকিং
+                </label>
               </div>
+            </div>
+          </div>
+          <!-- মোবাইল ব্যাংকিং: কোন একাউন্ট থেকে পরিশোধ -->
+          <div id="expMfsRow" class="form-row" style="display:none;margin-bottom:10px">
+            <div class="field"><label>একাউন্ট নির্বাচন *</label>
+              <select id="expMfsAccount" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+                <option value="">-- একাউন্ট নির্বাচন করুন --</option>
+              </select>
             </div>
           </div>
           <!-- ক্যাশ/ব্যাংক: পরিশোধকারী বা চেক বহনকারী ব্যক্তি নির্বাচন (উভয় মাধ্যমেই দেখাবে) -->
@@ -3187,6 +3228,15 @@ function openPrintWindow(htmlContent, title) {
         </table></div></div>
       </div>
 
+      <!-- মাস রিওপেন অডিট লগ — কখনো কোনো মাস রিওপেন করা হলে তার সম্পূর্ণ ইতিহাস, কখনো মুছে যায় না -->
+      <div class="panel" id="mcReopenLogPanel" style="display:none">
+        <div class="panel-header"><div class="panel-title">🔓 মাস রিওপেন অডিট লগ</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>মাস/বছর</th><th>মূল নিট ফলাফল</th><th>রিওপেনকারী</th><th>তারিখ/সময়</th><th>কারণ</th></tr></thead>
+          <tbody id="mcReopenLogTable"></tbody>
+        </table></div></div>
+      </div>
+
       <!-- উত্তোলনের ইতিহাস -->
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🧾 উত্তোলনের ইতিহাস</div></div>
@@ -3526,8 +3576,18 @@ function openPrintWindow(htmlContent, title) {
             <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:var(--success)"><span>নেট বিল:</span><span id="abNetBill">৳ ০</span></div>
             <div style="display:flex;gap:12px;align-items:center;margin-top:10px;background:linear-gradient(135deg,#ecfeff,#e0f7fa);border:2px solid var(--accent);border-radius:8px;padding:8px 12px">
               <label style="font-size:13px;font-weight:800;color:var(--primary)">নগদ পরিশোধ (৳):</label>
-              <input type="number" id="abCashPaid" placeholder="৳" style="width:130px;padding:8px 10px;border:2px solid #7dd8ea;border-radius:6px;font-family:inherit;font-size:18px;font-weight:800;color:var(--primary);background:#ffffff" oninput="updateAdminBillSummary()">
+              <input type="number" id="abCashPaid" placeholder="৳" style="width:130px;padding:8px 10px;border:2px solid #7dd8ea;border-radius:6px;font-family:inherit;font-size:18px;font-weight:800;color:var(--primary);background:#ffffff" oninput="updateAdminBillSummary(); onAbMfsPaidChange()">
               <span style="color:var(--danger);font-weight:600">বাকি: <span id="abDue">৳ ০</span></span>
+            </div>
+            <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:8px;padding:10px 12px;margin-top:8px">
+              <label style="font-size:12px;font-weight:700;color:#9d174d;display:block;margin-bottom:6px">📱 এর মধ্যে মোবাইল ব্যাংকিং দিয়ে পরিশোধ (ঐচ্ছিক)</label>
+              <div style="display:flex;gap:8px">
+                <input type="number" id="abMfsPaid" placeholder="০.০০" min="0" oninput="onAbMfsPaidChange()" style="flex:1;padding:9px 12px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:13px">
+                <select id="adminBillMfsAccount" style="flex:1;padding:9px 12px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:13px;background:#fff">
+                  <option value="">-- একাউন্ট --</option>
+                </select>
+              </div>
+              <div id="abMfsPaidHint" style="font-size:11px;color:#9d174d;margin-top:4px"></div>
             </div>
           </div>
           <div id="abDeliveryBox" style="background:#eef6ff;border:1.5px solid #3498db;border-radius:8px;padding:12px 14px;margin-bottom:12px">
@@ -3602,7 +3662,7 @@ function openPrintWindow(htmlContent, title) {
           <div style="font-size:12px;color:var(--text-light)">যে বিভাগটি পরিবর্তন করতে চান সেটি বেছে নিন</div>
         </div>
         <div class="settings-nav-grid">
-          <button onclick="openSettingsSection('hosp-info')" class="settings-nav-card"><span class="snc-icon">🏥</span><span class="snc-label">হাসপাতাল তথ্য</span></button><button onclick="openSettingsSection('num-series')" class="settings-nav-card"><span class="snc-icon">🔢</span><span class="snc-label">নম্বর সিরিজ</span></button><button onclick="openSettingsSection('fixed-cost')" class="settings-nav-card"><span class="snc-icon">💸</span><span class="snc-label">ফিক্সড খরচ</span></button><button onclick="openSettingsSection('pricing')" class="settings-nav-card"><span class="snc-icon">💊</span><span class="snc-label">প্রাইসিং</span></button><button onclick="openSettingsSection('users')" class="settings-nav-card"><span class="snc-icon">👥</span><span class="snc-label">ইউজার</span></button><button onclick="openSettingsSection('feature-acc')" class="settings-nav-card"><span class="snc-icon">🔐</span><span class="snc-label">ফিচার এক্সেস</span></button><button onclick="openSettingsSection('quick-access')" class="settings-nav-card"><span class="snc-icon">⭐</span><span class="snc-label">কুইক এক্সেস</span></button><button onclick="openSettingsSection('dash-card-order')" class="settings-nav-card"><span class="snc-icon">🔀</span><span class="snc-label">ড্যাশবোর্ড কার্ড ক্রম</span></button><button onclick="openSettingsSection('camp-sched')" class="settings-nav-card"><span class="snc-icon">🏕️</span><span class="snc-label">ক্যাম্প শিডিউল</span></button><button onclick="openSettingsSection('test-fee')" class="settings-nav-card"><span class="snc-icon">🔬</span><span class="snc-label">টেস্ট ফি</span></button><button onclick="openSettingsSection('income-cat')" class="settings-nav-card"><span class="snc-icon">📂</span><span class="snc-label">আয়/ব্যয় খাত</span></button><button onclick="openSettingsSection('profit-funds')" class="settings-nav-card"><span class="snc-icon">🏦</span><span class="snc-label">লাভ বন্টন খাত</span></button><button onclick="openSettingsSection('exp-subcat')" class="settings-nav-card"><span class="snc-icon">📋</span><span class="snc-label">সাব-ক্যাটাগরি</span></button><button onclick="openSettingsSection('stock-cat')" class="settings-nav-card"><span class="snc-icon">📦</span><span class="snc-label">স্টক ক্যাটাগরি</span></button><button onclick="openSettingsSection('cash-persons')" class="settings-nav-card"><span class="snc-icon">👤</span><span class="snc-label">ক্যাশ ব্যক্তি</span></button><button onclick="openSettingsSection('checkbook')" class="settings-nav-card"><span class="snc-icon">📒</span><span class="snc-label">চেক বই</span></button><button onclick="openSettingsSection('firebase')" class="settings-nav-card"><span class="snc-icon">🔥</span><span class="snc-label">Firebase সিঙ্ক</span></button><button onclick="openSettingsSection('backup')" class="settings-nav-card"><span class="snc-icon">💾</span><span class="snc-label">ব্যাকআপ</span></button><button onclick="openSettingsSection('activity-log')" class="settings-nav-card"><span class="snc-icon">📜</span><span class="snc-label">অ্যাক্টিভিটি লগ</span></button>
+          <button onclick="openSettingsSection('hosp-info')" class="settings-nav-card"><span class="snc-icon">🏥</span><span class="snc-label">হাসপাতাল তথ্য</span></button><button onclick="openSettingsSection('num-series')" class="settings-nav-card"><span class="snc-icon">🔢</span><span class="snc-label">নম্বর সিরিজ</span></button><button onclick="openSettingsSection('fixed-cost')" class="settings-nav-card"><span class="snc-icon">💸</span><span class="snc-label">ফিক্সড খরচ</span></button><button onclick="openSettingsSection('pricing')" class="settings-nav-card"><span class="snc-icon">💊</span><span class="snc-label">প্রাইসিং</span></button><button onclick="openSettingsSection('users')" class="settings-nav-card"><span class="snc-icon">👥</span><span class="snc-label">ইউজার</span></button><button onclick="openSettingsSection('feature-acc')" class="settings-nav-card"><span class="snc-icon">🔐</span><span class="snc-label">ফিচার এক্সেস</span></button><button onclick="openSettingsSection('quick-access')" class="settings-nav-card"><span class="snc-icon">⭐</span><span class="snc-label">কুইক এক্সেস</span></button><button onclick="openSettingsSection('dash-card-order')" class="settings-nav-card"><span class="snc-icon">🔀</span><span class="snc-label">ড্যাশবোর্ড কার্ড ক্রম</span></button><button onclick="openSettingsSection('camp-sched')" class="settings-nav-card"><span class="snc-icon">🏕️</span><span class="snc-label">ক্যাম্প শিডিউল</span></button><button onclick="openSettingsSection('test-fee')" class="settings-nav-card"><span class="snc-icon">🔬</span><span class="snc-label">টেস্ট ফি</span></button><button onclick="openSettingsSection('income-cat')" class="settings-nav-card"><span class="snc-icon">📂</span><span class="snc-label">আয়/ব্যয় খাত</span></button><button onclick="openSettingsSection('profit-funds')" class="settings-nav-card"><span class="snc-icon">🏦</span><span class="snc-label">লাভ বন্টন খাত</span></button><button onclick="openSettingsSection('exp-subcat')" class="settings-nav-card"><span class="snc-icon">📋</span><span class="snc-label">সাব-ক্যাটাগরি</span></button><button onclick="openSettingsSection('stock-cat')" class="settings-nav-card"><span class="snc-icon">📦</span><span class="snc-label">স্টক ক্যাটাগরি</span></button><button onclick="openSettingsSection('cash-persons')" class="settings-nav-card"><span class="snc-icon">👤</span><span class="snc-label">ক্যাশ ব্যক্তি</span></button><button onclick="openSettingsSection('checkbook')" class="settings-nav-card"><span class="snc-icon">📒</span><span class="snc-label">চেক বই</span></button><button onclick="openSettingsSection('mfs-accounts')" class="settings-nav-card"><span class="snc-icon">📱</span><span class="snc-label">মোবাইল ব্যাংকিং</span></button><button onclick="openSettingsSection('firebase')" class="settings-nav-card"><span class="snc-icon">🔥</span><span class="snc-label">Firebase সিঙ্ক</span></button><button onclick="openSettingsSection('backup')" class="settings-nav-card"><span class="snc-icon">💾</span><span class="snc-label">ব্যাকআপ</span></button><button onclick="openSettingsSection('activity-log')" class="settings-nav-card"><span class="snc-icon">📜</span><span class="snc-label">অ্যাক্টিভিটি লগ</span></button>
         </div>
       </div>
       <!-- SETTINGS SECTION BACK BUTTON -->
@@ -3676,6 +3736,17 @@ function openPrintWindow(htmlContent, title) {
           <div class="form-row">
             <div class="field"><label>রিসেপশনের সর্বোচ্চ ডিসকাউন্ট (%)</label><input type="number" id="settRecDiscount" placeholder="১০" min="0" max="100"></div>
             <div class="field"><label>অ্যাডমিনের সর্বোচ্চ ডিসকাউন্ট (%)</label><input type="number" id="settAdminDiscount" placeholder="৩০" min="0" max="100"></div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>অটো বিক্রয়মূল্য রাউন্ডিং পদ্ধতি</label>
+              <select id="settPriceRoundingMode" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#fff;width:100%">
+                <option value="floor">রাউন্ড ডাউন (নিরাপদ — প্রকৃত লাভ% টার্গেটের চেয়ে সামান্য কম হবে)</option>
+                <option value="nearest">নিকটতম সংখ্যায় রাউন্ড (উপরে/নিচে, প্রায় ঠিক টার্গেট লাভ%)</option>
+                <option value="ceil">রাউন্ড আপ (প্রকৃত লাভ% টার্গেটের চেয়ে সামান্য বেশি হবে)</option>
+              </select>
+              <div style="font-size:11px;color:var(--text-light);margin-top:4px">এটা শুধু ওষুধ ও চশমার অটো-ক্যালকুলেটেড বিক্রয়মূল্যে প্রযোজ্য — পয়সা বাদ দিয়ে পূর্ণ সংখ্যায় রাউন্ড হয়।</div>
+            </div>
           </div>
         </div>
       </div>
@@ -4143,6 +4214,37 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
+      <!-- মোবাইল ব্যাংকিং (MFS) একাউন্ট ব্যবস্থাপনা -->
+      <div class="panel" data-settings-section="mfs-accounts">
+        <div class="panel-header"><div class="panel-title">📱 মোবাইল ব্যাংকিং একাউন্ট (বিকাশ/নগদ/রকেট ইত্যাদি)</div></div>
+        <div class="panel-body">
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-bottom:14px">
+            রোগী/কাস্টমার এখন বা ভবিষ্যতে যেসব মোবাইল ব্যাংকিং নম্বরে টাকা পাঠাতে পারেন, সেগুলো এখানে একাউন্ট হিসেবে যোগ করুন। প্রতিটা একাউন্টের নিজস্ব ব্যালেন্স ট্র্যাক হবে, আয় এন্ট্রি/বিলে অংশবিশেষ পেমেন্ট এখান থেকে নেওয়া যাবে, এবং এখান থেকে ভেন্ডর পেমেন্ট বা অন্যান্য খরচও করা যাবে।
+          </div>
+          <div id="mfsAccountList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+          <div style="background:#f8fafc;border:1.5px dashed var(--border);border-radius:10px;padding:14px">
+            <p style="font-weight:700;font-size:13px;margin-bottom:10px">➕ নতুন একাউন্ট যোগ করুন</p>
+            <div class="form-row" style="margin-bottom:8px">
+              <div class="field"><label>প্রোভাইডার</label>
+                <select id="mfsNewProvider" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#fff;width:100%">
+                  <option value="বিকাশ">বিকাশ</option>
+                  <option value="নগদ">নগদ</option>
+                  <option value="রকেট">রকেট</option>
+                  <option value="উপায়">উপায়</option>
+                  <option value="অন্যান্য">অন্যান্য</option>
+                </select>
+              </div>
+              <div class="field"><label>একাউন্টের নাম/লেবেল *</label><input type="text" id="mfsNewName" placeholder="যেমন: বিকাশ - মার্চেন্ট"></div>
+            </div>
+            <div class="form-row" style="margin-bottom:10px">
+              <div class="field"><label>নম্বর</label><input type="text" id="mfsNewNumber" placeholder="01XXXXXXXXX"></div>
+              <div class="field"><label>ওপেনিং ব্যালেন্স (৳)</label><input type="number" id="mfsNewOpening" placeholder="০.০০" min="0"></div>
+            </div>
+            <button class="btn btn-success btn-sm" onclick="addMfsAccount()">✅ একাউন্ট যোগ করুন</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Firebase Sync Info -->
       <div class="panel" data-settings-section="firebase">
         <div class="panel-header"><div class="panel-title">🔥 Firebase রিয়েল-টাইম সিঙ্ক ও ব্যাকআপ রিস্টোর</div></div>
@@ -4377,6 +4479,131 @@ function openPrintWindow(htmlContent, title) {
         <div class="panel-body">
           <div id="memoDocList" style="display:flex;flex-direction:column;gap:12px"></div>
           <div id="memoDocEmpty" style="display:none;text-align:center;color:#aaa;padding:30px">কোনো ডকুমেন্ট সংরক্ষিত নেই</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pg-accounting-principles" class="page-view">
+      <div class="panel">
+        <div class="panel-body" style="background:#f0f4f8;border-radius:var(--radius-sm);font-size:13px;line-height:1.7;color:#374151">
+          📖 এই পেজে অ্যাপের সবগুলো হিসাব-সংক্রান্ত সিদ্ধান্ত ও ফর্মুলা এক জায়গায় লেখা আছে — কোন হিসাব কীভাবে, কোন নীতির ভিত্তিতে করা হয় তা যে কেউ এখানে দেখে বুঝতে পারবেন। অ্যাপের ভেতরের হিসাবের লজিক পরিবর্তন হলে এই পেজও সেই অনুযায়ী আপডেট হওয়া উচিত।
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">💵 ক্যাশ ও ব্যাংক ব্যালেন্স</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p><strong>ক্যাশ ব্যালেন্স</strong> = সকল ক্যাশ-মাধ্যমের আয় − সকল ক্যাশ-মাধ্যমের ব্যয় ± ক্যাশ⇄ব্যাংক ট্রান্সফার/অ্যাডজাস্টমেন্ট।</p>
+          <ul style="margin:8px 0 8px 20px;color:#4b5563">
+            <li>আয়ে যোগ হয়: ম্যানুয়াল আয় এন্ট্রি, রিসেপশন বিলের ক্যাশ অংশ (cashPaid), ক্যাম্পের মোট আয়।</li>
+            <li>একই বিলের টাকা দুইবার যোগ হওয়া ঠেকাতে — রিসেপশন/অ্যাডমিন বিল সেভের সময় অটো-তৈরি হওয়া আয় এন্ট্রি (যেগুলোর সাথে ভিজিট ট্যাগ করা থাকে) আলাদাভাবে গণনা করা হয় না, কারণ সেটা ভিজিটের cashPaid থেকে ইতিমধ্যে যোগ হয়ে গেছে।</li>
+            <li>ব্যয়ে বাদ যায়: ম্যানুয়াল ব্যয় (পেমেন্ট মাধ্যম "ক্যাশ" হলে), ক্যাম্পের ব্যয়/COGS/স্টাফ খরচ।</li>
+          </ul>
+          <p><strong>ব্যাংক ব্যালেন্স</strong> একইভাবে হিসাব হয়, তবে একটা গুরুত্বপূর্ণ নিয়ম আছে: ব্যয়ের পেমেন্ট মাধ্যম "ব্যাংক" (চেক) হলে এবং চেকটি এখনো <strong>"পেন্ডিং"</strong> (ভবিষ্যতের তারিখে ভাঙানোর কথা) থাকলে — চেক প্রকৃতপক্ষে ভাঙানো (cleared) নিশ্চিত না হওয়া পর্যন্ত সেই টাকা ব্যাংক ব্যালেন্স থেকে বাদ যায় না।</p>
+          <p><strong>মোবাইল ব্যাংকিং (বিকাশ/নগদ/রকেট ইত্যাদি):</strong> প্রতিটা একাউন্ট আলাদাভাবে ট্র্যাক হয় (সেটিংস থেকে যোগ করা)। কোনো বিলের টাকা আংশিক ক্যাশ + আংশিক মোবাইল ব্যাংকিং দিয়ে পরিশোধ হলে, মোবাইল ব্যাংকিং অংশটুকু সংশ্লিষ্ট একাউন্টের ব্যালেন্সে যোগ হয় এবং ক্যাশ ব্যালেন্স থেকে বাদ থাকে (দুইবার গণনা হয় না)। একাউন্ট ⇄ ক্যাশ/ব্যাংক ট্রান্সফার (ক্যাশ-আউট ইত্যাদি) আলাদাভাবে লগ হয়। ভেন্ডর পেমেন্ট বা অন্য যেকোনো ব্যয়ও এই একাউন্ট থেকে সরাসরি করা যায়।</p>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400e">নীতি: ব্যালেন্স সবসময় <strong>প্রকৃত হাতে-থাকা টাকার</strong> হিসাব দেখাবে — ভবিষ্যতের/অনিশ্চিত লেনদেন আগেভাগে ধরা হয় না।</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📦 ইনভেন্টরি খরচ (COGS) — ওয়েটেড এভারেজ কস্ট পদ্ধতি</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p>স্টকের প্রতিটি আইটেমের একটা <strong>ওয়েটেড এভারেজ ক্রয়মূল্য (Weighted Average Cost)</strong> রাখা হয়। নতুন স্টক-ইন হলে নতুন দামটা আগের গড়ের সাথে পরিমাণ-ভিত্তিক ওজন দিয়ে মিশিয়ে নতুন গড় বের করা হয় — কোনো একটা ব্যাচের দাম আলাদা হলেই পুরো ইতিহাস এলোমেলো হয়ে যায় না।</p>
+          <div style="background:#f0f4f8;border-radius:8px;padding:12px;font-family:monospace;font-size:12.5px;overflow-x:auto;white-space:nowrap">
+            নতুন গড় মূল্য = ( (আগের পরিমাণ × আগের গড় মূল্য) + (নতুন পরিমাণ × নতুন ক্রয়মূল্য) ) ÷ (আগের পরিমাণ + নতুন পরিমাণ)
+          </div>
+          <p style="margin-top:8px">বিক্রি/ব্যবহার হওয়ার সময় এই <strong>হালনাগাদ গড় মূল্য অনুযায়ী COGS (Cost of Goods Sold)</strong> ব্যয় হিসেবে ধরা হয় — যা মাসিক নিট মুনাফা হিসাবে সরাসরি প্রভাব ফেলে।</p>
+          <p style="color:#4b5563">পুরনো সিস্টেম থেকে এই পদ্ধতিতে পরিবর্তনের সময় একবারের জন্য একটা মাইগ্রেশন চালানো হয়েছিল — সেই সময়ের আগের স্টক পরিমাণকে <strong>"exempt"</strong> চিহ্নিত করে রাখা হয়েছে যাতে পুরনো হিসাব নতুন গড় মূল্যের হিসাবে ভুলভাবে মিশে না যায়।</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🏷️ বিক্রয়মূল্য নির্ধারণ (Auto Pricing)</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <div class="table-wrap"><table style="font-size:13px">
+            <thead><tr style="background:#f0f4f8"><th>ক্যাটাগরি</th><th>নিয়ম</th></tr></thead>
+            <tbody>
+              <tr><td>ওষুধ</td><td>বিক্রয়মূল্য = ক্রয়মূল্য × (১ + সেটিংসে নির্ধারিত লাভ%) — পয়সা বাদ দিয়ে সেটিংসে বেছে নেওয়া মোড অনুযায়ী রাউন্ড হয় (ডিফল্ট: রাউন্ড ডাউন)</td></tr>
+              <tr><td>চশমা/লেন্স</td><td>একটা সর্বনিম্ন ও সর্বোচ্চ লাভ% রেঞ্জ (min–max) থেকে বিক্রয়মূল্যের রেঞ্জ বের করা হয়, যাতে দরকষাকষির সুযোগ রাখা যায়</td></tr>
+            </tbody>
+          </table></div>
+          <p style="margin-top:8px;color:#4b5563">লাভের শতাংশ সেটিংস পেজ থেকে অ্যাডমিন পরিবর্তন করতে পারেন — এখানে যা লেখা আছে তা নীতি/পদ্ধতি, নির্দিষ্ট সংখ্যা নয় (সংখ্যাগুলো পরিবর্তনযোগ্য)।</p>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-top:8px">অটো বিক্রয়মূল্য সবসময় পয়সা বাদ দিয়ে পূর্ণ সংখ্যায় রাউন্ড হয় — সেটিংসে <strong>৩টা মোড</strong> থেকে বেছে নেওয়া যায়: রাউন্ড ডাউন (ডিফল্ট — প্রকৃত লাভ% টার্গেটের চেয়ে সামান্য কম, কখনো বেশি না), নিকটতম রাউন্ড (প্রায় ঠিক টার্গেট), বা রাউন্ড আপ (সামান্য বেশি লাভ)। যেটাই বেছে নেওয়া হোক, এটা একটা নিয়মিত/পূর্বাভাসযোগ্য বায়াস — এলোমেলো না।</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🧾 ভাউচার নম্বর ও চেক নম্বর</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p><strong>ভাউচার নম্বর (VN-Series):</strong> ফরম্যাট <code>VN{তারিখ}-{ক্রম}</code> — প্রতিদিনের জন্য আলাদা সিরিজ, ০১ থেকে শুরু করে স্বয়ংক্রিয়ভাবে পরের নম্বর বসে। একাধিক ডিভাইস একইসাথে কাজ করার সময় দুইটা এন্ট্রি একই নম্বর পেয়ে যাওয়ার ঝুঁকি ঠেকাতে সাবমিট করার ঠিক মুহূর্তে আবার একবার চেক করে প্রয়োজনে পরের খালি নম্বরে সরিয়ে দেওয়া হয়।</p>
+          <p><strong>চেক নম্বর:</strong> একই চেক বইয়ে একটা নম্বর দুইবার ব্যবহার হওয়া ঠেকাতে, সাবমিট করার সময় নম্বরটা ইতিমধ্যে ব্যবহৃত কিনা যাচাই হয় — ব্যবহৃত হয়ে থাকলে স্বয়ংক্রিয়ভাবে পরবর্তী খালি পাতা নম্বর বসিয়ে দেওয়া হয়।</p>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400e">নীতি: কোনো দুইটা এন্ট্রি/চেক কখনো একই নম্বর শেয়ার করবে না — তালিকায় সবসময় প্রকৃত ব্যবহৃত নম্বরই দেখাবে।</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🏢 সরবরাহকারী পেমেন্ট — FIFO সেটেলমেন্ট</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p>কোনো সরবরাহকারীর মোট বাকির বিপরীতে পেমেন্ট করলে, টাকাটা স্বয়ংক্রিয়ভাবে <strong>সবচেয়ে পুরনো (বকেয়া) ভাউচার থেকে শুরু করে (First-In-First-Out)</strong> একটার পর একটা ভাউচারে বণ্টন হয়ে যায় — প্রতিটা ভাউচারের নিজস্ব বাকি/পরিশোধের পরিমাণ আলাদাভাবে আপডেট হয়। কোনো নির্দিষ্ট একটা ভাউচারেও সরাসরি (আংশিক) পেমেন্ট করার সুযোগ আছে।</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🩺 ডাক্তার কমিশন</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <div class="table-wrap"><table style="font-size:13px">
+            <thead><tr style="background:#f0f4f8"><th>ধরন</th><th>নিয়ম</th></tr></thead>
+            <tbody>
+              <tr><td>স্যালারিভুক্ত (Salaried) ডাক্তার</td><td>নির্ধারিত ডিউটি সময়ের পরে করা কাজের উপর একটা % কমিশন প্রযোজ্য</td></tr>
+              <tr><td>খণ্ডকালীন (Part-time) ডাক্তার</td><td>নির্বাচিত খাত (ভিজিট/টেস্ট/অপারেশন/অন্যান্য) অনুযায়ী কমিশন%</td></tr>
+            </tbody>
+          </table></div>
+          <p style="margin-top:8px;color:#4b5563">উভয় ক্ষেত্রেই <strong>ওষুধ/পণ্য বিক্রির অংশ কমিশন হিসাব থেকে বাদ</strong> — শুধু সেবা/চিকিৎসা-সংক্রান্ত আয়ের উপর কমিশন প্রযোজ্য।</p>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-top:8px">"ডিউটির পরে" চেকবক্সটি এখন ডাক্তারের নির্ধারিত ডিউটি শেষের সময় ও বিল করার প্রকৃত সময় তুলনা করে <strong>স্বয়ংক্রিয়ভাবে সাজেস্ট</strong> হয় (আগে শুধু বিনা-যাচাই ম্যানুয়াল টিক ছিল)। কেউ এই সাজেশন থেকে সরে ম্যানুয়ালি পাল্টালে তা এন্ট্রির সময়সহ <strong>রেকর্ড</strong> হয় এবং কমিশন হিস্ট্রি টেবিলে ⚠️ চিহ্ন দিয়ে দেখানো হয়, যাতে অ্যাডমিন পরে সেই এন্ট্রিগুলো আলাদাভাবে যাচাই করতে পারেন।</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📊 মাসিক ক্লোজিং ও নিট মুনাফা</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <div style="background:#f0f4f8;border-radius:8px;padding:12px;font-family:monospace;font-size:12.5px;overflow-x:auto;white-space:nowrap">
+            নিট মুনাফা = মোট আয় − (COGS + ফিক্সড খরচ + পরিচালন ব্যয়) ± ম্যানুয়াল সমন্বয়
+          </div>
+          <ul style="margin:10px 0 8px 20px;color:#4b5563">
+            <li><strong>লাভ হলে:</strong> প্রথমে আগের কোনো <strong>সঞ্চিত লস</strong> (accumulated loss) থাকলে সেটা এই মুনাফা থেকে সমন্বয় হয়; অবশিষ্ট অংশ ফান্ড ও শেয়ারহোল্ডারদের মধ্যে বণ্টন হয়।</li>
+            <li><strong>লস হলে:</strong> লসের পরিমাণ <strong>"সঞ্চিত লস"</strong> হিসেবে জমা থাকে — শেয়ারহোল্ডারদের কোনো ব্যালেন্স থেকে সরাসরি কিছু কাটা হয় না, পরের মাসগুলোর মুনাফা থেকে ধীরে ধীরে সমন্বয় হবে।</li>
+            <li>মাস ক্লোজ হয়ে গেলে সাধারণত <strong>পরিবর্তনযোগ্য নয়</strong> — তবে <strong>শুধুমাত্র সর্বশেষ ক্লোজ করা মাস</strong> অ্যাডমিন বাধ্যতামূলক কারণসহ "রিওপেন" করতে পারবেন (এর আগের মাসগুলো রিওপেন করা যায় না, কারণ তাতে সঞ্চিত লস ও শেয়ারহোল্ডার ব্যালেন্সের ধারাবাহিকতা ভেঙে যেতে পারে)। রিওপেন করলে সেই মাসের শেয়ারহোল্ডার বণ্টন ও সঞ্চিত লস স্বয়ংক্রিয়ভাবে আগের অবস্থায় ফিরে যায়, এবং মূল ক্লোজিং রেকর্ডের একটা সম্পূর্ণ কপি (কারণ, কে, কখন) চিরকালের জন্য "রিওপেন অডিট লগ"-এ সংরক্ষিত থাকে — কিছুই মুছে যায় না।</li>
+          </ul>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af">নীতি: ড্যাশবোর্ডের <strong>"মাসিক তুলনা"</strong> ও <strong>"Cash Flow / P&amp;L"</strong> স্ট্রিপ — দুটোই একই সূত্র ব্যবহার করে (আয় − COGS − ব্যয় − ফিক্সড খরচ ও বেতন), যাতে একই মাসের নিট মুনাফা দুই জায়গায় দুই রকম না দেখায়। <strong>মাস যদি ইতিমধ্যে ক্লোজ করা থাকে</strong>, ফিক্সড খরচ ও বেতন ক্লোজিং-এর সময়কার স্ন্যাপশট রেট থেকে নেওয়া হয় (ভাড়া/বেতন পরে বাড়লেও পুরনো ক্লোজড মাসের হিসাব বদলায় না)। <strong>এখনো ক্লোজ না হওয়া মাসের জন্য</strong> (চলতি মাস সহ) বর্তমান সেটিংস/সক্রিয় স্টাফ অনুযায়ী হিসাব হয়।</div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400e;margin-top:8px">সীমাবদ্ধতা: মাসের মাঝপথে ভাড়া/বেতন বদলালে সেই পরিবর্তন পুরো মাসের জন্যই প্রযোজ্য ধরা হয় (দিন-ভিত্তিক প্রোরেশন হয় না)। মাস ক্লোজ করার আগে ভাড়া/বেতন পরিবর্তন হলে, দেরিতে ক্লোজ করা মাসের হিসাবে নতুন রেট বসে যেতে পারে — তাই মাস শেষ হওয়ার সাথে সাথেই ক্লোজ করার অভ্যাস রাখা ভালো।</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🏦 ফান্ড বরাদ্দ (P&L-নিরপেক্ষ)</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p>মাস ক্লোজ করার সময় বণ্টনযোগ্য মুনাফা থেকে সেটিংসে নির্ধারিত % অনুযায়ী বিভিন্ন <strong>ফান্ড খাতে</strong> একটা অংশ আলাদা করে রাখা হয় (যেমন — জরুরি তহবিল, উন্নয়ন তহবিল ইত্যাদি, নাম/শতাংশ সেটিংস থেকে ঠিক করা যায়)। ফান্ড খাত থেকে খরচ করা হলে সেটা <strong>"P&L-নিরপেক্ষ"</strong> হিসেবে চিহ্নিত থাকে — অর্থাৎ মাসিক নিট লাভ/লোকসানের হিসাবে সেই খরচ আবার বিয়োগ হয় না (কারণ এটা ইতিমধ্যে বরাদ্দের সময় মুনাফা থেকে আলাদা হয়ে গেছে)।</p>
+          <div style="background:#ede9fe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#5b21b6">ফান্ড ব্যালেন্স = এই ফান্ডে সর্বমোট বরাদ্দ − এই ফান্ড থেকে সর্বমোট খরচ</div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400e;margin-top:8px">নীতি: ফান্ডে যা <strong>প্রকৃতপক্ষে আছে</strong> তার বেশি কখনো P&L-নিরপেক্ষ হিসেবে দেখানো যাবে না। ফান্ডের ব্যালেন্সের চেয়ে বেশি খরচ করলে — ব্যালেন্স পর্যন্ত অংশ ফান্ড খরচ থাকে, বাকি অংশ স্বয়ংক্রিয়ভাবে একটা <strong>সাধারণ ব্যয়</strong> হিসেবে আলাদা রেকর্ড হয় ও মাসিক নিট মুনাফা/লোকসানে স্বাভাবিকভাবে হিসাব হয় — যাতে কোনো প্রকৃত ব্যয়/লোকসান লুকিয়ে না যায়।</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🤝 শেয়ারহোল্ডার লাভ বন্টন</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p>ফান্ড বরাদ্দের পর অবশিষ্ট মুনাফা (শেয়ারহোল্ডার পুল) প্রতিটা শেয়ারহোল্ডারের <strong>শেয়ার-সংখ্যা অনুপাতে (pro-rata)</strong> বণ্টন হয়:</p>
+          <div style="background:#f0f4f8;border-radius:8px;padding:12px;font-family:monospace;font-size:12.5px;overflow-x:auto;white-space:nowrap">
+            একজন শেয়ারহোল্ডারের ভাগ = (তার শেয়ার সংখ্যা ÷ মোট শেয়ার) × শেয়ারহোল্ডার পুল
+          </div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-top:8px">নীতি: শুধুমাত্র সেই মাস শেষ হওয়ার আগে <strong>যোগদান করেছেন</strong> এমন শেয়ারহোল্ডাররাই সেই মাসের বণ্টনে (এবং সঞ্চিত লস সমন্বয়ে) অংশ নেবেন। কেউ পরে যোগ দিলে আগের মাসের লাভ পাবেন না, আবার আগের সঞ্চিত লস পরিষ্কার হওয়ারও সুবিধা পাবেন না — যোগদানের তারিখ (joinDate) না থাকলে (পুরনো/প্রতিষ্ঠাতা শেয়ারহোল্ডার ধরে) সবসময় যোগ্য থাকেন।</div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400e;margin-top:8px">কোনো শেয়ারহোল্ডারের ব্যালেন্সে উত্তোলন-না-করা টাকা বকেয়া থাকলে তাকে মুছে ফেলার আগে স্পষ্ট সতর্কতা দেখানো হয়, যাতে বকেয়া টাকার হিসাব ভুলবশত হারিয়ে না যায়।</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🔒 ডেটা নিরাপত্তা ও সিঙ্ক নীতি</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p>একাধিক ডিভাইস/ইউজার একইসাথে কাজ করার সময় হিসাবের কোনো ডেটা যেন হারিয়ে না যায়, তাই প্রতিটা এন্ট্রি আলাদাভাবে (per-entry diff-based) Firebase-এ সিঙ্ক হয় — একজনের পরিবর্তন আরেকজনের পরিবর্তনকে মুছে ফেলে না (no last-write-wins data loss)।</p>
         </div>
       </div>
     </div>
@@ -4977,7 +5204,18 @@ function openPrintWindow(htmlContent, title) {
             <div class="field-stack stack-fill">
               <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="rNote" placeholder="ঐচ্ছিক" rows="3"></textarea></div>
             </div>
-            <div class="field amt-hl"><label>নগদ প্রদান (৳) *</label><input type="number" id="rCashPaid" placeholder="০.০০" min="0" oninput="updateSummary()"></div>
+            <div class="field amt-hl"><label>নগদ প্রদান (৳) *</label><input type="number" id="rCashPaid" placeholder="০.০০" min="0" oninput="updateSummary(); onRMfsPaidChange()"></div>
+          </div>
+          <!-- মোবাইল ব্যাংকিং দিয়ে আংশিক/পূর্ণ পরিশোধ (উপরের মোট পরিশোধের মধ্যে থেকে) -->
+          <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+            <label style="font-size:12px;font-weight:700;color:#9d174d;display:block;margin-bottom:6px">📱 এর মধ্যে মোবাইল ব্যাংকিং দিয়ে পরিশোধ (ঐচ্ছিক)</label>
+            <div style="display:flex;gap:8px">
+              <input type="number" id="rMfsPaid" placeholder="০.০০ (না থাকলে খালি রাখুন)" min="0" oninput="onRMfsPaidChange()" style="flex:1;padding:9px 12px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:13px">
+              <select id="rMfsAccount" style="flex:1;padding:9px 12px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:13px;background:#fff">
+                <option value="">-- একাউন্ট --</option>
+              </select>
+            </div>
+            <div id="rMfsPaidHint" style="font-size:11px;color:#9d174d;margin-top:4px"></div>
           </div>
           <!-- ডিসকাউন্ট সেকশন -->
           <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:14px;margin-bottom:12px">
@@ -5183,6 +5421,28 @@ function openPrintWindow(htmlContent, title) {
   </div>
 </div>
 
+<!-- MFS (মোবাইল ব্যাংকিং) ⇄ ক্যাশ/ব্যাংক ট্রান্সফার মোডাল -->
+<div class="modal-overlay" id="mfsTransferModal">
+  <div class="modal">
+    <div class="modal-title">🔁 মোবাইল ব্যাংকিং ট্রান্সফার</div>
+    <div id="mfsTransferInfo" style="margin-bottom:14px;font-size:13px;color:var(--text-light);line-height:1.8"></div>
+    <div class="field" style="margin-bottom:10px"><label>দিক</label>
+      <select id="mfsXferDir" style="padding:10px;border:1.5px solid var(--border);border-radius:8px;width:100%;font-family:inherit;font-size:13px">
+        <option value="mfs_to_cash">একাউন্ট → ক্যাশ (ক্যাশ-আউট)</option>
+        <option value="mfs_to_bank">একাউন্ট → ব্যাংক</option>
+        <option value="cash_to_mfs">ক্যাশ → একাউন্ট</option>
+        <option value="bank_to_mfs">ব্যাংক → একাউন্ট</option>
+      </select>
+    </div>
+    <div class="field amt-hl" style="margin-bottom:10px"><label>পরিমাণ (৳) *</label><input type="number" id="mfsXferAmount" min="0" placeholder="০.০০"></div>
+    <div class="field" style="margin-bottom:16px"><label>নোট</label><input type="text" id="mfsXferNote" placeholder="ঐচ্ছিক"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeMfsTransferModal()">বাতিল</button>
+      <button class="btn btn-success" id="mfsXferSaveBtn" onclick="">✅ ট্রান্সফার সম্পন্ন করুন</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELIVERY: MARK AS DELIVERED CONFIRM MODAL -->
 <div class="modal-overlay" id="deliveredConfirmModal">
   <div class="modal">
@@ -5314,10 +5574,10 @@ function rebuildUsers() {
 
 // Feature access defaults per role
 const DEFAULT_FEATURE_ACCESS = {
-  moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet'],
+  moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles'],
   receptionist:['billing'],
-  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart'],
-  campaigner:  ['camp'],
+  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles'],
+  campaigner:  ['camp','accounting-principles'],
 };
 
 function canAccess(role, feature) {
@@ -5330,7 +5590,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -5771,7 +6031,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -5866,6 +6126,7 @@ function saveSettings() {
   appData.settings.utility        = parseFloat(document.getElementById('settUtility').value)||0;
   appData.settings.otherFixed     = parseFloat(document.getElementById('settOtherFixed').value)||0;
   appData.settings.medProfit      = parseFloat(document.getElementById('settMedProfit').value)||20;
+  appData.settings.priceRoundingMode = (document.getElementById('settPriceRoundingMode')||{}).value || 'floor';
   appData.settings.glassMinProfit = parseFloat(document.getElementById('settGlassMinProfit').value)||30;
   appData.settings.glassMaxProfit = parseFloat(document.getElementById('settGlassMaxProfit').value)||80;
   appData.settings.recDiscount    = parseFloat(document.getElementById('settRecDiscount').value)||10;
@@ -6660,7 +6921,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -6745,7 +7006,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[] } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -7239,6 +7500,7 @@ const pageMap = {
   settings: { title:'⚙️ সেটিংস', sub:'হাসপাতালের সেটিংস ও কনফিগারেশন' },
   officialpad:  { title:'📄 অফিসিয়াল প্যাড', sub:'অফিসিয়াল প্যাড' },
   memorandum:   { title:'📜 মেমোরেন্ডাম ও TOR', sub:'হাসপাতালের মেমোরেন্ডাম ও টার্মস অফ রেফারেন্স' },
+  'accounting-principles': { title:'📖 হিসাবরক্ষণ নীতিমালা', sub:'এই অ্যাপে কোন হিসাব কীভাবে ও কোন নীতির ভিত্তিতে করা হয়' },
   adminbill:{ title:'🧾 নতুন বিল (অ্যাডমিন)', sub:'অ্যাডমিন বিলিং ও ড্রাফট অ্যাপ্রুভাল' },
   patients: { title:'🏥 রোগীর ডেটাবেস', sub:'সকল রোগীর তথ্য ও ইতিহাস' },
   recdeposit:   { title:'🏦 রিসেপশন ক্যাশ জমার রেকর্ড', sub:'রিসেপশনিস্টের দৈনিক ক্যাশ জমার বিস্তারিত' },
@@ -7306,6 +7568,8 @@ function renderDashBalanceTable() {
   const dce = document.getElementById('dashCashBalance'); if(dce) dce.textContent = '৳ ' + fmt(cash);
   const dbe = document.getElementById('dashBankBalance'); if(dbe) dbe.textContent = '৳ ' + fmt(bank);
   const dbn = document.getElementById('dashBankName'); if(dbn) dbn.textContent = (appData.settings||{}).bankName || 'ব্যাংক একাউন্ট';
+  const dme = document.getElementById('dashMfsBalance'); if(dme && typeof calcTotalMfsBalance==='function') dme.textContent = '৳ ' + fmt(calcTotalMfsBalance());
+  const dmc = document.getElementById('dashMfsAccCount'); if(dmc) dmc.textContent = `${(appData.mfsAccounts||[]).length}টি একাউন্ট`;
   const ce = document.getElementById('cashBalance'); if(ce) ce.textContent = '৳ ' + fmt(cash);
   const be = document.getElementById('bankBalance'); if(be) be.textContent = '৳ ' + fmt(bank);
   const te = document.getElementById('totalBalance'); if(te) te.textContent = '৳ ' + fmt(cash + bank);
@@ -7494,11 +7758,9 @@ function refreshDashboard() {
   const prefix  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const s       = appData.settings;
 
-  // Fixed cost daily share
-  const monthlyFixed = (s.rent||0) + (s.utility||0) + (s.otherFixed||0);
-  // Monthly salary from salary sheet
-  const monthlySalary = appData.staff.filter(st=>st.status==='active').reduce((sum,st)=>sum+st.basic,0);
-  const totalMonthlyFixed = monthlyFixed + monthlySalary;
+  // Fixed cost — ক্লোজড মাস হলে ক্লোজিং-এর সময়কার স্ন্যাপশট রেট, নাহলে বর্তমান সেটিংস
+  const _mf = getMonthlyFixedForPrefix(prefix);
+  const monthlyFixed = _mf.monthlyFixed, monthlySalary = _mf.monthlySalary, totalMonthlyFixed = _mf.totalFixed;
   const dailyFixed = totalMonthlyFixed / 30;
 
   // Today income — campToday আলাদা যোগ করা হবে না কারণ camp income appData.income এ আছে
@@ -7567,6 +7829,8 @@ function refreshDashboard() {
   const dce=document.getElementById('dashCashBalance'); if(dce) animateStatText(dce, dCash, v => '৳ '+fmt(v));
   const dbe=document.getElementById('dashBankBalance'); if(dbe) animateStatText(dbe, dBank, v => '৳ '+fmt(v));
   const dbn=document.getElementById('dashBankName'); if(dbn) dbn.textContent=appData.settings.bankName||'ব্যাংক একাউন্ট';
+  const dme=document.getElementById('dashMfsBalance'); if(dme && typeof calcTotalMfsBalance==='function') animateStatText(dme, calcTotalMfsBalance(), v => '৳ '+fmt(v));
+  const dmc=document.getElementById('dashMfsAccCount'); if(dmc) dmc.textContent = `${(appData.mfsAccounts||[]).length}টি একাউন্ট`;
 
   // Pending camp operations on dashboard
   const pendingOps = [];
@@ -7605,9 +7869,8 @@ function showDashCardModal(cardId, modalId) {
   const now    = new Date();
   const prefix = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const s      = appData.settings;
-  const monthlyFixed   = (s.rent||0)+(s.utility||0)+(s.otherFixed||0);
-  const monthlySalary  = appData.staff.filter(st=>st.status==='active').reduce((sum,st)=>sum+st.basic,0);
-  const totalMonthlyFixed = monthlyFixed + monthlySalary;
+  const _mf2   = getMonthlyFixedForPrefix(prefix);
+  const monthlyFixed = _mf2.monthlyFixed, monthlySalary = _mf2.monthlySalary, totalMonthlyFixed = _mf2.totalFixed;
   const dailyFixed = totalMonthlyFixed / 30;
 
   const mid = modalId || 'dashCardModal';
@@ -7750,6 +8013,16 @@ function showDashCardModal(cardId, modalId) {
       + row('ব্যাংক আউট (ব্যয়)', '- ৳ '+fmt(bankOut), '#e74c3c')
       + row('ব্যাংক → ক্যাশ', '- ৳ '+fmt(b2c), '#e74c3c')
       + row('<strong>ব্যাংক ব্যালেন্স</strong>', '<strong>৳ '+fmt(bank)+'</strong>', '#3498db');
+
+  } else if (cardId === 'dashMfsBalance') {
+    const accs = (typeof calcAllMfsBalances==='function') ? calcAllMfsBalances() : [];
+    const total = accs.reduce((s,a)=>s+a.balance,0);
+    icon='📱'; title='মোবাইল ব্যাংকিং'; sub=`${accs.length}টি একাউন্ট`;
+    amtText='৳ '+fmt(total); amtColor='#d63384';
+    body = accs.length
+      ? accs.map(a=>row(`${a.name} <span style="font-size:10.5px;color:#94a3b8">(${a.provider||''})</span>`, '৳ '+fmt(a.balance), a.balance<0?'#e74c3c':'#d63384')).join('')
+        + row('<strong>সর্বমোট</strong>', '<strong>৳ '+fmt(total)+'</strong>', '#d63384')
+      : '<p style="text-align:center;color:#aaa;padding:16px;font-size:13px">কোনো একাউন্ট যোগ করা হয়নি — সেটিংস থেকে যোগ করুন</p>';
   }
 
   iconEl.textContent  = icon;
@@ -7979,11 +8252,19 @@ function saveIncome() {
   let memo=document.getElementById('incMemo').value.trim();
   if (!memo) memo = generateNextMemoNo();
   const ref=document.getElementById('incRef').value.trim(), note=document.getElementById('incNote').value.trim();
+  const payMode = document.querySelector('input[name="incPayMode"]:checked')?.value || 'cash';
+  const mfsAccountId = payMode==='mfs' ? (document.getElementById('incMfsAccount')||{}).value : '';
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, খাত ও পরিমাণ আবশ্যক!'); return; }
-  appData.income.push({ id:Date.now(), date, category:cat, amount:amt, memo, ref, note, by:currentUser.name });
+  if (payMode==='mfs' && !mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
+  appData.income.push({ id:Date.now(), date, category:cat, amount:amt, memo, ref, note, payMode, mfsAccountId:mfsAccountId||undefined, by:currentUser.name });
   logActivity('add', 'আয়', `${cat} — ৳${fmt(amt)} (${memo})`);
   saveData(); clearIncomeForm(); renderIncomeTable(); refreshDashboard();
   showToast('✅ আয় এন্ট্রি সেভ! মেমো: ' + memo);
+}
+function onIncPayModeChange() {
+  const mode = document.querySelector('input[name="incPayMode"]:checked')?.value || 'cash';
+  const mfsRow = document.getElementById('incMfsRow');
+  if (mfsRow) { mfsRow.style.display = mode==='mfs' ? '' : 'none'; if (mode==='mfs' && typeof refreshAllMfsSelects==='function') refreshAllMfsSelects(); }
 }
 function updateIncMemo() {
   const memoEl = document.getElementById('incMemo');
@@ -7992,6 +8273,9 @@ function updateIncMemo() {
 function clearIncomeForm() {
   document.getElementById('incDate').value = todayStr();
   ['incCategory','incAmount','incRef','incNote'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const cashRadio=document.getElementById('incPayCash'); if(cashRadio) cashRadio.checked=true;
+  const mfsAccEl=document.getElementById('incMfsAccount'); if(mfsAccEl) mfsAccEl.value='';
+  const mfsRow=document.getElementById('incMfsRow'); if(mfsRow) mfsRow.style.display='none';
   updateIncMemo();
 }
 function renderIncomeTable() {
@@ -8077,7 +8361,7 @@ function saveExpense() {
   const note=document.getElementById('expNote').value.trim();
   // পেমেন্ট মাধ্যম
   const payMode = document.querySelector('input[name="expPayMode"]:checked')?.value || 'cash';
-  let payPerson='', checkNo='', checkbookId='', clearDate='', status='cleared', actualClearedDate='';
+  let payPerson='', checkNo='', checkbookId='', clearDate='', status='cleared', actualClearedDate='', mfsAccountId='';
   payPerson = (document.getElementById('expCashPerson')||{}).value || '';
   if (payMode==='bank') {
     checkNo = (document.getElementById('expCheckNo')||{}).value.trim() || '';
@@ -8091,12 +8375,16 @@ function saveExpense() {
     }
     if (clearDate > todayStr()) { status='pending'; actualClearedDate=''; }
     else { status='cleared'; actualClearedDate=clearDate; }
+  } else if (payMode==='mfs') {
+    mfsAccountId = (document.getElementById('expMfsAccount')||{}).value || '';
+    if (!mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
+    clearDate = date; actualClearedDate = date; status='cleared';
   } else {
     clearDate = date; actualClearedDate = date; status='cleared';
   }
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
   const expId = Date.now();
-  appData.expense.push({ id:expId, date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by:currentUser.name });
+  appData.expense.push({ id:expId, date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, mfsAccountId, by:currentUser.name });
   // ✅ ব্যাংক/চেক মাধ্যমে ব্যয় হলে — একই লেনদেনের একটা লিংকড রেকর্ড appData.issuedChecks-এও রাখা হয়,
   // যাতে সব ধরনের চেক (ব্যয় থেকে হোক, ইস্যু পেজ থেকে হোক, শেয়ারহোল্ডার উত্তোলন থেকে হোক) একটাই জায়গায় (single source of truth) ট্র্যাক হয় —
   // ড্যাশবোর্ড, নিষ্পত্তি স্ট্রিপ ও "ইস্যু করা চেকের তালিকা" সবকিছু এখন এখান থেকেই পড়ে, তাই আলাদা আলাদা মার্জ-লজিকের দরকার পড়ে না।
@@ -8131,10 +8419,12 @@ function onExpPayModeChange() {
   const mode = document.querySelector('input[name="expPayMode"]:checked')?.value || 'cash';
   const cashRow=document.getElementById('expCashPersonRow');
   const bankRow=document.getElementById('expBankRow');
+  const mfsRow=document.getElementById('expMfsRow');
   const clearDateRow=document.getElementById('expClearDateRow');
   const personLabel=document.getElementById('expPersonLabel');
-  if (cashRow) cashRow.style.display = ''; // ক্যাশ ও ব্যাংক — উভয় মাধ্যমেই ব্যক্তি নির্বাচন দেখাবে
+  if (cashRow) cashRow.style.display = mode==='mfs' ? 'none' : ''; // ক্যাশ ও ব্যাংক — উভয় মাধ্যমেই ব্যক্তি নির্বাচন দেখাবে, মোবাইল ব্যাংকিং-এ না
   if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (mfsRow) { mfsRow.style.display = mode==='mfs' ? '' : 'none'; if (mode==='mfs') refreshAllMfsSelects(); }
   if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
   if (personLabel) personLabel.textContent = mode==='bank' ? 'চেক বহনকারী / বাহক ব্যক্তি' : 'পরিশোধকারী ব্যক্তি';
   if (mode==='bank') {
@@ -9542,7 +9832,7 @@ function confirmDueWaive(id) {
 // ===== SETTINGS =====
 function clearAllData() {
   if (!confirm('সত্যিই সব ডেটা মুছে ফেলবেন?')) return;
-  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], settings:appData.settings, passwords:appData.passwords||{} };
+  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], settings:appData.settings, passwords:appData.passwords||{} };
   saveData(); refreshDashboard(); showToast('🗑️ সব ডেটা মুছে ফেলা হয়েছে');
 }
 
@@ -10933,6 +11223,16 @@ function openVendorPayment(vendorId, voucherId) {
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#3498db;background:#eff6ff;border:2px solid #93c5fd;border-radius:8px;padding:8px 14px;font-size:13px">
           <input type="radio" name="vpPayMode" value="bank" id="vpPayBank" onchange="onVpPayModeChange()" style="accent-color:#3498db"> 🏦 ব্যাংক/চেক
         </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#d63384;background:#fdf2f8;border:2px solid #f9a8d4;border-radius:8px;padding:8px 14px;font-size:13px">
+          <input type="radio" name="vpPayMode" value="mfs" id="vpPayMfs" onchange="onVpPayModeChange()" style="accent-color:#d63384"> 📱 মোবাইল ব্যাংকিং
+        </label>
+      </div>
+    </div>
+    <div id="vpMfsRow" class="form-row" style="display:none;margin-top:10px">
+      <div class="field"><label>একাউন্ট নির্বাচন *</label>
+        <select id="vpMfsAccount" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc;width:100%">
+          <option value="">-- একাউন্ট নির্বাচন করুন --</option>
+        </select>
       </div>
     </div>
     <div id="vpBankRow" class="form-row" style="display:none;margin-top:10px">
@@ -10959,12 +11259,16 @@ function openVendorPayment(vendorId, voucherId) {
   </div>`;
   document.body.appendChild(modal);
   if (typeof populateCheckbookSelect==='function') populateCheckbookSelect('vpCheckbook','vpCheckNo');
+  const mfsSel = document.getElementById('vpMfsAccount');
+  if (mfsSel) mfsSel.innerHTML = '<option value="">-- একাউন্ট নির্বাচন করুন --</option>' + (appData.mfsAccounts||[]).map(a=>`<option value="${a.id}">${a.name} (৳ ${fmt(calcMfsAccountBalance(a.id))})</option>`).join('');
 }
 function onVpPayModeChange() {
   const mode = document.querySelector('input[name="vpPayMode"]:checked')?.value || 'cash';
   const bankRow=document.getElementById('vpBankRow');
+  const mfsRow=document.getElementById('vpMfsRow');
   const clearDateRow=document.getElementById('vpClearDateRow');
   if (bankRow) bankRow.style.display = mode==='bank' ? '' : 'none';
+  if (mfsRow) mfsRow.style.display = mode==='mfs' ? '' : 'none';
   if (clearDateRow) clearDateRow.style.display = mode==='bank' ? '' : 'none';
   if (mode==='bank') {
     updateNextCheckNo('vpCheckbook','vpCheckNo');
@@ -10999,7 +11303,7 @@ function confirmVendorPayment(vendorId, voucherId) {
   // পাওনা পরিশোধ হলো সেটা ব্র্যাকেটে আলাদাভাবে দেখানো হয়
   const paymentVoucher = generateNextVoucherNo(date);
   const settledRef = settledVouchers.length ? ` (বিপরীতে: ${settledVouchers.join(', ')})` : '';
-  let checkNo='', checkbookId='', clearDate=date;
+  let checkNo='', checkbookId='', clearDate=date, mfsAccountId='';
   // ✅ চেক দিয়ে পরিশোধ করলে issuedChecks-এ ট্র্যাক হয়, চেক নিষ্পত্তি স্ট্রিপে দেখা যায়, ব্যাংক ব্যালেন্স থেকে কাটে
   if (payMode==='bank') {
     checkNo = (document.getElementById('vpCheckNo')||{}).value.trim() || '';
@@ -11017,11 +11321,14 @@ function confirmVendorPayment(vendorId, voucherId) {
         source: 'vendorPayment', linkedExpenseId: expId
       });
     }
+  } else if (payMode==='mfs') {
+    mfsAccountId = (document.getElementById('vpMfsAccount')||{}).value || '';
+    if (!mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
   }
   appData.expense.push({
     id: expId, date, category:'ওষুধ/সরঞ্জাম কেনা', amount: payAmount, ref: vendor.name, voucher: paymentVoucher,
     note: `পাওনা পরিশোধ${settledRef}`, by: currentUser.name,
-    isInventoryPurchase: isInventoryVendor, payMode, checkNo:checkNo||undefined, checkbookId:checkbookId||undefined, clearDate: payMode==='bank'?clearDate:undefined
+    isInventoryPurchase: isInventoryVendor, payMode, checkNo:checkNo||undefined, checkbookId:checkbookId||undefined, clearDate: payMode==='bank'?clearDate:undefined, mfsAccountId:mfsAccountId||undefined
   });
   logActivity('edit', 'ভেন্ডর পেমেন্ট', `${vendor.name} — ৳${fmt(payAmount)} পরিশোধ, ভাউচার: ${paymentVoucher}${settledRef}`);
   document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
@@ -11207,22 +11514,30 @@ function calcCashBankBalance() {
   // ⚠️ গুরুত্বপূর্ণ ফিক্স: বিল সেভ হওয়ার সময় "রিসেপশন আয়"/"অ্যাডমিন বিল" ক্যাটাগরিতে যে income এন্ট্রি অটো তৈরি হয়
   // (visitId ট্যাগসহ), সেই একই টাকা নিচের ধাপ ২-এ visit.cashPaid থেকেও যোগ হয় — তাই visitId-ট্যাগড এন্ট্রি এখানে
   // বাদ দেওয়া হচ্ছে, নাহলে একই বিলের ক্যাশ দুইবার যোগ হয়ে ক্যাশ/ব্যাংক ব্যালেন্স ভুলভাবে বেশি দেখাত।
-  (appData.income||[]).forEach(e => { if (!e.visitId) cash += (e.amount||0); });
+  (appData.income||[]).forEach(e => {
+    if (e.visitId) return;
+    if (e.payMode === 'bank') bank += (e.amount||0);
+    else if (e.payMode === 'mfs') { /* মোবাইল ব্যাংকিং একাউন্টে যোগ হয় — calcMfsAccountBalance()-এ হিসাব */ }
+    else cash += (e.amount||0);
+  });
   // ২. Receptionist visits → ক্যাশে যোগ
-  (appData.visits||[]).forEach(v => { cash += (v.cashPaid||0); });
+  (appData.visits||[]).forEach(v => { cash += ((v.cashPaid||0) - (v.mfsPaid||0)); });
   // ৩. Camp income → ক্যাশে যোগ
   (appData.camps||[]).forEach(c => { cash += (c.totalIncome||0); });
-  // ৪. Manual expense → পেমেন্ট মাধ্যম অনুযায়ী ক্যাশ বা ব্যাংক থেকে বাদ। ব্যাংকের চেক এখনো 'পেন্ডিং' (ভবিষ্যতের তারিখে ভাঙ্গানো) হলে — ভাঙ্গানো নিশ্চিত না হওয়া পর্যন্ত কোনো ব্যালেন্স থেকেই বাদ যাবে না।
+  // ৪. Manual expense → পেমেন্ট মাধ্যম অনুযায়ী ক্যাশ, ব্যাংক বা মোবাইল ব্যাংকিং একাউন্ট থেকে বাদ।
+  // ব্যাংকের চেক এখনো 'পেন্ডিং' (ভবিষ্যতের তারিখে ভাঙ্গানো) হলে — ভাঙ্গানো নিশ্চিত না হওয়া পর্যন্ত কোনো ব্যালেন্স থেকেই বাদ যাবে না।
   (appData.expense||[]).forEach(e => {
     if (e.payMode === 'bank') {
       if (e.status !== 'pending') bank -= (e.amount||0);
+    } else if (e.payMode === 'mfs') {
+      // মোবাইল ব্যাংকিং (বিকাশ/নগদ ইত্যাদি) একাউন্ট থেকে বাদ — calcMfsBalances()-এ হিসাব হয়, ক্যাশ/ব্যাংক থেকে না
     } else {
       cash -= (e.amount||0);
     }
   });
   // ৫. Camp expense → ক্যাশ থেকে বাদ
   (appData.camps||[]).forEach(c => { cash -= ((c.totalExpense||0) + (c.totalCOGS||0) + (c.regularStaffCost||0)); });
-  // ৬. bankTx: ক্যাশ→ব্যাংক ট্রান্সফার ও ম্যানুয়াল অ্যাডজাস্টমেন্ট
+  // ৬. bankTx: ক্যাশ→ব্যাংক ট্রান্সফার, মোবাইল ব্যাংকিং ⇄ ক্যাশ/ব্যাংক ট্রান্সফার ও ম্যানুয়াল অ্যাডজাস্টমেন্ট
   (appData.bankTx||[]).forEach(tx => {
     if(tx.type==='cash_in') cash+=tx.amount;
     else if(tx.type==='bank_in') bank+=tx.amount;
@@ -11230,10 +11545,40 @@ function calcCashBankBalance() {
     else if(tx.type==='bank_to_cash'){bank-=tx.amount; cash+=tx.amount;}
     else if(tx.type==='cash_out') cash-=tx.amount;
     else if(tx.type==='bank_out') bank-=tx.amount;
+    else if(tx.type==='mfs_to_cash') cash+=tx.amount; // MFS দিক থেকে বিয়োগ calcMfsBalances()-এ হয়
+    else if(tx.type==='cash_to_mfs') cash-=tx.amount;
+    else if(tx.type==='mfs_to_bank') bank+=tx.amount;
+    else if(tx.type==='bank_to_mfs') bank-=tx.amount;
   });
+  // ৭. একই বিলের যে অংশ মোবাইল ব্যাংকিং দিয়ে পরিশোধ হয়েছে (mfsPaid) সেটা ক্যাশে যোগ হবে না — calcMfsBalances()-এ হিসাব হয়
   return { cash, bank };
 }
-// ===== ফান্ড ব্যালেন্স হেল্পার =====
+// ===== মোবাইল ব্যাংকিং (MFS — বিকাশ/নগদ/রকেট ইত্যাদি) একাউন্ট ব্যালেন্স =====
+// প্রতিটা একাউন্টের ব্যালেন্স = ওপেনিং ব্যালেন্স + এই একাউন্টে জমা হওয়া বিল/ভিজিট আয় − এই একাউন্ট থেকে
+// পরিশোধিত ব্যয়/ভেন্ডর বিল ± এই একাউন্ট থেকে/এ ক্যাশ⇄ব্যাংক ট্রান্সফার (bankTx-এ mfs_to_cash ইত্যাদি টাইপে,
+// accountId ফিল্ড দিয়ে কোন একাউন্ট তা চিহ্নিত থাকে)
+function calcMfsAccountBalance(accountId) {
+  const acc = (appData.mfsAccounts||[]).find(a => String(a.id) === String(accountId));
+  if (!acc) return 0;
+  let bal = Number(acc.openingBalance) || 0;
+  (appData.income||[]).forEach(e => { if (!e.visitId && String(e.mfsAccountId)===String(accountId)) bal += (e.mfsPaid!=null ? e.mfsPaid : (e.payMode==='mfs'?e.amount:0)) || 0; });
+  (appData.visits||[]).forEach(v => { if (String(v.mfsAccountId)===String(accountId)) bal += (v.mfsPaid||0); });
+  (appData.expense||[]).forEach(e => { if (e.payMode==='mfs' && String(e.mfsAccountId)===String(accountId)) bal -= (e.amount||0); });
+  (appData.bankTx||[]).forEach(tx => {
+    if (String(tx.accountId) !== String(accountId)) return;
+    if (tx.type==='mfs_in') bal += tx.amount;
+    else if (tx.type==='mfs_out') bal -= tx.amount;
+    else if (tx.type==='mfs_to_cash' || tx.type==='mfs_to_bank') bal -= tx.amount;
+    else if (tx.type==='cash_to_mfs' || tx.type==='bank_to_mfs') bal += tx.amount;
+  });
+  return bal;
+}
+function calcAllMfsBalances() {
+  return (appData.mfsAccounts||[]).map(acc => ({ ...acc, balance: calcMfsAccountBalance(acc.id) }));
+}
+function calcTotalMfsBalance() {
+  return (appData.mfsAccounts||[]).reduce((s,acc) => s + calcMfsAccountBalance(acc.id), 0);
+}
 function calcFundAllocatedTotal(fundKey) {
   let total = 0;
   (appData.monthClosings || []).forEach(mc => {
@@ -11891,7 +12236,12 @@ function editShareholder(id) {
   document.getElementById('shareholderFormBody').style.display='block';
 }
 function deleteShareholder(id) {
-  if(!confirm('মুছবেন?'))return;
+  const sh = (appData.shareholders||[]).find(s=>s.id===id);
+  if (!sh) return;
+  const bal = sh.balance||0;
+  if (Math.abs(bal) > 0.5) {
+    if (!confirm(`⚠️ ${sh.name}-এর ব্যালেন্সে এখনো ৳${fmt(bal)} বকেয়া আছে (উত্তোলন করা হয়নি)। মুছে ফেললে এই টাকার হিসাব-নিকাশ আর ট্র্যাক করা যাবে না। তারপরও মুছবেন?`)) return;
+  } else if (!confirm('মুছবেন?')) return;
   appData.shareholders=(appData.shareholders||[]).filter(s=>s.id!==id);
   saveData(); renderShareholderTable(); showToast('🗑️ মুছে ফেলা হয়েছে');
 }
@@ -11933,6 +12283,21 @@ function renderShareholderTable() {
 let _mcPreviewResult = null;
 const MC_MONTHS=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
 
+// ✅ ফিক্সড খরচ (ভাড়া+ইউটিলিটি+অন্যান্য) ও স্টাফ বেতন — মাস যদি ইতিমধ্যে ক্লোজ করা থাকে, তাহলে ক্লোজিং-এর সময়
+// যে রেট ব্যবহৃত হয়েছিল সেটাই (স্ন্যাপশট থেকে) ব্যবহার করা হয় — বর্তমান (হয়তো পরিবর্তিত) সেটিংস দিয়ে না।
+// এতে করে ভাড়া/বেতন পরে বাড়লেও পুরনো ক্লোজড মাসের হিসাব বদলে যায় না। খোলা/অ-ক্লোজড মাসের জন্য (চলতি মাস
+// সহ) বর্তমান সেটিংসই ব্যবহার হয়, কারণ তখনো "প্রকৃত" রেট চূড়ান্ত/নথিভুক্ত হয়নি।
+function getMonthlyFixedForPrefix(prefix) {
+  const [y, m] = prefix.split('-').map(Number);
+  const closed = (appData.monthClosings||[]).find(mc => mc.year===y && mc.month===m);
+  if (closed && closed.totalFixed != null) {
+    return { monthlyFixed: closed.monthlyFixed||0, monthlySalary: closed.monthlySalary||0, totalFixed: closed.totalFixed, isSnapshot: true };
+  }
+  const s = appData.settings;
+  const monthlyFixed = (s.rent||0) + (s.utility||0) + (s.otherFixed||0);
+  const monthlySalary = (appData.staff||[]).filter(st=>st.status==='active').reduce((sum,st)=>sum+(st.basic||0),0);
+  return { monthlyFixed, monthlySalary, totalFixed: monthlyFixed + monthlySalary, isSnapshot: false };
+}
 function computeMonthlyAutoNet(month, year) {
   const prefix = `${year}-${String(month).padStart(2,'0')}`;
   const s = appData.settings;
@@ -11949,7 +12314,7 @@ function computeMonthlyAutoNet(month, year) {
   const totalFixed = monthlyFixed + monthlySalary;
   const totalIncome = mInc + mVis + mCamp;
   const totalExpense = mExp + totalFixed + mCOGS;
-  return { totalIncome, totalExpense, autoNet: totalIncome - totalExpense, cogs: mCOGS };
+  return { totalIncome, totalExpense, autoNet: totalIncome - totalExpense, cogs: mCOGS, monthlyFixed, monthlySalary, totalFixed };
 }
 
 function previewMonthClose() {
@@ -11961,15 +12326,21 @@ function previewMonthClose() {
   const confirmBtn = document.getElementById('mcConfirmBtn');
   if (already) {
     preview.style.display='block';
+    const allClosings = [...(appData.monthClosings||[])].sort((a,b)=> (b.year*12+b.month) - (a.year*12+a.month) || b.id-a.id);
+    const isLatest = allClosings.length && allClosings[0].id === already.id;
     preview.innerHTML = `<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:8px;padding:14px;font-size:13.5px">
       ⚠️ <strong>${MC_MONTHS[month-1]} ${year}</strong> মাস ইতিমধ্যে ক্লোজ করা হয়েছে (${formatDate(already.closedAt?already.closedAt.slice(0,10):'')} — ${already.closedBy||''})।
-      <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="viewMonthClosingDetail(${already.id})">👁️ বিস্তারিত দেখুন</button></div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="viewMonthClosingDetail(${already.id})">👁️ বিস্তারিত দেখুন</button>
+        ${isLatest && currentUser.role==='admin' ? `<button class="btn btn-outline btn-sm" style="color:#b91c1c;border-color:#fca5a5" onclick="reopenMonthClosing(${already.id})">🔓 রিওপেন করুন</button>` : ''}
+      </div>
+      ${!isLatest ? '<div style="font-size:11.5px;color:#92400e;margin-top:6px">এর পরে আরও মাস ক্লোজ হয়ে গেছে বলে এটি সরাসরি রিওপেন করা যাচ্ছে না — সঞ্চিত লস ও শেয়ারহোল্ডার ব্যালেন্সের ধারাবাহিকতা রক্ষার জন্য শুধু সর্বশেষ ক্লোজ করা মাসই রিওপেন করা যায়।</div>' : ''}
     </div>`;
     confirmBtn.style.display='none';
     _mcPreviewResult = null;
     return;
   }
-  const { totalIncome, totalExpense, autoNet, cogs } = computeMonthlyAutoNet(month, year);
+  const { totalIncome, totalExpense, autoNet, cogs, monthlyFixed, monthlySalary, totalFixed } = computeMonthlyAutoNet(month, year);
   const accLoss = appData.settings.accumulatedLoss || 0;
   preview.style.display='block';
   preview.innerHTML = `
@@ -11985,24 +12356,30 @@ function previewMonthClose() {
       <div class="field"><label>সমন্বয়ের কারণ</label><input type="text" id="mcAdjustmentNote" placeholder="ঐচ্ছিক — কেন সমন্বয় করা হলো" oninput="calcMonthCloseBreakdown()"></div>
     </div>
     <div id="mcBreakdownArea" style="margin-top:10px"></div>`;
-  calcMonthCloseBreakdown(totalIncome, totalExpense, autoNet, month, year);
+  calcMonthCloseBreakdown(totalIncome, totalExpense, autoNet, month, year, monthlyFixed, monthlySalary, totalFixed);
 }
 
-function calcMonthCloseBreakdown(totalIncome, totalExpense, autoNet, month, year) {
+function calcMonthCloseBreakdown(totalIncome, totalExpense, autoNet, month, year, monthlyFixed, monthlySalary, totalFixed) {
   // যদি আর্গুমেন্ট ছাড়া কল হয় (ইনপুট পরিবর্তনের সময়), আগের ভ্যালু থেকে পুনরায় হিসাব করে
   if (totalIncome === undefined) {
     if (!_mcPreviewResult) return;
-    ({ totalIncome, totalExpense, autoNet, month, year } = _mcPreviewResult);
+    ({ totalIncome, totalExpense, autoNet, month, year, monthlyFixed, monthlySalary, totalFixed } = _mcPreviewResult);
   }
   const adjustment = parseFloat(document.getElementById('mcAdjustment')?.value) || 0;
   const adjustmentNote = document.getElementById('mcAdjustmentNote')?.value.trim() || '';
   const finalNet = autoNet + adjustment;
   const accLoss = appData.settings.accumulatedLoss || 0;
-  const shareholders = appData.shareholders || [];
+  // ✅ যোগদানের তারিখ-ভিত্তিক যোগ্যতা: এই মাস শেষ হওয়ার আগে যোগ দিয়েছেন এমন শেয়ারহোল্ডাররাই এই মাসের
+  // লাভ/লস বণ্টনে অংশ নেবেন। কোনো joinDate না থাকলে (পুরনো/প্রতিষ্ঠাতা শেয়ারহোল্ডার ধরে) সবসময় যোগ্য।
+  // এর ফলে কেউ পরে যোগ দিলে আগের মাসের (বা তার আগের সঞ্চিত লস পরিষ্কারের) সুবিধা/দায় পাবেন না।
+  const monthEndDate = `${year}-${String(month).padStart(2,'0')}-31`;
+  const allShareholders = appData.shareholders || [];
+  const ineligible = allShareholders.filter(sh => sh.joinDate && sh.joinDate > monthEndDate);
+  const shareholders = allShareholders.filter(sh => !sh.joinDate || sh.joinDate <= monthEndDate);
   const totalShares = shareholders.reduce((s,sh)=>s+sh.shares,0) || 1;
   const area = document.getElementById('mcBreakdownArea');
   const confirmBtn = document.getElementById('mcConfirmBtn');
-  let result = { month, year, totalIncome, totalExpense, autoNet, adjustment, adjustmentNote, finalNet, accLossBefore: accLoss };
+  let result = { month, year, totalIncome, totalExpense, autoNet, adjustment, adjustmentNote, finalNet, accLossBefore: accLoss, monthlyFixed, monthlySalary, totalFixed, ineligibleShareholders: ineligible.map(sh=>({name:sh.name, joinDate:sh.joinDate})) };
 
   if (finalNet > 0) {
     const lossCleared = Math.min(finalNet, accLoss);
@@ -12027,7 +12404,8 @@ function calcMonthCloseBreakdown(totalIncome, totalExpense, autoNet, month, year
       <div class="table-wrap"><table style="font-size:13px">
         <thead><tr style="background:#f0f4f8"><th>নাম</th><th>শেয়ার</th><th>%</th><th>বরাদ্দ (৳)</th></tr></thead>
         <tbody>${breakdown.map(b=>`<tr><td style="font-weight:600">${b.name}</td><td style="text-align:center">${b.shares}</td><td style="text-align:center">${b.percent.toFixed(1)}%</td><td style="font-weight:700;color:var(--success)">৳ ${fmt(b.amount.toFixed(2))}</td></tr>`).join('')}</tbody>
-      </table></div>`;
+      </table></div>
+      ${ineligible.length ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;font-size:12px;color:#9a3412;margin-top:8px">ℹ️ ${ineligible.map(sh=>`${sh.name} (যোগদান: ${formatDate(sh.joinDate)})`).join(', ')} — এই মাস শেষ হওয়ার পরে যোগ দিয়েছেন বলে এই বণ্টনে অন্তর্ভুক্ত নন।</div>` : ''}`;
   } else {
     const lossAmt = -finalNet;
     result = { ...result, isLoss:true, lossAmt, accLossAfter: accLoss + lossAmt, fundAllocations:[], fundTotal:0, shareholderPool:0, totalShares, breakdown:[] };
@@ -12051,6 +12429,7 @@ function confirmMonthClose() {
   appData.monthClosings.push({
     id: Date.now(), month: r.month, year: r.year, label: MC_MONTHS[r.month-1]+' '+r.year,
     autoIncome: r.totalIncome, autoExpense: r.totalExpense, autoNet: r.autoNet,
+    monthlyFixed: r.monthlyFixed, monthlySalary: r.monthlySalary, totalFixed: r.totalFixed,
     adjustment: r.adjustment, adjustmentNote: r.adjustmentNote, finalNet: r.finalNet,
     isLoss: r.isLoss, lossCleared: r.lossCleared||0, lossAmt: r.lossAmt||0,
     accLossBefore: r.accLossBefore, accLossAfter: r.accLossAfter,
@@ -12074,6 +12453,45 @@ function confirmMonthClose() {
   showToast(`✅ ${MC_MONTHS[r.month-1]} ${r.year} মাস ক্লোজ সম্পন্ন হয়েছে!`);
 }
 
+// ✅ মাস-ক্লোজ রিওপেন — শুধুমাত্র সর্বশেষ ক্লোজ করা মাসের জন্য (সঞ্চিত লস ও শেয়ারহোল্ডার ব্যালেন্সের
+// ধারাবাহিকতা রক্ষার জন্য), অ্যাডমিন-only, বাধ্যতামূলক কারণসহ। মূল ক্লোজিং রেকর্ডের একটা সম্পূর্ণ কপি
+// আর্কাইভে (monthClosingReopenLog) সংরক্ষিত থাকে চিরকালের জন্য — কিছুই মুছে যায় না, শুধু "সক্রিয়"
+// ক্লোজিং তালিকা থেকে সরে যায় যাতে মাসটা আবার নতুন করে ক্লোজ করা যায়।
+function reopenMonthClosing(id) {
+  if (currentUser.role !== 'admin') { showToast('⚠️ শুধুমাত্র অ্যাডমিন রিওপেন করতে পারবেন!'); return; }
+  const mc = (appData.monthClosings||[]).find(m=>m.id===id);
+  if (!mc) return;
+  const allClosings = [...(appData.monthClosings||[])].sort((a,b)=> (b.year*12+b.month) - (a.year*12+a.month) || b.id-a.id);
+  if (!allClosings.length || allClosings[0].id !== mc.id) {
+    showToast('⚠️ শুধু সর্বশেষ ক্লোজ করা মাসই রিওপেন করা যাবে!'); return;
+  }
+  const reason = prompt(`⚠️ "${mc.label}" মাস রিওপেন করলে:\n• সঞ্চিত লস আগের অবস্থায় ফিরে যাবে\n• শেয়ারহোল্ডারদের ব্যালেন্স থেকে এই মাসের বণ্টন বাদ যাবে\n• মাসটি আবার নতুন করে ক্লোজ করতে হবে\n\nএই কাজের কারণ লিখুন (বাধ্যতামূলক, অডিট রেকর্ডের জন্য):`);
+  if (!reason || !reason.trim()) { showToast('⚠️ কারণ ছাড়া রিওপেন করা যাবে না!'); return; }
+  if (!confirm(`নিশ্চিত করছেন? "${mc.label}" রিওপেন হবে — কারণ: "${reason.trim()}"`)) return;
+
+  // শেয়ারহোল্ডার ব্যালেন্স থেকে এই মাসের বণ্টন বাদ
+  if (!mc.isLoss) {
+    (mc.breakdown||[]).forEach(b=>{
+      const sh = (appData.shareholders||[]).find(s=>s.id===b.shareholderId);
+      if (sh) sh.balance = (sh.balance||0) - b.amount;
+    });
+  }
+  // সঞ্চিত লস আগের অবস্থায়
+  appData.settings.accumulatedLoss = mc.accLossBefore || 0;
+  // সম্পূর্ণ অডিট আর্কাইভ — মূল রেকর্ড + রিওপেনের বিস্তারিত, চিরকালের জন্য সংরক্ষিত
+  if (!appData.monthClosingReopenLog) appData.monthClosingReopenLog = [];
+  appData.monthClosingReopenLog.push({
+    id: Date.now(), originalClosing: { ...mc }, reopenedAt: new Date().toISOString(),
+    reopenedBy: currentUser.name, reason: reason.trim()
+  });
+  appData.monthClosings = (appData.monthClosings||[]).filter(m=>m.id!==id);
+  logActivity('edit','শেয়ারহোল্ডার',`মাস রিওপেন — ${mc.label} — কারণ: ${reason.trim()}`);
+  saveData();
+  document.getElementById('mcPreview').style.display='none';
+  renderShareholderTable(); renderMonthClosingHistory();
+  showToast(`🔓 ${mc.label} রিওপেন হয়েছে — এখন আবার ক্লোজ করা যাবে`);
+}
+
 function renderMonthClosingHistory() {
   const list=[...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('monthClosingHistTable');
@@ -12086,6 +12504,22 @@ function renderMonthClosingHistory() {
     <td>৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</td>
     <td style="font-size:12px;color:var(--text-light)">${mc.closedBy||'—'}</td>
     <td><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button></td>
+  </tr>`).join('');
+  renderMcReopenLog();
+}
+function renderMcReopenLog() {
+  const panel = document.getElementById('mcReopenLogPanel');
+  const tbody = document.getElementById('mcReopenLogTable');
+  if (!panel || !tbody) return;
+  const log = appData.monthClosingReopenLog || [];
+  panel.style.display = log.length ? '' : 'none';
+  if (!log.length) return;
+  tbody.innerHTML = [...log].sort((a,b)=>b.id-a.id).map(l => `<tr>
+    <td style="font-weight:600">${l.originalClosing?.label||'—'}</td>
+    <td style="font-weight:700;color:${l.originalClosing?.isLoss?'var(--danger)':'var(--success)'}">${l.originalClosing?.isLoss?'-':''}৳ ${fmt(Math.abs(l.originalClosing?.finalNet||0).toFixed(2))}</td>
+    <td>${l.reopenedBy||'—'}</td>
+    <td style="font-size:12px;color:var(--text-light)">${formatDate((l.reopenedAt||'').slice(0,10))}</td>
+    <td>${l.reason||'—'}</td>
   </tr>`).join('');
 }
 
@@ -12354,7 +12788,89 @@ function updateProfitFundPercent(id, val) {
   if (otherTotal + p > 100) { showToast('⚠️ মোট শতাংশ ১০০ এর বেশি হতে পারবে না!'); renderProfitFundSettings(); return; }
   f.percent = p; saveData(); renderProfitFundSettings();
 }
-function renderProfitFundSettings() {
+// ===== মোবাইল ব্যাংকিং (MFS) একাউন্ট ব্যবস্থাপনা — Settings =====
+function renderMfsAccountList() {
+  const list = document.getElementById('mfsAccountList');
+  if (!list) return;
+  const accs = calcAllMfsBalances();
+  if (!accs.length) { list.innerHTML = '<p style="text-align:center;color:#aaa;padding:20px;font-size:13px">কোনো মোবাইল ব্যাংকিং একাউন্ট যোগ করা হয়নি</p>'; return; }
+  list.innerHTML = accs.map(a => `
+    <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px">
+      <div style="font-size:22px">📱</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13.5px;color:#1F2937">${a.name} <span style="font-weight:600;font-size:11px;color:#6B7280">(${a.provider||''})</span></div>
+        <div style="font-size:12px;color:#6B7280">${a.number||'নম্বর নেই'}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:800;font-size:14px;color:${a.balance<0?'var(--danger)':'var(--success)'}">৳ ${fmt(a.balance)}</div>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px" onclick="openMfsTransferModal('${a.id}')">🔁 ট্রান্সফার</button>
+          <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px" onclick="deleteMfsAccount('${a.id}')">🗑️</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+function addMfsAccount() {
+  const name = document.getElementById('mfsNewName').value.trim();
+  const provider = document.getElementById('mfsNewProvider').value;
+  const number = document.getElementById('mfsNewNumber').value.trim();
+  const opening = parseFloat(document.getElementById('mfsNewOpening').value) || 0;
+  if (!name) { alert('একাউন্টের নাম/লেবেল দিন'); return; }
+  if (!appData.mfsAccounts) appData.mfsAccounts = [];
+  appData.mfsAccounts.push({ id: 'mfs' + Date.now(), name, provider, number, openingBalance: opening });
+  document.getElementById('mfsNewName').value = '';
+  document.getElementById('mfsNewNumber').value = '';
+  document.getElementById('mfsNewOpening').value = '';
+  saveData(); renderMfsAccountList(); refreshAllMfsSelects();
+}
+function deleteMfsAccount(id) {
+  const bal = calcMfsAccountBalance(id);
+  if (Math.abs(bal) > 0.5) { if (!confirm(`এই একাউন্টে এখনো ৳ ${fmt(bal)} ব্যালেন্স আছে। তারপরও মুছে ফেলবেন?`)) return; }
+  else if (!confirm('এই একাউন্টটি মুছে ফেলতে চান?')) return;
+  appData.mfsAccounts = (appData.mfsAccounts||[]).filter(a => a.id !== id);
+  saveData(); renderMfsAccountList(); refreshAllMfsSelects();
+}
+// সব ফর্মে (এক্সপেন্স/ভেন্ডর/আয়) MFS একাউন্ট ড্রপডাউন — একাউন্ট যোগ/মোছার পর রিফ্রেশ করার জন্য কেন্দ্রীয় ফাংশন
+function refreshAllMfsSelects() {
+  const accs = appData.mfsAccounts || [];
+  const opts = '<option value="">-- একাউন্ট নির্বাচন করুন --</option>' + accs.map(a=>`<option value="${a.id}">${a.name} (৳ ${fmt(calcMfsAccountBalance(a.id))})</option>`).join('');
+  ['expMfsAccount','vendorPayMfsAccount','incMfsAccount','visitMfsAccount','mfsTransferAccount','rMfsAccount','adminBillMfsAccount'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { const cur = el.value; el.innerHTML = opts; if (cur) el.value = cur; }
+  });
+}
+// একাউন্ট ⇄ ক্যাশ/ব্যাংক ট্রান্সফার মোডাল
+let _activeMfsTransferAccountId = null;
+function openMfsTransferModal(accountId) {
+  const acc = (appData.mfsAccounts||[]).find(a=>a.id===accountId);
+  if (!acc) return;
+  _activeMfsTransferAccountId = accountId;
+  const bal = calcMfsAccountBalance(accountId);
+  document.getElementById('mfsTransferInfo').innerHTML = `<strong>${acc.name}</strong> — বর্তমান ব্যালেন্স: <strong style="color:${bal<0?'var(--danger)':'var(--success)'}">৳ ${fmt(bal)}</strong>`;
+  document.getElementById('mfsXferAmount').value = '';
+  document.getElementById('mfsXferNote').value = '';
+  document.getElementById('mfsXferSaveBtn').setAttribute('onclick', `saveMfsTransfer('${accountId}')`);
+  document.getElementById('mfsTransferModal').classList.add('open');
+}
+function closeMfsTransferModal() {
+  document.getElementById('mfsTransferModal').classList.remove('open');
+  _activeMfsTransferAccountId = null;
+}
+function saveMfsTransfer(accountId) {
+  const type = document.getElementById('mfsXferDir').value;
+  const amount = parseFloat(document.getElementById('mfsXferAmount').value) || 0;
+  const note = document.getElementById('mfsXferNote').value.trim();
+  if (amount <= 0) { alert('সঠিক পরিমাণ দিন'); return; }
+  if ((type==='mfs_to_cash'||type==='mfs_to_bank') && amount > calcMfsAccountBalance(accountId) + 0.01) {
+    if (!confirm('একাউন্টের ব্যালেন্সের চেয়ে বেশি পরিমাণ! তারপরও এগিয়ে যাবেন?')) return;
+  }
+  if (!appData.bankTx) appData.bankTx = [];
+  appData.bankTx.push({ id:'btx'+Date.now(), type, accountId, amount, date: todayStr(), note, by: currentUser?.username || '' });
+  closeMfsTransferModal(); saveData(); renderMfsAccountList(); refreshAllMfsSelects();
+  if (typeof refreshDashboard === 'function') refreshDashboard();
+}
+
   const funds = appData.settings.profitAllocationFunds || [];
   const tbody = document.getElementById('profitFundTable');
   if (!tbody) return;
@@ -12569,8 +13085,18 @@ function saveFundExpense() {
   const fund = (appData.settings.profitAllocationFunds||[]).find(f=>String(f.id)===String(fundId));
   if (!fund) { showToast('⚠️ ফান্ড খুঁজে পাওয়া যায়নি!'); return; }
   const bal = calcFundBalance(String(fundId));
-  if (amt > bal) {
-    if (!confirm(`⚠️ ${fund.name}-এ অবশিষ্ট ব্যালেন্স ৳${fmt(bal.toFixed(2))}, কিন্তু ৳${fmt(amt.toFixed(2))} খরচ করা হচ্ছে। এগিয়ে যাবেন?`)) return;
+  // ✅ ফান্ড ওভারস্পেন্ড সুরক্ষা: ফান্ডে যা আছে তার বেশি "P&L-নিরপেক্ষ" হিসেবে দেখানো যাবে না —
+  // নাহলে একটা প্রকৃত ব্যয়/লোকসান P&L থেকে চিরকালের জন্য লুকিয়ে যেতে পারে। তাই ফান্ডের প্রকৃত ব্যালেন্স
+  // পর্যন্ত অংশটুকুই ফান্ড খরচ (isFundExpense:true) হিসেবে রেকর্ড হয়; বাকি (উদ্বৃত্ত) অংশ স্বয়ংক্রিয়ভাবে
+  // একটা সাধারণ ব্যয় (isFundExpense:false) হিসেবে আলাদা এন্ট্রিতে যোগ হয়, যা মাসিক নিট মুনাফা/লোকসানে
+  // স্বাভাবিকভাবেই হিসাব হবে — বাস্তব অবস্থাটাই প্রতিফলিত হয়।
+  const fundPortion = Math.min(amt, Math.max(0, bal));
+  const excessPortion = amt - fundPortion;
+  if (excessPortion > 0.5) {
+    const msg = bal > 0.5
+      ? `⚠️ ${fund.name}-এ অবশিষ্ট ব্যালেন্স মাত্র ৳${fmt(bal)}, কিন্তু ৳${fmt(amt)} খরচ করছেন।\n\nফলাফল:\n✅ ৳${fmt(fundPortion)} ফান্ড খরচ হিসেবে (P&L-নিরপেক্ষ) রেকর্ড হবে\n📉 বাকি ৳${fmt(excessPortion)} সাধারণ ব্যয় হিসেবে রেকর্ড হবে — এটা এই মাসের নিট মুনাফা/লোকসানে যোগ হবে\n\nএগিয়ে যাবেন?`
+      : `⚠️ ${fund.name}-এ কোনো ব্যালেন্স নেই। পুরো ৳${fmt(amt)} সাধারণ ব্যয় হিসেবে রেকর্ড হবে (P&L-এ যোগ হবে, ফান্ড-নিরপেক্ষ থাকবে না)।\n\nএগিয়ে যাবেন?`;
+    if (!confirm(msg)) return;
   }
   if (payMode==='bank') {
     checkNo = (document.getElementById('feCheckNo')||{}).value.trim() || '';
@@ -12589,23 +13115,33 @@ function saveFundExpense() {
   const expId = Date.now();
   if (!appData.expense) appData.expense=[];
   appData.expense.push({
-    id: expId, date, category: `🏦 ফান্ড খরচ — ${fund.name}`, subCategory: '', amount: amt, voucher, note,
+    id: expId, date, category: `🏦 ফান্ড খরচ — ${fund.name}`, subCategory: '', amount: fundPortion, voucher, note,
     payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by: currentUser.name,
     isFundExpense: true, fundId: fund.id, fundName: fund.name
   });
+  let excessExpId = null;
+  if (excessPortion > 0.5) {
+    excessExpId = expId + 2;
+    appData.expense.push({
+      id: excessExpId, date, category: 'অন্যান্য', subCategory: `ফান্ড ওভারস্পেন্ড — ${fund.name}`, amount: excessPortion,
+      voucher: ensureUniqueVoucher('', date), note: `${fund.name} ফান্ডের ব্যালেন্সের অতিরিক্ত অংশ (মূল বিবরণ: ${note})`,
+      payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, by: currentUser.name,
+      isFundExpense: false, fundOverspendOf: fund.id
+    });
+  }
   if (payMode==='bank') {
     if (!appData.issuedChecks) appData.issuedChecks=[];
     appData.issuedChecks.push({
       id: expId+1, source:'expense', linkedExpenseId: expId, voucher, checkbookId, checkNo: checkNo||'—',
-      payee: `${fund.name} — ফান্ড খরচ${payPerson?(' — বাহক: '+payPerson):''}${note?(' — '+note):''}`,
+      payee: `${fund.name} — ফান্ড খরচ${excessPortion>0.5?' (আংশিক ওভারস্পেন্ড সাধারণ ব্যয় হিসেবে আলাদা রেকর্ড হয়েছে)':''}${payPerson?(' — বাহক: '+payPerson):''}${note?(' — '+note):''}`,
       amount: amt, issueDate: date, dueDate: clearDate, note,
       status, clearedDate: actualClearedDate, by: currentUser.name
     });
   }
-  logActivity('add', 'ফান্ড খরচ', `${fund.name} — ৳${fmt(amt)} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
+  logActivity('add', 'ফান্ড খরচ', `${fund.name} — ৳${fmt(fundPortion)}${excessPortion>0.5?' (+ ৳'+fmt(excessPortion)+' সাধারণ ব্যয়)':''} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
   saveData(); clearFeForm(); renderFundsPage(); renderExpenseTable(); refreshDashboard();
   if (typeof renderIssuedChecks==='function') renderIssuedChecks();
-  showToast('✅ ফান্ড খরচ সেভ হয়েছে! ভাউচার: ' + voucher);
+  showToast(excessPortion>0.5 ? `✅ সেভ হয়েছে — ৳${fmt(fundPortion)} ফান্ড খরচ, ৳${fmt(excessPortion)} সাধারণ ব্যয়` : '✅ ফান্ড খরচ সেভ হয়েছে! ভাউচার: ' + voucher);
 }
 function renderFundExpenseHistTable() {
   const tbody = document.getElementById('fundExpenseHistTable');
@@ -12812,7 +13348,11 @@ function onDocSelectChange(p) {
   if (afterDutyRow) afterDutyRow.style.display = (doctor && doctor.commissionEnabled && doctor.type==='salaried') ? '' : 'none';
   if (doctor && doctor.commissionEnabled && doctor.type==='salaried') {
     const cb = document.getElementById(p+'DocAfterDuty');
-    if (cb) cb.checked = isAfterDutyTimeNow(doctor);
+    if (cb) {
+      const suggested = isAfterDutyTimeNow(doctor);
+      cb.checked = suggested;
+      cb.dataset.suggested = suggested ? '1' : '0'; // ✅ পরে ম্যানুয়াল ওভাররাইড ধরার জন্য মূল সময়-ভিত্তিক সাজেশন সংরক্ষণ
+    }
   }
   updateDocCommissionPreview(p);
 }
@@ -12826,19 +13366,21 @@ function updateDocCommissionPreview(p) {
   if (!doctor.commissionEnabled) { previewEl.innerHTML = `<span style="color:#94a3b8">এই ডাক্তারের জন্য কমিশন প্রযোজ্য নয়</span>`; return; }
   const items = _getBillItemsForCommission(p);
   const base = getDoctorCommissionBaseAmount(items, doctor);
-  let percent = 0, applies = true;
+  let percent = 0, applies = true, overridden = false;
   if (doctor.type==='salaried') {
     const cb = document.getElementById(p+'DocAfterDuty');
     applies = !!(cb && cb.checked);
     percent = doctor.afterDutyPercent||0;
+    if (cb && cb.dataset.suggested !== undefined) overridden = (cb.dataset.suggested === '1') !== applies;
   } else {
     percent = doctor.commissionPercent||0;
   }
   const amount = applies ? Math.round(base*percent/100) : 0;
+  const dutyRef = doctor.dutyEnd ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px">ডিউটি শেষ: ${doctor.dutyEnd} অনুযায়ী স্বয়ংক্রিয় সাজেশন${overridden?' — <span style="color:#d97706;font-weight:700">⚠️ ম্যানুয়ালি পরিবর্তন করা হয়েছে</span>':''}</div>` : '';
   if (!applies && doctor.type==='salaried') {
-    previewEl.innerHTML = `<span style="color:#94a3b8">ডিউটির পরে দেখা হয়েছে টিক না দিলে কমিশন প্রযোজ্য হবে না</span>`;
+    previewEl.innerHTML = `<span style="color:#94a3b8">ডিউটির পরে দেখা হয়েছে টিক না দিলে কমিশন প্রযোজ্য হবে না</span>${dutyRef}`;
   } else {
-    previewEl.innerHTML = `যোগ্য এমাউন্ট: ৳${fmt(base)} × ${percent}% = <strong style="color:var(--success)">৳${fmt(amount)}</strong> কমিশন`;
+    previewEl.innerHTML = `যোগ্য এমাউন্ট: ৳${fmt(base)} × ${percent}% = <strong style="color:var(--success)">৳${fmt(amount)}</strong> কমিশন${dutyRef}`;
   }
 }
 function computeDoctorCommissionForSave(p) {
@@ -12848,19 +13390,25 @@ function computeDoctorCommissionForSave(p) {
   if (!doctor || !doctor.commissionEnabled) return null;
   const items = _getBillItemsForCommission(p);
   const base = getDoctorCommissionBaseAmount(items, doctor);
-  let percent=0, afterDuty=false, applies=true;
+  let percent=0, afterDuty=false, applies=true, overridden=false;
   if (doctor.type==='salaried') {
     const cb = document.getElementById(p+'DocAfterDuty');
     afterDuty = !!(cb && cb.checked);
     applies = afterDuty;
     percent = doctor.afterDutyPercent||0;
+    // ✅ অডিট ট্রেইল: সময়-ভিত্তিক স্বয়ংক্রিয় সাজেশন থেকে কেউ ম্যানুয়ালি চেকবক্স পাল্টেছে কিনা তা রেকর্ড হচ্ছে —
+    // যাতে পরবর্তীতে অ্যাডমিন সন্দেহজনক/অস্বাভাবিক এন্ট্রি আলাদাভাবে চিহ্নিত ও যাচাই করতে পারেন।
+    if (cb && cb.dataset.suggested !== undefined) {
+      overridden = (cb.dataset.suggested === '1') !== afterDuty;
+    }
   } else {
     percent = doctor.commissionPercent||0;
   }
   if (!applies || base<=0 || percent<=0) return null;
   const amount = Math.round(base*percent/100);
   if (amount<=0) return null;
-  return { doctor, base, percent, amount, afterDuty };
+  const entryTime = new Date().toTimeString().slice(0,5);
+  return { doctor, base, percent, amount, afterDuty, overridden, entryTime };
 }
 function recordDoctorCommission(p, date, memoNo, visitId) {
   const calc = computeDoctorCommissionForSave(p);
@@ -12870,12 +13418,13 @@ function recordDoctorCommission(p, date, memoNo, visitId) {
     id: Date.now()+Math.floor(Math.random()*1000), date, visitId, memoNo,
     doctorId: calc.doctor.id, doctorName: calc.doctor.name, doctorType: calc.doctor.type,
     baseAmount: calc.base, percent: calc.percent, amount: calc.amount, afterDuty: calc.afterDuty,
+    afterDutyOverridden: calc.overridden||false, entryTime: calc.entryTime, dutyEndRef: calc.doctor.dutyEnd||'',
     by: currentUser.name
   });
 }
 function clearDocSelectUI(p) {
   const sel = document.getElementById(p+'DocSelect'); if (sel) sel.value='';
-  const cb = document.getElementById(p+'DocAfterDuty'); if (cb) cb.checked=false;
+  const cb = document.getElementById(p+'DocAfterDuty'); if (cb) { cb.checked=false; delete cb.dataset.suggested; }
   const row = document.getElementById(p+'DocAfterDutyRow'); if (row) row.style.display='none';
   const prev = document.getElementById(p+'DocCommissionPreview'); if (prev) prev.textContent='';
 }
@@ -13058,7 +13607,7 @@ function renderDoctorCommissionHistory() {
     <td style="text-align:right">৳ ${fmt(c.baseAmount)}</td>
     <td>${c.percent}%</td>
     <td style="text-align:right;font-weight:700;color:var(--success)">৳ ${fmt(c.amount)}</td>
-    <td>${c.doctorType==='salaried' ? (c.afterDuty?'✅ হ্যাঁ':'—') : '—'}</td>
+    <td>${c.doctorType==='salaried' ? (c.afterDuty?('✅ হ্যাঁ'+(c.afterDutyOverridden?' <span title="সময়-ভিত্তিক স্বয়ংক্রিয় হিসাব অনুযায়ী এটা হওয়ার কথা ছিল না — কেউ ম্যানুয়ালি টিক দিয়েছেন। এন্ট্রির সময়: '+(c.entryTime||'—')+', ডিউটি শেষ: '+(c.dutyEndRef||'—')+'" style="cursor:help">⚠️</span>':'')):('—'+(c.afterDutyOverridden?' <span title="সময়-ভিত্তিক হিসাব অনুযায়ী এটা প্রযোজ্য হওয়ার কথা ছিল, কিন্তু ম্যানুয়ালি বাদ দেওয়া হয়েছে। এন্ট্রির সময়: '+(c.entryTime||'—')+'" style="cursor:help">⚠️</span>':''))) : '—'}</td>
   </tr>`).join('');
 }
 
@@ -13080,6 +13629,7 @@ const ALL_FEATURES = [
   { id:'loan',      label:'লোন ট্র্যাকিং' },
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
   { id:'memorandum', label:'মেমোরেন্ডাম ও TOR' },
+  { id:'accounting-principles', label:'হিসাবরক্ষণ নীতিমালা' },
   { id:'recdeposit', label:'রিসেপশন রেকর্ড' },
   { id:'delivery',  label:'ডেলিভারি শিডিউল' },
   { id:'balancesheet', label:'ব্যালেন্স শিট' },
@@ -13093,15 +13643,15 @@ const ALL_FEATURES = [
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet'],
-  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet']
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles'],
+  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles']
 };
 const FEATURE_ICONS = {
   dashboard:'🏠', income:'💰', expense:'🧾', camp:'⛺', due:'⏳', stock:'📦',
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
   bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
   delivery:'🚛', balancesheet:'⚖️', chart:'📊',
-  newbill:'🧾', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾'
+  newbill:'🧾', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖'
 };
 const OWNER_TAB_CONFIG_KEY = 'hms_owner_tabs';
 const OWNER_TAB_DEFAULT = ['dashboard','income','expense','report'];
@@ -13217,7 +13767,7 @@ function renderRoleBottomTabs(roleKey, activeFeature) {
 }
 
 const FEATURE_GROUPS = [
-  { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','report','chart','balancesheet'] },
+  { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','report','chart','balancesheet','accounting-principles'] },
   { label:'💰 আয় ও ব্যয়',            ids:['income','expense','bank','checkbook','loan'] },
   { label:'🏕️ ক্যাম্প ও রোগী',        ids:['camp','due','delivery','recdeposit','demand'] },
   { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','memorandum'] },
@@ -13547,6 +14097,7 @@ function loadUserList() {
   if(document.getElementById('settUtility'))        document.getElementById('settUtility').value=s.utility||0;
   if(document.getElementById('settOtherFixed'))     document.getElementById('settOtherFixed').value=s.otherFixed||0;
   if(document.getElementById('settMedProfit'))      document.getElementById('settMedProfit').value=s.medProfit||20;
+  if(document.getElementById('settPriceRoundingMode')) document.getElementById('settPriceRoundingMode').value=s.priceRoundingMode||'floor';
   if(document.getElementById('settGlassMinProfit')) document.getElementById('settGlassMinProfit').value=s.glassMinProfit||30;
   if(document.getElementById('settGlassMaxProfit')) document.getElementById('settGlassMaxProfit').value=s.glassMaxProfit||80;
   if(document.getElementById('settRecDiscount'))    document.getElementById('settRecDiscount').value=s.recDiscount||10;
@@ -13630,6 +14181,7 @@ function openSettingsSection(sid) {
   if (sid === 'users') loadUserList && loadUserList();
   if (sid === 'activity-log') renderActivityLog && renderActivityLog();
   if (sid === 'profit-funds') renderProfitFundSettings && renderProfitFundSettings();
+  if (sid === 'mfs-accounts') renderMfsAccountList && renderMfsAccountList();
 }
 
 function closeSettingsSection() {
@@ -13752,7 +14304,7 @@ function saveQuickAccessSettings() {
 }
 
 // ===== ড্যাশবোর্ড কার্ড ক্রম (সেটিংস) — ৯টি স্ট্যাট কার্ড ইউজার তার পছন্দমতো ক্রমে সাজাতে পারবে =====
-const DEFAULT_DASH_CARD_ORDER = ['todayIncome','todayExpense','todayProfit','monthlyProfit','campIncome','totalDue','totalDebt','dashCashBalance','dashBankBalance'];
+const DEFAULT_DASH_CARD_ORDER = ['todayIncome','todayExpense','todayProfit','monthlyProfit','campIncome','totalDue','totalDebt','dashCashBalance','dashBankBalance','dashMfsBalance'];
 const DASH_CARD_META = {
   todayIncome:     { icon:'💰', label:'আজকের আয়' },
   todayExpense:    { icon:'💸', label:'আজকের ব্যয়' },
@@ -13763,6 +14315,7 @@ const DASH_CARD_META = {
   totalDebt:       { icon:'📉', label:'মোট দেনা' },
   dashCashBalance: { icon:'💵', label:'ক্যাশ ব্যালেন্স' },
   dashBankBalance: { icon:'🏦', label:'ব্যাংক ব্যালেন্স' },
+  dashMfsBalance: { icon:'📱', label:'মোবাইল ব্যাংকিং' },
 };
 function getDashCardOrder() {
   const saved = appData.settings && appData.settings.dashCardOrder;
@@ -16634,16 +17187,25 @@ function reverseStockForVisit(visitId) {
     l.reversed = true; // এন্ট্রি মুছে ফেলা হয় না, শুধু "বাতিল" চিহ্নিত হয় — যাতে COGS/রিপোর্ট থেকে বাদ যায় কিন্তু ইতিহাস থেকে না
   });
 }
+// ✅ বিক্রয়মূল্য রাউন্ডিং — সেটিংসে নির্বাচিত মোড অনুযায়ী। ডিফল্ট 'floor' (রাউন্ড ডাউন) —
+// এতে প্রকৃত লাভের % সেট করা টার্গেটের চেয়ে সবসময় সামান্য কম হয় (কখনো বেশি না), যা একটা
+// নিয়মিত/পূর্বাভাসযোগ্য বায়াস, এলোমেলো না। 'nearest' বা 'ceil' বেছে নিলে এই বায়াস দূর/উল্টে যায়।
+function roundPrice(raw) {
+  const mode = (appData.settings||{}).priceRoundingMode || 'floor';
+  if (mode === 'ceil') return Math.ceil(raw);
+  if (mode === 'nearest') return Math.round(raw);
+  return Math.floor(raw);
+}
 function calcAutoSellPriceFor(cat, buyPrice) {
   const s = appData.settings||{};
   if (!buyPrice) return null;
   if (cat === 'ওষুধ') {
     const profit = (s.medProfit||20) / 100;
-    return { sellPrice: Math.floor(buyPrice * (1 + profit)) };
+    return { sellPrice: roundPrice(buyPrice * (1 + profit)) };
   } else if (cat === 'চশমা/লেন্স') {
     const minP = (s.glassMinProfit||30) / 100;
     const maxP = (s.glassMaxProfit||80) / 100;
-    return { sellMin: Math.floor(buyPrice * (1 + minP)), sellMax: Math.floor(buyPrice * (1 + maxP)) };
+    return { sellMin: roundPrice(buyPrice * (1 + minP)), sellMax: roundPrice(buyPrice * (1 + maxP)) };
   }
   return null;
 }
@@ -16656,14 +17218,14 @@ function autoCalcSellPrice() {
   if (cat === 'ওষুধ') {
     const profit  = (s.medProfit||20) / 100;
     const raw     = buyPrice * (1 + profit);
-    const rounded = Math.floor(raw); // পয়সা বাদ, রাউন্ড ডাউন
+    const rounded = roundPrice(raw);
     document.getElementById('stSellPrice').value = rounded;
     document.getElementById('stSellPriceHint').textContent = `(অটো: ${s.medProfit||20}% লাভ)`;
   } else if (cat === 'চশমা/লেন্স') {
     const minP = (s.glassMinProfit||30) / 100;
     const maxP = (s.glassMaxProfit||80) / 100;
-    const minSell = Math.floor(buyPrice * (1 + minP));
-    const maxSell = Math.floor(buyPrice * (1 + maxP));
+    const minSell = roundPrice(buyPrice * (1 + minP));
+    const maxSell = roundPrice(buyPrice * (1 + maxP));
     document.getElementById('stSellMin').value = minSell;
     document.getElementById('stSellMax').value = maxSell;
   }
@@ -18506,6 +19068,42 @@ function updateSummary() {
   if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview('r');
 }
 
+// ✅ একই বিলের মোট প্রদানের মধ্যে কত টাকা মোবাইল ব্যাংকিং দিয়ে এসেছে — বাকিটা ক্যাশ ধরা হবে
+function onRMfsPaidChange() {
+  const sel = document.getElementById('rMfsAccount');
+  if (sel && sel.options.length <= 1) sel.innerHTML = '<option value="">-- একাউন্ট --</option>' + (appData.mfsAccounts||[]).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  const cashPaid = parseFloat(document.getElementById('rCashPaid').value)||0;
+  const mfsInput = document.getElementById('rMfsPaid');
+  let mfsPaid = parseFloat(mfsInput.value)||0;
+  const hint = document.getElementById('rMfsPaidHint');
+  if (mfsPaid > cashPaid) {
+    mfsPaid = cashPaid;
+    mfsInput.value = cashPaid || '';
+    if (hint) hint.textContent = '⚠️ মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ দেওয়া যাবে না, সমন্বয় করা হয়েছে';
+  } else if (mfsPaid > 0 && !document.getElementById('rMfsAccount').value) {
+    if (hint) hint.textContent = '⚠️ কোন একাউন্টে জমা হয়েছে তা নির্বাচন করুন';
+  } else if (mfsPaid > 0) {
+    if (hint) hint.textContent = `বাকি ৳ ${fmt(cashPaid - mfsPaid)} ক্যাশে গণ্য হবে`;
+  } else if (hint) hint.textContent = '';
+}
+function onAbMfsPaidChange() {
+  const sel = document.getElementById('adminBillMfsAccount');
+  if (sel && sel.options.length <= 1) sel.innerHTML = '<option value="">-- একাউন্ট --</option>' + (appData.mfsAccounts||[]).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  const cashPaid = parseFloat(document.getElementById('abCashPaid').value)||0;
+  const mfsInput = document.getElementById('abMfsPaid');
+  let mfsPaid = parseFloat(mfsInput.value)||0;
+  const hint = document.getElementById('abMfsPaidHint');
+  if (mfsPaid > cashPaid) {
+    mfsPaid = cashPaid;
+    mfsInput.value = cashPaid || '';
+    if (hint) hint.textContent = '⚠️ মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ দেওয়া যাবে না, সমন্বয় করা হয়েছে';
+  } else if (mfsPaid > 0 && !document.getElementById('adminBillMfsAccount').value) {
+    if (hint) hint.textContent = '⚠️ কোন একাউন্টে জমা হয়েছে তা নির্বাচন করুন';
+  } else if (mfsPaid > 0) {
+    if (hint) hint.textContent = `বাকি ৳ ${fmt(cashPaid - mfsPaid)} ক্যাশে গণ্য হবে`;
+  } else if (hint) hint.textContent = '';
+}
+
 function applyDiscountPct() {
   const services = getServices();
   const total    = services.reduce((s,r)=>s+r.subtotal, 0);
@@ -18554,6 +19152,10 @@ function saveBill() {
   const services  = getServices();
   const discAmt   = parseFloat(document.getElementById('rDiscountAmt').value)||0;
   const cashPaid  = parseFloat(document.getElementById('rCashPaid').value)||0;
+  let mfsPaid     = parseFloat((document.getElementById('rMfsPaid')||{}).value)||0;
+  const mfsAccountId = (document.getElementById('rMfsAccount')||{}).value||'';
+  if (mfsPaid > cashPaid) mfsPaid = cashPaid; // নিরাপত্তা: মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ ধরা হবে না
+  if (mfsPaid > 0 && !mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
   if (!patName) { showToast('⚠️ রোগীর নাম দিন!'); return; }
   if (!services.length) { showToast('⚠️ কমপক্ষে একটি সার্ভিস ও মূল্য দিন!'); return; }
   if (!date) { showToast('⚠️ তারিখ দিন!'); return; }
@@ -18569,6 +19171,7 @@ function saveBill() {
   const visit   = {
     id:Date.now(), date, patName, patPhone, patAge, patGender, patAddress, patDoc,
     services, total, discAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
+    mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
   };
   if (!checkDoctorCommissionAlarm('r')) return;
@@ -18612,9 +19215,11 @@ function toggleDeliveryDate(p) {
   if (checked) { const d=document.getElementById(p+'DeliveryDate'); if(d&&!d.value) d.value=todayStr(); }
 }
 function clearBillForm() {
-  ['rPatName','rPatPhone','rPatAge','rPatAddress','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt'].forEach(id=>{
+  ['rPatName','rPatPhone','rPatAge','rPatAddress','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt','rMfsPaid'].forEach(id=>{
     const el=document.getElementById(id); if(el){ el.value=''; el.readOnly=false; el.style.background=''; }
   });
+  const mfsAccEl=document.getElementById('rMfsAccount'); if(mfsAccEl) mfsAccEl.value='';
+  const mfsHintEl=document.getElementById('rMfsPaidHint'); if(mfsHintEl) mfsHintEl.textContent='';
   const genderEl=document.getElementById('rPatGender'); if(genderEl) genderEl.value='';
   const rMemo=document.getElementById('rMemoNo'); if(rMemo) rMemo.value=generateNextMemoNo();
   document.getElementById('rBillDate').value=todayStr();
@@ -19015,6 +19620,10 @@ function saveAdminBill() {
   const discAmt = Math.floor(total*discPct/100);
   const netBill = Math.max(0,total-discAmt);
   const cashPaid = parseFloat(document.getElementById('abCashPaid').value)||0;
+  let abMfsPaid = parseFloat((document.getElementById('abMfsPaid')||{}).value)||0;
+  const abMfsAccountId = (document.getElementById('adminBillMfsAccount')||{}).value||'';
+  if (abMfsPaid > cashPaid) abMfsPaid = cashPaid;
+  if (abMfsPaid > 0 && !abMfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
   const due = Math.max(0,netBill-cashPaid);
   const patPhone = document.getElementById('abPatPhone').value.trim();
   const patAge = document.getElementById('abPatAge').value.trim();
@@ -19022,13 +19631,13 @@ function saveAdminBill() {
   const sendToDelivery = (document.getElementById('abSendToDelivery')||{}).checked||false;
   const deliveryDate = (document.getElementById('abDeliveryDate')||{}).value||'';
   if (sendToDelivery && !deliveryDate) { showToast('⚠️ ডেলিভারির তারিখ দিন!'); return; }
-  const bill = {id:Date.now(),date,memoNo,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,discPct,netBill,cashPaid,due,by:currentUser.name,time:new Date().toLocaleTimeString('bn-BD')};
+  const bill = {id:Date.now(),date,memoNo,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,discPct,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,by:currentUser.name,time:new Date().toLocaleTimeString('bn-BD')};
   if (!checkDoctorCommissionAlarm('ab')) return;
   if(!appData.adminBills) appData.adminBills=[];
   appData.adminBills.push(bill);
   // visits এ যোগ
   const abVisitId = Date.now()+1;
-  appData.visits.push({id:abVisitId,date,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,netBill,cashPaid,due,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
+  appData.visits.push({id:abVisitId,date,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
   recordDoctorCommission('ab', date, memoNo, bill.id);
   // income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না, visit.cashPaid দিয়েই গণনা হয়)
   if(cashPaid>0) appData.income.push({id:Date.now()+2,date,category:'অ্যাডমিন বিল',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:currentUser.name,visitId:abVisitId});
@@ -19039,7 +19648,9 @@ function saveAdminBill() {
   showToast(`✅ বিল সেভ! মেমো: ${memoNo}` + (sendToDelivery?' — ডেলিভারি শিডিউলে পাঠানো হয়েছে':''));
 }
 function clearAdminBillForm() {
-  ['abPatName','abPatPhone','abPatAge','abPatDoc','abDiscPct','abCashPaid'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['abPatName','abPatPhone','abPatAge','abPatDoc','abDiscPct','abCashPaid','abMfsPaid'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const abMfsAccEl=document.getElementById('adminBillMfsAccount'); if(abMfsAccEl) abMfsAccEl.value='';
+  const abMfsHintEl=document.getElementById('abMfsPaidHint'); if(abMfsHintEl) abMfsHintEl.textContent='';
   clearDocSelectUI('ab');
   document.getElementById('abBillDate').value=todayStr();
   document.getElementById('adminBillRows').innerHTML='';
@@ -22956,7 +23567,14 @@ function renderMonthlyComparison(){
   const prevExp = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, prevYM)).reduce((s,e)=>s+(e.amount||0),0);
   const curCOGS = getCOGSForPrefix(curYM);
   const prevCOGS = getCOGSForPrefix(prevYM);
-  const curProfit = curInc - curCOGS - curExp, prevProfit = prevInc - prevCOGS - prevExp;
+  // ✅ ফিক্সড খরচ (ভাড়া+ইউটিলিটি+অন্যান্য) ও স্টাফদের বেসিক বেতন — Cash Flow/P&L স্ট্রিপ ও মাসিক
+  // ক্লোজিং (computeMonthlyAutoNet)-এর মতোই নিট মুনাফা থেকে বাদ দেওয়া হচ্ছে, নাহলে একই মাসের জন্য
+  // দুইটা স্ট্রিপে দুই রকম "নিট মুনাফা" দেখাত এবং প্রকৃতপক্ষে লোকসানের মাসও লাভজনক দেখাতে পারত।
+  // প্রতিটা মাসের জন্য আলাদাভাবে হিসাব হয় — মাস ইতিমধ্যে ক্লোজ করা থাকলে ক্লোজিং-এর সময়কার স্ন্যাপশট
+  // রেট ব্যবহৃত হয় (ভাড়া/বেতন পরে বাড়লেও পুরনো মাসের হিসাব বদলায় না); খোলা মাসের জন্য বর্তমান সেটিংস।
+  const curFixed = getMonthlyFixedForPrefix(curYM).totalFixed;
+  const prevFixed = getMonthlyFixedForPrefix(prevYM).totalFixed;
+  const curProfit = curInc - curCOGS - curExp - curFixed, prevProfit = prevInc - prevCOGS - prevExp - prevFixed;
 
   const monthNames=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   const lbl=document.getElementById('dashMoCompLabel');
@@ -23012,13 +23630,19 @@ function _checkStatusCol(label, count, amount, accentColor, divider, bgColor, on
 // শুধু চলমান ব্যালেন্সের বদলে নির্দিষ্ট মাসের মধ্যে কতটা ইন/আউট হয়েছে সেটা রিটার্ন করে
 function calcCashBankFlowForPrefix(prefix) {
   let cashIn=0, cashOut=0, bankIn=0, bankOut=0;
-  // ✅ আয় — বর্তমানে সব আয়ই ক্যাশ হিসেবে গণ্য হয় (সরাসরি ব্যাংকে আয় জমার আলাদা ব্যবস্থা এখনো নেই)
-  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId).forEach(e=>{cashIn+=(e.amount||0);});
-  (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).forEach(v=>{cashIn+=(v.cashPaid||0);});
+  // ✅ আয় — পেমেন্ট মাধ্যম (ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং) অনুযায়ী রুট করা হয়। মোবাইল ব্যাংকিং অংশ এখানে
+  // যোগ হয় না — সেটা calcMfsAccountBalance()-এ আলাদাভাবে ট্র্যাক হয়, ক্যাশ/ব্যাংক ফ্লো-তে না।
+  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId).forEach(e=>{
+    if (e.payMode==='bank') bankIn+=(e.amount||0);
+    else if (e.payMode==='mfs') { /* মোবাইল ব্যাংকিং একাউন্টে যোগ হয় */ }
+    else cashIn+=(e.amount||0);
+  });
+  (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).forEach(v=>{cashIn+=((v.cashPaid||0)-(v.mfsPaid||0));});
   (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).forEach(c=>{cashIn+=(c.totalIncome||0);});
-  // ব্যয় — payMode অনুযায়ী ক্যাশ বা ব্যাংক থেকে আউট (ব্যাংকের চেক এখনো পেন্ডিং হলে গণনায় আসবে না)
+  // ব্যয় — payMode অনুযায়ী ক্যাশ, ব্যাংক বা মোবাইল ব্যাংকিং থেকে আউট (ব্যাংকের চেক এখনো পেন্ডিং হলে গণনায় আসবে না)
   (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).forEach(e=>{
     if (e.payMode==='bank') { if (e.status!=='pending') bankOut+=(e.amount||0); }
+    else if (e.payMode==='mfs') { /* মোবাইল ব্যাংকিং একাউন্ট থেকে বাদ যায় */ }
     else cashOut+=(e.amount||0);
   });
   (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).forEach(c=>{cashOut+=((c.totalExpense||0)+(c.totalCOGS||0)+(c.regularStaffCost||0));});
