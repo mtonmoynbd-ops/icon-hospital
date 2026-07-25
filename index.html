@@ -2392,6 +2392,50 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
+      <!-- অগ্রিম বেতন প্রদান -->
+      <div class="panel admin-only" id="advanceFormPanel">
+        <div class="panel-header">
+          <div class="panel-title">💵 অগ্রিম বেতন প্রদান</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleAdvanceForm()">➕ নতুন অগ্রিম প্রদান</button>
+        </div>
+        <div class="panel-body" id="advanceFormBody" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>কর্মী নির্বাচন *</label>
+              <select id="advStaffId"><option value="">-- কর্মী নির্বাচন করুন --</option></select>
+            </div>
+            <div class="field"><label>পরিমাণ (৳) *</label><input type="number" id="advAmount" placeholder="০.০০" min="0"></div>
+            <div class="field"><label>তারিখ *</label><input type="date" id="advDate" onchange="updateAdvVoucher()"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>কোন মাসের বেতন থেকে কর্তন হবে *</label>
+              <div style="display:flex;gap:6px">
+                <select id="advForMonth" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc">
+                  <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
+                  <option value="5">মে</option><option value="6">জুন</option><option value="7">জুলাই</option><option value="8">আগস্ট</option>
+                  <option value="9">সেপ্টেম্বর</option><option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+                </select>
+                <select id="advForYear" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:#f8fafc"></select>
+              </div>
+            </div>
+            <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+              <input type="text" id="advVoucher" placeholder="VN130626-01" style="font-weight:600;color:var(--warning)">
+            </div>
+            <div class="field"><label>কারণ/নোট</label><input type="text" id="advNote" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <input type="hidden" id="advEditId" value="">
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="clearAdvanceForm()">🔄 রিসেট</button>
+            <button class="btn btn-success" onclick="saveStaffAdvance()">✅ প্রদান নিশ্চিত করুন</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0">
+          <div class="table-wrap"><table>
+            <thead><tr><th>তারিখ</th><th>কর্মী</th><th>পরিমাণ (৳)</th><th>কর্তনের মাস</th><th>ভাউচার</th><th>নোট</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="advanceTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+
       <!-- স্যালারি শিট -->
       <div class="panel">
         <div class="panel-header">
@@ -2411,7 +2455,7 @@ function openPrintWindow(htmlContent, title) {
           <div class="table-wrap"><table>
             <thead><tr>
               <th>#</th><th>নাম</th><th>পদবি</th>
-              <th>বেসিক (৳)</th><th>বোনাস (৳)</th><th>🩺 ডাক্তার কমিশন (৳)</th><th>কাটা (৳)</th>
+              <th>বেসিক (৳)</th><th>বোনাস (৳)</th><th>🩺 ডাক্তার কমিশন (৳)</th><th>কাটা (৳)</th><th>💵 অগ্রিম (৳)</th>
               <th>নেট বেতন (৳)</th><th>পেমেন্ট</th><th>অ্যাকশন</th>
             </tr></thead>
             <tbody id="salaryTable"></tbody>
@@ -5590,7 +5634,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -6031,7 +6075,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -6921,7 +6965,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -7006,7 +7050,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -7270,7 +7314,7 @@ const PATH_SYNCED_MODULES = [
   'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory',
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
-  'doctors', 'doctorCommissions', 'doctorDayPayments'
+  'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances'
 ];
 
 function updateSyncStatusUI() {
@@ -7530,7 +7574,7 @@ function showPage(name) {
   }
   if (name === 'dashboard') refreshDashboard();
   if (name === 'report') { initReportFilters(); renderReport(); }
-  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); }
+  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); }
@@ -10114,21 +10158,23 @@ function printBoardReport() {
   <!-- স্যালারি -->
   <h2>৮. কর্মী বেতন সারসংক্ষেপ</h2>
   ${appData.staff.filter(s=>s.status==='active').length?`<table>
-    <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">বেসিক</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কাটা</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
+    <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">বেসিক</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কাটা</th><th style="text-align:right">অগ্রিম</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
     <tbody>${appData.staff.filter(s=>s.status==='active').map((s,i)=>{
       const key=`sal_${s.id}_${year}_${pad(month)}`;
       const sal=(appData.salaries&&appData.salaries[key])||{bonus:0,cut:0,paid:false};
-      const net=s.basic+(sal.bonus||0)-(sal.cut||0);
+      const advTotal = sal.paid ? (sal.advanceTotal||0) : getStaffAdvanceTotal(s.id, month, year);
+      const net=s.basic+(sal.bonus||0)-(sal.cut||0)-advTotal;
       return `<tr><td>${i+1}</td><td style="font-weight:600">${s.name}</td><td>${s.desig}</td>
         <td style="text-align:right">৳ ${fmt(s.basic)}</td>
         <td style="text-align:right">৳ ${fmt(sal.bonus||0)}</td>
         <td style="text-align:right">৳ ${fmt(sal.cut||0)}</td>
+        <td style="text-align:right">${advTotal>0?'৳ '+fmt(advTotal):'—'}</td>
         <td style="text-align:right;font-weight:700">৳ ${fmt(net)}</td>
         <td style="text-align:center"><span class="${sal.paid?'inc':'exp'} badge">${sal.paid?'✅ পরিশোধ':'⏳ বাকি'}</span></td>
       </tr>`;
     }).join('')}</tbody>
     <tfoot><tr class="total-row"><td colspan="3">সর্বমোট (${appData.staff.filter(s=>s.status==='active').length} জন)</td>
-      <td style="text-align:right">৳ ${fmt(salCost)}</td><td colspan="4"></td></tr></tfoot>
+      <td style="text-align:right">৳ ${fmt(salCost)}</td><td colspan="5"></td></tr></tfoot>
   </table>`:'<p style="color:#9ca3af">কোনো কর্মী নেই।</p>'}
 
   <!-- স্বাক্ষর -->
@@ -18391,6 +18437,24 @@ function viewStaffProfile(id) {
           </div>
         </div>
       </div>
+      ${(()=>{
+        const advList = (appData.staffAdvances||[]).filter(a=>a.staffId===s.id).slice().sort((a,b)=>(b.id||0)-(a.id||0));
+        if (!advList.length) return '';
+        const monthsBn = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+        const totalAdv = advList.reduce((sum,a)=>sum+(a.amount||0),0);
+        return `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px;margin-top:14px">
+          <div style="font-weight:700;color:#9a3412;margin-bottom:8px;font-size:13px">💵 অগ্রিম বেতন ইতিহাস (সর্বমোট ৳ ${fmt(totalAdv)})</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="color:#9a3412"><th style="text-align:left;padding:4px">তারিখ</th><th style="text-align:right;padding:4px">পরিমাণ</th><th style="text-align:left;padding:4px">কর্তনের মাস</th><th style="text-align:left;padding:4px">ভাউচার</th></tr></thead>
+            <tbody>${advList.map(a=>`<tr style="border-top:1px solid #fed7aa">
+              <td style="padding:4px">${formatDate(a.date)}</td>
+              <td style="padding:4px;text-align:right">৳ ${fmt(a.amount)}</td>
+              <td style="padding:4px">${monthsBn[a.forMonth-1]} ${a.forYear}</td>
+              <td style="padding:4px">${a.voucher||'—'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+      })()}
     </div>`;
 
   const modal = document.createElement('div');
@@ -18546,7 +18610,8 @@ function printSalarySlips() {
     const key = getSalaryKey(s.id, month, year);
     const sal = appData.salaries&&appData.salaries[key] ? appData.salaries[key] : {bonus:0,cut:0,paid:false};
     const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
-    const net = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - (sal.absentCut||0);
+    const advTotal = sal.paid ? (sal.advanceTotal||0) : getStaffAdvanceTotal(s.id, month, year);
+    const net = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - (sal.absentCut||0) - advTotal;
     return `
       <div style="border:2px solid #0f4c81;border-radius:6px;padding:0;page-break-inside:avoid;background:white;width:6.7in;height:2.7in;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12);display:flex;flex-direction:column">
         <!-- Header strip -->
@@ -18586,7 +18651,7 @@ function printSalarySlips() {
           <!-- Net pay + attendance row combined -->
           <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:5px">
             <div style="background:linear-gradient(135deg,#0f4c81,#1a6db5);border-radius:6px;padding:5px 10px;display:flex;align-items:center;justify-content:space-between;flex:1.4">
-              <div style="color:rgba(255,255,255,0.85);font-size:9px;font-weight:600">নেট প্রদেয়</div>
+              <div style="color:rgba(255,255,255,0.85);font-size:9px;font-weight:600">নেট প্রদেয়${advTotal>0?' <span style=\'font-size:7px;opacity:0.8\'>(অগ্রিম ৳'+fmt(advTotal)+' বাদে)</span>':''}</div>
               <div style="color:white;font-size:15px;font-weight:900">৳ ${fmt(net)}</div>
             </div>
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;display:flex;align-items:center;gap:5px;flex:1">
@@ -18708,6 +18773,133 @@ function getSalaryKey(staffId, month, year) {
   return `sal_${staffId}_${year}_${String(month).padStart(2,'0')}`;
 }
 
+// ===== স্টাফ অগ্রিম বেতন (Advance Salary) =====
+function getStaffAdvanceTotal(staffId, month, year) {
+  return (appData.staffAdvances||[]).filter(a=>a.staffId===staffId && a.forMonth===month && a.forYear===year)
+    .reduce((sum,a)=>sum+(a.amount||0), 0);
+}
+function getStaffAdvanceList(staffId, month, year) {
+  return (appData.staffAdvances||[]).filter(a=>a.staffId===staffId && a.forMonth===month && a.forYear===year)
+    .slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+}
+function populateAdvStaffSelect() {
+  const sel = document.getElementById('advStaffId');
+  if (!sel) return;
+  const activeStaff = (appData.staff||[]).filter(s=>s.status==='active');
+  sel.innerHTML = '<option value="">-- কর্মী নির্বাচন করুন --</option>' +
+    activeStaff.map(s=>`<option value="${s.id}">${s.name} (${s.desig||''})</option>`).join('');
+}
+function populateAdvYearSelect() {
+  const sel = document.getElementById('advForYear');
+  if (!sel) return;
+  const curYear = new Date().getFullYear();
+  let opts = '';
+  for (let y = curYear - 1; y <= curYear + 1; y++) opts += `<option value="${y}">${y}</option>`;
+  sel.innerHTML = opts;
+  sel.value = curYear;
+}
+function toggleAdvanceForm() {
+  const body = document.getElementById('advanceFormBody');
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  if (isHidden) {
+    populateAdvStaffSelect();
+    populateAdvYearSelect();
+    clearAdvanceForm();
+  }
+}
+function updateAdvVoucher() {
+  const dateEl = document.getElementById('advDate');
+  const voucherEl = document.getElementById('advVoucher');
+  if (!dateEl || !voucherEl) return;
+  voucherEl.value = generateNextVoucherNo(dateEl.value || todayStr());
+}
+function clearAdvanceForm() {
+  document.getElementById('advEditId').value = '';
+  document.getElementById('advStaffId').value = '';
+  document.getElementById('advAmount').value = '';
+  document.getElementById('advNote').value = '';
+  const dateEl = document.getElementById('advDate');
+  dateEl.value = todayStr();
+  const today = new Date();
+  const mSel = document.getElementById('advForMonth'); if (mSel) mSel.value = today.getMonth()+1;
+  const ySel = document.getElementById('advForYear');   if (ySel) ySel.value = today.getFullYear();
+  updateAdvVoucher();
+}
+function saveStaffAdvance() {
+  const staffId = parseInt(document.getElementById('advStaffId').value);
+  const amount  = parseFloat(document.getElementById('advAmount').value);
+  const date    = document.getElementById('advDate').value;
+  const forMonth= parseInt(document.getElementById('advForMonth').value);
+  const forYear = parseInt(document.getElementById('advForYear').value);
+  const note    = document.getElementById('advNote').value.trim();
+  if (!staffId || isNaN(amount) || amount<=0 || !date) { showToast('⚠️ কর্মী, পরিমাণ ও তারিখ আবশ্যক!'); return; }
+  const staff = (appData.staff||[]).find(s=>s.id===staffId);
+  if (!staff) { showToast('⚠️ কর্মী পাওয়া যায়নি!'); return; }
+  const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const voucher = ensureUniqueVoucher(document.getElementById('advVoucher').value.trim(), date);
+
+  const expEntry = {
+    id: Date.now(),
+    date, category: 'কর্মীর বেতন', subCategory: 'অগ্রিম বেতন',
+    amount, voucher, ref: staff.name,
+    note: `${staff.name} — অগ্রিম বেতন (${months[forMonth-1]} ${forYear} মাসের বেতন থেকে কর্তনযোগ্য)${note?' — '+note:''}`,
+    by: currentUser.name
+  };
+  appData.expense.push(expEntry);
+
+  if (!appData.staffAdvances) appData.staffAdvances = [];
+  appData.staffAdvances.push({
+    id: Date.now()+1, staffId, amount, date, note, voucher,
+    expenseId: expEntry.id, forMonth, forYear, by: currentUser.name
+  });
+
+  logActivity('add', 'অগ্রিম বেতন', `${staff.name} — ৳${fmt(amount)} (ভাউচার: ${voucher})`);
+  saveData();
+  clearAdvanceForm();
+  renderAdvanceTable();
+  if (typeof renderExpenseTable==='function') renderExpenseTable();
+  renderSalarySheet();
+  refreshDashboard();
+  showToast('✅ অগ্রিম বেতন প্রদান সেভ হয়েছে! ভাউচার: ' + voucher);
+}
+function renderAdvanceTable() {
+  const tbody = document.getElementById('advanceTable');
+  if (!tbody) return;
+  const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const list = (appData.staffAdvances||[]).slice().sort((a,b)=>(b.id||0)-(a.id||0));
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">কোনো অগ্রিম প্রদান নেই।</td></tr>'; return; }
+  const isAdmin = currentUser.role === 'admin';
+  const advEsc = s => (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  tbody.innerHTML = list.map(a=>{
+    const staff = (appData.staff||[]).find(s=>s.id===a.staffId);
+    return `<tr>
+      <td>${formatDate(a.date)}</td>
+      <td style="font-weight:600">${staff?staff.name:'—'}</td>
+      <td>৳ ${fmt(a.amount)}</td>
+      <td>${months[a.forMonth-1]} ${a.forYear}</td>
+      <td style="color:var(--warning);font-weight:600">${a.voucher||'—'}</td>
+      <td>${a.note?advEsc(a.note):'—'}</td>
+      <td>${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteStaffAdvance(${a.id})">🗑️</button>` : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+function deleteStaffAdvance(id) {
+  const adv = (appData.staffAdvances||[]).find(a=>a.id===id);
+  if (!adv) return;
+  const staff = (appData.staff||[]).find(s=>s.id===adv.staffId);
+  if (!confirm(`"${staff?staff.name:''}" এর ৳${fmt(adv.amount)} অগ্রিম বেতন এন্ট্রিটি মুছে ফেলতে চান? এর সাথে লিংকড ব্যয় এন্ট্রিটিও মুছে যাবে।`)) return;
+  if (adv.expenseId) appData.expense = (appData.expense||[]).filter(e=>e.id!==adv.expenseId);
+  appData.staffAdvances = (appData.staffAdvances||[]).filter(a=>a.id!==id);
+  logActivity('delete', 'অগ্রিম বেতন', `${staff?staff.name:''} — ৳${fmt(adv.amount)} (ভাউচার: ${adv.voucher||''}) মুছে ফেলা হয়েছে`);
+  saveData();
+  renderAdvanceTable();
+  if (typeof renderExpenseTable==='function') renderExpenseTable();
+  renderSalarySheet();
+  refreshDashboard();
+  showToast('🗑️ অগ্রিম বেতন এন্ট্রি মুছে ফেলা হয়েছে');
+}
+
 function getLinkedDoctorCommission(staffId, month, year) {
   const doc = (appData.doctors||[]).find(d=>d.linkedStaffId===staffId && d.type==='salaried');
   if (!doc) return 0;
@@ -18723,21 +18915,24 @@ function renderSalarySheet() {
   const activeStaff = appData.staff.filter(s=>s.status==='active');
 
   if (!activeStaff.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:40px">কোনো কর্মী নেই। প্রথমে কর্মী যোগ করুন।</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#aaa;padding:40px">কোনো কর্মী নেই। প্রথমে কর্মী যোগ করুন।</td></tr>';
     tfoot.innerHTML = '';
     return;
   }
 
-  let totalBasic=0, totalBonus=0, totalDocComm=0, totalCut=0, totalNet=0;
+  let totalBasic=0, totalBonus=0, totalDocComm=0, totalCut=0, totalAdv=0, totalNet=0;
   tbody.innerHTML = activeStaff.map((s,i) => {
     const key   = getSalaryKey(s.id, month, year);
     const sal   = appData.salaries && appData.salaries[key] ? appData.salaries[key] : { bonus:0, cut:0, paid:false, note:'' };
     const linkedDoc = (appData.doctors||[]).find(d=>d.linkedStaffId===s.id && d.type==='salaried');
     const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
-    const net   = s.basic + (sal.bonus||0) + docComm - (sal.cut||0);
+    const advList = getStaffAdvanceList(s.id, month, year);
+    const advTotal = sal.paid ? (sal.advanceTotal||0) : advList.reduce((sum,a)=>sum+(a.amount||0),0);
+    const net   = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - advTotal;
     totalBasic += s.basic; totalBonus += sal.bonus||0; totalDocComm += docComm;
-    totalCut   += sal.cut||0; totalNet  += net;
+    totalCut   += sal.cut||0; totalAdv += advTotal; totalNet  += net;
     const isAdmin = currentUser.role === 'admin';
+    const advTitle = advList.length ? advList.map(a=>`${formatDate(a.date)}: ৳${fmt(a.amount)}`).join(', ') : '';
     return `<tr>
       <td style="color:var(--text-light)">${i+1}</td>
       <td style="font-weight:600">${s.name}</td>
@@ -18754,6 +18949,7 @@ function renderSalarySheet() {
           ? `<input type="number" value="${sal.cut||0}" min="0" style="width:90px;padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateSalEntry(${s.id},${month},${year},'cut',this.value)" />`
           : `৳ ${fmt(sal.cut||0)}`}
       </td>
+      <td style="color:var(--danger,#e74c3c);font-weight:600" ${advTitle?`title="${advTitle}"`:''}>${advTotal>0 ? '৳ '+fmt(advTotal) : '—'}</td>
       <td style="font-weight:700;color:var(--primary)">৳ ${fmt(net)}</td>
       <td>
         ${isAdmin
@@ -18777,6 +18973,7 @@ function renderSalarySheet() {
     <td>৳ ${fmt(totalBonus)}</td>
     <td>৳ ${fmt(totalDocComm)}</td>
     <td>৳ ${fmt(totalCut)}</td>
+    <td>৳ ${fmt(totalAdv)}</td>
     <td>৳ ${fmt(totalNet)}</td>
     <td colspan="2"></td>
   </tr>`;
@@ -18793,7 +18990,7 @@ function updateSalEntry(staffId, month, year, field, value) {
     const staff = (appData.staff||[]).find(s=>s.id===staffId);
     const expEntry = (appData.expense||[]).find(e=>e.id===sal.expenseId);
     if (staff && expEntry) {
-      expEntry.amount = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0);
+      expEntry.amount = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.advanceTotal||0);
     }
   }
   saveData();
@@ -18812,14 +19009,16 @@ function toggleSalPaid(staffId, month, year) {
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
 
   if (sal.paid) {
-    // পরিশোধের মুহূর্তে ডাক্তার কমিশনের পরিমাণ ফ্রিজ করে রাখি (পরে নতুন কমিশন যোগ হলেও এই রেকর্ড পাল্টাবে না)
+    // পরিশোধের মুহূর্তে ডাক্তার কমিশন ও অগ্রিমের পরিমাণ ফ্রিজ করে রাখি (পরে নতুন কমিশন/অগ্রিম যোগ হলেও এই রেকর্ড পাল্টাবে না)
     sal.doctorCommission = getLinkedDoctorCommission(staffId, month, year);
-    // স্যালারি পরিশোধ — অটো ভাউচার নাম্বারে ব্যয় এন্ট্রি তৈরি
+    sal.advanceTotal = getStaffAdvanceTotal(staffId, month, year);
+    // স্যালারি পরিশোধ — অটো ভাউচার নাম্বারে ব্যয় এন্ট্রি তৈরি (অগ্রিম আগেই আলাদা ভাউচারে ব্যয় হিসেবে বুকড, তাই এখানে বাদ দেওয়া হয়, দ্বিগুণ গণনা এড়াতে)
     if (staff) {
-      const net = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0);
+      const net = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.advanceTotal||0);
       const payDate = todayStr();
       const voucher = generateNextVoucherNo(payDate);
       const docCommNote = sal.doctorCommission>0 ? ` (এর মধ্যে ডাক্তার কমিশন ৳${fmt(sal.doctorCommission)})` : '';
+      const advNote = sal.advanceTotal>0 ? ` (অগ্রিম ৳${fmt(sal.advanceTotal)} বাদ দেওয়া হয়েছে)` : '';
       const expEntry = {
         id: Date.now(),
         date: payDate,
@@ -18827,7 +19026,7 @@ function toggleSalPaid(staffId, month, year) {
         amount: net,
         voucher,
         ref: staff.name,
-        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)${docCommNote}`,
+        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)${docCommNote}${advNote}`,
         by: currentUser.name,
         salaryRef: key
       };
@@ -18842,6 +19041,7 @@ function toggleSalPaid(staffId, month, year) {
       sal.expenseId = null;
       sal.voucher = null;
       sal.doctorCommission = null;
+      sal.advanceTotal = null;
     }
   }
 
@@ -18855,12 +19055,13 @@ function printSalarySheet() {
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   const hospName = appData.settings.hospName || 'ICON Eye Hospital';
   const activeStaff = appData.staff.filter(s=>s.status==='active');
-  let rows='', totalBasic=0, totalBonus=0, totalCut=0, totalNet=0;
+  let rows='', totalBasic=0, totalBonus=0, totalCut=0, totalAdv=0, totalNet=0;
   activeStaff.forEach((s,i) => {
     const key = getSalaryKey(s.id, month, year);
     const sal = appData.salaries && appData.salaries[key] ? appData.salaries[key] : { bonus:0, cut:0, paid:false };
-    const net = s.basic + (sal.bonus||0) - (sal.cut||0);
-    totalBasic+=s.basic; totalBonus+=sal.bonus||0; totalCut+=sal.cut||0; totalNet+=net;
+    const advTotal = sal.paid ? (sal.advanceTotal||0) : getStaffAdvanceTotal(s.id, month, year);
+    const net = s.basic + (sal.bonus||0) - (sal.cut||0) - advTotal;
+    totalBasic+=s.basic; totalBonus+=sal.bonus||0; totalCut+=sal.cut||0; totalAdv+=advTotal; totalNet+=net;
     rows += `<tr style="border-bottom:1px solid #eee">
       <td style="padding:8px">${i+1}</td>
       <td style="padding:8px;font-weight:600">${s.name}</td>
@@ -18868,6 +19069,7 @@ function printSalarySheet() {
       <td style="padding:8px;text-align:right">৳ ${fmt(s.basic)}</td>
       <td style="padding:8px;text-align:right">৳ ${fmt(sal.bonus||0)}</td>
       <td style="padding:8px;text-align:right">৳ ${fmt(sal.cut||0)}</td>
+      <td style="padding:8px;text-align:right">${advTotal>0?'৳ '+fmt(advTotal):'—'}</td>
       <td style="padding:8px;text-align:right;font-weight:700">৳ ${fmt(net)}</td>
       <td style="padding:8px;text-align:center"><span style="color:${sal.paid?'green':'red'}">${sal.paid?'✅ পরিশোধিত':'⏳ বাকি'}</span></td>
       <td style="padding:8px;text-align:center">____________</td>
@@ -18885,6 +19087,7 @@ function printSalarySheet() {
           <th style="padding:8px">#</th><th style="padding:8px;text-align:left">নাম</th>
           <th style="padding:8px;text-align:left">পদবি</th><th style="padding:8px;text-align:right">বেসিক</th>
           <th style="padding:8px;text-align:right">বোনাস</th><th style="padding:8px;text-align:right">কাটা</th>
+          <th style="padding:8px;text-align:right">অগ্রিম</th>
           <th style="padding:8px;text-align:right">নেট বেতন</th><th style="padding:8px;text-align:center">স্ট্যাটাস</th>
           <th style="padding:8px;text-align:center">স্বাক্ষর</th>
         </tr></thead>
@@ -18894,6 +19097,7 @@ function printSalarySheet() {
           <td style="padding:8px;text-align:right">৳ ${fmt(totalBasic)}</td>
           <td style="padding:8px;text-align:right">৳ ${fmt(totalBonus)}</td>
           <td style="padding:8px;text-align:right">৳ ${fmt(totalCut)}</td>
+          <td style="padding:8px;text-align:right">৳ ${fmt(totalAdv)}</td>
           <td style="padding:8px;text-align:right;color:#0f4c81">৳ ${fmt(totalNet)}</td>
           <td colspan="2"></td>
         </tr></tfoot>
