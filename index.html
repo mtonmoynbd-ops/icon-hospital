@@ -4023,7 +4023,7 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel" data-settings-section="dash-card-order">
         <div class="panel-header"><div class="panel-title">🔀 ড্যাশবোর্ড কার্ড ক্রম</div></div>
         <div class="panel-body">
-          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">ড্যাশবোর্ডের ৯টি কার্ড কোন ক্রমে দেখাবে তা এখান থেকে সাজান। তীর বাটনে ক্লিক করলে সাথে সাথে প্রয়োগ হবে।</p>
+          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">ড্যাশবোর্ডের কার্ডগুলো কোন ক্রমে দেখাবে তা এখান থেকে সাজান, এবং চোখ আইকনে ক্লিক করে যেকোনো কার্ড লুকিয়ে/দেখিয়ে দিন। ডিজাইন অনুযায়ী একসাথে ৯টি কার্ড দেখানো উত্তম — প্রয়োজনে একটি কার্ড লুকিয়ে রাখুন। পরিবর্তন সাথে সাথে প্রয়োগ হবে।</p>
           <div id="dashCardOrderList" style="display:flex;flex-direction:column;gap:6px;max-width:480px"></div>
           <div style="display:flex;justify-content:flex-end;margin-top:14px">
             <button class="btn btn-outline" onclick="resetDashCardOrder()">↩️ ডিফল্ট ক্রমে ফিরুন</button>
@@ -12871,6 +12871,7 @@ function saveMfsTransfer(accountId) {
   if (typeof refreshDashboard === 'function') refreshDashboard();
 }
 
+function renderProfitFundSettings() {
   const funds = appData.settings.profitAllocationFunds || [];
   const tbody = document.getElementById('profitFundTable');
   if (!tbody) return;
@@ -14325,17 +14326,37 @@ function getDashCardOrder() {
   DEFAULT_DASH_CARD_ORDER.forEach(id => { if (!merged.includes(id)) merged.push(id); });
   return merged;
 }
+function getHiddenDashCards() {
+  const hidden = appData.settings && appData.settings.dashHiddenCards;
+  return Array.isArray(hidden) ? hidden.filter(id => DASH_CARD_META[id]) : [];
+}
+function toggleDashCardVisibility(id) {
+  appData.settings = appData.settings || {};
+  const hidden = getHiddenDashCards();
+  const idx = hidden.indexOf(id);
+  if (idx === -1) hidden.push(id); else hidden.splice(idx, 1);
+  appData.settings.dashHiddenCards = hidden;
+  saveData();
+  renderDashCardOrderPanel();
+  applyDashCardOrder();
+  showToast(idx === -1 ? '🙈 কার্ড লুকানো হয়েছে' : '👁️ কার্ড আবার দেখানো হচ্ছে');
+}
 function renderDashCardOrderPanel() {
   const list = document.getElementById('dashCardOrderList');
   if (!list) return;
   const order = getDashCardOrder();
-  list.innerHTML = order.map((id, i) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f8fafc;border:1.5px solid var(--border);border-radius:9px">
+  const hidden = getHiddenDashCards();
+  list.innerHTML = order.map((id, i) => {
+    const isHidden = hidden.includes(id);
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${isHidden?'#f1f2f4':'#f8fafc'};border:1.5px solid var(--border);border-radius:9px;opacity:${isHidden?0.55:1}">
       <span style="font-size:16px">${DASH_CARD_META[id].icon}</span>
-      <span style="flex:1;font-size:13.5px;font-weight:600">${DASH_CARD_META[id].label}</span>
+      <span style="flex:1;font-size:13.5px;font-weight:600">${DASH_CARD_META[id].label}${isHidden?' <span style="font-weight:500;font-size:11.5px;color:var(--text-light)">(লুকানো)</span>':''}</span>
+      <button class="btn btn-outline btn-sm" onclick="toggleDashCardVisibility('${id}')" title="${isHidden?'দেখান':'লুকান'}">${isHidden?'🙈':'👁️'}</button>
       <button class="btn btn-outline btn-sm" ${i===0?'disabled style="opacity:.35"':''} onclick="moveDashCard(${i},-1)" title="উপরে নিন">▲</button>
       <button class="btn btn-outline btn-sm" ${i===order.length-1?'disabled style="opacity:.35"':''} onclick="moveDashCard(${i},1)" title="নিচে নিন">▼</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function moveDashCard(index, dir) {
   const order = getDashCardOrder();
@@ -14352,19 +14373,24 @@ function moveDashCard(index, dir) {
 function resetDashCardOrder() {
   appData.settings = appData.settings || {};
   appData.settings.dashCardOrder = [...DEFAULT_DASH_CARD_ORDER];
+  appData.settings.dashHiddenCards = [];
   saveData();
   renderDashCardOrderPanel();
   applyDashCardOrder();
-  showToast('↩️ ডিফল্ট ক্রমে ফেরত আনা হয়েছে');
+  showToast('↩️ ডিফল্ট ক্রম ও দৃশ্যমানতায় ফেরত আনা হয়েছে');
 }
 // dashStatsGrid এর ভেতরের কার্ড DOM নোডগুলো সংরক্ষিত ক্রম অনুযায়ী সাজায় (রি-রেন্ডার নয়, শুধু নোড মুভ — event listener/id অক্ষত থাকে)
 function applyDashCardOrder() {
   const grid = document.getElementById('dashStatsGrid');
   if (!grid) return;
   const order = getDashCardOrder();
+  const hidden = getHiddenDashCards();
   order.forEach(id => {
     const card = grid.querySelector(`[data-card-id="${id}"]`);
-    if (card) grid.appendChild(card);
+    if (card) {
+      grid.appendChild(card);
+      card.style.display = hidden.includes(id) ? 'none' : '';
+    }
   });
 }
 
