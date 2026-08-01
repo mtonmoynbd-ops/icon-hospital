@@ -2453,6 +2453,7 @@ function openPrintWindow(htmlContent, title) {
             </select>
             <select id="salYear" onchange="renderSalarySheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;"></select>
             <button class="btn btn-success btn-sm" onclick="queueAllSalaryWhatsApp()">🚀 সবাইকে WhatsApp পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerOutbox" onclick="triggerWorkflow('process-outbox.yml', this)">🔄 এখনই আউটবক্স পাঠান</button>
             <button class="btn btn-warning btn-sm" onclick="printSalarySheet()">🖨️ হাসপাতাল কপি</button>
             <button class="btn btn-primary btn-sm" onclick="printSalarySlips()">✉️ স্যালারি স্লিপ</button>
           </div>
@@ -3192,6 +3193,47 @@ function openPrintWindow(htmlContent, title) {
             <button class="btn btn-outline" onclick="previewMonthClose()">🔄 হিসাব করুন</button>
             <button class="btn btn-success" id="mcConfirmBtn" style="display:none" onclick="confirmMonthClose()">✅ মাস ক্লোজ কনফার্ম করুন</button>
           </div>
+        </div>
+      </div>
+
+      <!-- ম্যানুয়াল ট্রিগার সেটিংস -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">⚙️ ম্যানুয়াল ট্রিগার সেটিংস</div>
+        </div>
+        <div class="panel-body">
+          <div class="form-row three">
+            <div class="field"><label>Worker URL</label>
+              <input type="text" id="triggerWorkerUrl" placeholder="https://xxx.workers.dev" onchange="saveTriggerSettings()">
+            </div>
+            <div class="field"><label>App Secret</label>
+              <input type="text" id="triggerAppSecret" placeholder="আপনার সেট করা secret" onchange="saveTriggerSettings()">
+            </div>
+            <div class="field" style="display:flex;align-items:flex-end">
+              <button class="btn btn-warning btn-sm" id="btnTriggerSummary" onclick="triggerWorkflow('daily-summary.yml', this)">🔄 এখনই দৈনিক সামারি পাঠান</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- রিমোট QR স্ক্যান (WhatsApp সেশন মেয়াদোত্তীর্ণ হলে PC ছাড়াই নতুন করা) -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">🔗 রিমোট QR স্ক্যান (সেশন রিফ্রেশ)</div>
+          <button class="btn btn-warning btn-sm" onclick="triggerWorkflow('generate-session-remote.yml', this)">🔄 নতুন সেশন জেনারেট শুরু করুন</button>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px">
+            উপরের বাটনে ক্লিক করার ৩০-৬০ সেকেন্ড পর নিচে QR কোড দেখা যাবে —
+            হাসপাতালের WhatsApp নম্বর দিয়ে (Settings → Linked Devices → Link a Device)
+            স্ক্যান করুন। স্ক্যান সফল হলে নতুন সেশন স্বয়ংক্রিয়ভাবে GitHub-এ সেভ হয়ে যাবে,
+            কিছু কপি-পেস্ট করতে হবে না।
+          </p>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+            <button class="btn btn-outline btn-sm" onclick="checkRemoteQr()">🔍 এখনই চেক করুন</button>
+            <span id="remoteQrStatus" style="font-size:12px;color:var(--text-light)">প্রতি ৪ সেকেন্ডে স্বয়ংক্রিয়ভাবে চেক হচ্ছে...</span>
+          </div>
+          <div id="remoteQrDisplay" style="text-align:center;padding:10px"></div>
         </div>
       </div>
 
@@ -7652,7 +7694,7 @@ function showPage(name) {
   if (name === 'bank')         { initBankPage(); }
   if (name === 'checkbook')    { initCheckbookPage(); }
   if (name === 'loan')         { initLoanPage(); }
-  if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); renderBcOwnerCheckboxes(); updateBcPreview(); renderWaOutboxTable(); }
+  if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); renderBcOwnerCheckboxes(); updateBcPreview(); renderWaOutboxTable(); loadTriggerSettings(); startRemoteQrPolling(); } else { stopRemoteQrPolling(); }
   if (name === 'funds')        { renderFundsPage(); }
   if (name === 'doctors')      { renderDoctorsPage(); }
   if (name === 'officialpad')  { initOfficialPad(); }
@@ -12308,6 +12350,85 @@ function toggleShareholderForm() {
   const b=document.getElementById('shareholderFormBody');
   b.style.display=b.style.display==='none'?'block':'none';
 }
+// ===== ম্যানুয়াল GitHub Actions ট্রিগার (Cloudflare Worker দিয়ে) =====
+// ===== রিমোট QR স্ক্যান (Firebase থেকে QR পড়ে ছবি হিসেবে দেখানো) =====
+let _remoteQrPollInterval = null;
+async function checkRemoteQr() {
+  const statusEl = document.getElementById('remoteQrStatus');
+  const displayEl = document.getElementById('remoteQrDisplay');
+  if (!displayEl) return;
+  if (!window._fbDb || !window._fbRef || !window._fbGet) {
+    if (statusEl) statusEl.textContent = '⚠️ Firebase সংযোগ প্রস্তুত হয়নি, একটু পর আবার চেষ্টা করুন';
+    return;
+  }
+  try {
+    const snap = await window._fbGet(window._fbRef(window._fbDb, 'hms_data/remoteQr'));
+    const val = snap.exists() ? snap.val() : null;
+    if (val && val.qr) {
+      const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(val.qr)}`;
+      displayEl.innerHTML = `<img src="${qrImgUrl}" alt="WhatsApp QR" style="max-width:300px;border:1px solid var(--border);border-radius:8px">
+        <div style="font-size:11px;color:var(--text-light);margin-top:6px">তৈরি হয়েছে: ${new Date(val.createdAt).toLocaleTimeString('bn-BD')}</div>`;
+      if (statusEl) statusEl.textContent = '✅ QR পাওয়া গেছে — স্ক্যান করুন';
+    } else {
+      displayEl.innerHTML = '';
+      if (statusEl) statusEl.textContent = 'এখনো কোনো QR নেই — উপরের বাটনে ক্লিক করে শুরু করুন, তারপর কিছুক্ষণ অপেক্ষা করুন';
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '⚠️ QR চেক করতে সমস্যা: ' + err.message;
+  }
+}
+function startRemoteQrPolling() {
+  stopRemoteQrPolling();
+  checkRemoteQr();
+  _remoteQrPollInterval = setInterval(checkRemoteQr, 4000);
+}
+function stopRemoteQrPolling() {
+  if (_remoteQrPollInterval) { clearInterval(_remoteQrPollInterval); _remoteQrPollInterval = null; }
+}
+
+function saveTriggerSettings() {
+  const url = document.getElementById('triggerWorkerUrl').value.trim();
+  const secret = document.getElementById('triggerAppSecret').value.trim();
+  if (!appData.settings) appData.settings = {};
+  appData.settings.triggerWorkerUrl = url;
+  appData.settings.triggerAppSecret = secret;
+  saveData();
+  showToast('✅ ট্রিগার সেটিংস সেভ হয়েছে');
+}
+function loadTriggerSettings() {
+  const urlEl = document.getElementById('triggerWorkerUrl');
+  const secretEl = document.getElementById('triggerAppSecret');
+  if (urlEl) urlEl.value = (appData.settings && appData.settings.triggerWorkerUrl) || '';
+  if (secretEl) secretEl.value = (appData.settings && appData.settings.triggerAppSecret) || '';
+}
+async function triggerWorkflow(workflowFile, btnEl) {
+  const workerUrl = (appData.settings && appData.settings.triggerWorkerUrl) || '';
+  const appSecret = (appData.settings && appData.settings.triggerAppSecret) || '';
+  if (!workerUrl || !appSecret) {
+    showToast('⚠️ প্রথমে "⚙️ ম্যানুয়াল ট্রিগার সেটিংস"-এ Worker URL ও Secret বসান!');
+    return;
+  }
+  const originalText = btnEl ? btnEl.textContent : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ পাঠানো হচ্ছে...'; }
+  try {
+    const res = await fetch(workerUrl.replace(/\/$/, '') + '/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workflow: workflowFile, appSecret })
+    });
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      showToast(`✅ ট্রিগার হয়েছে — কিছুক্ষণের মধ্যে পাঠানো হবে`);
+    } else {
+      showToast(`❌ ব্যর্থ: ${data.error || 'অজানা এরর'}`);
+    }
+  } catch (err) {
+    showToast(`❌ ট্রিগার করতে সমস্যা: ${err.message}`);
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = originalText; }
+  }
+}
+
 function saveShareholder() {
   const name=document.getElementById('shName').value.trim();
   const shares=parseFloat(document.getElementById('shShares').value)||0;
