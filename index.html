@@ -12364,17 +12364,22 @@ async function checkRemoteQr() {
   try {
     const snap = await window._fbGet(window._fbRef(window._fbDb, 'hms_data/remoteQr'));
     const val = snap.exists() ? snap.val() : null;
-    if (val && val.qr) {
+    if (val && val.pairCode) {
+      displayEl.innerHTML = `<div style="font-size:32px;font-weight:800;letter-spacing:4px;color:var(--primary);padding:16px;background:#f0f4f8;border-radius:8px;display:inline-block">${val.pairCode}</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:8px">WhatsApp → Settings → Linked Devices → Link with phone number-এ এই কোডটা টাইপ করুন</div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:4px">তৈরি হয়েছে: ${new Date(val.createdAt).toLocaleTimeString('bn-BD')}</div>`;
+      if (statusEl) statusEl.textContent = '✅ Pairing Code পাওয়া গেছে — টাইপ করুন';
+    } else if (val && val.qr) {
       const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(val.qr)}`;
       displayEl.innerHTML = `<img src="${qrImgUrl}" alt="WhatsApp QR" style="max-width:300px;border:1px solid var(--border);border-radius:8px">
         <div style="font-size:11px;color:var(--text-light);margin-top:6px">তৈরি হয়েছে: ${new Date(val.createdAt).toLocaleTimeString('bn-BD')}</div>`;
       if (statusEl) statusEl.textContent = '✅ QR পাওয়া গেছে — স্ক্যান করুন';
     } else {
       displayEl.innerHTML = '';
-      if (statusEl) statusEl.textContent = 'এখনো কোনো QR নেই — উপরের বাটনে ক্লিক করে শুরু করুন, তারপর কিছুক্ষণ অপেক্ষা করুন';
+      if (statusEl) statusEl.textContent = 'এখনো কোনো QR/কোড নেই — উপরের বাটনে ক্লিক করে শুরু করুন, তারপর কিছুক্ষণ অপেক্ষা করুন';
     }
   } catch (err) {
-    if (statusEl) statusEl.textContent = '⚠️ QR চেক করতে সমস্যা: ' + err.message;
+    if (statusEl) statusEl.textContent = '⚠️ চেক করতে সমস্যা: ' + err.message;
   }
 }
 function startRemoteQrPolling() {
