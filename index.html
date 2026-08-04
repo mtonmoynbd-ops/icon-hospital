@@ -2359,7 +2359,12 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>📱 হোয়াটসঅ্যাপ নম্বর <span style="font-size:11px;color:var(--text-light);font-weight:400">(স্যালারি নোটিশ এখানে যাবে, ফাঁকা রাখলে ফোন নম্বর ব্যবহৃত হবে)</span></label>
               <input type="text" id="sfWhatsapp" placeholder="যেমন: 8801XXXXXXXXX">
             </div>
+            <div class="field"><label>✈️ Telegram Chat ID</label>
+              <input type="text" id="sfTelegramId" placeholder="যেমন: 123456789">
+            </div>
             <div class="field"><label>বেসিক বেতন (৳) *</label><input type="number" id="sfBasic" placeholder="০.০০" min="0"></div>
+          </div>
+          <div class="form-row three">
             <div class="field"><label>যোগদানের তারিখ</label><input type="date" id="sfJoinDate"></div>
           </div>
           <div class="form-row three">
@@ -2453,7 +2458,9 @@ function openPrintWindow(htmlContent, title) {
             </select>
             <select id="salYear" onchange="renderSalarySheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;"></select>
             <button class="btn btn-success btn-sm" onclick="queueAllSalaryWhatsApp()">🚀 সবাইকে WhatsApp পাঠান</button>
-            <button class="btn btn-warning btn-sm" id="btnTriggerOutbox" onclick="triggerWorkflow('process-outbox.yml', this)">🔄 এখনই আউটবক্স পাঠান</button>
+            <button class="btn btn-success btn-sm" onclick="queueAllSalaryTelegram()">🚀 সবাইকে Telegram পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerOutbox" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-whatsapp-bot')">🔄 এখনই WhatsApp আউটবক্স পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerOutboxTgSal" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram আউটবক্স পাঠান</button>
             <button class="btn btn-warning btn-sm" onclick="printSalarySheet()">🖨️ হাসপাতাল কপি</button>
             <button class="btn btn-primary btn-sm" onclick="printSalarySlips()">✉️ স্যালারি স্লিপ</button>
           </div>
@@ -2481,6 +2488,20 @@ function openPrintWindow(htmlContent, title) {
           <div class="table-wrap"><table>
             <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>নম্বর</th><th>স্ট্যাটাস</th></tr></thead>
             <tbody id="waOutboxTable" class="wa-outbox-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Telegram আউটবক্স (পাঠানোর অপেক্ষমাণ/সফল/ব্যর্থ লিস্ট) -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">📤 Telegram আউটবক্স</div>
+          <div style="font-size:12px;color:var(--text-light)">প্রতি কয়েক মিনিটে বট মেসেজ পাঠায় — এখানে স্ট্যাটাস দেখা যাবে</div>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>Chat ID</th><th>স্ট্যাটাস</th></tr></thead>
+            <tbody id="tgOutboxTable" class="tg-outbox-tbody"></tbody>
           </table></div>
         </div>
       </div>
@@ -3163,6 +3184,18 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>যোগদানের তারিখ</label><input type="date" id="shJoinDate"></div>
             <div class="field"><label>বিবরণ</label><input type="text" id="shNote" placeholder="ঐচ্ছিক"></div>
           </div>
+          <div class="form-row three">
+            <div class="field"><label>✈️ Telegram Chat ID <span style="font-size:11px;color:var(--text-light);font-weight:400">(দৈনিক সামারি ও বার্তা এখানেও যাবে)</span></label>
+              <input type="text" id="shTelegramId" placeholder="যেমন: 123456789">
+            </div>
+            <div class="field"><label>Telegram পাঠানোর স্থান</label>
+              <select id="shTelegramMode">
+                <option value="personal">শুধু ব্যক্তিগত চ্যাট</option>
+                <option value="group">শুধু গ্রুপ</option>
+                <option value="both">উভয় জায়গায়</option>
+              </select>
+            </div>
+          </div>
           <input type="hidden" id="shEditId">
           <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="clearShareholderForm()">🔄 রিসেট</button>
@@ -3209,9 +3242,14 @@ function openPrintWindow(htmlContent, title) {
             <div class="field"><label>App Secret</label>
               <input type="text" id="triggerAppSecret" placeholder="আপনার সেট করা secret" onchange="saveTriggerSettings()">
             </div>
-            <div class="field" style="display:flex;align-items:flex-end">
-              <button class="btn btn-warning btn-sm" id="btnTriggerSummary" onclick="triggerWorkflow('daily-summary.yml', this)">🔄 এখনই দৈনিক সামারি পাঠান</button>
+            <div class="field"><label>✈️ Telegram Group Chat ID <span style="font-size:11px;color:var(--text-light);font-weight:400">("গ্রুপ"/"উভয়" মোডের owner-রা এই গ্রুপেই মেসেজ পাবেন)</span></label>
+              <input type="text" id="tgGroupChatId" placeholder="যেমন: -1001234567890" onchange="saveTriggerSettings()">
             </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn btn-warning btn-sm" id="btnTriggerSummary" onclick="triggerWorkflow('daily-summary.yml', this, 'icon-hospital-whatsapp-bot')">🔄 এখনই WhatsApp দৈনিক সামারি পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerSummaryTg" onclick="triggerWorkflow('daily-summary.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram দৈনিক সামারি পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerOutboxTg" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram আউটবক্স পাঠান</button>
           </div>
         </div>
       </div>
@@ -3266,6 +3304,35 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
+      <!-- কাস্টম Telegram ব্রডকাস্ট -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">📢 কাস্টম বার্তা পাঠান (Owner-দের Telegram-এ)</div>
+        </div>
+        <div class="panel-body">
+          <div class="field" style="margin-bottom:12px">
+            <label>প্রাপক নির্বাচন করুন</label>
+            <div style="margin-bottom:8px">
+              <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+                <input type="checkbox" id="bcSelectAllTg" onchange="toggleTgBcSelectAll()"> সব Owner নির্বাচন করুন
+              </label>
+            </div>
+            <div id="bcOwnerCheckboxesTg" style="display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)"></div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>বার্তা লিখুন</label>
+            <textarea id="bcMessageTg" rows="4" placeholder="এখানে আপনার বার্তা লিখুন..." style="resize:vertical" oninput="updateTgBcPreview()"></textarea>
+          </div>
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-size:11px;color:#0369a1;font-weight:600;margin-bottom:6px">✈️ প্রিভিউ (এইভাবে পৌঁছাবে)</div>
+            <div id="bcPreviewTg" style="font-size:13px;white-space:pre-wrap;color:#1e293b;font-family:inherit;line-height:1.6">🏥 হাসপাতালের নাম\n━━━━━━━━━━━━━━━\n[আপনার লেখা বার্তা এখানে দেখাবে]\n━━━━━━━━━━━━━━━\n📅 তারিখ — এডমিন প্যানেল থেকে</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-success" onclick="queueTgBroadcastMessage()">🚀 নির্বাচিত সবাইকে পাঠান</button>
+          </div>
+        </div>
+      </div>
+
       <!-- WhatsApp আউটবক্স স্ট্যাটাস (Owner পেজ থেকেও দেখা যাবে) -->
       <div class="panel admin-only">
         <div class="panel-header">
@@ -3279,11 +3346,24 @@ function openPrintWindow(htmlContent, title) {
         </div>
       </div>
 
+      <!-- Telegram আউটবক্স স্ট্যাটাস (Owner পেজ থেকেও দেখা যাবে) -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">📤 Telegram আউটবক্স</div>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>Chat ID</th><th>স্ট্যাটাস</th></tr></thead>
+            <tbody id="tgOutboxTableOwners" class="tg-outbox-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
       <!-- শেয়ারহোল্ডার তালিকা -->
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 শেয়ারহোল্ডার তালিকা</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>নাম</th><th>শেয়ার সংখ্যা</th><th>শেয়ার %</th><th>ফোন</th><th>📱 হোয়াটসঅ্যাপ</th><th>যোগদান</th><th>চলতি ব্যালেন্স</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>#</th><th>নাম</th><th>শেয়ার সংখ্যা</th><th>শেয়ার %</th><th>ফোন</th><th>📱 হোয়াটসঅ্যাপ</th><th>✈️ Telegram</th><th>যোগদান</th><th>চলতি ব্যালেন্স</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="shareholderTable"></tbody>
         </table></div></div>
       </div>
@@ -5741,7 +5821,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
 let activeDueId = null;
 let serviceCount = 0;
 
@@ -6182,7 +6262,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -7072,7 +7152,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -7157,7 +7237,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor' } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -7421,7 +7501,7 @@ const PATH_SYNCED_MODULES = [
   'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory',
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
-  'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox'
+  'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox', 'tgOutbox'
 ];
 
 function updateSyncStatusUI() {
@@ -7681,7 +7761,7 @@ function showPage(name) {
   }
   if (name === 'dashboard') refreshDashboard();
   if (name === 'report') { initReportFilters(); renderReport(); }
-  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderWaOutboxTable(); }
+  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderWaOutboxTable(); renderTgOutboxTable(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); }
@@ -7694,7 +7774,7 @@ function showPage(name) {
   if (name === 'bank')         { initBankPage(); }
   if (name === 'checkbook')    { initCheckbookPage(); }
   if (name === 'loan')         { initLoanPage(); }
-  if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); renderBcOwnerCheckboxes(); updateBcPreview(); renderWaOutboxTable(); loadTriggerSettings(); startRemoteQrPolling(); } else { stopRemoteQrPolling(); }
+  if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); renderBcOwnerCheckboxes(); updateBcPreview(); renderWaOutboxTable(); renderTgOutboxTable(); renderTgBcOwnerCheckboxes(); updateTgBcPreview(); loadTriggerSettings(); startRemoteQrPolling(); } else { stopRemoteQrPolling(); }
   if (name === 'funds')        { renderFundsPage(); }
   if (name === 'doctors')      { renderDoctorsPage(); }
   if (name === 'officialpad')  { initOfficialPad(); }
@@ -12394,19 +12474,23 @@ function stopRemoteQrPolling() {
 function saveTriggerSettings() {
   const url = document.getElementById('triggerWorkerUrl').value.trim();
   const secret = document.getElementById('triggerAppSecret').value.trim();
+  const tgGroupId = (document.getElementById('tgGroupChatId')||{}).value?.trim() || '';
   if (!appData.settings) appData.settings = {};
   appData.settings.triggerWorkerUrl = url;
   appData.settings.triggerAppSecret = secret;
+  appData.settings.telegramGroupChatId = tgGroupId;
   saveData();
   showToast('✅ ট্রিগার সেটিংস সেভ হয়েছে');
 }
 function loadTriggerSettings() {
   const urlEl = document.getElementById('triggerWorkerUrl');
   const secretEl = document.getElementById('triggerAppSecret');
+  const tgGroupEl = document.getElementById('tgGroupChatId');
   if (urlEl) urlEl.value = (appData.settings && appData.settings.triggerWorkerUrl) || '';
   if (secretEl) secretEl.value = (appData.settings && appData.settings.triggerAppSecret) || '';
+  if (tgGroupEl) tgGroupEl.value = (appData.settings && appData.settings.telegramGroupChatId) || '';
 }
-async function triggerWorkflow(workflowFile, btnEl) {
+async function triggerWorkflow(workflowFile, btnEl, repo) {
   const workerUrl = (appData.settings && appData.settings.triggerWorkerUrl) || '';
   const appSecret = (appData.settings && appData.settings.triggerAppSecret) || '';
   if (!workerUrl || !appSecret) {
@@ -12419,7 +12503,7 @@ async function triggerWorkflow(workflowFile, btnEl) {
     const res = await fetch(workerUrl.replace(/\/$/, '') + '/trigger', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workflow: workflowFile, appSecret })
+      body: JSON.stringify({ workflow: workflowFile, appSecret, repo: repo || undefined })
     });
     const data = await res.json();
     if (res.ok && data.ok) {
@@ -12439,6 +12523,8 @@ function saveShareholder() {
   const shares=parseFloat(document.getElementById('shShares').value)||0;
   const phone=document.getElementById('shPhone').value.trim();
   const whatsapp=document.getElementById('shWhatsapp').value.trim();
+  const telegramId=document.getElementById('shTelegramId').value.trim();
+  const telegramMode=document.getElementById('shTelegramMode').value;
   const joinDate=document.getElementById('shJoinDate').value;
   const note=document.getElementById('shNote').value.trim();
   const editId=document.getElementById('shEditId').value;
@@ -12447,20 +12533,21 @@ function saveShareholder() {
   if(editId){
     const sh=appData.shareholders.find(s=>s.id===parseInt(editId));
     if(sh){
-      const before={name:sh.name,shares:sh.shares,phone:sh.phone,whatsapp:sh.whatsapp,joinDate:sh.joinDate,note:sh.note};
-      const after={name,shares,phone,whatsapp,joinDate,note};
+      const before={name:sh.name,shares:sh.shares,phone:sh.phone,whatsapp:sh.whatsapp,telegramId:sh.telegramId,telegramMode:sh.telegramMode,joinDate:sh.joinDate,note:sh.note};
+      const after={name,shares,phone,whatsapp,telegramId,telegramMode,joinDate,note};
       saveEditHistory('শেয়ারহোল্ডার', sh.id, name, before, after);
-      sh.name=name;sh.shares=shares;sh.phone=phone;sh.whatsapp=whatsapp;sh.joinDate=joinDate;sh.note=note;
+      sh.name=name;sh.shares=shares;sh.phone=phone;sh.whatsapp=whatsapp;sh.telegramId=telegramId;sh.telegramMode=telegramMode;sh.joinDate=joinDate;sh.note=note;
     }
     showToast('✅ আপডেট হয়েছে!');
   } else {
-    appData.shareholders.push({id:Date.now(),name,shares,phone,whatsapp,joinDate,note,balance:0});
+    appData.shareholders.push({id:Date.now(),name,shares,phone,whatsapp,telegramId,telegramMode,joinDate,note,balance:0});
     showToast('✅ শেয়ারহোল্ডার যোগ হয়েছে!');
   }
   saveData(); clearShareholderForm(); renderShareholderTable();
 }
 function clearShareholderForm() {
-  ['shName','shShares','shPhone','shWhatsapp','shJoinDate','shNote','shEditId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['shName','shShares','shPhone','shWhatsapp','shTelegramId','shJoinDate','shNote','shEditId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const modeEl=document.getElementById('shTelegramMode'); if(modeEl) modeEl.value='personal';
   document.getElementById('shareholderFormBody').style.display='none';
 }
 function editShareholder(id) {
@@ -12469,6 +12556,8 @@ function editShareholder(id) {
   document.getElementById('shShares').value=sh.shares;
   document.getElementById('shPhone').value=sh.phone||'';
   document.getElementById('shWhatsapp').value=sh.whatsapp||'';
+  document.getElementById('shTelegramId').value=sh.telegramId||'';
+  document.getElementById('shTelegramMode').value=sh.telegramMode||'personal';
   document.getElementById('shJoinDate').value=sh.joinDate||'';
   document.getElementById('shNote').value=sh.note||'';
   document.getElementById('shEditId').value=sh.id;
@@ -12491,7 +12580,7 @@ function renderShareholderTable() {
   const mcYearEl=document.getElementById('mcYear'); if(mcYearEl && !mcYearEl.value) mcYearEl.value=now.getFullYear();
   const mcMonthEl=document.getElementById('mcMonth'); if(mcMonthEl && !mcMonthEl.dataset.set){ mcMonthEl.value=now.getMonth()+1; mcMonthEl.dataset.set='1'; }
   const tbody=document.getElementById('shareholderTable');
-  if(!shareholders.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো শেয়ারহোল্ডার নেই</td></tr>';renderWithdrawalShareholderSelect();return;}
+  if(!shareholders.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো শেয়ারহোল্ডার নেই</td></tr>';renderWithdrawalShareholderSelect();return;}
   tbody.innerHTML=shareholders.map((sh,i)=>{
     const pct=((sh.shares/totalShares)*100).toFixed(1);
     const bal=sh.balance||0;
@@ -12507,6 +12596,7 @@ function renderShareholderTable() {
       </div></td>
       <td style="color:var(--text-light)">${sh.phone||'—'}</td>
       <td>${sh.whatsapp ? `<span class="badge" style="background:#dcfce7;color:#166534">📱 ${sh.whatsapp}</span>` : `<span style="color:#f59e0b;font-size:12px">⚠️ যোগ করা হয়নি</span>`}</td>
+      <td>${sh.telegramId ? `<span class="badge" style="background:#dbeafe;color:#1e40af">✈️ ${sh.telegramId}</span><div style="font-size:10px;color:#888;margin-top:2px">${sh.telegramMode==='group'?'গ্রুপ':sh.telegramMode==='both'?'ব্যক্তিগত+গ্রুপ':'ব্যক্তিগত'}</div>` : `<span style="color:#f59e0b;font-size:12px">⚠️ যোগ করা হয়নি</span>`}</td>
       <td>${formatDate(sh.joinDate)}</td>
       <td style="font-weight:700;color:${bal>=0?'var(--success)':'var(--danger)'}">৳ ${fmt(bal.toFixed(2))}</td>
       <td style="display:flex;gap:4px">
@@ -18374,6 +18464,7 @@ function saveStaff() {
   const desig  = document.getElementById('sfDesig').value.trim();
   const phone  = document.getElementById('sfPhone').value.trim();
   const whatsapp = (document.getElementById('sfWhatsapp')||{}).value?.trim()||'';
+  const telegramId = (document.getElementById('sfTelegramId')||{}).value?.trim()||'';
   const basic  = parseFloat(document.getElementById('sfBasic').value);
   const join   = document.getElementById('sfJoinDate').value;
   const status = document.getElementById('sfStatus').value;
@@ -18394,15 +18485,15 @@ function saveStaff() {
   if (editId) {
     const s = appData.staff.find(s=>s.id===parseInt(editId));
     if (s) {
-      const before={name:s.name,desig:s.desig,phone:s.phone,whatsapp:s.whatsapp,basic:s.basic,status:s.status};
-      const after={name,desig,phone,whatsapp,basic,status};
+      const before={name:s.name,desig:s.desig,phone:s.phone,whatsapp:s.whatsapp,telegramId:s.telegramId,basic:s.basic,status:s.status};
+      const after={name,desig,phone,whatsapp,telegramId,basic,status};
       saveEditHistory('কর্মী', s.id, name, before, after);
-      s.name=name; s.desig=desig; s.phone=phone; s.whatsapp=whatsapp; s.basic=basic; s.join=join; s.status=status; s.profile=profile;
+      s.name=name; s.desig=desig; s.phone=phone; s.whatsapp=whatsapp; s.telegramId=telegramId; s.basic=basic; s.join=join; s.status=status; s.profile=profile;
       syncDoctorFromStaff(s.id, name, desig, status);
     }
   } else {
     const newStaffId = Date.now();
-    appData.staff.push({ id:newStaffId, name, desig, phone, whatsapp, basic, join, status, profile });
+    appData.staff.push({ id:newStaffId, name, desig, phone, whatsapp, telegramId, basic, join, status, profile });
     syncDoctorFromStaff(newStaffId, name, desig, status);
   }
   saveData(); clearStaffForm(); renderSalarySheet();
@@ -18534,7 +18625,7 @@ function addSfDesig() {
   showToast('✅ নতুন পদবি যোগ হয়েছে: '+val);
 }
 function clearStaffForm() {
-  ['sfName','sfDesig','sfPhone','sfWhatsapp','sfBasic','sfJoinDate','sfEditId',
+  ['sfName','sfDesig','sfPhone','sfWhatsapp','sfTelegramId','sfBasic','sfJoinDate','sfEditId',
    'sfDob','sfNid','sfEmail','sfAddress','sfAddressCurrent',
    'sfEdu','sfEduInst','sfEduYear','sfSkills','sfEmergency'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
@@ -18553,6 +18644,7 @@ function editStaff(id) {
   document.getElementById('sfDesig').value     = s.desig;
   document.getElementById('sfPhone').value     = s.phone||'';
   document.getElementById('sfWhatsapp').value  = s.whatsapp||'';
+  document.getElementById('sfTelegramId').value = s.telegramId||'';
   document.getElementById('sfBasic').value     = s.basic;
   document.getElementById('sfJoinDate').value  = s.join||'';
   document.getElementById('sfStatus').value    = s.status;
@@ -18601,6 +18693,7 @@ function viewStaffProfile(id) {
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">পদবি</td><td style="padding:5px">${s.desig||'—'}</td></tr>
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">ফোন</td><td style="padding:5px">${s.phone||'—'}</td></tr>
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">📱 হোয়াটসঅ্যাপ</td><td style="padding:5px">${s.whatsapp||s.phone||'—'}</td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">✈️ Telegram</td><td style="padding:5px">${s.telegramId||'—'}</td></tr>
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">যোগদান</td><td style="padding:5px">${formatDate(s.join)}</td></tr>
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">স্ট্যাটাস</td><td style="padding:5px"><strong style="color:${s.status==='active'?'#2ecc71':'#e74c3c'}">${s.status==='active'?'কর্মরত':'অব্যাহতি'}</strong></td></tr>
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">বেসিক বেতন</td><td style="padding:5px"><strong>৳ ${fmt(s.basic)}</strong></td></tr>
@@ -19178,6 +19271,87 @@ function renderWaOutboxTable() {
   tbodies.forEach(tb => tb.innerHTML = html);
 }
 
+// ===== স্যালারি Telegram নোটিশ (আউটবক্সে queue করা, বট পাঠায়) =====
+function buildSalaryTelegramText(staff, sal, net, docComm, advList, advTotal, month, year) {
+  const monthsBn = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  let msg = `🏥 *${hospName}*\n━━━━━━━━━━━━━━━\n`;
+  msg += `বেতন বিজ্ঞপ্তি — ${monthsBn[month-1]} ${year}\n\n`;
+  msg += `প্রিয় *${staff.name}*,\nআসসালামু আলাইকুম।\n\nআপনার এই মাসের বেতনের হিসাব:\n\n`;
+  msg += `মূল বেতন:      ৳${fmt(staff.basic)}\n`;
+  if (sal.bonus>0) msg += `বোনাস (+):     ৳${fmt(sal.bonus)}\n`;
+  if (docComm>0)   msg += `ডাক্তার কমিশন (+): ৳${fmt(docComm)}\n`;
+  if (sal.cut>0)   msg += `কর্তন/কাটতি (-): ৳${fmt(sal.cut)}\n`;
+  if (advTotal>0)  msg += `অগ্রিম নেওয়া (-): ৳${fmt(advTotal)}\n`;
+  msg += `━━━━━━━━━━━━━━━\n*নীট প্রাপ্য: ৳${fmt(net)}*\n`;
+  if (advList && advList.length) {
+    msg += `\n📋 *অগ্রিম বিবরণ:*\n`;
+    advList.forEach(a => { msg += `   ${formatDate(a.date)} — ৳${fmt(a.amount)}\n`; });
+  }
+  msg += `━━━━━━━━━━━━━━━\nঅনুগ্রহ করে সুবিধাজনক সময়ে অফিসে এসে সংগ্রহ করুন।\n\n`;
+  msg += `📅 বিজ্ঞপ্তির তারিখ: ${formatDate(todayStr())}\n\nধন্যবাদ।\n— হাসপাতাল প্রশাসন`;
+  return msg;
+}
+function queueSalaryTelegram(staffId, month, year) {
+  const staff = (appData.staff||[]).find(s=>s.id===staffId);
+  if (!staff) return;
+  const chatId = (staff.telegramId||'').trim();
+  if (!chatId) { showToast('⚠️ এই কর্মীর Telegram Chat ID যোগ করা নেই!'); return; }
+  const key = getSalaryKey(staffId, month, year);
+  const sal = (appData.salaries && appData.salaries[key]) || { bonus:0, cut:0, paid:false };
+  const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(staffId, month, year);
+  const advList = getStaffAdvanceList(staffId, month, year);
+  const advTotal = sal.paid ? (sal.advanceTotal||0) : advList.reduce((sum,a)=>sum+(a.amount||0),0);
+  const net = staff.basic + (sal.bonus||0) + docComm - (sal.cut||0) - advTotal;
+  const text = buildSalaryTelegramText(staff, sal, net, docComm, advList, advTotal, month, year);
+  if (!appData.tgOutbox) appData.tgOutbox = [];
+  appData.tgOutbox.push({ id: Date.now()+Math.floor(Math.random()*1000), type:'salary', name: staff.name, chatId, text, status:'pending', createdAt: new Date().toISOString(), by: currentUser.name });
+  saveData();
+  renderTgOutboxTable();
+  showToast(`📤 ${staff.name}-এর বেতন নোটিশ Telegram-এ পাঠানোর জন্য কিউতে যোগ হয়েছে`);
+}
+function queueAllSalaryTelegram() {
+  const month = parseInt(document.getElementById('salMonth').value);
+  const year  = parseInt(document.getElementById('salYear').value);
+  const activeStaff = (appData.staff||[]).filter(s=>s.status==='active');
+  const withId = activeStaff.filter(s=>(s.telegramId||'').trim());
+  if (!withId.length) { showToast('⚠️ কোনো কর্মীর Telegram Chat ID যোগ করা নেই!'); return; }
+  if (!confirm(`${withId.length} জন কর্মীকে Telegram-এ বেতন নোটিশ পাঠানোর জন্য কিউতে যোগ করতে চান?`)) return;
+  if (!appData.tgOutbox) appData.tgOutbox = [];
+  withId.forEach(staff => {
+    const key = getSalaryKey(staff.id, month, year);
+    const sal = (appData.salaries && appData.salaries[key]) || { bonus:0, cut:0, paid:false };
+    const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(staff.id, month, year);
+    const advList = getStaffAdvanceList(staff.id, month, year);
+    const advTotal = sal.paid ? (sal.advanceTotal||0) : advList.reduce((sum,a)=>sum+(a.amount||0),0);
+    const net = staff.basic + (sal.bonus||0) + docComm - (sal.cut||0) - advTotal;
+    const text = buildSalaryTelegramText(staff, sal, net, docComm, advList, advTotal, month, year);
+    appData.tgOutbox.push({ id: Date.now()+Math.floor(Math.random()*100000), type:'salary', name: staff.name, chatId: staff.telegramId.trim(), text, status:'pending', createdAt: new Date().toISOString(), by: currentUser.name });
+  });
+  saveData();
+  renderTgOutboxTable();
+  showToast(`📤 ${withId.length} জন কর্মীর বেতন নোটিশ Telegram-এ কিউতে যোগ হয়েছে`);
+}
+function renderTgOutboxTable() {
+  const tbodies = document.querySelectorAll('.tg-outbox-tbody');
+  if (!tbodies.length) return;
+  const list = (appData.tgOutbox||[]).slice().sort((a,b)=>(b.id||0)-(a.id||0)).slice(0, 50);
+  const statusBadge = s => s==='sent' ? '<span class="badge badge-income">✅ পাঠানো হয়েছে</span>'
+    : s==='failed' ? '<span class="badge badge-warning" style="background:#fee2e2;color:#b91c1c">❌ ব্যর্থ</span>'
+    : '<span class="badge badge-warning">⏳ অপেক্ষমাণ</span>';
+  const typeLabel = t => t==='salary' ? '💵 বেতন নোটিশ' : t==='broadcast' ? '📢 ব্রডকাস্ট' : t==='daily_summary' ? '📊 দৈনিক সামারি' : t||'—';
+  const html = !list.length
+    ? '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">এখনো কোনো মেসেজ পাঠানো হয়নি।</td></tr>'
+    : list.map(m => `<tr>
+        <td style="font-size:12px;color:#888">${new Date(m.createdAt).toLocaleString('bn-BD')}</td>
+        <td>${typeLabel(m.type)}</td>
+        <td style="font-weight:600">${m.name||'—'}</td>
+        <td>${m.chatId||'—'}</td>
+        <td>${statusBadge(m.status)}</td>
+      </tr>`).join('');
+  tbodies.forEach(tb => tb.innerHTML = html);
+}
+
 // ===== Owner কাস্টম WhatsApp ব্রডকাস্ট =====
 function renderBcOwnerCheckboxes() {
   const box = document.getElementById('bcOwnerCheckboxes');
@@ -19230,6 +19404,72 @@ function queueBroadcastMessage() {
   showToast(`📤 ${recipients.length} জনকে বার্তা পাঠানোর জন্য কিউতে যোগ হয়েছে`);
 }
 
+// ===== Owner কাস্টম Telegram ব্রডকাস্ট (personal/group/both মোড সাপোর্ট সহ) =====
+function renderTgBcOwnerCheckboxes() {
+  const box = document.getElementById('bcOwnerCheckboxesTg');
+  if (!box) return;
+  const owners = (appData.shareholders||[]);
+  if (!owners.length) { box.innerHTML = '<span style="color:#aaa;font-size:13px">কোনো শেয়ারহোল্ডার/Owner নেই।</span>'; return; }
+  box.innerHTML = owners.map(sh => {
+    const modeLabel = sh.telegramMode==='group'?'গ্রুপ':sh.telegramMode==='both'?'ব্যক্তিগত+গ্রুপ':'ব্যক্তিগত';
+    return `
+    <label style="display:flex;align-items:center;gap:6px;background:white;border:1px solid var(--border);border-radius:6px;padding:6px 10px;cursor:pointer;${sh.telegramId?'':'opacity:0.5'}">
+      <input type="checkbox" class="bc-owner-cb-tg" value="${sh.id}" onchange="updateTgBcPreview()" ${sh.telegramId?'':'disabled'}>
+      <span>${sh.name}</span>
+      ${sh.telegramId ? `<span style="font-size:11px;color:#16a34a">✈️ ${modeLabel}</span>` : `<span style="font-size:10px;color:#f59e0b">ID নেই</span>`}
+    </label>`;
+  }).join('');
+}
+function toggleTgBcSelectAll() {
+  const checked = document.getElementById('bcSelectAllTg').checked;
+  document.querySelectorAll('.bc-owner-cb-tg:not(:disabled)').forEach(cb => cb.checked = checked);
+  updateTgBcPreview();
+}
+function updateTgBcPreview() {
+  const preview = document.getElementById('bcPreviewTg');
+  const msgEl = document.getElementById('bcMessageTg');
+  if (!preview || !msgEl) return;
+  const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  const body = msgEl.value.trim() || '[আপনার লেখা বার্তা এখানে দেখাবে]';
+  preview.textContent = `🏥 ${hospName}\n━━━━━━━━━━━━━━━\n${body}\n━━━━━━━━━━━━━━━\n📅 ${formatDate(todayStr())} — এডমিন প্যানেল থেকে`;
+}
+function buildTgBroadcastText(body) {
+  const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  return `🏥 *${hospName}*\n━━━━━━━━━━━━━━━\n${body}\n━━━━━━━━━━━━━━━\n📅 ${formatDate(todayStr())} — এডমিন প্যানেল থেকে`;
+}
+function queueTgBroadcastMessage() {
+  const body = document.getElementById('bcMessageTg').value.trim();
+  if (!body) { showToast('⚠️ বার্তা লিখুন!'); return; }
+  const selectedIds = Array.from(document.querySelectorAll('.bc-owner-cb-tg:checked')).map(cb => parseInt(cb.value));
+  if (!selectedIds.length) { showToast('⚠️ অন্তত একজন প্রাপক নির্বাচন করুন!'); return; }
+  const recipients = (appData.shareholders||[]).filter(sh => selectedIds.includes(sh.id) && sh.telegramId);
+  if (!recipients.length) { showToast('⚠️ নির্বাচিতদের কারও Telegram Chat ID নেই!'); return; }
+  const groupChatId = (appData.settings && appData.settings.telegramGroupChatId) || '';
+  const wantsGroup = recipients.some(sh => sh.telegramMode==='group' || sh.telegramMode==='both');
+  if (wantsGroup && !groupChatId) { showToast('⚠️ প্রথমে "⚙️ ম্যানুয়াল ট্রিগার সেটিংস"-এ Telegram Group Chat ID সেট করুন!'); return; }
+  if (!confirm(`${recipients.length} জনকে এই বার্তা পাঠাতে চান?`)) return;
+  const text = buildTgBroadcastText(body);
+  if (!appData.tgOutbox) appData.tgOutbox = [];
+  let personalCount = 0;
+  recipients.forEach(sh => {
+    const mode = sh.telegramMode || 'personal';
+    if (mode==='personal' || mode==='both') {
+      appData.tgOutbox.push({ id: Date.now()+Math.floor(Math.random()*100000), type:'broadcast', name: sh.name, chatId: sh.telegramId.trim(), text, status:'pending', createdAt: new Date().toISOString(), by: currentUser.name });
+      personalCount++;
+    }
+  });
+  if (wantsGroup) {
+    appData.tgOutbox.push({ id: Date.now()+Math.floor(Math.random()*100000)+1, type:'broadcast', name: 'গ্রুপ (সকল Owner)', chatId: groupChatId.trim(), text, status:'pending', createdAt: new Date().toISOString(), by: currentUser.name });
+  }
+  saveData();
+  document.getElementById('bcMessageTg').value = '';
+  document.getElementById('bcSelectAllTg').checked = false;
+  document.querySelectorAll('.bc-owner-cb-tg').forEach(cb => cb.checked = false);
+  updateTgBcPreview();
+  renderTgOutboxTable();
+  showToast(`📤 বার্তা কিউতে যোগ হয়েছে (ব্যক্তিগত: ${personalCount}${wantsGroup?', গ্রুপে: ১':''})`);
+}
+
 function getLinkedDoctorCommission(staffId, month, year) {
   const doc = (appData.doctors||[]).find(d=>d.linkedStaffId===staffId && d.type==='salaried');
   if (!doc) return 0;
@@ -19265,7 +19505,7 @@ function renderSalarySheet() {
     const advTitle = advList.length ? advList.map(a=>`${formatDate(a.date)}: ৳${fmt(a.amount)}`).join(', ') : '';
     return `<tr>
       <td style="color:var(--text-light)">${i+1}</td>
-      <td style="font-weight:600">${s.name}${(s.whatsapp||s.phone)?` <span title="হোয়াটসঅ্যাপ: ${s.whatsapp||s.phone}" style="font-size:11px">📱</span>`:` <span title="হোয়াটসঅ্যাপ নম্বর যোগ করা নেই" style="font-size:11px;opacity:0.35">📱</span>`}</td>
+      <td style="font-weight:600">${s.name}${(s.whatsapp||s.phone)?` <span title="হোয়াটসঅ্যাপ: ${s.whatsapp||s.phone}" style="font-size:11px">📱</span>`:` <span title="হোয়াটসঅ্যাপ নম্বর যোগ করা নেই" style="font-size:11px;opacity:0.35">📱</span>`}${s.telegramId?` <span title="Telegram: ${s.telegramId}" style="font-size:11px">✈️</span>`:` <span title="Telegram Chat ID যোগ করা নেই" style="font-size:11px;opacity:0.35">✈️</span>`}</td>
       <td><span class="badge badge-info">${s.desig}</span></td>
       <td>৳ ${fmt(s.basic)}</td>
       <td>
@@ -19290,6 +19530,7 @@ function renderSalarySheet() {
       </td>
       <td>
         ${isAdmin ? `<button class="btn ${(s.whatsapp||s.phone)?'btn-success':'btn-outline'} btn-sm" title="WhatsApp-এ বেতন নোটিশ পাঠান" onclick="queueSalaryWhatsApp(${s.id},${month},${year})" ${(s.whatsapp||s.phone)?'':'disabled'}>📱</button>
+        <button class="btn ${s.telegramId?'btn-success':'btn-outline'} btn-sm" title="Telegram-এ বেতন নোটিশ পাঠান" onclick="queueSalaryTelegram(${s.id},${month},${year})" ${s.telegramId?'':'disabled'}>✈️</button>
         <button class="btn btn-primary btn-sm" onclick="editStaff(${s.id})">✏️</button>
         <button class="btn btn-outline btn-sm" onclick="viewStaffProfile(${s.id})">👤</button>
         <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('কর্মী',${s.id},'${s.name.replace(/'/g,"\\'")}')">🕐</button>
