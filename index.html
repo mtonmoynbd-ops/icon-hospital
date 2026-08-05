@@ -499,6 +499,28 @@
   .stock-collapse-icon.open { transform:rotate(90deg); }
   .stock-panel-body.collapsed { display:none; }
 
+  /* ===== আয়/ব্যয় ক্যাটাগরি কাস্টম ড্রপডাউন (+ নতুন যোগ করুন / সাব-ক্যাটাগরি ফ্লাইআউট) ===== */
+  .cat-dd { position:relative; }
+  .cat-dd-btn { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:#f8fafc; font-family:inherit; font-size:13px; cursor:pointer; color:var(--text); }
+  .cat-dd-btn.cd-placeholder { color:#94a3b8; }
+  .cat-dd-btn .cd-caret { font-size:11px; color:var(--text-light); flex-shrink:0; }
+  .cat-dd-panel { display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:100%; max-height:260px; overflow-y:auto; background:#fff; border:1.5px solid var(--border); border-radius:8px; box-shadow:var(--shadow-lg); z-index:220; padding:4px; }
+  .cat-dd.cd-open .cat-dd-panel { display:block; }
+  .cd-item { position:relative; display:flex; align-items:center; justify-content:space-between; border-radius:6px; }
+  .cd-item:hover, .cd-item.cd-open-flyout { background:#f0f4f8; }
+  .cd-item-label { flex:1; padding:8px 10px; cursor:pointer; font-size:13px; }
+  .cd-item.cd-active > .cd-item-label { color:var(--primary); font-weight:700; }
+  .cd-arrow { padding:8px 10px; cursor:pointer; color:var(--text-light); font-size:11px; flex-shrink:0; }
+  .cd-flyout { display:none; position:absolute; top:0; left:100%; margin-left:4px; min-width:180px; max-width:240px; max-height:260px; overflow-y:auto; background:#fff; border:1.5px solid var(--border); border-radius:8px; box-shadow:var(--shadow-lg); padding:4px; z-index:230; }
+  .cd-item:hover > .cd-flyout, .cd-item.cd-open-flyout > .cd-flyout { display:block; }
+  .cd-subitem { padding:8px 10px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--text); white-space:nowrap; }
+  .cd-subitem:hover { background:#eef2ff; }
+  .cd-subitem.cd-active { color:var(--primary); font-weight:700; }
+  .cd-item.cd-add > .cd-item-label, .cd-subitem.cd-add { color:var(--success); font-weight:600; border-top:1px solid var(--border); margin-top:2px; padding-top:8px; }
+  @media (max-width:480px) {
+    .cd-flyout { left:auto; right:0; top:100%; margin-left:0; margin-top:4px; }
+  }
+
 </style>
 
 <script>
@@ -1438,10 +1460,12 @@ function openPrintWindow(htmlContent, title) {
             <div class="field-stack">
               <div class="field"><label>তারিখ *</label><input type="date" id="incDate" onchange="updateIncMemo()"></div>
               <div class="field"><label>আয়ের খাত *</label>
-                <select id="incCategory"><option value="">-- খাত নির্বাচন করুন --</option>
-                  <option>OPD ভিজিট ফি</option><option>অপারেশন ফি</option><option>ওষুধ বিক্রি</option>
-                  <option>চশমা বিক্রি</option><option>টেস্ট / রিপোর্ট ফি</option><option>ভর্তি ফি</option><option>অন্যান্য আয়</option>
-                </select>
+                <div class="cat-dd" id="incCatDropdown">
+                  <div class="cat-dd-btn cd-placeholder" id="incCatDropdownLabel" onclick="toggleCatDropdown('inc', event)">-- খাত নির্বাচন করুন --<span class="cd-caret">▾</span></div>
+                  <div class="cat-dd-panel" id="incCatDropdownPanel"></div>
+                </div>
+                <select id="incCategory" onchange="updateIncSubCats();updateCatDropdownLabel('inc')" style="display:none"><option value="">-- খাত নির্বাচন করুন --</option></select>
+                <select id="incSubCategory" style="display:none"><option value="">-- সাব-ক্যাটাগরি --</option></select>
               </div>
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="incAmount" placeholder="০.০০" min="0"></div>
@@ -1505,13 +1529,15 @@ function openPrintWindow(htmlContent, title) {
           <span id="expFormIcon" style="color:var(--text-light);font-size:16px">▶</span>
         </div>
         <div class="panel-body" id="expFormBody" style="display:none">
-          <div class="form-row three">
+          <div class="form-row">
             <div class="field"><label>তারিখ *</label><input type="date" id="expDate" onchange="updateExpVoucher()"></div>
             <div class="field"><label>ব্যয়ের ক্যাটাগরি *</label>
-              <select id="expCategory" onchange="updateExpSubCats()"><option value="">-- ক্যাটাগরি নির্বাচন করুন --</option></select>
-            </div>
-            <div class="field"><label>সাব-ক্যাটাগরি</label>
-              <select id="expSubCategory"><option value="">-- সাব-ক্যাটাগরি --</option></select>
+              <div class="cat-dd" id="expCatDropdown">
+                <div class="cat-dd-btn cd-placeholder" id="expCatDropdownLabel" onclick="toggleCatDropdown('exp', event)">-- ক্যাটাগরি নির্বাচন করুন --<span class="cd-caret">▾</span></div>
+                <div class="cat-dd-panel" id="expCatDropdownPanel"></div>
+              </div>
+              <select id="expCategory" onchange="updateExpSubCats();updateCatDropdownLabel('exp')" style="display:none"><option value="">-- ক্যাটাগরি নির্বাচন করুন --</option></select>
+              <select id="expSubCategory" style="display:none"><option value="">-- সাব-ক্যাটাগরি --</option></select>
             </div>
           </div>
           <div class="form-row-amt">
@@ -5793,6 +5819,8 @@ let USERS = { ...DEFAULT_USERS };
 
 function rebuildUsers() {
   USERS = { ...DEFAULT_USERS };
+  // যেসব বিল্ট-ইন (ডিফল্ট) ইউজারনেম রিনেম করা হয়েছে, সেগুলো আর ব্যবহারযোগ্য থাকবে না
+  (appData.renamedDefaultUsers||[]).forEach(u => { delete USERS[u]; });
   (appData.users||[]).forEach(u => {
     USERS[u.username] = { pass:u.pass, role:u.role, name:u.name };
   });
@@ -8479,6 +8507,7 @@ function ensureUniqueVoucher(voucher, dateStr) {
 
 function saveIncome() {
   const date=document.getElementById('incDate').value, cat=document.getElementById('incCategory').value;
+  const subCat=(document.getElementById('incSubCategory')||{}).value||'';
   const amt=parseFloat(document.getElementById('incAmount').value);
   let memo=document.getElementById('incMemo').value.trim();
   if (!memo) memo = generateNextMemoNo();
@@ -8487,7 +8516,7 @@ function saveIncome() {
   const mfsAccountId = payMode==='mfs' ? (document.getElementById('incMfsAccount')||{}).value : '';
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, খাত ও পরিমাণ আবশ্যক!'); return; }
   if (payMode==='mfs' && !mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
-  appData.income.push({ id:Date.now(), date, category:cat, amount:amt, memo, ref, note, payMode, mfsAccountId:mfsAccountId||undefined, by:currentUser.name });
+  appData.income.push({ id:Date.now(), date, category:cat, subCategory:subCat, amount:amt, memo, ref, note, payMode, mfsAccountId:mfsAccountId||undefined, by:currentUser.name });
   logActivity('add', 'আয়', `${cat} — ৳${fmt(amt)} (${memo})`);
   saveData(); clearIncomeForm(); renderIncomeTable(); refreshDashboard();
   showToast('✅ আয় এন্ট্রি সেভ! মেমো: ' + memo);
@@ -8504,6 +8533,8 @@ function updateIncMemo() {
 function clearIncomeForm() {
   document.getElementById('incDate').value = todayStr();
   ['incCategory','incAmount','incRef','incNote'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const subEl=document.getElementById('incSubCategory'); if(subEl){ subEl.innerHTML='<option value="">-- সাব-ক্যাটাগরি --</option>'; }
+  if (typeof updateCatDropdownLabel==='function') updateCatDropdownLabel('inc');
   const cashRadio=document.getElementById('incPayCash'); if(cashRadio) cashRadio.checked=true;
   const mfsAccEl=document.getElementById('incMfsAccount'); if(mfsAccEl) mfsAccEl.value='';
   const mfsRow=document.getElementById('incMfsRow'); if(mfsRow) mfsRow.style.display='none';
@@ -8545,7 +8576,7 @@ function renderIncomeTable() {
       html += `<tr class="inc-grp-row" data-grp="${gid}" id="inc-row-${e.id}">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--accent);font-weight:600;font-size:12px">${e.memo||'—'}</td>
-        <td>${e.category}</td>
+        <td>${e.category}${e.subCategory?`<div style="color:var(--text-light);font-size:11px">${e.subCategory}</div>`:''}</td>
         <td style="color:var(--text-light)">${e.ref||'—'}</td>
         <td style="color:var(--text-light)">${e.note||'—'}</td>
         <td style="font-weight:700;color:var(--success)">৳ ${fmt(e.amount)}</td>
@@ -8639,6 +8670,7 @@ function clearExpenseForm() {
   els.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const catEl=document.getElementById('expCategory'); if(catEl) catEl.value='';
   const subEl=document.getElementById('expSubCategory'); if(subEl){ subEl.innerHTML='<option value="">-- সাব-ক্যাটাগরি --</option>'; }
+  if (typeof updateCatDropdownLabel==='function') updateCatDropdownLabel('exp');
   const cashRadio=document.getElementById('expPayCash'); if(cashRadio){ cashRadio.checked=true; onExpPayModeChange(); }
   const personEl=document.getElementById('expCashPerson'); if(personEl) personEl.value='';
   const cdEl=document.getElementById('expClearDate'); if(cdEl) cdEl.value=todayStr();
@@ -8721,6 +8753,13 @@ function updateExpSubCats() {
   const subs=(appData.settings.expSubCats||{})[cat]||[];
   subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি (ঐচ্ছিক) --</option>'+subs.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
+// আয়ের সাব-ক্যাটাগরি লোড (ব্যয়ের মতোই — ঐচ্ছিক)
+function updateIncSubCats() {
+  const cat=document.getElementById('incCategory')?.value||'';
+  const subSel=document.getElementById('incSubCategory'); if(!subSel) return;
+  const subs=(appData.settings.incSubCats||{})[cat]||[];
+  subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি (ঐচ্ছিক) --</option>'+subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
 // সাব-ক্যাট সেটিংস
 function addExpSubCat() {
   const cat=document.getElementById('subCatParent')?.value||'';
@@ -8751,7 +8790,7 @@ function renderSubCatList() {
 }
 function populateSubCatParentSelect() {
   const sel=document.getElementById('subCatParent'); if(!sel) return;
-  const expCats=[...DEFAULT_EXP_CATS,...(appData.settings.customExpCats||[])];
+  const expCats=getExpCats();
   sel.innerHTML='<option value="">-- ক্যাটাগরি --</option>'+expCats.map(c=>`<option value="${c}">${c}</option>`).join('');
 }
 // চেক বই সেভ
@@ -9203,7 +9242,7 @@ function confirmExpenseCleared(id) {
 // expFilterCat সিলেক্ট পপুলেট
 function populateExpFilterCat() {
   const sel=document.getElementById('expFilterCat'); if(!sel) return;
-  const expCats=[...DEFAULT_EXP_CATS,...(appData.settings.customExpCats||[])];
+  const expCats=getExpCats();
   sel.innerHTML='<option value="">সব ক্যাটাগরি</option>'+expCats.map(c=>`<option value="${c}">${c}</option>`).join('');
 }
 function toggleExpGroup(gid) {
@@ -14376,14 +14415,39 @@ function saveUser() {
   if (!username||!name) { showToast('⚠️ ইউজারনেম ও নাম আবশ্যক!'); return; }
   if (pass && pass!==confirm) { showToast('⚠️ পাসওয়ার্ড মিলছে না!'); return; }
   if (!appData.users) appData.users=[];
+  if (!appData.passwords) appData.passwords={};
   if (editId) {
-    const u = appData.users.find(u=>u.username===editId);
-    if (u) { u.name=name; u.role=role; if(pass) u.pass=pass; }
+    // ইউজারনেম (আইডি) পরিবর্তন হলে সংঘর্ষ যাচাই করুন
+    if (username !== editId && USERS[username]) { showToast('⚠️ এই ইউজারনেম আগে থেকে আছে!'); return; }
+    // এই ইউজার আগে থেকে appData.users এ আছে কিনা খুঁজুন। ডিফল্ট (built-in) ইউজার
+    // এখনো এই তালিকায় না থাকতে পারে — সেক্ষেত্রে একটি override এন্ট্রি তৈরি করতে হবে,
+    // নয়তো নাম/রোল/পাসওয়ার্ড পরিবর্তন সেভ হবে না (এটাই আগের বাগ ছিল)।
+    let u = appData.users.find(x=>x.username===editId);
+    const wasDefault = !!DEFAULT_USERS[editId];
+    if (!u) {
+      u = { username: editId, pass: (appData.passwords[editId] || (DEFAULT_USERS[editId]&&DEFAULT_USERS[editId].pass) || '') };
+      appData.users.push(u);
+    }
+    u.username = username;
+    u.name = name;
+    u.role = role;
+    if (pass) u.pass = pass;
+    // পুরনো পাসওয়ার্ড override থাকলে নতুন ইউজারনেমে স্থানান্তর করুন
+    if (username !== editId && appData.passwords[editId]) {
+      appData.passwords[username] = appData.passwords[editId];
+      delete appData.passwords[editId];
+    }
+    // বিল্ট-ইন (ডিফল্ট) ইউজারনেম পরিবর্তন হলে পুরনো নামটি ব্লক করে রাখুন, নয়তো
+    // পুরনো ডিফল্ট আইডি দিয়ে আবার লগইন করা যাবে
+    if (username !== editId && wasDefault) {
+      if (!appData.renamedDefaultUsers) appData.renamedDefaultUsers=[];
+      if (!appData.renamedDefaultUsers.includes(editId)) appData.renamedDefaultUsers.push(editId);
+    }
+    if (username !== editId && currentUser && currentUser.username === editId) currentUser.username = username;
     showToast('✅ ইউজার আপডেট হয়েছে!');
   } else {
     if (!pass) { showToast('⚠️ পাসওয়ার্ড দিন!'); return; }
-    if (DEFAULT_USERS[username]) { showToast('⚠️ এই ইউজারনেম সংরক্ষিত!'); return; }
-    if (appData.users.find(u=>u.username===username)) { showToast('⚠️ এই ইউজারনেম আগে থেকে আছে!'); return; }
+    if (USERS[username]) { showToast('⚠️ এই ইউজারনেম আগে থেকে আছে!'); return; }
     appData.users.push({ username, name, role, pass });
     showToast('✅ নতুন ইউজার যোগ হয়েছে!');
   }
@@ -14436,7 +14500,11 @@ function loadUserList() {
 
   // User list table
   const allCustom = appData.users||[];
-  const defaultEntries = Object.entries(DEFAULT_USERS).filter(([u])=>u!=='admin');
+  const overriddenOrRenamed = new Set([
+    ...allCustom.map(u=>u.username),
+    ...(appData.renamedDefaultUsers||[])
+  ]);
+  const defaultEntries = Object.entries(DEFAULT_USERS).filter(([u])=>u!=='admin' && !overriddenOrRenamed.has(u));
   const ul = document.getElementById('userList');
   if (!ul) return;
 
@@ -20366,7 +20434,7 @@ function initAdminBillPage() {
 function addAdminBillRow() {
   adminBillRowCount++;
   const tbody = document.getElementById('adminBillRows');
-  const cats = ['OPD ভিজিট ফি','অপারেশন ফি','ওষুধ বিক্রি','চশমা বিক্রি','টেস্ট / রিপোর্ট ফি','ভর্তি ফি','অন্যান্য আয়',...(appData.settings.customIncCats||[])];
+  const cats = getIncCats();
   const tr = document.createElement('tr');
   tr.id = 'abRow'+adminBillRowCount;
   tr.innerHTML = `
@@ -20719,9 +20787,25 @@ function searchPatients() {
 }
 
 // ===== CUSTOM CATEGORIES =====
+// এগুলো শুধুমাত্র প্রথমবার সেটিংসে সিড (seed) করার জন্য ব্যবহৃত হয়।
+// একবার সিড হয়ে গেলে appData.settings.incCats / expCats থেকেই সব খাত আসে —
+// অর্থাৎ কোনো খাত কোডে হার্ডকোড থাকে না, সবই সেটিংস থেকে যোগ/মুছা যায়।
 const DEFAULT_INC_CATS = ['OPD ভিজিট ফি','অপারেশন ফি','ওষুধ বিক্রি','চশমা বিক্রি','টেস্ট / রিপোর্ট ফি','ভর্তি ফি','ক্যাম্প আয়','রিসেপশন আয়','অ্যাডমিন বিল','অন্যান্য আয়'];
 const DEFAULT_EXP_CATS = ['ওষুধ/সরঞ্জাম কেনা','কর্মীর বেতন','বিদ্যুৎ বিল','পানির বিল','ইন্টারনেট/ফোন','ভাড়া','মেরামত/রক্ষণাবেক্ষণ','ক্যাম্প ব্যয়','অন্যান্য ব্যয়'];
 const DEFAULT_STOCK_CATS = ['ওষুধ','চশমা/লেন্স','সার্জিক্যাল সরঞ্জাম','অফিস সামগ্রী','অন্যান্য'];
+
+// সেটিংসে খাতের তালিকা এখনো তৈরি না থাকলে (পুরনো ডেটা থেকে মাইগ্রেশন সহ) একবার সিড করে
+function ensureCatSeed() {
+  if (!appData.settings) appData.settings = {};
+  if (!appData.settings.incCats) {
+    appData.settings.incCats = [...DEFAULT_INC_CATS, ...(appData.settings.customIncCats||[])];
+  }
+  if (!appData.settings.expCats) {
+    appData.settings.expCats = [...DEFAULT_EXP_CATS, ...(appData.settings.customExpCats||[])];
+  }
+}
+function getIncCats() { ensureCatSeed(); return appData.settings.incCats; }
+function getExpCats() { ensureCatSeed(); return appData.settings.expCats; }
 
 function getStockCats() {
   const custom = appData.settings.customStockCats || [];
@@ -20736,14 +20820,13 @@ function addCustomCategory(type) {
   const inputId = type==='income'?'newIncCat':'newExpCat';
   const val = document.getElementById(inputId).value.trim();
   if(!val){showToast('⚠️ খাতের নাম দিন!');return;}
-  if(!appData.settings.customIncCats) appData.settings.customIncCats=[];
-  if(!appData.settings.customExpCats) appData.settings.customExpCats=[];
+  ensureCatSeed();
   if(type==='income'){
-    if(appData.settings.customIncCats.includes(val)){showToast('⚠️ এই খাত আগেই আছে!');return;}
-    appData.settings.customIncCats.push(val);
+    if(appData.settings.incCats.includes(val)){showToast('⚠️ এই খাত আগেই আছে!');return;}
+    appData.settings.incCats.push(val);
   } else {
-    if(appData.settings.customExpCats.includes(val)){showToast('⚠️ এই খাত আগেই আছে!');return;}
-    appData.settings.customExpCats.push(val);
+    if(appData.settings.expCats.includes(val)){showToast('⚠️ এই খাত আগেই আছে!');return;}
+    appData.settings.expCats.push(val);
   }
   saveData();
   document.getElementById(inputId).value='';
@@ -20752,9 +20835,10 @@ function addCustomCategory(type) {
   showToast('✅ খাত যোগ হয়েছে!');
 }
 function removeCustomCategory(type, cat) {
-  if(!confirm(`"${cat}" মুছবেন?`))return;
-  if(type==='income') appData.settings.customIncCats=(appData.settings.customIncCats||[]).filter(c=>c!==cat);
-  else appData.settings.customExpCats=(appData.settings.customExpCats||[]).filter(c=>c!==cat);
+  if(!confirm(`"${cat}" মুছবেন? এই খাতটি ব্যয়/আয় এন্ট্রির ড্রপডাউন থেকে সরে যাবে।`))return;
+  ensureCatSeed();
+  if(type==='income') appData.settings.incCats = appData.settings.incCats.filter(c=>c!==cat);
+  else appData.settings.expCats = appData.settings.expCats.filter(c=>c!==cat);
   saveData(); renderCategoryLists(); updateCategorySelects();
   showToast('🗑️ খাত মুছে ফেলা হয়েছে');
 }
@@ -20762,17 +20846,14 @@ function renderCategoryLists() {
   const incList=document.getElementById('incCatList');
   const expList=document.getElementById('expCatList');
   if(!incList||!expList)return;
-  const custom=(appData.settings.customIncCats||[]);
-  incList.innerHTML=[...DEFAULT_INC_CATS.map(c=>`<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:20px;font-size:12px">${c}</span>`),
-    ...custom.map(c=>`<span style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:4px">${c}<button onclick="removeCustomCategory('income','${c}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1">×</button></span>`)].join('');
-  const ecustom=(appData.settings.customExpCats||[]);
-  expList.innerHTML=[...DEFAULT_EXP_CATS.map(c=>`<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:20px;font-size:12px">${c}</span>`),
-    ...ecustom.map(c=>`<span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:4px">${c}<button onclick="removeCustomCategory('expense','${c}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1">×</button></span>`)].join('');
+  ensureCatSeed();
+  incList.innerHTML = appData.settings.incCats.map(c=>`<span style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:4px">${c}<button onclick="removeCustomCategory('income','${c}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1">×</button></span>`).join('');
+  expList.innerHTML = appData.settings.expCats.map(c=>`<span style="background:#fee2e2;color:#991b1b;padding:4px 10px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:4px">${c}<button onclick="removeCustomCategory('expense','${c}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1">×</button></span>`).join('');
   renderStockCatList();
 }
 function updateCategorySelects() {
-  const incCats=[...DEFAULT_INC_CATS,...(appData.settings.customIncCats||[])];
-  const expCats=[...DEFAULT_EXP_CATS,...(appData.settings.customExpCats||[])];
+  const incCats=getIncCats();
+  const expCats=getExpCats();
   const incSel=document.getElementById('incCategory');
   const expSel=document.getElementById('expCategory');
   if(incSel) incSel.innerHTML='<option value="">-- খাত নির্বাচন করুন --</option>'+incCats.map(c=>`<option>${c}</option>`).join('');
@@ -20781,6 +20862,123 @@ function updateCategorySelects() {
   populateSubCatParentSelect();
   // স্টক ক্যাটাগরি ড্রপডাউন আপডেট
   updateStockCatSelects();
+  // কাস্টম ক্যাটাগরি ড্রপডাউন (নতুন আয়/ব্যয় এন্ট্রি পেজ) সিঙ্ক
+  if (typeof updateCatDropdownLabel==='function') { updateCatDropdownLabel('inc'); updateCatDropdownLabel('exp'); }
+}
+
+// ===== নতুন আয়/ব্যয় এন্ট্রি পেজের কাস্টম ক্যাটাগরি ড্রপডাউন =====
+// (ক্যাটাগরি সিলেক্ট বক্সের একদম নিচে "+ নতুন যোগ করুন" অপশন + সাব-ক্যাটাগরি থাকলে ডানে ফ্লাইআউট)
+function cdTextEsc(s) {
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function cdAttrEsc(s) {
+  return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function getSubCatMap(kind) {
+  const key = kind==='inc' ? 'incSubCats' : 'expSubCats';
+  if (!appData.settings[key]) appData.settings[key] = {};
+  return appData.settings[key];
+}
+function catDropdownIds(kind) {
+  return kind==='inc'
+    ? { cat:'incCategory', sub:'incSubCategory', wrap:'incCatDropdown', panel:'incCatDropdownPanel', label:'incCatDropdownLabel', placeholder:'-- খাত নির্বাচন করুন --', addLabel:'+ নতুন খাত যোগ করুন', addSubLabel:'+ নতুন সাব-ক্যাটাগরি' }
+    : { cat:'expCategory', sub:'expSubCategory', wrap:'expCatDropdown', panel:'expCatDropdownPanel', label:'expCatDropdownLabel', placeholder:'-- ক্যাটাগরি নির্বাচন করুন --', addLabel:'+ নতুন ক্যাটাগরি যোগ করুন', addSubLabel:'+ নতুন সাব-ক্যাটাগরি' };
+}
+function updateCatDropdownLabel(kind) {
+  const ids = catDropdownIds(kind);
+  const catSel = document.getElementById(ids.cat);
+  const subSel = document.getElementById(ids.sub);
+  const btn = document.getElementById(ids.label);
+  if (!btn) return;
+  const cat = catSel ? catSel.value : '';
+  const sub = subSel ? subSel.value : '';
+  if (!cat) { btn.textContent=''; btn.innerHTML = `${ids.placeholder}<span class="cd-caret">▾</span>`; btn.classList.add('cd-placeholder'); }
+  else { btn.innerHTML = `${cdTextEsc(sub ? (cat+' / '+sub) : cat)}<span class="cd-caret">▾</span>`; btn.classList.remove('cd-placeholder'); }
+}
+function renderCatDropdownPanel(kind) {
+  const ids = catDropdownIds(kind);
+  const panel = document.getElementById(ids.panel);
+  if (!panel) return;
+  const cats = kind==='inc' ? getIncCats() : getExpCats();
+  const subMap = getSubCatMap(kind);
+  const curCat = document.getElementById(ids.cat)?.value||'';
+  const curSub = document.getElementById(ids.sub)?.value||'';
+  panel.innerHTML = cats.map(c=>{
+    const subs = subMap[c]||[];
+    const hasSubs = subs.length>0;
+    const isActive = c===curCat;
+    const ce = cdAttrEsc(c);
+    const flyout = hasSubs ? `<div class="cd-flyout">
+        ${subs.map(s=>`<div class="cd-subitem${(isActive&&s===curSub)?' cd-active':''}" onclick="event.stopPropagation();selectSubCatFromDropdown('${kind}','${ce}','${cdAttrEsc(s)}')">${cdTextEsc(s)}</div>`).join('')}
+        <div class="cd-subitem cd-add" onclick="event.stopPropagation();quickAddSubCat('${kind}','${ce}')">➕ ${ids.addSubLabel}</div>
+      </div>` : '';
+    return `<div class="cd-item${isActive?' cd-active':''}">
+        <span class="cd-item-label" onclick="event.stopPropagation();selectCatFromDropdown('${kind}','${ce}')">${cdTextEsc(c)}</span>
+        ${hasSubs?`<span class="cd-arrow" onclick="event.stopPropagation();toggleCdFlyout(this)">▸</span>`:''}
+        ${flyout}
+      </div>`;
+  }).join('') + `<div class="cd-item cd-add"><span class="cd-item-label" onclick="event.stopPropagation();quickAddCategory('${kind}')">➕ ${ids.addLabel}</span></div>`;
+}
+function toggleCatDropdown(kind, ev) {
+  if (ev) ev.stopPropagation();
+  const ids = catDropdownIds(kind);
+  const wrap = document.getElementById(ids.wrap);
+  if (!wrap) return;
+  const wasOpen = wrap.classList.contains('cd-open');
+  closeAllCatDropdowns();
+  if (!wasOpen) {
+    renderCatDropdownPanel(kind);
+    wrap.classList.add('cd-open');
+  }
+}
+function closeAllCatDropdowns() {
+  document.querySelectorAll('.cat-dd.cd-open').forEach(w=>w.classList.remove('cd-open'));
+  document.querySelectorAll('.cd-item.cd-open-flyout').forEach(i=>i.classList.remove('cd-open-flyout'));
+}
+document.addEventListener('click', closeAllCatDropdowns);
+function toggleCdFlyout(arrowEl) {
+  const item = arrowEl.closest('.cd-item'); if (!item) return;
+  const wasOpen = item.classList.contains('cd-open-flyout');
+  item.parentElement.querySelectorAll('.cd-item.cd-open-flyout').forEach(i=>{ if(i!==item) i.classList.remove('cd-open-flyout'); });
+  item.classList.toggle('cd-open-flyout', !wasOpen);
+}
+function selectCatFromDropdown(kind, cat) {
+  const ids = catDropdownIds(kind);
+  const catSel = document.getElementById(ids.cat);
+  const subSel = document.getElementById(ids.sub);
+  if (catSel) { catSel.value = cat; catSel.dispatchEvent(new Event('change')); }
+  if (subSel) subSel.value = '';
+  updateCatDropdownLabel(kind);
+  closeAllCatDropdowns();
+}
+function selectSubCatFromDropdown(kind, cat, sub) {
+  const ids = catDropdownIds(kind);
+  const catSel = document.getElementById(ids.cat);
+  const subSel = document.getElementById(ids.sub);
+  if (catSel) { catSel.value = cat; catSel.dispatchEvent(new Event('change')); }
+  if (subSel) subSel.value = sub;
+  updateCatDropdownLabel(kind);
+  closeAllCatDropdowns();
+}
+function quickAddCategory(kind) {
+  const label = kind==='inc' ? 'আয়ের খাতের' : 'ব্যয়ের ক্যাটাগরির';
+  const name = (prompt(`নতুন ${label} নাম লিখুন:`)||'').trim();
+  if (!name) return;
+  const list = kind==='inc' ? getIncCats() : getExpCats();
+  if (!list.includes(name)) { list.push(name); saveData(); showToast('✅ নতুন খাত যোগ হয়েছে!'); }
+  updateCategorySelects();
+  if (typeof renderCategoryLists==='function') renderCategoryLists();
+  selectCatFromDropdown(kind, name);
+}
+function quickAddSubCat(kind, cat) {
+  if (!cat) { showToast('⚠️ আগে একটি খাত/ক্যাটাগরি নির্বাচন করুন!'); return; }
+  const name = (prompt(`"${cat}"-এর জন্য নতুন সাব-ক্যাটাগরির নাম লিখুন:`)||'').trim();
+  if (!name) return;
+  const map = getSubCatMap(kind);
+  if (!map[cat]) map[cat]=[];
+  if (!map[cat].includes(name)) { map[cat].push(name); saveData(); showToast('✅ নতুন সাব-ক্যাটাগরি যোগ হয়েছে!'); }
+  if (kind==='exp' && typeof renderSubCatList==='function') renderSubCatList();
+  selectSubCatFromDropdown(kind, cat, name);
 }
 
 function updateStockCatSelects() {
