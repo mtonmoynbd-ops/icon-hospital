@@ -499,27 +499,24 @@
   .stock-collapse-icon.open { transform:rotate(90deg); }
   .stock-panel-body.collapsed { display:none; }
 
-  /* ===== আয়/ব্যয় ক্যাটাগরি কাস্টম ড্রপডাউন (+ নতুন যোগ করুন / সাব-ক্যাটাগরি ফ্লাইআউট) ===== */
+  /* ===== আয়/ব্যয় ক্যাটাগরি কাস্টম ড্রপডাউন (+ নতুন যোগ করুন / সাব-ক্যাটাগরি হোভার-পপআপ) ===== */
   .cat-dd { position:relative; }
   .cat-dd-btn { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:#f8fafc; font-family:inherit; font-size:13px; cursor:pointer; color:var(--text); }
   .cat-dd-btn.cd-placeholder { color:#94a3b8; }
   .cat-dd-btn .cd-caret { font-size:11px; color:var(--text-light); flex-shrink:0; }
-  .cat-dd-panel { display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:100%; max-height:260px; overflow-y:auto; background:#fff; border:1.5px solid var(--border); border-radius:8px; box-shadow:var(--shadow-lg); z-index:220; padding:4px; }
+  .cat-dd-panel { display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:100%; max-height:260px; overflow-y:auto; overflow-x:hidden; background:#fff; border:1.5px solid var(--border); border-radius:8px; box-shadow:var(--shadow-lg); z-index:220; padding:4px; }
   .cat-dd.cd-open .cat-dd-panel { display:block; }
-  .cd-item { position:relative; display:flex; align-items:center; justify-content:space-between; border-radius:6px; }
-  .cd-item:hover, .cd-item.cd-open-flyout { background:#f0f4f8; }
+  .cd-item { display:flex; align-items:center; justify-content:space-between; border-radius:6px; }
+  .cd-item:hover { background:#f0f4f8; }
   .cd-item-label { flex:1; padding:8px 10px; cursor:pointer; font-size:13px; }
   .cd-item.cd-active > .cd-item-label { color:var(--primary); font-weight:700; }
-  .cd-arrow { padding:8px 10px; cursor:pointer; color:var(--text-light); font-size:11px; flex-shrink:0; }
-  .cd-flyout { display:none; position:absolute; top:0; left:100%; margin-left:4px; min-width:180px; max-width:240px; max-height:260px; overflow-y:auto; background:#fff; border:1.5px solid var(--border); border-radius:8px; box-shadow:var(--shadow-lg); padding:4px; z-index:230; }
-  .cd-item:hover > .cd-flyout, .cd-item.cd-open-flyout > .cd-flyout { display:block; }
+  .cd-arrow { padding:8px 10px; color:var(--text-light); font-size:11px; flex-shrink:0; }
+  /* সাব-ক্যাটাগরি পপআপ — position:fixed, তাই কোনো প্যারেন্টের overflow/scroll-এর কারণে কাটা পড়ে না বা স্ক্রলের দরকার হয় না */
+  .cd-flyout-popup { display:none; position:fixed; min-width:180px; max-width:240px; max-height:min(260px,70vh); overflow-y:auto; background:#fff; border:1.5px solid var(--border); border-radius:8px; box-shadow:var(--shadow-lg); padding:4px; z-index:9999; }
   .cd-subitem { padding:8px 10px; font-size:12.5px; border-radius:6px; cursor:pointer; color:var(--text); white-space:nowrap; }
   .cd-subitem:hover { background:#eef2ff; }
   .cd-subitem.cd-active { color:var(--primary); font-weight:700; }
   .cd-item.cd-add > .cd-item-label, .cd-subitem.cd-add { color:var(--success); font-weight:600; border-top:1px solid var(--border); margin-top:2px; padding-top:8px; }
-  @media (max-width:480px) {
-    .cd-flyout { left:auto; right:0; top:100%; margin-left:0; margin-top:4px; }
-  }
 
 </style>
 
@@ -20902,20 +20899,14 @@ function renderCatDropdownPanel(kind) {
   const cats = kind==='inc' ? getIncCats() : getExpCats();
   const subMap = getSubCatMap(kind);
   const curCat = document.getElementById(ids.cat)?.value||'';
-  const curSub = document.getElementById(ids.sub)?.value||'';
   panel.innerHTML = cats.map(c=>{
     const subs = subMap[c]||[];
     const hasSubs = subs.length>0;
     const isActive = c===curCat;
     const ce = cdAttrEsc(c);
-    const flyout = hasSubs ? `<div class="cd-flyout">
-        ${subs.map(s=>`<div class="cd-subitem${(isActive&&s===curSub)?' cd-active':''}" onclick="event.stopPropagation();selectSubCatFromDropdown('${kind}','${ce}','${cdAttrEsc(s)}')">${cdTextEsc(s)}</div>`).join('')}
-        <div class="cd-subitem cd-add" onclick="event.stopPropagation();quickAddSubCat('${kind}','${ce}')">➕ ${ids.addSubLabel}</div>
-      </div>` : '';
-    return `<div class="cd-item${isActive?' cd-active':''}">
+    return `<div class="cd-item${isActive?' cd-active':''}"${hasSubs?` onmouseenter="showCdFlyout(this,'${kind}','${ce}')" onmouseleave="scheduleHideCdFlyout()"`:''}>
         <span class="cd-item-label" onclick="event.stopPropagation();selectCatFromDropdown('${kind}','${ce}')">${cdTextEsc(c)}</span>
-        ${hasSubs?`<span class="cd-arrow" onclick="event.stopPropagation();toggleCdFlyout(this)">▸</span>`:''}
-        ${flyout}
+        ${hasSubs?`<span class="cd-arrow">▸</span>`:''}
       </div>`;
   }).join('') + `<div class="cd-item cd-add"><span class="cd-item-label" onclick="event.stopPropagation();quickAddCategory('${kind}')">➕ ${ids.addLabel}</span></div>`;
 }
@@ -20933,14 +20924,53 @@ function toggleCatDropdown(kind, ev) {
 }
 function closeAllCatDropdowns() {
   document.querySelectorAll('.cat-dd.cd-open').forEach(w=>w.classList.remove('cd-open'));
-  document.querySelectorAll('.cd-item.cd-open-flyout').forEach(i=>i.classList.remove('cd-open-flyout'));
+  hideCdFlyout();
 }
 document.addEventListener('click', closeAllCatDropdowns);
-function toggleCdFlyout(arrowEl) {
-  const item = arrowEl.closest('.cd-item'); if (!item) return;
-  const wasOpen = item.classList.contains('cd-open-flyout');
-  item.parentElement.querySelectorAll('.cd-item.cd-open-flyout').forEach(i=>{ if(i!==item) i.classList.remove('cd-open-flyout'); });
-  item.classList.toggle('cd-open-flyout', !wasOpen);
+// সাব-ক্যাটাগরি হোভার-পপআপ — position:fixed হওয়ায় কোনো প্যারেন্ট প্যানেলের overflow/scroll-এ আটকায় না,
+// তাই ডানে দেখতে স্ক্রল করা লাগে না। মাউস নিলেই (মুভ) সাথে সাথে দেখা যায়, ক্লিক লাগে শুধু সিলেক্ট করতে।
+function ensureCdFlyoutPopup() {
+  let el = document.getElementById('catFlyoutPopup');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'catFlyoutPopup';
+    el.className = 'cd-flyout-popup';
+    el.addEventListener('mouseenter', ()=>{ clearTimeout(window._cdFlyoutHideTimer); });
+    el.addEventListener('mouseleave', scheduleHideCdFlyout);
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function showCdFlyout(itemEl, kind, cat) {
+  clearTimeout(window._cdFlyoutHideTimer);
+  const ids = catDropdownIds(kind);
+  const subs = getSubCatMap(kind)[cat]||[];
+  const curCat = document.getElementById(ids.cat)?.value||'';
+  const curSub = document.getElementById(ids.sub)?.value||'';
+  const isActive = cat===curCat;
+  const popup = ensureCdFlyoutPopup();
+  const ce = cdAttrEsc(cat);
+  popup.innerHTML = subs.map(s=>`<div class="cd-subitem${(isActive&&s===curSub)?' cd-active':''}" onclick="event.stopPropagation();selectSubCatFromDropdown('${kind}','${ce}','${cdAttrEsc(s)}')">${cdTextEsc(s)}</div>`).join('')
+    + `<div class="cd-subitem cd-add" onclick="event.stopPropagation();quickAddSubCat('${kind}','${ce}')">➕ ${ids.addSubLabel}</div>`;
+  popup.style.display = 'block';
+  const rect = itemEl.getBoundingClientRect();
+  const pw = popup.offsetWidth || 200;
+  const ph = popup.offsetHeight || 100;
+  let left = rect.right + 4;
+  if (left + pw > window.innerWidth - 8) left = rect.left - pw - 4;
+  if (left < 4) left = 4;
+  let top = rect.top;
+  if (top + ph > window.innerHeight - 8) top = Math.max(4, window.innerHeight - ph - 8);
+  popup.style.left = left + 'px';
+  popup.style.top = top + 'px';
+}
+function scheduleHideCdFlyout() {
+  clearTimeout(window._cdFlyoutHideTimer);
+  window._cdFlyoutHideTimer = setTimeout(hideCdFlyout, 150);
+}
+function hideCdFlyout() {
+  const popup = document.getElementById('catFlyoutPopup');
+  if (popup) popup.style.display = 'none';
 }
 function selectCatFromDropdown(kind, cat) {
   const ids = catDropdownIds(kind);
