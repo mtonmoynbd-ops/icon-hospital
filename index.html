@@ -6221,7 +6221,7 @@ async function takeManualBackup() {
   try {
     // Firebase backup
     const backupRef = window._fbRef(window._fbDb, 'hms_backups/' + today);
-    await window._fbSet(backupRef, appData);
+    await window._fbSet(backupRef, _sanitizeForFirebase(appData));
     localStorage.setItem('hms_last_backup_' + today, '1');
     const now = new Date().toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
 
@@ -7330,7 +7330,7 @@ function startFirebaseSync() {
           if (window._fbSet && window._fbRef) {
             const migrated = {};
             normalized.forEach(e => { if (e && e.id != null) migrated[fbSafeKey(e.id)] = e; });
-            window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module), migrated)
+            window._fbSet(window._fbRef(window._fbDb, window._fbDBREF + '/' + module), _sanitizeForFirebase(migrated))
               .then(() => console.log('[HMS] ' + module + ' মডিউল id-keyed ফরম্যাটে migrate হয়েছে'))
               .catch(e => console.warn('[HMS] ' + module + ' migration ব্যর্থ:', e));
           }
@@ -7588,12 +7588,16 @@ function fbSafeKey(id) {
 // ✅ Firebase 'undefined' মান একদমই গ্রহণ করে না — কোনো ফিল্ডে ভুলবশত undefined (যেমন voucher:someVar||undefined)
 // থেকে গেলে পুরো write সিঙ্ক্রোনাসভাবে থ্রো করে, যা বিল/এন্ট্রি সেভের চেইন ভেঙে দিতে পারে। তাই Firebase-এ পাঠানোর
 // আগে recursively সব undefined কে null-এ রূপান্তর করে নেওয়া হয় — ডাটার অর্থ অক্ষুণ্ণ থাকে, শুধু write নিরাপদ হয়
+// ✅ এছাড়াও object key-গুলো recursively fbSafeKey() দিয়ে sanitize করা হয় — কারণ কিছু ক্যাটাগরি/সাব-ক্যাটাগরির
+// নাম object key হিসেবে ব্যবহৃত হয় (settings.expSubCats/incSubCats/stockSubCats) এবং সেগুলোতে "/" থাকতে পারে
+// (যেমন "মেরামত/রক্ষণাবেক্ষণ")। কোনো পুরনো/স্টেল ডাটাতে ইতিমধ্যে অবৈধ key থেকে গেলেও এখানেই তা সবসময় ঠিক হয়ে যাবে —
+// এটাই একমাত্র জায়গা যেখান থেকে appData Firebase-এ পাঠানো হয়, তাই এখানে key sanitize করাই সবচেয়ে নির্ভরযোগ্য।
 function _sanitizeForFirebase(obj) {
   if (obj === undefined) return null;
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(_sanitizeForFirebase);
   const out = {};
-  Object.keys(obj).forEach(k => { out[k] = _sanitizeForFirebase(obj[k]); });
+  Object.keys(obj).forEach(k => { out[fbSafeKey(k)] = _sanitizeForFirebase(obj[k]); });
   return out;
 }
 function syncModuleDiff(module) {
@@ -7674,7 +7678,7 @@ function trySyncNow(showMsg) {
   syncAllPathModules();
   // ✅ update() ব্যবহার করা হচ্ছে, set() না — update() শুধু দেওয়া key গুলো merge করে, বাকি (income/expense/bankTx সহ) অক্ষত থাকে
   beginFbWrite();
-  window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), buildRootSyncPayload())
+  window._fbUpdate(window._fbRef(window._fbDb, window._fbDBREF), _sanitizeForFirebase(buildRootSyncPayload()))
     .then(() => { clearSyncPending('root'); /* 🔕 সিঙ্ক টোস্ট আর দেখানো হয় না */ })
     .catch(e => { console.warn('[HMS] re-sync ব্যর্থ:', e.message); markSyncPending('root'); })
     .finally(() => endFbWrite());
@@ -8763,14 +8767,14 @@ function renderExpPersonSettings() {
 function updateExpSubCats() {
   const cat=document.getElementById('expCategory')?.value||'';
   const subSel=document.getElementById('expSubCategory'); if(!subSel) return;
-  const subs=(appData.settings.expSubCats||{})[cat]||[];
+  const subs=(appData.settings.expSubCats||{})[fbSafeKey(cat)]||[];
   subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি (ঐচ্ছিক) --</option>'+subs.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 // আয়ের সাব-ক্যাটাগরি লোড (ব্যয়ের মতোই — ঐচ্ছিক)
 function updateIncSubCats() {
   const cat=document.getElementById('incCategory')?.value||'';
   const subSel=document.getElementById('incSubCategory'); if(!subSel) return;
-  const subs=(appData.settings.incSubCats||{})[cat]||[];
+  const subs=(appData.settings.incSubCats||{})[fbSafeKey(cat)]||[];
   subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি (ঐচ্ছিক) --</option>'+subs.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 // সাব-ক্যাট সেটিংস
@@ -8780,16 +8784,18 @@ function addExpSubCat() {
   if (!cat) { showToast('⚠️ আগে ক্যাটাগরি নির্বাচন করুন!'); return; }
   if (!name) { showToast('⚠️ সাব-ক্যাটাগরির নাম লিখুন!'); return; }
   if (!appData.settings.expSubCats) appData.settings.expSubCats={};
-  if (!appData.settings.expSubCats[cat]) appData.settings.expSubCats[cat]=[];
-  if (appData.settings.expSubCats[cat].includes(name)) { showToast('এই সাব-ক্যাটাগরি আগে থেকেই আছে!'); return; }
-  appData.settings.expSubCats[cat].push(name);
+  const catKey=fbSafeKey(cat);
+  if (!appData.settings.expSubCats[catKey]) appData.settings.expSubCats[catKey]=[];
+  if (appData.settings.expSubCats[catKey].includes(name)) { showToast('এই সাব-ক্যাটাগরি আগে থেকেই আছে!'); return; }
+  appData.settings.expSubCats[catKey].push(name);
   saveData(); document.getElementById('newSubCatName').value='';
   renderSubCatList(); showToast('✅ সাব-ক্যাটাগরি যোগ হয়েছে!');
 }
 function removeExpSubCat(cat, name) {
   if (!confirm(`"${name}" মুছবেন?`)) return;
-  if (appData.settings.expSubCats?.[cat]) {
-    appData.settings.expSubCats[cat]=appData.settings.expSubCats[cat].filter(s=>s!==name);
+  const catKey=fbSafeKey(cat);
+  if (appData.settings.expSubCats?.[catKey]) {
+    appData.settings.expSubCats[catKey]=appData.settings.expSubCats[catKey].filter(s=>s!==name);
   }
   saveData(); renderSubCatList(); showToast('🗑️ মুছে ফেলা হয়েছে');
 }
@@ -8797,7 +8803,7 @@ function renderSubCatList() {
   const cat=document.getElementById('subCatParent')?.value||'';
   const c=document.getElementById('subCatListContainer'); if(!c) return;
   if (!cat) { c.innerHTML='<p style="color:var(--text-light);font-size:13px">উপরে একটি ক্যাটাগরি নির্বাচন করুন।</p>'; return; }
-  const subs=(appData.settings.expSubCats||{})[cat]||[];
+  const subs=(appData.settings.expSubCats||{})[fbSafeKey(cat)]||[];
   if (!subs.length) { c.innerHTML='<p style="color:var(--text-light);font-size:13px">এই ক্যাটাগরিতে কোনো সাব-ক্যাটাগরি নেই।</p>'; return; }
   c.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px">`+subs.map(s=>`<span style="background:#fee2e2;color:#991b1b;padding:5px 12px;border-radius:20px;font-size:13px;display:inline-flex;align-items:center;gap:6px">${s}<button onclick="removeExpSubCat('${cat}','${s}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;line-height:1;padding:0">×</button></span>`).join('')+`</div>`;
 }
@@ -20940,6 +20946,9 @@ function searchPatients() {
 // একবার সিড হয়ে গেলে appData.settings.incCats / expCats থেকেই সব খাত আসে —
 // অর্থাৎ কোনো খাত কোডে হার্ডকোড থাকে না, সবই সেটিংস থেকে যোগ/মুছা যায়।
 const DEFAULT_INC_CATS = ['OPD ভিজিট ফি','অপারেশন ফি','ওষুধ বিক্রি','চশমা বিক্রি','টেস্ট / রিপোর্ট ফি','ভর্তি ফি','ক্যাম্প আয়','রিসেপশন আয়','অ্যাডমিন বিল','অন্যান্য আয়'];
+// দ্রষ্টব্য: ক্যাটাগরির নাম নিজেই যখন expSubCats/incSubCats/stockSubCats অবজেক্টের key হিসেবে ব্যবহার হয়,
+// তখন উপরের fbSafeKey() দিয়ে sanitize করে নেওয়া হয় (দেখুন লাইন ~7584) — নইলে "মেরামত/রক্ষণাবেক্ষণ"-এর মতো
+// নামে থাকা "/" এর কারণে Firebase update/set ব্যর্থ হয়ে পুরো saveData সিঙ্ক্রোনাসভাবে থেমে যায়।
 const DEFAULT_EXP_CATS = ['ওষুধ/সরঞ্জাম কেনা','কর্মীর বেতন','বিদ্যুৎ বিল','পানির বিল','ইন্টারনেট/ফোন','ভাড়া','মেরামত/রক্ষণাবেক্ষণ','ক্যাম্প ব্যয়','অন্যান্য ব্যয়'];
 const DEFAULT_STOCK_CATS = ['ওষুধ','চশমা/লেন্স','সার্জিক্যাল সরঞ্জাম','অফিস সামগ্রী','অন্যান্য'];
 
@@ -20962,7 +20971,7 @@ function getStockCats() {
 }
 function getStockSubCats(cat) {
   const subs = appData.settings.stockSubCats || {};
-  return subs[cat] || [];
+  return subs[fbSafeKey(cat)] || [];
 }
 
 function addCustomCategory(type) {
@@ -21052,7 +21061,7 @@ function renderCatDropdownPanel(kind) {
   const subMap = getSubCatMap(kind);
   const curCat = document.getElementById(ids.cat)?.value||'';
   panel.innerHTML = cats.map(c=>{
-    const subs = subMap[c]||[];
+    const subs = subMap[fbSafeKey(c)]||[];
     const hasSubs = subs.length>0;
     const isActive = c===curCat;
     const ce = cdAttrEsc(c);
@@ -21096,7 +21105,7 @@ function ensureCdFlyoutPopup() {
 function showCdFlyout(itemEl, kind, cat) {
   clearTimeout(window._cdFlyoutHideTimer);
   const ids = catDropdownIds(kind);
-  const subs = getSubCatMap(kind)[cat]||[];
+  const subs = getSubCatMap(kind)[fbSafeKey(cat)]||[];
   const curCat = document.getElementById(ids.cat)?.value||'';
   const curSub = document.getElementById(ids.sub)?.value||'';
   const isActive = cat===curCat;
@@ -21157,8 +21166,9 @@ function quickAddSubCat(kind, cat) {
   const name = (prompt(`"${cat}"-এর জন্য নতুন সাব-ক্যাটাগরির নাম লিখুন:`)||'').trim();
   if (!name) return;
   const map = getSubCatMap(kind);
-  if (!map[cat]) map[cat]=[];
-  if (!map[cat].includes(name)) { map[cat].push(name); saveData(); showToast('✅ নতুন সাব-ক্যাটাগরি যোগ হয়েছে!'); }
+  const catKey = fbSafeKey(cat);
+  if (!map[catKey]) map[catKey]=[];
+  if (!map[catKey].includes(name)) { map[catKey].push(name); saveData(); showToast('✅ নতুন সাব-ক্যাটাগরি যোগ হয়েছে!'); }
   if (kind==='exp' && typeof renderSubCatList==='function') renderSubCatList();
   selectSubCatFromDropdown(kind, cat, name);
 }
@@ -21219,17 +21229,19 @@ function addStockSubCategory() {
   if(!cat){showToast('⚠️ আগে ক্যাটাগরি সিলেক্ট করুন!');return;}
   if(!val){showToast('⚠️ সাব-ক্যাটাগরির নাম দিন!');return;}
   if(!appData.settings.stockSubCats) appData.settings.stockSubCats={};
-  if(!appData.settings.stockSubCats[cat]) appData.settings.stockSubCats[cat]=[];
-  if(appData.settings.stockSubCats[cat].includes(val)){showToast('⚠️ এই সাব-ক্যাটাগরি আগেই আছে!');return;}
-  appData.settings.stockSubCats[cat].push(val);
+  const catKey=fbSafeKey(cat);
+  if(!appData.settings.stockSubCats[catKey]) appData.settings.stockSubCats[catKey]=[];
+  if(appData.settings.stockSubCats[catKey].includes(val)){showToast('⚠️ এই সাব-ক্যাটাগরি আগেই আছে!');return;}
+  appData.settings.stockSubCats[catKey].push(val);
   document.getElementById('newStockSubCat').value='';
   saveData(); renderStockSubCatList(); showToast('✅ সাব-ক্যাটাগরি যোগ হয়েছে!');
 }
 
 function removeStockSubCategory(cat, sub) {
   if(!confirm(`"${sub}" সাব-ক্যাটাগরি মুছবেন?`))return;
-  if(appData.settings.stockSubCats&&appData.settings.stockSubCats[cat])
-    appData.settings.stockSubCats[cat]=appData.settings.stockSubCats[cat].filter(s=>s!==sub);
+  const catKey=fbSafeKey(cat);
+  if(appData.settings.stockSubCats&&appData.settings.stockSubCats[catKey])
+    appData.settings.stockSubCats[catKey]=appData.settings.stockSubCats[catKey].filter(s=>s!==sub);
   saveData(); renderStockSubCatList(); showToast('🗑️ সাব-ক্যাটাগরি মুছে ফেলা হয়েছে');
 }
 
