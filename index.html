@@ -1972,112 +1972,131 @@ function openPrintWindow(htmlContent, title) {
           <tbody id="newbillDraftTable"></tbody>
         </table></div></div>
       </div>
-      <!-- বিল ফর্ম — Receptionist-এর হুবহু কিন্তু nb_ prefix IDs -->
+      <!-- বিল ফর্ম — রিসেপশন প্যানেলের ডিজাইনের সাথে হুবহু মিল রেখে, nb_ prefix IDs, অ্যাডমিনের নিজস্ব ডিসকাউন্ট লজিক ও রিসেপশনিস্ট-পাঠানো বাটন বজায় রেখে -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">🧾 নতুন বিল তৈরি করুন</div></div>
+        <div class="panel-header">
+          <div class="panel-title">🧾 নতুন বিল তৈরি করুন</div>
+          <div id="nb_RecentPatients" class="rn-header-chips"></div>
+          <div class="rn-header-commission">
+            <select id="nb_DocSelect" onchange="onDocSelectChange('nb_')" title="কমিশন প্রযোজ্য ডাক্তার (ঐচ্ছিক)"><option value="">🩺 কোনো ডাক্তার/কমিশন নেই</option></select>
+            <div class="field" id="nb_DocAfterDutyRow" style="display:none;margin-top:5px">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11.5px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:6px 8px">
+                <input type="checkbox" id="nb_DocAfterDuty" onchange="updateDocCommissionPreview('nb_')"> ডিউটি পরে দেখা হয়েছে
+              </label>
+            </div>
+            <div id="nb_DocCommissionPreview" style="font-size:10.5px;color:var(--text-light);margin-top:3px"></div>
+          </div>
+        </div>
         <div class="panel-body">
-          <div class="form-row three">
-            <div class="field"><label>মেমো নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label><input type="text" id="nb_MemoNo" placeholder="যেমন: Memo-0001" style="font-weight:600;color:var(--accent)"></div>
+          <div class="rn-row rn-row1">
             <div class="field"><label>রোগীর নাম *</label><input type="text" id="nb_PatName" placeholder="পূর্ণ নাম"></div>
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="nb_PatPhone" placeholder="০১XXXXXXXXX"></div>
-          </div>
-          <div class="form-row three">
-            <div class="field"><label>তারিখ *</label><input type="date" id="nb_BillDate"></div>
-            <div class="field"><label>বয়স</label><input type="text" id="nb_PatAge" placeholder="যেমন: ৩৫ বছর"></div>
+            <div class="field"><label>বয়স</label><input type="text" id="nb_PatAge" placeholder="৩৫"></div>
             <div class="field"><label>লিঙ্গ</label>
               <select id="nb_PatGender">
-                <option value="">-- নির্বাচন করুন --</option>
+                <option value="">--</option>
                 <option value="পুরুষ">পুরুষ</option>
                 <option value="নারী">নারী</option>
               </select>
             </div>
+            <div class="field"><label>তারিখ *</label><input type="date" id="nb_BillDate"></div>
           </div>
-          <div class="form-row three">
-            <div class="field" style="grid-column:span 2"><label>ঠিকানা</label><input type="text" id="nb_PatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
-            <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="ডাক্তারের নাম"></div>
+
+          <!-- ✅ ২য় সারি: ঠিকানা | রেফারেন্স | বিবরণ/মন্তব্য | মেমো নং -->
+          <div class="rn-row rn-row2b">
+            <div class="field"><label>ঠিকানা</label><input type="text" id="nb_PatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
+            <div class="field"><label>রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="ডাক্তার/পরিচিত"></div>
+            <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="nb_Note" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
+            <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><input type="text" id="nb_MemoNo" placeholder="Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
-          <div class="form-row three" style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid var(--border)">
-            <div class="field"><label>🩺 কমিশন প্রযোজ্য ডাক্তার <span style="font-size:11px;color:var(--text-light)">(ঐচ্ছিক)</span></label>
-              <select id="nb_DocSelect" onchange="onDocSelectChange('nb_')"><option value="">-- কোনো ডাক্তার/কমিশন নেই --</option></select>
+
+          <!-- ✅ ৩য় সারি: বামে পণ্য ও সার্ভিস (পুরো কলাম), ডানে ডিসকাউন্ট (অ্যাডমিনের নিজস্ব লজিক) → নগদ প্রদান → মোট বিল -->
+          <div class="rn-2col">
+            <div class="rn-left-col">
+              <div class="rn-svc-head">
+                <p style="font-weight:700;font-size:13.5px;color:var(--primary);margin:0">💊 পণ্য ও সার্ভিস</p>
+                <div class="rn-svc-chips">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="addRow('med','nb_')">💊 মেডিসিন</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="addRow('glass','nb_')">👓 চশমা</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="addRow('surgical','nb_')">🩺 সার্জিক্যাল</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('service','nb_')">🔬 টেস্ট/অপারেশন</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('manual','nb_')">✏️ ম্যানুয়াল</button>
+                </div>
+              </div>
+              <div class="rn-svc-cols">
+                <span>পণ্য / সার্ভিস</span>
+                <span>পরিমাণ</span>
+                <span>একক মূল্য</span>
+                <span>সাবটোটাল</span>
+                <span></span>
+              </div>
+              <div id="nb_serviceRows"></div>
             </div>
-            <div class="field" id="nb_DocAfterDutyRow" style="display:none">
-              <label>&nbsp;</label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:9px 10px">
-                <input type="checkbox" id="nb_DocAfterDuty" onchange="updateDocCommissionPreview('nb_')"> ডিউটি সময়ের পরে দেখা হয়েছে
+            <div class="rn-right-col">
+              <!-- ডিসকাউন্ট — অ্যাডমিনের নিজস্ব লজিক (চশমার sellMin-এর উপরের অংশে প্রযোজ্য নিয়মসহ) অপরিবর্তিত -->
+              <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:9px 12px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+                  <span style="font-size:12px;font-weight:700;color:#92400e">🎫 ডিসকাউন্ট</span>
+                  <span id="nb_DiscountLimit" style="font-size:10.5px;color:#92400e"></span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end">
+                  <div class="field" style="margin-bottom:0">
+                    <label style="font-size:10.5px">ডিসকাউন্ট (%)</label>
+                    <input type="number" id="nb_DiscountPct" placeholder="০" min="0" oninput="nbApplyDiscPct()" style="padding:8px 9px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;min-width:0">
+                  </div>
+                  <div class="field" style="margin-bottom:0">
+                    <label style="font-size:10.5px">ডিসকাউন্ট (৳)</label>
+                    <input type="number" id="nb_DiscountAmt" placeholder="০" min="0" oninput="nbApplyDiscAmt()" style="padding:8px 9px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;min-width:0">
+                  </div>
+                  <button class="btn btn-outline btn-sm" onclick="nbClearDisc()" style="margin-bottom:0;padding:8px 9px">✕</button>
+                </div>
+                <div id="nb_GlassDiscInfo" style="display:none;margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:11.5px;color:#856404">
+                  ⚠️ চশমার বিল: ডিসকাউন্ট শুধু sellMin এর উপরের অংশে প্রযোজ্য।
+                </div>
+              </div>
+              <!-- মোবাইল ব্যাংকিং ও নগদ প্রদান পাশাপাশি -->
+              <div class="rn-mfs-cash-row">
+                <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:8px;padding:9px 11px">
+                  <label style="font-size:11.5px;font-weight:700;color:#9d174d;display:block;margin-bottom:5px">📱 মোবাইল ব্যাংকিং (ঐচ্ছিক)</label>
+                  <input type="number" id="nb_MfsPaid" placeholder="০.০০" min="0" oninput="onNbMfsPaidChange()" style="width:100%;padding:7px 9px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:12.5px;box-sizing:border-box;margin-bottom:5px">
+                  <select id="nb_MfsAccount" style="width:100%;padding:7px 9px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:12px;background:#fff;box-sizing:border-box">
+                    <option value="">-- একাউন্ট --</option>
+                  </select>
+                  <div id="nb_MfsPaidHint" style="font-size:10px;color:#9d174d;margin-top:4px"></div>
+                </div>
+                <div class="field amt-hl" style="margin-bottom:0"><label>নগদ প্রদান (৳) *</label><input type="number" id="nb_CashPaid" placeholder="০.০০" min="0" oninput="nbUpdateSummary(); onNbMfsPaidChange()"></div>
+              </div>
+              <!-- মোট বিল -->
+              <div class="receipt-summary" style="margin-top:10px">
+                <div class="receipt-row"><span>মোট বিল</span><span id="nb_Total">৳ ০</span></div>
+                <div class="receipt-row" id="nb_DiscountRow" style="display:none;color:#f59e0b;font-weight:600"><span>ডিসকাউন্ট</span><span id="nb_DiscountShow">- ৳ ০</span></div>
+                <div class="receipt-row" style="font-weight:600;color:var(--primary)"><span>নেট বিল</span><span id="nb_NetBill">৳ ০</span></div>
+                <div class="receipt-row paid-row"><span>নগদ প্রদান</span><span id="nb_Paid">৳ ০</span></div>
+                <div class="receipt-row due-row"><span>বাকি</span><span id="nb_Due">৳ ০</span></div>
+                <div class="receipt-row total"><span>নেট বাকি</span><span id="nb_NetDue">৳ ০</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ৪র্থ সারি: ডেলিভারি (বামে) + অ্যাকশন বাটন (ডানে) পাশাপাশি -->
+          <div class="rn-row rn-row-bottom">
+            <div id="nb_DeliveryBox" style="background:#eef6ff;border:1.5px solid #3498db;border-radius:8px;padding:14px;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box">
+              <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:#2c5d8a;cursor:pointer">
+                <input type="checkbox" id="nb_SendToDelivery" onchange="toggleDeliveryDate('nb_')" style="width:16px;height:16px">
+                🚚 ডেলিভারি শিডিউলে পাঠান
               </label>
-            </div>
-            <div class="field"><label>&nbsp;</label><div id="nb_DocCommissionPreview" style="font-size:12.5px;color:var(--text-light);padding-top:8px"></div></div>
-          </div>
-          <hr class="divider">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-            <p style="font-weight:700;font-size:14px;color:var(--primary);margin:0">💊 পণ্য ও সার্ভিস</p>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn btn-primary btn-sm" onclick="addRow('med','nb_')">💊 মেডিসিন</button>
-              <button class="btn btn-primary btn-sm" onclick="addRow('glass','nb_')">👓 চশমা</button>
-              <button class="btn btn-primary btn-sm" onclick="addRow('surgical','nb_')">🩺 সার্জিক্যাল</button>
-              <button class="btn btn-outline btn-sm" onclick="addRow('service','nb_')">🔬 টেস্ট/অপারেশন</button>
-              <button class="btn btn-outline btn-sm" onclick="addRow('manual','nb_')">✏️ ম্যানুয়াল</button>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:4px;padding:0 4px">
-            <span style="font-size:11px;font-weight:700;color:var(--text-light)">পণ্য / সার্ভিস</span>
-            <span style="font-size:11px;font-weight:700;color:var(--text-light)">পরিমাণ</span>
-            <span style="font-size:11px;font-weight:700;color:var(--text-light)">একক মূল্য</span>
-            <span style="font-size:11px;font-weight:700;color:var(--text-light)">সাবটোটাল</span>
-            <span></span>
-          </div>
-          <div id="nb_serviceRows"></div>
-          <hr class="divider">
-          <div class="form-row-amt">
-            <div class="field-stack stack-fill">
-              <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="nb_Note" placeholder="ঐচ্ছিক" rows="3"></textarea></div>
-            </div>
-            <div class="field amt-hl"><label>নগদ প্রদান (৳) *</label><input type="number" id="nb_CashPaid" placeholder="০.০০" min="0" oninput="nbUpdateSummary()"></div>
-          </div>
-          <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:14px;margin-bottom:12px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <span style="font-size:13px;font-weight:700;color:#92400e">🎫 ডিসকাউন্ট</span>
-              <span id="nb_DiscountLimit" style="font-size:11px;color:#92400e"></span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end">
-              <div class="field" style="margin-bottom:0">
-                <label>ডিসকাউন্ট (%)</label>
-                <input type="number" id="nb_DiscountPct" placeholder="০" min="0" oninput="nbApplyDiscPct()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;width:100%">
+              <div id="nb_DeliveryDateRow" style="display:none;margin-top:8px">
+                <label style="font-size:12px">ডেলিভারির তারিখ *</label>
+                <input type="date" id="nb_DeliveryDate" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               </div>
-              <div class="field" style="margin-bottom:0">
-                <label>ডিসকাউন্ট পরিমাণ (৳)</label>
-                <input type="number" id="nb_DiscountAmt" placeholder="০" min="0" oninput="nbApplyDiscAmt()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;width:100%">
-              </div>
-              <button class="btn btn-outline btn-sm" onclick="nbClearDisc()" style="margin-bottom:0">✕ বাতিল</button>
             </div>
-            <div id="nb_GlassDiscInfo" style="display:none;margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:12px;color:#856404">
-              ⚠️ চশমার বিল: ডিসকাউন্ট শুধু sellMin এর উপরের অংশে প্রযোজ্য।
+            <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-outline" onclick="nbClearForm()">🔄 রিসেট</button>
+              <button class="btn btn-warning" onclick="nbPrint()">🖨️ প্রিন্ট মেমো</button>
+              <button class="btn btn-warning" id="nbSendBackBtn" style="display:none" onclick="nbSendBackToRec()">↩️ রিসেপশনিস্টকে ফেরত পাঠান</button>
+              <button class="btn btn-outline" style="border-color:var(--warning);color:var(--warning)" onclick="nbSendToReception()">📨 রিসেপশনিস্টে পাঠান</button>
+              <button class="btn btn-success" id="nbSaveBillBtn" onclick="nbSaveBill()" style="padding:13px 30px;font-size:15px;font-weight:800;border-radius:10px">✅ সেভ করুন</button>
             </div>
-          </div>
-          <div class="receipt-summary">
-            <div class="receipt-row"><span>মোট বিল</span><span id="nb_Total">৳ ০</span></div>
-            <div class="receipt-row" id="nb_DiscountRow" style="display:none;color:#f59e0b;font-weight:600"><span>ডিসকাউন্ট</span><span id="nb_DiscountShow">- ৳ ০</span></div>
-            <div class="receipt-row" style="font-weight:600;color:var(--primary)"><span>নেট বিল</span><span id="nb_NetBill">৳ ০</span></div>
-            <div class="receipt-row paid-row"><span>নগদ প্রদান</span><span id="nb_Paid">৳ ০</span></div>
-            <div class="receipt-row due-row"><span>বাকি</span><span id="nb_Due">৳ ০</span></div>
-            <div class="receipt-row total"><span>নেট বাকি</span><span id="nb_NetDue">৳ ০</span></div>
-          </div>
-          <div id="nb_DeliveryBox" style="background:#eef6ff;border:1.5px solid #3498db;border-radius:8px;padding:12px 14px;margin-top:12px">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:#2c5d8a;cursor:pointer">
-              <input type="checkbox" id="nb_SendToDelivery" onchange="toggleDeliveryDate('nb_')" style="width:16px;height:16px">
-              🚚 ডেলিভারি শিডিউলে পাঠান
-            </label>
-            <div id="nb_DeliveryDateRow" style="display:none;margin-top:8px">
-              <label style="font-size:12px">ডেলিভারির তারিখ *</label>
-              <input type="date" id="nb_DeliveryDate" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-            </div>
-          </div>
-          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
-            <button class="btn btn-outline" onclick="nbClearForm()">🔄 রিসেট</button>
-            <button class="btn btn-warning" onclick="nbPrint()">🖨️ প্রিন্ট মেমো</button>
-            <button class="btn btn-warning" id="nbSendBackBtn" style="display:none" onclick="nbSendBackToRec()">↩️ রিসেপশনিস্টকে ফেরত পাঠান</button>
-            <button class="btn btn-outline" style="border-color:var(--warning);color:var(--warning)" onclick="nbSendToReception()">📨 রিসেপশনিস্টে পাঠান</button>
-            <button class="btn btn-success" id="nbSaveBillBtn" onclick="nbSaveBill()">✅ সেভ করুন</button>
           </div>
         </div>
       </div>
@@ -5798,7 +5817,6 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🔍 পণ্যের দাম তাৎক্ষণিক খুঁজুন</div></div>
         <div class="panel-body">
-          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">কোড বা নাম দিয়ে সার্চ করুন — ক্যাম্প থেকে ফোনে জিজ্ঞেস করলেও তাৎক্ষণিক জানাতে পারবেন। নিচে সব ক্যাটাগরির পূর্ব-নির্ধারিত দামও ব্রাউজ করা যাবে।</p>
           <div style="display:flex;gap:10px;margin-bottom:14px">
             <input type="text" id="lookupQuery" placeholder="কোড বা নাম লিখুন... (যেমন: GL001 বা Eye Drop)" oninput="doLookup()" style="flex:1;padding:12px 16px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px">
           </div>
@@ -14033,7 +14051,7 @@ function deleteMfsAccount(id) {
 function refreshAllMfsSelects() {
   const accs = appData.mfsAccounts || [];
   const opts = '<option value="">-- একাউন্ট নির্বাচন করুন --</option>' + accs.map(a=>`<option value="${a.id}">${a.name} (৳ ${fmt(calcMfsAccountBalance(a.id))})</option>`).join('');
-  ['expMfsAccount','vendorPayMfsAccount','incMfsAccount','visitMfsAccount','mfsTransferAccount','rMfsAccount','adminBillMfsAccount'].forEach(id => {
+  ['expMfsAccount','vendorPayMfsAccount','incMfsAccount','visitMfsAccount','mfsTransferAccount','rMfsAccount','adminBillMfsAccount','nb_MfsAccount'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { const cur = el.value; el.innerHTML = opts; if (cur) el.value = cur; }
   });
@@ -14548,7 +14566,7 @@ function populateDoctorSelect(selId) {
   const prev = sel.value;
   const docs = (appData.doctors||[]).filter(d=>d.status==='active');
   sel.innerHTML = '<option value="">-- কোনো ডাক্তার/কমিশন নেই --</option>' + docs.map(d=>
-    `<option value="${d.id}">${d.name} ${d.type==='salaried'?'(বেতনভুক্ত)':'(পার্টটাইমার)'}</option>`
+    `<option value="${d.id}">${d.name}${d.category?` (${_DOC_CAT_LABELS[d.category]||d.category})`:''}</option>`
   ).join('');
   if (prev) sel.value = prev;
 }
@@ -19342,11 +19360,11 @@ function _lookupCatalogGroups() {
   const groups = {};
   (appData.stock||[]).filter(s=>s.cat && s.cat!=='অফিস সামগ্রী').forEach(s=>{
     if (!groups[s.cat]) groups[s.cat] = [];
-    groups[s.cat].push({ name:s.name, code:s.code, price: s.cat==='চশমা/লেন্স' ? null : (s.sellPrice||0), min:s.sellMin, max:s.sellMax, isGlass: s.cat==='চশমা/লেন্স' });
+    groups[s.cat].push({ name:s.name, code:s.code, price: s.cat==='চশমা/লেন্স' ? null : (s.sellPrice||0), min:s.sellMin, max:s.sellMax, isGlass: s.cat==='চশমা/লেন্স', qty:s.qty, unit:s.unit, minQty:s.minQty, hasStock:true });
   });
   const testItems = (appData.testFees||[]).filter(t=>t.status==='active');
   if (testItems.length) {
-    groups['টেস্ট/অপারেশন'] = testItems.map(t=>({ name:t.name, code:'', price:t.fee, sub:t.cat }));
+    groups['টেস্ট/অপারেশন'] = testItems.map(t=>({ name:t.name, code:'', price:t.fee, sub:t.cat, hasStock:false }));
   }
   return groups;
 }
@@ -19369,11 +19387,12 @@ function renderPriceCatalog() {
     return `<div style="margin-bottom:18px">
       <div style="font-weight:700;font-size:13.5px;color:var(--primary);margin-bottom:8px">${c} <span style="font-weight:400;color:var(--text-light);font-size:12px">(${items.length}টি)</span></div>
       <div class="table-wrap"><table>
-        <thead><tr><th>নাম</th><th>কোড</th><th>দাম</th></tr></thead>
+        <thead><tr><th>নাম</th><th>কোড</th><th>দাম</th><th>স্টক</th></tr></thead>
         <tbody>${items.map(it=>`<tr>
           <td style="font-weight:600">${it.name}${it.sub?` <span style="font-weight:400;color:var(--text-light);font-size:11px">(${it.sub})</span>`:''}</td>
           <td style="color:var(--text-light)">${it.code||'—'}</td>
           <td style="color:var(--success);font-weight:700">${it.isGlass?`৳${fmt(it.min||0)} – ৳${fmt(it.max||0)}`:'৳ '+fmt(it.price||0)}</td>
+          <td style="color:${it.hasStock?(it.qty<=(it.minQty||5)?'var(--danger)':'var(--success)'):'#ccc'}">${it.hasStock?`${it.qty} ${it.unit||''}`:'—'}</td>
         </tr>`).join('')}</tbody>
       </table></div>
     </div>`;
@@ -20871,6 +20890,23 @@ function onAbMfsPaidChange() {
     if (hint) hint.textContent = `বাকি ৳ ${fmt(cashPaid - mfsPaid)} ক্যাশে গণ্য হবে`;
   } else if (hint) hint.textContent = '';
 }
+function onNbMfsPaidChange() {
+  const sel = document.getElementById('nb_MfsAccount');
+  if (sel && sel.options.length <= 1) sel.innerHTML = '<option value="">-- একাউন্ট --</option>' + (appData.mfsAccounts||[]).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  const cashPaid = parseFloat(document.getElementById('nb_CashPaid').value)||0;
+  const mfsInput = document.getElementById('nb_MfsPaid');
+  let mfsPaid = parseFloat(mfsInput.value)||0;
+  const hint = document.getElementById('nb_MfsPaidHint');
+  if (mfsPaid > cashPaid) {
+    mfsPaid = cashPaid;
+    mfsInput.value = cashPaid || '';
+    if (hint) hint.textContent = '⚠️ মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ দেওয়া যাবে না, সমন্বয় করা হয়েছে';
+  } else if (mfsPaid > 0 && !document.getElementById('nb_MfsAccount').value) {
+    if (hint) hint.textContent = '⚠️ কোন একাউন্টে জমা হয়েছে তা নির্বাচন করুন';
+  } else if (mfsPaid > 0) {
+    if (hint) hint.textContent = `বাকি ৳ ${fmt(cashPaid - mfsPaid)} ক্যাশে গণ্য হবে`;
+  } else if (hint) hint.textContent = '';
+}
 
 function applyDiscountPct() {
   const services = getServices();
@@ -21201,19 +21237,20 @@ function onRPatPhoneInput() {
 }
 
 // ✅ পুরনো ভিজিট থেকে নাম/বয়স/লিঙ্গ/ঠিকানা এক ক্লিকে বিল ফর্মে ভরে দেয় (নতুন বিলের জন্য, শুধু তথ্য কপি — বিল কপি না)
-function fillFromVisit(visitId) {
+function fillFromVisit(visitId, prefix) {
+  prefix = prefix || 'r';
   var v = (appData.visits||[]).find(function(x){ return x.id===visitId; });
   if (!v) return;
   var set = function(id,val){ var el=document.getElementById(id); if(el && val) el.value=val; };
-  set('rPatName', v.patName); set('rPatPhone', v.patPhone); set('rPatAge', v.patAge);
-  set('rPatGender', v.patGender); set('rPatAddress', v.patAddress); set('rPatDoc', v.patDoc);
-  var hint = document.getElementById('rPatPhoneHint'); if (hint) hint.style.display='none';
+  set(prefix+'PatName', v.patName); set(prefix+'PatPhone', v.patPhone); set(prefix+'PatAge', v.patAge);
+  set(prefix+'PatGender', v.patGender); set(prefix+'PatAddress', v.patAddress); set(prefix+'PatDoc', v.patDoc);
+  var hint = document.getElementById(prefix+'PatPhoneHint'); if (hint) hint.style.display='none';
   showToast('✅ আগের তথ্য থেকে ফর্ম ভরা হয়েছে');
 }
 
-// ✅ সাম্প্রতিক ৫ জন ভিন্ন রোগী — এক ক্লিকে ফলোআপ বিলের জন্য তথ্য ভরে দেয়
-function renderRecRecentPatients() {
-  var wrap = document.getElementById('recRecentPatients');
+// ✅ সাম্প্রতিক ৫ জন ভিন্ন রোগী — এক ক্লিকে ফলোআপ বিলের জন্য তথ্য ভরে দেয় (রিসেপশন ও অ্যাডমিন — দুই জায়গাতেই ব্যবহৃত)
+function renderRecentPatientsInto(containerId, prefix) {
+  var wrap = document.getElementById(containerId);
   if (!wrap) return;
   var seen = {}, recent = [];
   (appData.visits||[]).slice().sort(function(a,b){ return b.id-a.id; }).forEach(function(v){
@@ -21226,9 +21263,11 @@ function renderRecRecentPatients() {
   if (!recent.length) { wrap.innerHTML=''; return; }
   // শুধু চিপ — কোনো লেবেল/টাইটেল টেক্সট নেই, প্যানেল-হেডারের একই লাইনে বসার জন্য কমপ্যাক্ট রাখা হয়েছে
   wrap.innerHTML = recent.map(function(v){
-    return '<button type="button" onclick="fillFromVisit('+v.id+')" title="ফলোআপ বিলের জন্য তথ্য ভরুন" style="background:white;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-family:inherit;font-size:12px;cursor:pointer;color:#334155;white-space:nowrap">'+v.patName+(v.patPhone?' — '+v.patPhone:'')+'</button>';
+    return '<button type="button" onclick="fillFromVisit('+v.id+',\''+prefix+'\')" title="ফলোআপ বিলের জন্য তথ্য ভরুন" style="background:white;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-family:inherit;font-size:12px;cursor:pointer;color:#334155;white-space:nowrap">'+v.patName+(v.patPhone?' — '+v.patPhone:'')+'</button>';
   }).join('');
 }
+function renderRecRecentPatients() { renderRecentPatientsInto('recRecentPatients', 'r'); }
+function renderNbRecentPatients() { renderRecentPatientsInto('nb_RecentPatients', 'nb_'); }
 
 // ✅ রোগী সার্চ — সব সময়ের বিল হিস্ট্রি থেকে নাম/ফোন দিয়ে খোঁজা (শুধু আজকের এন্ট্রি না)
 function doRecPatientSearch() {
@@ -22746,11 +22785,13 @@ function initNewBillPage() {
   if(document.getElementById('nb_BillDate')) document.getElementById('nb_BillDate').value=todayStr();
   if(document.getElementById('nb_MemoNo'))   document.getElementById('nb_MemoNo').value=generateNextMemoNo();
   document.getElementById('nb_serviceRows').innerHTML=''; _rowCount['nb_']=0;
-  addRow('service','nb_'); nbUpdateSummary();
+  // ✅ বাই ডিফল্ট কোনো রো থাকবে না — রিসেপশন প্যানেলের সাথে সামঞ্জস্য রেখে, ব্যবহারকারী যা যোগ করবে শুধু সেটাই থাকবে
+  nbUpdateSummary();
   renderNewBillDrafts(); updateDraftBadge(); renderNewBillHistory();
   window._adminDraftId=null;
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   if (typeof populateDoctorSelect==='function') populateDoctorSelect('nb_DocSelect');
+  if (typeof renderNbRecentPatients==='function') renderNbRecentPatients();
 }
 
 function nbApplyDiscAmt() { _applyAmt('nb_'); }
@@ -22763,10 +22804,12 @@ function nbClearDisc() {
 }
 
 function nbClearForm() {
-  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatAddress','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt'].forEach(id=>{
+  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatAddress','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt','nb_MfsPaid'].forEach(id=>{
     const el=document.getElementById(id);if(el){el.value='';el.readOnly=false;el.style.background='';}
   });
   const genderEl=document.getElementById('nb_PatGender'); if(genderEl) genderEl.value='';
+  const mfsAccEl=document.getElementById('nb_MfsAccount'); if(mfsAccEl) mfsAccEl.value='';
+  const mfsHintEl=document.getElementById('nb_MfsPaidHint'); if(mfsHintEl) mfsHintEl.textContent='';
   document.getElementById('nb_BillDate').value=todayStr();
   if(document.getElementById('nb_MemoNo')) document.getElementById('nb_MemoNo').value=generateNextMemoNo();
   if(document.getElementById('nb_DiscountRow')) document.getElementById('nb_DiscountRow').style.display='none';
@@ -22778,8 +22821,9 @@ function nbClearForm() {
   const nbDdEl=document.getElementById('nb_DeliveryDate'); if(nbDdEl) nbDdEl.value='';
   document.getElementById('nb_serviceRows').innerHTML='';
   _rowCount['nb_']=0;
-  addRow('service','nb_');
+  // ✅ বাই ডিফল্ট কোনো রো থাকবে না
   nbUpdateSummary();
+  if (typeof renderNbRecentPatients==='function') renderNbRecentPatients();
 }
 
 function nbPrint() {
@@ -23134,6 +23178,10 @@ function _billSave(p) {
   const note=(document.getElementById(p+'Note')||{}).value?.trim()||'';
   const discAmt=parseFloat((document.getElementById(nb?'nb_DiscountAmt':'rDiscountAmt')||{}).value)||0;
   const cashPaid=parseFloat((document.getElementById(nb?'nb_CashPaid':'rCashPaid')||{}).value)||0;
+  let mfsPaid=parseFloat((document.getElementById(nb?'nb_MfsPaid':'rMfsPaid')||{}).value)||0;
+  const mfsAccountId=(document.getElementById(nb?'nb_MfsAccount':'rMfsAccount')||{}).value||'';
+  if (mfsPaid > cashPaid) mfsPaid = cashPaid; // নিরাপত্তা: মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ ধরা হবে না
+  if (mfsPaid > 0 && !mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
   const total=items.reduce((s,i)=>s+i.subtotal,0);
   const netBill=Math.max(0,total-discAmt);
   const due=Math.max(0,netBill-cashPaid);
@@ -23171,7 +23219,9 @@ function _billSave(p) {
   const deliveryDate=(document.getElementById(dlvPrefix+'DeliveryDate')||{}).value||'';
   if (sendToDelivery && !deliveryDate) { showToast('⚠️ ডেলিভারির তারিখ দিন!'); return; }
 
-  appData.visits.push({id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
+  appData.visits.push({id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
+    mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
+    by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
   if (nb) recordDoctorCommission('nb_', date, memoNo, null);
   // ✅ income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না)
   if(cashPaid>0) appData.income.push({id:Date.now()+1,date,category:'রিসেপশন আয়',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:byLabel,visitId:_billVisitId});
