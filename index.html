@@ -398,8 +398,8 @@
   @media(max-width:1050px) { .rn-2col { grid-template-columns: 1fr; } }
 
   /* ✅ পণ্য ও সার্ভিস হেডার — টাইটেল ও "যোগ করুন" ড্রপডাউন এক লাইনে, সঠিক এলাইনমেন্টে */
-  .rn-svc-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-  .rn-svc-head select { padding:7px 10px; border:1.5px solid var(--primary); border-radius:8px; font-family:'Hind Siliguri',sans-serif; font-size:12.5px; font-weight:600; color:var(--primary); background:white; cursor:pointer; }
+  .rn-svc-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .rn-svc-chips { display:flex; align-items:center; flex-wrap:wrap; gap:5px; }
   .rn-svc-cols { display:grid; grid-template-columns:2.2fr 1fr 1fr 1fr auto; gap:6px; margin-bottom:4px; padding:0 4px; }
   .rn-svc-cols span { font-size:10.5px; font-weight:700; color:var(--text-light); }
 
@@ -408,7 +408,7 @@
   @media(max-width:500px) { .rn-mfs-cash-row { grid-template-columns: 1fr; } }
 
   /* ✅ ৪র্থ সারি: ডেলিভারি + অ্যাকশন বাটন পাশাপাশি */
-  .rn-row-bottom { grid-template-columns: 1fr 1.3fr; align-items:stretch; margin-top:4px; }
+  .rn-row-bottom { display:grid; grid-template-columns: 1.1fr 1fr; gap:20px; align-items:stretch; margin-top:4px; }
   @media(max-width:1050px) { .rn-row-bottom { grid-template-columns: 1fr; } }
 
   /* ✅ ফিক্স: .service-row নিজে grid না — এর ভেতরের div-এই আসল grid-template (ইনলাইন স্টাইলে, addRow() ফাংশনে)
@@ -5654,14 +5654,13 @@ function openPrintWindow(htmlContent, title) {
             <div class="rn-left-col">
               <div class="rn-svc-head">
                 <p style="font-weight:700;font-size:13.5px;color:var(--primary);margin:0">💊 পণ্য ও সার্ভিস</p>
-                <select id="rAddRowType" onchange="if(this.value){addRow(this.value,'');this.value='';}">
-                  <option value="">➕ যোগ করুন...</option>
-                  <option value="med">💊 মেডিসিন</option>
-                  <option value="glass">👓 চশমা</option>
-                  <option value="surgical">🩺 সার্জিক্যাল</option>
-                  <option value="service">🔬 টেস্ট/অপারেশন</option>
-                  <option value="manual">✏️ ম্যানুয়াল</option>
-                </select>
+                <div class="rn-svc-chips">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="addRow('med','')">💊 মেডিসিন</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="addRow('glass','')">👓 চশমা</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="addRow('surgical','')">🩺 সার্জিক্যাল</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('service','')">🔬 টেস্ট/অপারেশন</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('manual','')">✏️ ম্যানুয়াল</button>
+                </div>
               </div>
               <div class="rn-svc-cols">
                 <span>পণ্য / সার্ভিস</span>
@@ -5775,7 +5774,19 @@ function openPrintWindow(htmlContent, title) {
           <div class="panel-title">⏳ বাকি রোগীর তালিকা</div>
           <div style="font-size:13px;color:var(--text-light)">মোট বাকি: <strong style="color:#9b59b6" id="recTotalDueAmt">৳ ০</strong></div>
         </div>
-        <div class="panel-body"><div class="table-wrap"><table>
+        <div class="panel-body" style="padding-top:0">
+          <div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap;align-items:center">
+            <input type="text" id="recDueSearchQuery" placeholder="🔍 নাম বা ফোন দিয়ে খুঁজুন..." oninput="renderRecDue()" style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <select id="recDueMonth" onchange="renderRecDue()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব মাস</option>
+              <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option>
+              <option value="4">এপ্রিল</option><option value="5">মে</option><option value="6">জুন</option>
+              <option value="7">জুলাই</option><option value="8">আগস্ট</option><option value="9">সেপ্টেম্বর</option>
+              <option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+            </select>
+            <input type="number" id="recDueYear" onchange="renderRecDue()" placeholder="বছর" style="width:90px;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+          </div>
+          <div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>রোগীর নাম</th><th>ফোন</th><th>মোট বিল</th><th>পরিশোধিত</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="recDueTable"></tbody>
         </table></div></div>
@@ -5787,11 +5798,15 @@ function openPrintWindow(htmlContent, title) {
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🔍 পণ্যের দাম তাৎক্ষণিক খুঁজুন</div></div>
         <div class="panel-body">
-          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">কোড বা নাম দিয়ে সার্চ করুন — ক্যাম্প থেকে ফোনে জিজ্ঞেস করলেও তাৎক্ষণিক জানাতে পারবেন।</p>
-          <div style="display:flex;gap:10px;margin-bottom:16px">
+          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">কোড বা নাম দিয়ে সার্চ করুন — ক্যাম্প থেকে ফোনে জিজ্ঞেস করলেও তাৎক্ষণিক জানাতে পারবেন। নিচে সব ক্যাটাগরির পূর্ব-নির্ধারিত দামও ব্রাউজ করা যাবে।</p>
+          <div style="display:flex;gap:10px;margin-bottom:14px">
             <input type="text" id="lookupQuery" placeholder="কোড বা নাম লিখুন... (যেমন: GL001 বা Eye Drop)" oninput="doLookup()" style="flex:1;padding:12px 16px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:15px">
           </div>
           <div id="lookupResults"></div>
+          <div id="lookupCatalogWrap">
+            <div id="lookupCatTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+            <div id="lookupCatalog"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -19287,7 +19302,9 @@ function printPurchaseRecord() {
 function doLookup() {
   const q = (document.getElementById('lookupQuery').value||'').toLowerCase().trim();
   const res = document.getElementById('lookupResults');
-  if (!q) { res.innerHTML=''; return; }
+  const catalogWrap = document.getElementById('lookupCatalogWrap');
+  if (!q) { res.innerHTML=''; if(catalogWrap) catalogWrap.style.display='block'; return; }
+  if (catalogWrap) catalogWrap.style.display='none';
   const matches = appData.stock.filter(s =>
     s.cat!=='অফিস সামগ্রী' &&
     (s.name.toLowerCase().includes(q) || (s.code&&s.code.toLowerCase().includes(q)))
@@ -19318,6 +19335,52 @@ function doLookup() {
     </div>`;
   }).join('');
 }
+
+// ✅ ক্যাটাগরি-ওয়াইজ পূর্ব-নির্ধারিত দামের ব্রাউজেবল তালিকা — সার্চ ছাড়াই সব দেখা যায় (স্টক আইটেম + টেস্ট/অপারেশন ফি)
+var _lookupActiveCat = 'all';
+function _lookupCatalogGroups() {
+  const groups = {};
+  (appData.stock||[]).filter(s=>s.cat && s.cat!=='অফিস সামগ্রী').forEach(s=>{
+    if (!groups[s.cat]) groups[s.cat] = [];
+    groups[s.cat].push({ name:s.name, code:s.code, price: s.cat==='চশমা/লেন্স' ? null : (s.sellPrice||0), min:s.sellMin, max:s.sellMax, isGlass: s.cat==='চশমা/লেন্স' });
+  });
+  const testItems = (appData.testFees||[]).filter(t=>t.status==='active');
+  if (testItems.length) {
+    groups['টেস্ট/অপারেশন'] = testItems.map(t=>({ name:t.name, code:'', price:t.fee, sub:t.cat }));
+  }
+  return groups;
+}
+function renderPriceCatalog() {
+  const tabsEl = document.getElementById('lookupCatTabs');
+  const bodyEl = document.getElementById('lookupCatalog');
+  if (!tabsEl || !bodyEl) return;
+  const groups = _lookupCatalogGroups();
+  const cats = Object.keys(groups);
+  if (!cats.length) { tabsEl.innerHTML=''; bodyEl.innerHTML='<div style="text-align:center;color:#aaa;padding:24px">কোনো দাম সেট করা নেই</div>'; return; }
+  if (_lookupActiveCat!=='all' && !cats.includes(_lookupActiveCat)) _lookupActiveCat='all';
+  tabsEl.innerHTML = ['all',...cats].map(c=>{
+    const label = c==='all' ? 'সব' : c;
+    const active = _lookupActiveCat===c;
+    return `<button type="button" onclick="_lookupSetCat('${c.replace(/'/g,"\\'")}')" class="btn btn-sm ${active?'btn-primary':'btn-outline'}">${label}</button>`;
+  }).join('');
+  const showCats = _lookupActiveCat==='all' ? cats : [_lookupActiveCat];
+  bodyEl.innerHTML = showCats.map(c=>{
+    const items = groups[c].slice().sort((a,b)=>a.name.localeCompare(b.name,'bn'));
+    return `<div style="margin-bottom:18px">
+      <div style="font-weight:700;font-size:13.5px;color:var(--primary);margin-bottom:8px">${c} <span style="font-weight:400;color:var(--text-light);font-size:12px">(${items.length}টি)</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>নাম</th><th>কোড</th><th>দাম</th></tr></thead>
+        <tbody>${items.map(it=>`<tr>
+          <td style="font-weight:600">${it.name}${it.sub?` <span style="font-weight:400;color:var(--text-light);font-size:11px">(${it.sub})</span>`:''}</td>
+          <td style="color:var(--text-light)">${it.code||'—'}</td>
+          <td style="color:var(--success);font-weight:700">${it.isGlass?`৳${fmt(it.min||0)} – ৳${fmt(it.max||0)}`:'৳ '+fmt(it.price||0)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }).join('');
+}
+function _lookupSetCat(c) { _lookupActiveCat = c; renderPriceCatalog(); }
+
 
 // ===== SALARY MODULE =====
 function initSalaryFilters() {
@@ -20594,6 +20657,7 @@ function switchRecTab(name, btn) {
   if (name==='directory') { renderRecDoctorDirectory(); renderServiceCatalog(); renderRecCampSchedule(); }
   if (name==='inquiry') renderInquiryLog();
   if (name==='attendance') renderRecAttendancePage();
+  if (name==='lookup') renderPriceCatalog();
 }
 
 function initServiceRows() {
@@ -20960,19 +21024,74 @@ function renderRecDue() {
   const totalDue=visits.reduce((s,v)=>s+v.due,0);
   document.getElementById('recTotalDueAmt').textContent='৳ '+fmt(totalDue);
   const tbody=document.getElementById('recDueTable');
-  if (!visits.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">কোনো বাকি নেই ✅</td></tr>'; return; }
-  tbody.innerHTML=visits.map(v=>`<tr>
+  // ✅ মাস/বছর ফিল্টার + নাম/ফোন সার্চ
+  const q = ((document.getElementById('recDueSearchQuery')||{}).value||'').trim().toLowerCase();
+  const qDigits = q.replace(/\D/g,'');
+  const fMonth = (document.getElementById('recDueMonth')||{}).value||'';
+  const fYear = (document.getElementById('recDueYear')||{}).value||'';
+  let filtered = visits;
+  if (fMonth || fYear) {
+    filtered = filtered.filter(v=>{
+      if (!v.date) return false;
+      const [vy,vm] = v.date.split('-');
+      if (fMonth && parseInt(vm)!==parseInt(fMonth)) return false;
+      if (fYear && vy!==String(fYear)) return false;
+      return true;
+    });
+  }
+  if (q) {
+    filtered = filtered.filter(v=>{
+      const nameMatch = (v.patName||'').toLowerCase().includes(q);
+      const phoneMatch = qDigits.length>=3 && (v.patPhone||'').replace(/\D/g,'').includes(qDigits);
+      return nameMatch || phoneMatch;
+    });
+  }
+  if (!filtered.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">'+(visits.length?'কোনো ফলাফল পাওয়া যায়নি':'কোনো বাকি নেই ✅')+'</td></tr>'; return; }
+  tbody.innerHTML=filtered.map(v=>`<tr>
     <td>${formatDate(v.date)}</td>
     <td style="font-weight:600">${v.patName}</td>
     <td style="color:var(--text-light)">${v.patPhone||'—'}</td>
     <td>৳ ${fmt(v.total)}</td>
     <td style="color:var(--success);font-weight:600">৳ ${fmt(v.cashPaid)}</td>
     <td style="color:#9b59b6;font-weight:700">৳ ${fmt(v.due)}</td>
-    <td style="display:flex;gap:4px">
+    <td style="display:flex;gap:4px;flex-wrap:wrap">
       <button class="btn btn-purple btn-sm" onclick="openDueModal(${v.id})">💳 আদায়</button>
       ${currentUser.role!=='receptionist'?`<button class="btn btn-outline btn-sm" onclick="openDueWaiveModal(${v.id})">🤲 মওকুফ</button>`:''}
+      <button class="btn btn-outline btn-sm" onclick="openDueHistoryModal(${v.id})" title="পূর্বের আদায়/মওকুফ হিস্ট্রি">🕘 হিস্ট্রি</button>
     </td>
   </tr>`).join('');
+}
+
+// ✅ কোনো নির্দিষ্ট বিলের বাকি-আদায়/মওকুফ হিস্ট্রি — মোডালে দেখায় কবে কত টাকা পরিশোধ বা মওকুফ হয়েছে
+function openDueHistoryModal(visitId) {
+  const v = (appData.visits||[]).find(x=>x.id===visitId);
+  const history = (appData.dueHistory||[]).filter(h=>h.visitId===visitId).sort((a,b)=>b.ts-a.ts);
+  const modal=document.createElement('div');
+  modal.className='modal-overlay'; modal.style.display='flex';
+  const rows = history.length ? history.map(h=>{
+    const d = new Date(h.ts);
+    const dStr = isNaN(d) ? formatDate(h.date) : d.toLocaleDateString('bn-BD')+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+    const isCollect = h.type==='collect';
+    return `<div style="border-bottom:1px dashed #eee;padding:10px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;color:${isCollect?'var(--success)':'#c2410c'}">${isCollect?'💳 আদায়':'🤲 মওকুফ'} — ৳ ${fmt(h.amount)}</span>
+        <span style="font-size:11px;color:#999">${dStr}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-light);margin-top:3px">অবশিষ্ট বাকি তখন: ৳ ${fmt(h.remainingDue)} — কে করলেন: ${h.by||'—'}</div>
+      ${h.note?`<div style="font-size:12px;color:#c2410c;margin-top:2px">📝 ${h.note}</div>`:''}
+    </div>`;
+  }).join('') : '<div style="text-align:center;color:#aaa;padding:24px">এই বিলে এখনো কোনো আদায়/মওকুফ হয়নি</div>';
+  modal.innerHTML=`<div class="modal" style="max-width:460px">
+    <div class="modal-title">🕘 বাকি হিস্ট্রি — ${v?v.patName:''}</div>
+    <div style="font-size:13px;margin-bottom:12px;background:#f0f4f8;border-radius:8px;padding:10px 12px">
+      মেমো: <strong>${v?(v.memoNo||v.rcptNo||'—'):'—'}</strong> — বর্তমান বাকি: <strong style="color:#9b59b6">৳ ${fmt(v?v.due:0)}</strong>
+    </div>
+    <div style="max-height:360px;overflow-y:auto">${rows}</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
 }
 function renderRecHistory() {
   const fd=document.getElementById('recHistDate').value||todayStr();
