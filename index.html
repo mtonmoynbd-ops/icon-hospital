@@ -5216,29 +5216,20 @@ function openPrintWindow(htmlContent, title) {
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">👥 আমার শেয়ার তথ্য</div>
       <div id="ownerShareInfo"></div>
     </div>
-    <!-- শেয়ারহোল্ডার তালিকা (এডমিন প্যানেলের মতোই — শুধু দেখার জন্য) -->
+    <!-- শেয়ারহোল্ডার তালিকা (এডমিন প্যানেলের মতোই — শুধু দেখার জন্য, মোবাইল-ফ্রেন্ডলি কার্ড ভিউ) -->
     <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerShareBlock2">
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📋 শেয়ারহোল্ডার তালিকা</div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
-        <thead><tr style="background:#f8fafc"><th style="padding:8px 6px;text-align:left;color:#0f4c81">নাম</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">শেয়ার</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">%</th><th style="padding:8px 6px;text-align:left;color:#0f4c81">যোগদান</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">চলতি ব্যালেন্স</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">স্টেটমেন্ট</th></tr></thead>
-        <tbody id="ownerShareholderTable"></tbody>
-      </table></div>
+      <div id="ownerShareholderTable" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
     <!-- মাসিক ক্লোজিং হিস্ট্রি -->
     <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerMcHistBlock">
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📜 মাসিক ক্লোজিং হিস্ট্রি</div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
-        <thead><tr style="background:#f8fafc"><th style="padding:8px 6px;text-align:left;color:#0f4c81">মাস/বছর</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">নিট ফলাফল</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">শেয়ারহোল্ডার অংশ</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">বিস্তারিত</th></tr></thead>
-        <tbody id="ownerMonthClosingHistTable"></tbody>
-      </table></div>
+      <div id="ownerMonthClosingHistTable" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
     <!-- উত্তোলনের ইতিহাস -->
     <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerWdHistBlock">
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🧾 উত্তোলনের ইতিহাস</div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
-        <thead><tr style="background:#f8fafc"><th style="padding:8px 6px;text-align:left;color:#0f4c81">তারিখ</th><th style="padding:8px 6px;text-align:left;color:#0f4c81">শেয়ারহোল্ডার</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">পরিমাণ</th><th style="padding:8px 6px;text-align:left;color:#0f4c81">মাধ্যম</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">স্ট্যাটাস</th></tr></thead>
-        <tbody id="ownerShWithdrawalHistTable"></tbody>
-      </table></div>
+      <div id="ownerShWithdrawalHistTable" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
     <!-- Read-only view for other features (income, expense, stock, salary etc.) -->
     <div id="ownerReadOnlySection" style="display:none;background:white;border-radius:12px;padding:16px;margin-bottom:16px"></div>
@@ -14057,54 +14048,65 @@ function viewShareholderStatement(id) {
   document.body.appendChild(modal);
 }
 
-// ===== ওনার প্যানেল: শেয়ারহোল্ডার তালিকা/হিস্ট্রি (এডমিন প্যানেলের ডেটা থেকেই — শুধু পড়ার জন্য) =====
+// ===== ওনার প্যানেল: শেয়ারহোল্ডার তালিকা/হিস্ট্রি (এডমিন প্যানেলের ডেটা থেকেই — শুধু পড়ার জন্য, মোবাইল-ফ্রেন্ডলি কার্ড ভিউ, কোনো হরাইজন্টাল স্ক্রল নেই) =====
 function renderOwnerShareholderTable() {
-  const tbody = document.getElementById('ownerShareholderTable');
-  if (!tbody) return;
+  const wrap = document.getElementById('ownerShareholderTable');
+  if (!wrap) return;
   const shareholders = appData.shareholders || [];
   const totalShares = shareholders.reduce((s,sh)=>s+sh.shares,0) || 1;
-  if (!shareholders.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">কোনো শেয়ারহোল্ডার নেই</td></tr>'; return; }
-  tbody.innerHTML = shareholders.map(sh => {
+  if (!shareholders.length) { wrap.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">কোনো শেয়ারহোল্ডার নেই</div>'; return; }
+  wrap.innerHTML = shareholders.map(sh => {
     const pct = ((sh.shares/totalShares)*100).toFixed(1);
-    return `<tr>
-      <td style="padding:8px 6px;font-weight:600">${sh.name}</td>
-      <td style="padding:8px 6px;text-align:center">${sh.shares}</td>
-      <td style="padding:8px 6px;text-align:center">${pct}%</td>
-      <td style="padding:8px 6px;color:var(--text-light)">${sh.joinDate?formatDate(sh.joinDate):'—'}</td>
-      <td style="padding:8px 6px;text-align:right;font-weight:700;color:var(--success)">৳ ${fmt((sh.balance||0).toFixed(2))}</td>
-      <td style="padding:8px 6px;text-align:center"><button class="btn btn-outline btn-sm" title="স্টেটমেন্ট" onclick="viewShareholderStatement(${sh.id})">📄</button></td>
-    </tr>`;
+    return `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:14px;color:#1e293b">${sh.name}</div>
+        <button class="btn btn-outline btn-sm" title="স্টেটমেন্ট" onclick="viewShareholderStatement(${sh.id})">📄 স্টেটমেন্ট</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
+        <div><span style="color:#888">শেয়ার:</span> <strong>${sh.shares} টি (${pct}%)</strong></div>
+        <div><span style="color:#888">যোগদান:</span> <strong>${sh.joinDate?formatDate(sh.joinDate):'—'}</strong></div>
+        <div style="grid-column:1/-1;background:#f0fdf4;border-radius:6px;padding:6px 8px;margin-top:2px"><span style="color:#065f46">চলতি ব্যালেন্স:</span> <strong style="color:var(--success);font-size:14px">৳ ${fmt((sh.balance||0).toFixed(2))}</strong></div>
+      </div>
+    </div>`;
   }).join('');
 }
 function renderOwnerMonthClosingHistory() {
-  const tbody = document.getElementById('ownerMonthClosingHistTable');
-  if (!tbody) return;
+  const wrap = document.getElementById('ownerMonthClosingHistTable');
+  if (!wrap) return;
   const list = [...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id);
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো মাস ক্লোজ করা হয়নি</td></tr>'; return; }
-  tbody.innerHTML = list.map(mc => `<tr>
-    <td style="padding:8px 6px;font-weight:600">${mc.label||'—'}</td>
-    <td style="padding:8px 6px;text-align:right;font-weight:700;color:${mc.isLoss?'var(--danger)':'var(--success)'}">${mc.isLoss?'-':''}৳ ${fmt(Math.abs(mc.finalNet).toFixed(2))}</td>
-    <td style="padding:8px 6px;text-align:right">৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</td>
-    <td style="padding:8px 6px;text-align:center"><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button></td>
-  </tr>`).join('');
+  if (!list.length) { wrap.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">কোনো মাস ক্লোজ করা হয়নি</div>'; return; }
+  wrap.innerHTML = list.map(mc => `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+      <div style="font-weight:700;font-size:14px;color:#1e293b">${mc.label||'—'}</div>
+      <button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
+      <div><span style="color:#888">নিট ফলাফল:</span> <strong style="color:${mc.isLoss?'var(--danger)':'var(--success)'}">${mc.isLoss?'-':''}৳ ${fmt(Math.abs(mc.finalNet).toFixed(2))}</strong></div>
+      <div><span style="color:#888">শেয়ারহোল্ডার অংশ:</span> <strong>৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</strong></div>
+    </div>
+  </div>`).join('');
 }
 function renderOwnerShareholderWithdrawalHistory() {
-  const tbody = document.getElementById('ownerShWithdrawalHistTable');
-  if (!tbody) return;
+  const wrap = document.getElementById('ownerShWithdrawalHistTable');
+  if (!wrap) return;
   const list = [...(appData.shareholderWithdrawals||[])].sort((a,b)=>b.id-a.id);
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">কোনো উত্তোলন নেই</td></tr>'; return; }
+  if (!list.length) { wrap.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">কোনো উত্তোলন নেই</div>'; return; }
   const statusBadge = w => {
     if (w.status==='cleared') return `<span class="badge badge-income">✅ পরিশোধিত</span>`;
     if (w.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
     return `<span class="badge badge-info">⏳ পেন্ডিং</span>`;
   };
-  tbody.innerHTML = list.map(w => `<tr>
-    <td style="padding:8px 6px">${formatDate(w.date)}</td>
-    <td style="padding:8px 6px;font-weight:600">${w.shareholderName}</td>
-    <td style="padding:8px 6px;text-align:right;font-weight:700;color:var(--success)">৳ ${fmt(w.amount.toFixed(2))}</td>
-    <td style="padding:8px 6px">${w.method==='cheque'?`🏦 চেক${w.chequeNo?' #'+w.chequeNo:''}`:'💵 ক্যাশ'}</td>
-    <td style="padding:8px 6px;text-align:center">${statusBadge(w)}</td>
-  </tr>`).join('');
+  wrap.innerHTML = list.map(w => `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="font-weight:700;font-size:13.5px;color:#1e293b">${w.shareholderName}</div>
+      ${statusBadge(w)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
+      <div><span style="color:#888">তারিখ:</span> <strong>${formatDate(w.date)}</strong></div>
+      <div><span style="color:#888">মাধ্যম:</span> <strong>${w.method==='cheque'?`🏦 চেক${w.chequeNo?' #'+w.chequeNo:''}`:'💵 ক্যাশ'}</strong></div>
+      <div style="grid-column:1/-1"><span style="color:#888">পরিমাণ:</span> <strong style="color:var(--success);font-size:14px">৳ ${fmt(w.amount.toFixed(2))}</strong></div>
+    </div>
+  </div>`).join('');
 }
 function renderOwnerShareholderFull() {
   renderOwnerShareholderTable();
@@ -15976,7 +15978,9 @@ function initOwnerPage() {
     </div>`).join('') : '<p style="color:#aaa;text-align:center;padding:20px">কোনো এন্ট্রি নেই</p>';
 
   // Shareholder info
-  const myShare = (appData.shareholders||[]).find(s=>s.name===currentUser.name);
+  const norm = s => (s||'').toString().trim().toLowerCase();
+  const myShare = (appData.shareholders||[]).find(s=>norm(s.name)===norm(currentUser.name))
+    || ((appData.shareholders||[]).length===1 ? appData.shareholders[0] : null);
   const totalShares = (appData.shareholders||[]).reduce((s,sh)=>s+sh.shares,0)||1;
   const si = document.getElementById('ownerShareInfo');
   if (si && myShare) {
