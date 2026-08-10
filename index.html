@@ -15977,27 +15977,74 @@ function initOwnerPage() {
       <div style="font-weight:800;color:${e.type==='আয়'?'#0a6b35':'#e74c3c'}">${e.type==='আয়'?'+':'-'}৳ ${fmt(e.amt)}</div>
     </div>`).join('') : '<p style="color:#aaa;text-align:center;padding:20px">কোনো এন্ট্রি নেই</p>';
 
-  // Shareholder info
-  const norm = s => (s||'').toString().trim().toLowerCase();
-  const myShare = (appData.shareholders||[]).find(s=>norm(s.name)===norm(currentUser.name))
-    || ((appData.shareholders||[]).length===1 ? appData.shareholders[0] : null);
-  const totalShares = (appData.shareholders||[]).reduce((s,sh)=>s+sh.shares,0)||1;
+// ===== ওনার প্যানেল: ডিভাইস-লোকাল শেয়ারহোল্ডার পরিচয় =====
+// একই লগইন (owner রোল) একাধিক শেয়ারহোল্ডার আলাদা আলাদা ডিভাইসে ব্যবহার করতে পারেন,
+// তাই "আমার শেয়ার তথ্য" কার্ডটি সার্ভারে নয়, শুধু এই ডিভাইসের localStorage-এ সংরক্ষিত পরিচয় অনুযায়ী পার্সোনালাইজড হয়।
+// (পূর্ণ শেয়ারহোল্ডার তালিকা/হিস্ট্রি টেবিলগুলো আগের মতোই সবার জন্য উন্মুক্ত থাকবে — এখানে শুধু "আমার তথ্য" কার্ডটাই প্রভাবিত হয়)
+const OWNER_IDENTITY_KEY = 'hms_my_shareholder_id';
+
+function getMyShareholderIdentity() {
+  try {
+    const id = localStorage.getItem(OWNER_IDENTITY_KEY);
+    if (!id) return null;
+    const sh = (appData.shareholders||[]).find(s => String(s.id) === String(id));
+    if (!sh) { localStorage.removeItem(OWNER_IDENTITY_KEY); return null; }
+    return sh;
+  } catch(e) { return null; }
+}
+
+function selectMyShareholderIdentity(id) {
+  const sh = (appData.shareholders||[]).find(s => String(s.id) === String(id));
+  if (!sh) return;
+  if (!confirm(`আপনি কি নিশ্চিত যে আপনি "${sh.name}"?\n\nএই পরিচয় শুধু এই ডিভাইসেই সংরক্ষিত থাকবে (অন্য কোনো ডিভাইসে প্রভাব ফেলবে না)।`)) return;
+  try { localStorage.setItem(OWNER_IDENTITY_KEY, String(sh.id)); } catch(e) {}
+  renderOwnerMyShareInfo();
+  showToast('✅ পরিচয় সংরক্ষণ করা হয়েছে: ' + sh.name);
+}
+
+function changeMyShareholderIdentity() {
+  if (!confirm('আপনি কি নিশ্চিত পরিচয় পরিবর্তন করতে চান? এই ডিভাইসে সংরক্ষিত বর্তমান পরিচয় মুছে যাবে এবং আবার নতুন করে বেছে নিতে হবে।')) return;
+  try { localStorage.removeItem(OWNER_IDENTITY_KEY); } catch(e) {}
+  renderOwnerMyShareInfo();
+}
+
+function renderOwnerMyShareInfo() {
   const si = document.getElementById('ownerShareInfo');
-  if (si && myShare) {
-    const pct = ((myShare.shares/totalShares)*100).toFixed(1);
-    const lastMc = [...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id)[0];
-    const lastBreakdown = lastMc ? (lastMc.breakdown||[]).find(b=>b.shareholderId===myShare.id) : null;
-    const myBal = myShare.balance || 0;
-    si.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-        <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">আমার শেয়ার</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${myShare.shares} টি</div></div>
-        <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">শেয়ার %</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${pct}%</div></div>
-        <div style="padding:10px;background:#d1fae5;border-radius:8px;grid-column:span 2"><span style="color:#065f46">বর্তমান বকেয়া ব্যালেন্স</span><div style="font-weight:700;color:#065f46;font-size:18px">৳ ${fmt(myBal.toFixed(0))}</div></div>
-        ${lastBreakdown?`<div style="padding:10px;background:#fef9c3;border-radius:8px;grid-column:span 2"><span style="color:#854d0e">শেষ মাস ক্লোজ (${lastMc.label||''})</span><div style="font-weight:700;color:#854d0e;font-size:18px">৳ ${fmt(lastBreakdown.amount.toFixed(0))}</div></div>`:''}
-      </div>`;
-  } else if (si) {
-    si.innerHTML = '<p style="color:#aaa;font-size:13px">শেয়ারহোল্ডার তালিকায় নাম পাওয়া যায়নি।</p>';
+  if (!si) return;
+  const shareholders = appData.shareholders || [];
+  if (!shareholders.length) {
+    si.innerHTML = '<p style="color:#aaa;font-size:13px">এখনো কোনো শেয়ারহোল্ডার যোগ করা হয়নি।</p>';
+    return;
   }
+  const myShare = getMyShareholderIdentity();
+  if (!myShare) {
+    si.innerHTML = `
+      <p style="font-size:12.5px;color:#666;margin-bottom:10px;line-height:1.6">👇 তালিকা থেকে আপনার নাম বেছে নিন। এই সিলেকশন শুধু এই ডিভাইসেই সংরক্ষিত থাকবে — অন্য কারো ডিভাইসে এর প্রভাব পড়বে না, তাই প্রতিটা ডিভাইসে একবার করে সিলেক্ট করতে হবে।</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${shareholders.map(sh=>`<button type="button" onclick="selectMyShareholderIdentity(${sh.id})" style="text-align:left;padding:12px 14px;border:1.5px solid #d0dce8;border-radius:10px;background:#f8fafc;font-family:inherit;font-size:14px;font-weight:600;color:#0f4c81;cursor:pointer">👤 ${sh.name}</button>`).join('')}
+      </div>`;
+    return;
+  }
+  const totalShares = shareholders.reduce((s,sh)=>s+sh.shares,0)||1;
+  const pct = ((myShare.shares/totalShares)*100).toFixed(1);
+  const lastMc = [...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id)[0];
+  const lastBreakdown = lastMc ? (lastMc.breakdown||[]).find(b=>b.shareholderId===myShare.id) : null;
+  const myBal = myShare.balance || 0;
+  si.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:12.5px;color:#888">👤 ${myShare.name}</span>
+      <button type="button" onclick="changeMyShareholderIdentity()" style="background:none;border:none;color:#0f4c81;font-size:11.5px;font-weight:600;cursor:pointer;padding:2px 4px">🔄 পরিচয় পরিবর্তন করুন</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+      <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">আমার শেয়ার</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${myShare.shares} টি</div></div>
+      <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">শেয়ার %</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${pct}%</div></div>
+      <div style="padding:10px;background:#d1fae5;border-radius:8px;grid-column:span 2"><span style="color:#065f46">বর্তমান বকেয়া ব্যালেন্স</span><div style="font-weight:700;color:#065f46;font-size:18px">৳ ${fmt(myBal.toFixed(0))}</div></div>
+      ${lastBreakdown?`<div style="padding:10px;background:#fef9c3;border-radius:8px;grid-column:span 2"><span style="color:#854d0e">শেষ মাস ক্লোজ (${lastMc.label||''})</span><div style="font-weight:700;color:#854d0e;font-size:18px">৳ ${fmt(lastBreakdown.amount.toFixed(0))}</div></div>`:''}
+    </div>`;
+}
+
+  // Shareholder info — ডিভাইস-লোকাল পরিচয় অনুযায়ী পার্সোনালাইজড (একই লগইন একাধিক শেয়ারহোল্ডার ব্যবহার করতে পারেন বলে)
+  renderOwnerMyShareInfo();
 }
 
 // ===== CAMPAIGNER PAGE =====
