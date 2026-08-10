@@ -16350,15 +16350,22 @@ function buildReadOnlyHTML(feature, role) {
   }
   if (feature === 'stock') {
     const allItems = (appData.stock||[]).filter(s=>s.status!=='inactive');
-    const rows = allItems.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
     const totalCapital = allItems.reduce((s,i) => s + (i.buyPrice||0)*(i.qty||0), 0);
     const totalSellVal = allItems.reduce((s,i) => {
       const sp = (i.cat==='চশমা/লেন্স') ? (i.sellMin||0) : (i.sellPrice||0);
       return s + sp*(i.qty||0);
     }, 0);
     const totalProfit = totalSellVal - totalCapital;
+    // ✅ ক্যাটাগরি-ওয়াইজ গ্রুপ করে দেখানো — মূল স্টক ম্যানেজমেন্ট পেজের মতোই (চশমা/মেডিসিন/সার্জিক্যাল আলাদা আলাদা সেকশনে)
+    const groups = {};
+    allItems.forEach(s=>{
+      const cat = s.cat || 'অন্যান্য';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(s);
+    });
+    const catNames = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'bn'));
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📦 স্টক তালিকা ${badge}</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px">
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:3px">মোট মূলধন (ক্রয়মূল্য)</div>
           <div style="font-size:15px;font-weight:800;color:var(--danger)">৳ ${fmt2(totalCapital)}</div>
@@ -16372,17 +16379,23 @@ function buildReadOnlyHTML(feature, role) {
           <div style="font-size:15px;font-weight:800;color:${totalProfit>=0?'#8e44ad':'var(--danger)'}">৳ ${fmt2(totalProfit)}</div>
         </div>
       </div>
-      <div style="overflow-x:auto"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">পণ্যের নাম</th><th style="${thStyle}">বিভাগ</th><th style="${thStyle}">পরিমাণ</th><th style="${thStyle}">বিক্রয় মূল্য</th></tr>
-        ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.cat||'—'}</td><td style="${tdStyle};color:${(s.qty||0)<(s.minQty||5)?'#e74c3c':'inherit'}">${s.qty||0} ${s.unit||''}</td><td style="${tdStyle}">৳ ${fmt2((s.cat==='চশমা/লেন্স'?s.sellMin:s.sellPrice)||0)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো পণ্য নেই</td></tr>`}
-      </table></div>`;
+      ${catNames.length ? catNames.map(cat=>{
+        const rows = groups[cat].slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','bn'));
+        return `<div style="margin-bottom:18px">
+          <div style="font-weight:700;font-size:13.5px;color:var(--primary);margin-bottom:8px">${cat} <span style="font-weight:400;color:var(--text-light);font-size:12px">(${rows.length}টি)</span></div>
+          <div style="overflow-x:auto"><table style="${tableStyle}">
+            <tr><th style="${thStyle}">পণ্যের নাম</th><th style="${thStyle}">কোড</th><th style="${thStyle}">পরিমাণ</th><th style="${thStyle}">বিক্রয় মূল্য</th></tr>
+            ${rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle};color:var(--text-light)">${s.code||'—'}</td><td style="${tdStyle};color:${(s.qty||0)<(s.minQty||5)?'#e74c3c':'inherit'}">${s.qty||0} ${s.unit||''}</td><td style="${tdStyle}">৳ ${fmt2((s.cat==='চশমা/লেন্স'?s.sellMin:s.sellPrice)||0)}</td></tr>`).join('')}
+          </table></div>
+        </div>`;
+      }).join('') : `<div style="padding:20px;text-align:center;color:#aaa">কোনো পণ্য নেই</div>`}`;
   }
   if (feature === 'salary') {
     const rows = (appData.staff||[]).filter(s=>s.status==='active');
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">👨‍💼 কর্মী তালিকা ${badge}</div>
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">নাম</th><th style="${thStyle}">পদবি</th><th style="${thStyle}">বেসিক বেতন</th></tr>
-        ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.designation||s.role||'—'}</td><td style="${tdStyle}">৳ ${fmt2(s.basic)}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px;text-align:center;color:#aaa">কোনো কর্মী নেই</td></tr>`}
+        ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.desig||'—'}</td><td style="${tdStyle}">৳ ${fmt2(s.basic)}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px;text-align:center;color:#aaa">কোনো কর্মী নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'demand') {
@@ -26061,7 +26074,7 @@ function _ensureOwnerLandscapeChart() {
   if (!host || typeof LandscapeChart === 'undefined') return null;
   _ownerLandscapeChart = new LandscapeChart(host, {
     width: 640, height: 240,
-    padding: { top: 16, right: 14, bottom: 38, left: 40 },
+    padding: { top: 16, right: 14, bottom: 38, left: 56 },
     tooltip: true,
     treeDensity: 0.55, showFog: false,
     valueFormatter: (v) => '৳ ' + fmt(v)
