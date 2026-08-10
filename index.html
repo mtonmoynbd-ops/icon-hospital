@@ -489,6 +489,10 @@
   .stat-spark { position:relative; z-index:1; height:14px; margin-top:2px; opacity:0.85; }
   .stat-spark svg { display:block; width:100%; height:100%; overflow:visible; }
   #dashModalSpark svg { display:block; width:100%; height:100%; overflow:visible; }
+  /* ✅ এক্সেলের মতো কলাম রিসাইজ হ্যান্ডেল */
+  .col-resize-handle { position:absolute; top:0; right:0; width:6px; height:100%; cursor:col-resize; user-select:none; z-index:5; }
+  .col-resize-handle:hover, .col-resize-handle.active { background:rgba(15,76,129,0.25); }
+
   /* সাম্প্রতিক এন্ট্রি টেবিলে হোভার করলে ডিলিট আইকন */
   .dash-grp-row td { position:relative; }
   .row-del-btn { position:absolute; right:2px; top:50%; transform:translateY(-50%); opacity:0; border:none; background:transparent; cursor:pointer; font-size:12px; padding:2px 5px; border-radius:6px; line-height:1; transition:opacity .15s ease, background .15s ease; }
@@ -8329,12 +8333,14 @@ function showPage(name) {
   if (name === 'income')  { renderIncomeTable(); document.getElementById('incDate').value = todayStr(); updateIncMemo();
     const ifb=document.getElementById('incFormBody'); if(ifb) ifb.style.display='none';
     const ifi=document.getElementById('incFormIcon'); if(ifi) ifi.textContent='▶';
+    makeTableResizable('incomeTable');
   }
   if (name === 'expense') { renderExpenseTable(); clearExpenseForm();
     const efb=document.getElementById('expFormBody'); if(efb) efb.style.display='none';
     const efi=document.getElementById('expFormIcon'); if(efi) efi.textContent='▶';
+    makeTableResizable('expenseTable');
   }
-  if (name === 'dashboard') refreshDashboard();
+  if (name === 'dashboard') { refreshDashboard(); makeTableResizable('recentTable'); }
   if (name === 'report') { initReportFilters(); renderReport(); }
   if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderWaOutboxTable(); renderTgOutboxTable(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
@@ -8556,6 +8562,52 @@ function saveDashEntryEdit() {
   closeDashEntryEdit();
   refreshDashboard();
   showToast('✅ এন্ট্রি সংশোধন করা হয়েছে');
+}
+
+// ✅ এক্সেলের মতো টেবিল কলাম রিসাইজ — কলামের ডান কিনারা ধরে টেনে চওড়া/সরু করা যায়, পছন্দ localStorage-এ মনে রাখে।
+// tbodyId দিলে সবচেয়ে কাছের <table> খুঁজে সেটার <thead> এর প্রতিটা <th>-তে একটা রিসাইজ-হ্যান্ডেল বসায়।
+function makeTableResizable(tbodyId) {
+  const tbody = document.getElementById(tbodyId);
+  const table = tbody ? tbody.closest('table') : null;
+  if (!table || table._resizableInit) return;
+  table._resizableInit = true;
+  const ths = table.querySelectorAll('thead th');
+  const storageKey = 'hms_colw_' + tbodyId;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(storageKey)) || {}; } catch(e) {}
+  // প্রথমে বর্তমান (auto layout) width মেপে নিই, যাতে fixed layout-এ সুইচ করার পর হঠাৎ চেহারা বদলে না যায়
+  const naturalWidths = Array.from(ths).map(th => th.getBoundingClientRect().width);
+  table.style.tableLayout = 'fixed';
+  ths.forEach((th, idx) => {
+    th.style.position = 'relative';
+    th.style.overflow = 'hidden';
+    th.style.textOverflow = 'ellipsis';
+    th.style.whiteSpace = 'nowrap';
+    th.style.width = (saved[idx] || naturalWidths[idx] || 100) + 'px';
+    const handle = document.createElement('span');
+    handle.className = 'col-resize-handle';
+    handle.title = 'কলাম চওড়া/সরু করতে টেনে ধরুন';
+    th.appendChild(handle);
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      const startX = e.pageX;
+      const startWidth = th.offsetWidth;
+      handle.classList.add('active');
+      function onMove(e2) {
+        const newWidth = Math.max(40, startWidth + (e2.pageX - startX));
+        th.style.width = newWidth + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        handle.classList.remove('active');
+        saved[idx] = th.offsetWidth;
+        try { localStorage.setItem(storageKey, JSON.stringify(saved)); } catch(e) {}
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
 }
 
 function refreshDashboard() {
@@ -16556,6 +16608,12 @@ function buildReadOnlyHTML(feature, role) {
         <tr><th style="${thStyle}">অর্ডার তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">আইটেম</th><th style="${thStyle}">মোট</th><th style="${thStyle}">বাকি</th><th style="${thStyle}">ডেলিভারি তারিখ</th><th style="${thStyle}">স্ট্যাটাস</th></tr>
         ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.orderDate)}</td><td style="${tdStyle};font-weight:600">${d.name}</td><td style="${tdStyle}">${d.item}</td><td style="${tdStyle}">৳ ${fmt2(d.total)}</td><td style="${tdStyle};color:${(d.due||0)>0?'#e74c3c':'inherit'}">৳ ${fmt2(d.due||0)}</td><td style="${tdStyle}">${formatDate(d.deliveryDate)}</td><td style="${tdStyle}">${statusLabel(d)}</td></tr>`).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">কোনো অর্ডার নেই</td></tr>`}
       </table></div>`;
+  }
+  if (feature === 'accounting-principles') {
+    // এই পেজ সম্পূর্ণ তথ্যভিত্তিক/ডকুমেন্টেশন — কোনো ফর্ম নেই, তাই আসল pg-accounting-principles পেজের
+    // কনটেন্ট সরাসরি পুনরায় ব্যবহার করা হচ্ছে (owner-কে জেনেরিক "🔒 শুধু পড়ার অনুমতি" প্লেসহোল্ডার না দেখিয়ে)
+    const src = document.getElementById('pg-accounting-principles');
+    return src ? src.innerHTML : '<div style="text-align:center;padding:40px;color:#aaa">তথ্য পাওয়া যায়নি</div>';
   }
   // Default
   const f = ALL_FEATURES.find(x=>x.id===feature);
