@@ -4416,6 +4416,9 @@ function openPrintWindow(htmlContent, title) {
           <input type="checkbox" data-role="owner" data-feature="shareholders" checked="" style="width:14px;height:14px">
           শেয়ারহোল্ডার
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="owner" data-feature="todayEntries" checked="" style="width:14px;height:14px">
+          আজকের এন্ট্রি
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="owner" data-feature="memorandum" style="width:14px;height:14px">
           মেমোরেন্ডাম ও TOR
         </label>
@@ -5212,6 +5215,30 @@ function openPrintWindow(htmlContent, title) {
     <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerShareBlock">
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">👥 আমার শেয়ার তথ্য</div>
       <div id="ownerShareInfo"></div>
+    </div>
+    <!-- শেয়ারহোল্ডার তালিকা (এডমিন প্যানেলের মতোই — শুধু দেখার জন্য) -->
+    <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerShareBlock2">
+      <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📋 শেয়ারহোল্ডার তালিকা</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#f8fafc"><th style="padding:8px 6px;text-align:left;color:#0f4c81">নাম</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">শেয়ার</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">%</th><th style="padding:8px 6px;text-align:left;color:#0f4c81">যোগদান</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">চলতি ব্যালেন্স</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">স্টেটমেন্ট</th></tr></thead>
+        <tbody id="ownerShareholderTable"></tbody>
+      </table></div>
+    </div>
+    <!-- মাসিক ক্লোজিং হিস্ট্রি -->
+    <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerMcHistBlock">
+      <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📜 মাসিক ক্লোজিং হিস্ট্রি</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#f8fafc"><th style="padding:8px 6px;text-align:left;color:#0f4c81">মাস/বছর</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">নিট ফলাফল</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">শেয়ারহোল্ডার অংশ</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">বিস্তারিত</th></tr></thead>
+        <tbody id="ownerMonthClosingHistTable"></tbody>
+      </table></div>
+    </div>
+    <!-- উত্তোলনের ইতিহাস -->
+    <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerWdHistBlock">
+      <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🧾 উত্তোলনের ইতিহাস</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#f8fafc"><th style="padding:8px 6px;text-align:left;color:#0f4c81">তারিখ</th><th style="padding:8px 6px;text-align:left;color:#0f4c81">শেয়ারহোল্ডার</th><th style="padding:8px 6px;text-align:right;color:#0f4c81">পরিমাণ</th><th style="padding:8px 6px;text-align:left;color:#0f4c81">মাধ্যম</th><th style="padding:8px 6px;text-align:center;color:#0f4c81">স্ট্যাটাস</th></tr></thead>
+        <tbody id="ownerShWithdrawalHistTable"></tbody>
+      </table></div>
     </div>
     <!-- Read-only view for other features (income, expense, stock, salary etc.) -->
     <div id="ownerReadOnlySection" style="display:none;background:white;border-radius:12px;padding:16px;margin-bottom:16px"></div>
@@ -6336,7 +6363,7 @@ function rebuildUsers() {
 const DEFAULT_FEATURE_ACCESS = {
   moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','inquiries'],
   receptionist:['billing'],
-  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries'],
+  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries'],
   campaigner:  ['camp','accounting-principles'],
 };
 
@@ -14030,6 +14057,61 @@ function viewShareholderStatement(id) {
   document.body.appendChild(modal);
 }
 
+// ===== ওনার প্যানেল: শেয়ারহোল্ডার তালিকা/হিস্ট্রি (এডমিন প্যানেলের ডেটা থেকেই — শুধু পড়ার জন্য) =====
+function renderOwnerShareholderTable() {
+  const tbody = document.getElementById('ownerShareholderTable');
+  if (!tbody) return;
+  const shareholders = appData.shareholders || [];
+  const totalShares = shareholders.reduce((s,sh)=>s+sh.shares,0) || 1;
+  if (!shareholders.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">কোনো শেয়ারহোল্ডার নেই</td></tr>'; return; }
+  tbody.innerHTML = shareholders.map(sh => {
+    const pct = ((sh.shares/totalShares)*100).toFixed(1);
+    return `<tr>
+      <td style="padding:8px 6px;font-weight:600">${sh.name}</td>
+      <td style="padding:8px 6px;text-align:center">${sh.shares}</td>
+      <td style="padding:8px 6px;text-align:center">${pct}%</td>
+      <td style="padding:8px 6px;color:var(--text-light)">${sh.joinDate?formatDate(sh.joinDate):'—'}</td>
+      <td style="padding:8px 6px;text-align:right;font-weight:700;color:var(--success)">৳ ${fmt((sh.balance||0).toFixed(2))}</td>
+      <td style="padding:8px 6px;text-align:center"><button class="btn btn-outline btn-sm" title="স্টেটমেন্ট" onclick="viewShareholderStatement(${sh.id})">📄</button></td>
+    </tr>`;
+  }).join('');
+}
+function renderOwnerMonthClosingHistory() {
+  const tbody = document.getElementById('ownerMonthClosingHistTable');
+  if (!tbody) return;
+  const list = [...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id);
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো মাস ক্লোজ করা হয়নি</td></tr>'; return; }
+  tbody.innerHTML = list.map(mc => `<tr>
+    <td style="padding:8px 6px;font-weight:600">${mc.label||'—'}</td>
+    <td style="padding:8px 6px;text-align:right;font-weight:700;color:${mc.isLoss?'var(--danger)':'var(--success)'}">${mc.isLoss?'-':''}৳ ${fmt(Math.abs(mc.finalNet).toFixed(2))}</td>
+    <td style="padding:8px 6px;text-align:right">৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</td>
+    <td style="padding:8px 6px;text-align:center"><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button></td>
+  </tr>`).join('');
+}
+function renderOwnerShareholderWithdrawalHistory() {
+  const tbody = document.getElementById('ownerShWithdrawalHistTable');
+  if (!tbody) return;
+  const list = [...(appData.shareholderWithdrawals||[])].sort((a,b)=>b.id-a.id);
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">কোনো উত্তোলন নেই</td></tr>'; return; }
+  const statusBadge = w => {
+    if (w.status==='cleared') return `<span class="badge badge-income">✅ পরিশোধিত</span>`;
+    if (w.status==='bounced') return `<span class="badge badge-expense">❌ বাউন্স</span>`;
+    return `<span class="badge badge-info">⏳ পেন্ডিং</span>`;
+  };
+  tbody.innerHTML = list.map(w => `<tr>
+    <td style="padding:8px 6px">${formatDate(w.date)}</td>
+    <td style="padding:8px 6px;font-weight:600">${w.shareholderName}</td>
+    <td style="padding:8px 6px;text-align:right;font-weight:700;color:var(--success)">৳ ${fmt(w.amount.toFixed(2))}</td>
+    <td style="padding:8px 6px">${w.method==='cheque'?`🏦 চেক${w.chequeNo?' #'+w.chequeNo:''}`:'💵 ক্যাশ'}</td>
+    <td style="padding:8px 6px;text-align:center">${statusBadge(w)}</td>
+  </tr>`).join('');
+}
+function renderOwnerShareholderFull() {
+  renderOwnerShareholderTable();
+  renderOwnerMonthClosingHistory();
+  renderOwnerShareholderWithdrawalHistory();
+}
+
 // ===== লাভ বন্টন খাত (Profit Allocation Funds) =====
 function addProfitFund() {
   const name = document.getElementById('newFundName').value.trim();
@@ -14910,6 +14992,7 @@ const ALL_FEATURES = [
   { id:'checkbook', label:'চেক বই' },
   { id:'loan',      label:'লোন ট্র্যাকিং' },
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
+  { id:'todayEntries', label:'আজকের এন্ট্রি' },
   { id:'memorandum', label:'মেমোরেন্ডাম ও TOR' },
   { id:'accounting-principles', label:'হিসাবরক্ষণ নীতিমালা' },
   { id:'recdeposit', label:'রিসেপশন রেকর্ড' },
@@ -14925,14 +15008,14 @@ const ALL_FEATURES = [
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles'],
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries'],
   campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles']
 };
 const FEATURE_ICONS = {
   dashboard:'🏠', income:'💰', expense:'🧾', camp:'⛺', due:'⏳', stock:'📦',
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
   bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
-  delivery:'🚛', balancesheet:'⚖️', chart:'📊',
+  delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️',
   newbill:'🧾', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖'
 };
 const OWNER_TAB_CONFIG_KEY = 'hms_owner_tabs';
@@ -15049,7 +15132,7 @@ function renderRoleBottomTabs(roleKey, activeFeature) {
 }
 
 const FEATURE_GROUPS = [
-  { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','report','chart','balancesheet','accounting-principles'] },
+  { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','todayEntries','report','chart','balancesheet','accounting-principles'] },
   { label:'💰 আয় ও ব্যয়',            ids:['income','expense','bank','checkbook','loan'] },
   { label:'🏕️ ক্যাম্প ও রোগী',        ids:['camp','due','delivery','recdeposit','demand'] },
   { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','memorandum'] },
@@ -15271,6 +15354,10 @@ function applyOwnerFeatureVisibility(activeFeature) {
   const recent = document.getElementById('ownerRecentList');
   if (recent && recent.parentElement) recent.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
   show('ownerShareBlock', activeFeature === 'shareholders');
+  show('ownerShareBlock2', activeFeature === 'shareholders');
+  show('ownerMcHistBlock', activeFeature === 'shareholders');
+  show('ownerWdHistBlock', activeFeature === 'shareholders');
+  if (activeFeature === 'shareholders' && typeof renderOwnerShareholderFull === 'function') renderOwnerShareholderFull();
   show('ownerReadOnlySection', !['dashboard','report','shareholders'].includes(activeFeature));
   if (!['dashboard','report','shareholders'].includes(activeFeature)) {
     renderOwnerReadOnlySection(activeFeature);
@@ -16381,12 +16468,17 @@ function buildReadOnlyHTML(feature, role) {
       </div>
       ${catNames.length ? catNames.map(cat=>{
         const rows = groups[cat].slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','bn'));
-        return `<div style="margin-bottom:18px">
-          <div style="font-weight:700;font-size:13.5px;color:var(--primary);margin-bottom:8px">${cat} <span style="font-weight:400;color:var(--text-light);font-size:12px">(${rows.length}টি)</span></div>
-          <div style="overflow-x:auto"><table style="${tableStyle}">
-            <tr><th style="${thStyle}">পণ্যের নাম</th><th style="${thStyle}">কোড</th><th style="${thStyle}">পরিমাণ</th><th style="${thStyle}">বিক্রয় মূল্য</th></tr>
-            ${rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle};color:var(--text-light)">${s.code||'—'}</td><td style="${tdStyle};color:${(s.qty||0)<(s.minQty||5)?'#e74c3c':'inherit'}">${s.qty||0} ${s.unit||''}</td><td style="${tdStyle}">৳ ${fmt2((s.cat==='চশমা/লেন্স'?s.sellMin:s.sellPrice)||0)}</td></tr>`).join('')}
-          </table></div>
+        return `<div style="margin-bottom:14px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+          <div onclick="const c=this.nextElementSibling;const open=c.style.display!=='none';c.style.display=open?'none':'block';this.querySelector('.occ-arrow').textContent=open?'▸':'▾';" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;user-select:none">
+            <span style="font-weight:700;font-size:13.5px;color:var(--primary)">${cat} <span style="font-weight:400;color:var(--text-light);font-size:12px">(${rows.length}টি)</span></span>
+            <span class="occ-arrow" style="font-size:12px;color:#888;flex-shrink:0;margin-left:8px">▾</span>
+          </div>
+          <div style="display:block;padding:8px 10px 10px">
+            <div style="overflow-x:auto"><table style="${tableStyle}">
+              <tr><th style="${thStyle}">পণ্যের নাম</th><th style="${thStyle}">কোড</th><th style="${thStyle}">পরিমাণ</th><th style="${thStyle}">বিক্রয় মূল্য</th></tr>
+              ${rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle};color:var(--text-light)">${s.code||'—'}</td><td style="${tdStyle};color:${(s.qty||0)<(s.minQty||5)?'#e74c3c':'inherit'}">${s.qty||0} ${s.unit||''}</td><td style="${tdStyle}">৳ ${fmt2((s.cat==='চশমা/লেন্স'?s.sellMin:s.sellPrice)||0)}</td></tr>`).join('')}
+            </table></div>
+          </div>
         </div>`;
       }).join('') : `<div style="padding:20px;text-align:center;color:#aaa">কোনো পণ্য নেই</div>`}`;
   }
@@ -16621,6 +16713,37 @@ function buildReadOnlyHTML(feature, role) {
         <tr><th style="${thStyle}">অর্ডার তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">আইটেম</th><th style="${thStyle}">মোট</th><th style="${thStyle}">বাকি</th><th style="${thStyle}">ডেলিভারি তারিখ</th><th style="${thStyle}">স্ট্যাটাস</th></tr>
         ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.orderDate)}</td><td style="${tdStyle};font-weight:600">${d.name}</td><td style="${tdStyle}">${d.item}</td><td style="${tdStyle}">৳ ${fmt2(d.total)}</td><td style="${tdStyle};color:${(d.due||0)>0?'#e74c3c':'inherit'}">৳ ${fmt2(d.due||0)}</td><td style="${tdStyle}">${formatDate(d.deliveryDate)}</td><td style="${tdStyle}">${statusLabel(d)}</td></tr>`).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">কোনো অর্ডার নেই</td></tr>`}
       </table></div>`;
+  }
+  if (feature === 'todayEntries') {
+    const today = todayStr();
+    const campMap = {};
+    (appData.camps||[]).forEach(c => { campMap[c.id] = c.name || c.location || '—'; });
+    const bankTxLabels = { cash_in:'ক্যাশ যোগ', bank_in:'ব্যাংক যোগ', cash_to_bank:'ক্যাশ→ব্যাংক', bank_to_cash:'ব্যাংক→ক্যাশ', cash_out:'ক্যাশ ব্যয়', bank_out:'ব্যাংক ব্যয়' };
+    const rows = [
+      ...(appData.income||[]).filter(e=>e.date===today).map(e=>({ time:e.id||0, type:'আয়', icon:'💰', cls:'#16a34a', bg:'#d1fae5', label: e.category||'আয়', sub: (e.campId?(campMap[e.campId]||'ক্যাম্প'):(e.note||e.memo||'')), amt:e.amount||0, by:e.by||'—' })),
+      ...(appData.expense||[]).filter(e=>(typeof expenseEffectiveDate==='function'?expenseEffectiveDate(e):e.date)===today && !e.isFundExpense).map(e=>({ time:e.id||0, type:'ব্যয়', icon:'💸', cls:'#e74c3c', bg:'#fee2e2', label: e.category||'ব্যয়', sub: e.note||e.voucher||'', amt:e.amount||0, by:e.by||'—' })),
+      ...(appData.bankTx||[]).filter(tx=>tx.date===today).map(tx=>({ time:tx.id||0, type: tx.source==='withdrawal'?'মুনাফা উত্তোলন':'ট্রান্সফার', icon:'🔁', cls:'#1d4ed8', bg:'#dbeafe', label: bankTxLabels[tx.type]||tx.type||'—', sub: tx.note||'', amt:tx.amount||0, by:tx.by||'—' })),
+      ...(appData.recDeposits||[]).filter(d=>d.date===today).map(d=>({ time:d.id||0, type:'রিসেপ জমা', icon:'🧰', cls:'#0369a1', bg:'#e0f2fe', label:'ক্যাশ জমা', sub:`${d.visitCount||0}জন রোগী`, amt:d.amount||0, by:d.by||'—' })),
+    ].sort((a,b)=>(b.time>a.time?1:-1));
+    const totalIn = rows.filter(r=>r.type==='আয়'||r.type==='রিসেপ জমা').reduce((s,r)=>s+r.amt,0);
+    const totalOut = rows.filter(r=>r.type==='ব্যয়'||r.type==='মুনাফা উত্তোলন').reduce((s,r)=>s+r.amt,0);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:4px;font-size:15px">🗓️ আজকের এন্ট্রি — ${formatDate(today)}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px">সাম্প্রতিক এন্ট্রি থেকে শুধু আজকের রেকর্ডগুলো সংক্ষেপে দেখানো হচ্ছে</div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="background:#d1fae5;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#065f46">মোট জমা</div><div style="font-size:15px;font-weight:800;color:#059669">৳ ${fmt2(totalIn)}</div></div>
+        <div style="background:#fee2e2;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#991b1b">মোট খরচ/উত্তোলন</div><div style="font-size:15px;font-weight:800;color:#dc2626">৳ ${fmt2(totalOut)}</div></div>
+        <div style="background:#f1f5f9;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#475569">মোট এন্ট্রি</div><div style="font-size:15px;font-weight:800;color:#334155">${rows.length} টি</div></div>
+      </div>
+      ${rows.length ? `<div style="display:flex;flex-direction:column;gap:7px">${rows.map(r=>`
+        <div style="display:flex;align-items:center;gap:10px;background:${r.bg};border-radius:9px;padding:9px 12px">
+          <div style="font-size:17px;flex-shrink:0">${r.icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:12.5px;color:#1e293b">${r.label} <span style="font-weight:500;color:#666;font-size:11px">(${r.type})</span></div>
+            ${r.sub?`<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.sub}</div>`:''}
+            <div style="font-size:10.5px;color:#94a3b8">এন্ট্রি: ${r.by}</div>
+          </div>
+          <div style="font-weight:800;font-size:13px;color:${r.cls};white-space:nowrap">৳ ${fmt2(r.amt)}</div>
+        </div>`).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:30px">আজ এখনো কোনো এন্ট্রি হয়নি</div>`}`;
   }
   if (feature === 'accounting-principles') {
     // এই পেজ সম্পূর্ণ তথ্যভিত্তিক/ডকুমেন্টেশন — কোনো ফর্ম নেই, তাই আসল pg-accounting-principles পেজের
