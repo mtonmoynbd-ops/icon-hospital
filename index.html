@@ -4419,6 +4419,9 @@ function openPrintWindow(htmlContent, title) {
           <input type="checkbox" data-role="owner" data-feature="todayEntries" checked="" style="width:14px;height:14px">
           আজকের এন্ট্রি
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="owner" data-feature="funds" checked="" style="width:14px;height:14px">
+          ফান্ড
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="owner" data-feature="memorandum" style="width:14px;height:14px">
           মেমোরেন্ডাম ও TOR
         </label>
@@ -6354,7 +6357,7 @@ function rebuildUsers() {
 const DEFAULT_FEATURE_ACCESS = {
   moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','inquiries'],
   receptionist:['billing'],
-  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries'],
+  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries','funds'],
   campaigner:  ['camp','accounting-principles'],
 };
 
@@ -14075,16 +14078,21 @@ function renderOwnerMonthClosingHistory() {
   if (!wrap) return;
   const list = [...(appData.monthClosings||[])].sort((a,b)=>b.id-a.id);
   if (!list.length) { wrap.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">কোনো মাস ক্লোজ করা হয়নি</div>'; return; }
-  wrap.innerHTML = list.map(mc => `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+  wrap.innerHTML = list.map(mc => {
+    const fundTotal = mc.fundTotal || (mc.fundAllocations||[]).reduce((s,f)=>s+f.amount,0) || 0;
+    return `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
       <div style="font-weight:700;font-size:14px;color:#1e293b">${mc.label||'—'}</div>
       <button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
-      <div><span style="color:#888">নিট ফলাফল:</span> <strong style="color:${mc.isLoss?'var(--danger)':'var(--success)'}">${mc.isLoss?'-':''}৳ ${fmt(Math.abs(mc.finalNet).toFixed(2))}</strong></div>
+      <div style="grid-column:1/-1"><span style="color:#888">নিট মুনাফা:</span> <strong style="color:${mc.isLoss?'var(--danger)':'var(--success)'}">${mc.isLoss?'-':''}৳ ${fmt(Math.abs(mc.finalNet).toFixed(2))}</strong></div>
+      <div><span style="color:#888">ফান্ড খাত:</span> <strong style="color:#b45309">৳ ${fmt(fundTotal.toFixed(2))}</strong></div>
       <div><span style="color:#888">শেয়ারহোল্ডার অংশ:</span> <strong>৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</strong></div>
+      ${(mc.fundAllocations||[]).length ? `<div style="grid-column:1/-1;margin-top:4px;padding-top:6px;border-top:1px dashed #e2e8f0">${mc.fundAllocations.map(f=>`<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#666;padding:2px 0"><span>↳ ${f.name} (${f.percent}%)</span><span style="font-weight:600;color:#92400e">৳ ${fmt(f.amount.toFixed(2))}</span></div>`).join('')}</div>` : ''}
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 function renderOwnerShareholderWithdrawalHistory() {
   const wrap = document.getElementById('ownerShWithdrawalHistTable');
@@ -14995,6 +15003,7 @@ const ALL_FEATURES = [
   { id:'loan',      label:'লোন ট্র্যাকিং' },
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
   { id:'todayEntries', label:'আজকের এন্ট্রি' },
+  { id:'funds', label:'ফান্ড' },
   { id:'memorandum', label:'মেমোরেন্ডাম ও TOR' },
   { id:'accounting-principles', label:'হিসাবরক্ষণ নীতিমালা' },
   { id:'recdeposit', label:'রিসেপশন রেকর্ড' },
@@ -15010,14 +15019,14 @@ const ALL_FEATURES = [
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries'],
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds'],
   campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles']
 };
 const FEATURE_ICONS = {
   dashboard:'🏠', income:'💰', expense:'🧾', camp:'⛺', due:'⏳', stock:'📦',
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
   bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
-  delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️',
+  delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️', funds:'🏦',
   newbill:'🧾', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖'
 };
 const OWNER_TAB_CONFIG_KEY = 'hms_owner_tabs';
@@ -15137,7 +15146,7 @@ const FEATURE_GROUPS = [
   { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','todayEntries','report','chart','balancesheet','accounting-principles'] },
   { label:'💰 আয় ও ব্যয়',            ids:['income','expense','bank','checkbook','loan'] },
   { label:'🏕️ ক্যাম্প ও রোগী',        ids:['camp','due','delivery','recdeposit','demand'] },
-  { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','memorandum'] },
+  { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','funds','memorandum'] },
 ];
 
 function openRoleMoreSheet(roleKey) {
@@ -15901,6 +15910,22 @@ function goQuickAccess(id) {
 // (পূর্ণ শেয়ারহোল্ডার তালিকা/হিস্ট্রি টেবিলগুলো আগের মতোই সবার জন্য উন্মুক্ত থাকবে — এখানে শুধু "আমার তথ্য" কার্ডটাই প্রভাবিত হয়)
 const OWNER_IDENTITY_KEY = 'hms_my_shareholder_id';
 
+// ===== প্রিমিয়াম কনফার্মেশন মোডাল (ব্রাউজারের ডিফল্ট confirm() এর বদলে অ্যাপের নিজস্ব ডিজাইনে) =====
+function showAppConfirm(opts) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay'; modal.style.display = 'flex';
+  modal.innerHTML = `<div class="modal" style="max-width:380px;text-align:center;padding:28px 24px">
+    <div style="font-size:40px;margin-bottom:10px;line-height:1">${opts.icon||'❓'}</div>
+    <div class="modal-title" style="margin-bottom:10px">${opts.title||'নিশ্চিত করুন'}</div>
+    <p style="font-size:13.5px;color:var(--text-light);line-height:1.75;margin-bottom:22px">${opts.message||''}</p>
+    <div class="modal-footer" style="justify-content:center;gap:10px">
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বাতিল</button>
+      <button class="btn ${opts.confirmClass||'btn-primary'}" onclick="this.closest('.modal-overlay').remove();${opts.onConfirm}">${opts.confirmLabel||'✅ নিশ্চিত করুন'}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
 function getMyShareholderIdentity() {
   try {
     const id = localStorage.getItem(OWNER_IDENTITY_KEY);
@@ -15914,14 +15939,34 @@ function getMyShareholderIdentity() {
 function selectMyShareholderIdentity(id) {
   const sh = (appData.shareholders||[]).find(s => String(s.id) === String(id));
   if (!sh) return;
-  if (!confirm(`আপনি কি নিশ্চিত যে আপনি "${sh.name}"?\n\nএই পরিচয় শুধু এই ডিভাইসেই সংরক্ষিত থাকবে (অন্য কোনো ডিভাইসে প্রভাব ফেলবে না)।`)) return;
+  showAppConfirm({
+    icon: '👤',
+    title: 'পরিচয় নিশ্চিত করুন',
+    message: `আপনি কি নিশ্চিত যে আপনি <strong>"${sh.name}"</strong>?<br><br>এই পরিচয় শুধু এই ডিভাইসেই সংরক্ষিত থাকবে — অন্য কোনো ডিভাইসে এর প্রভাব পড়বে না।`,
+    confirmLabel: '✅ হ্যাঁ, আমিই ' + sh.name,
+    confirmClass: 'btn-success',
+    onConfirm: `confirmMyShareholderIdentity(${sh.id})`
+  });
+}
+function confirmMyShareholderIdentity(id) {
+  const sh = (appData.shareholders||[]).find(s => String(s.id) === String(id));
+  if (!sh) return;
   try { localStorage.setItem(OWNER_IDENTITY_KEY, String(sh.id)); } catch(e) {}
   renderOwnerMyShareInfo();
   showToast('✅ পরিচয় সংরক্ষণ করা হয়েছে: ' + sh.name);
 }
 
 function changeMyShareholderIdentity() {
-  if (!confirm('আপনি কি নিশ্চিত পরিচয় পরিবর্তন করতে চান? এই ডিভাইসে সংরক্ষিত বর্তমান পরিচয় মুছে যাবে এবং আবার নতুন করে বেছে নিতে হবে।')) return;
+  showAppConfirm({
+    icon: '🔄',
+    title: 'পরিচয় পরিবর্তন করবেন?',
+    message: 'এই ডিভাইসে সংরক্ষিত বর্তমান পরিচয় মুছে যাবে এবং আবার নতুন করে বেছে নিতে হবে।',
+    confirmLabel: '🔄 হ্যাঁ, পরিবর্তন করুন',
+    confirmClass: 'btn-danger',
+    onConfirm: 'doChangeMyShareholderIdentity()'
+  });
+}
+function doChangeMyShareholderIdentity() {
   try { localStorage.removeItem(OWNER_IDENTITY_KEY); } catch(e) {}
   renderOwnerMyShareInfo();
 }
@@ -16795,6 +16840,71 @@ function buildReadOnlyHTML(feature, role) {
           </div>
           <div style="font-weight:800;font-size:13px;color:${r.cls};white-space:nowrap">৳ ${fmt2(r.amt)}</div>
         </div>`).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:30px">আজ এখনো কোনো এন্ট্রি হয়নি</div>`}`;
+  }
+  if (feature === 'funds') {
+    const esc = s => (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const closings = (appData.monthClosings || []).slice().sort((a,b)=> a.id - b.id);
+    const currentFunds = (appData.settings||{}).profitAllocationFunds || [];
+    const map = {};
+    currentFunds.forEach(f => { map[String(f.id)] = { key: String(f.id), name: f.name, percent: f.percent, active: true, total: 0 }; });
+    closings.forEach(mc => {
+      (mc.fundAllocations || []).forEach(fa => {
+        const key = _fundKeyOf(fa);
+        if (!map[key]) map[key] = { key, name: fa.name, percent: fa.percent, active: false, total: 0 };
+        map[key].total += fa.amount;
+      });
+    });
+    const funds = Object.values(map).map(f => { const spent = calcFundSpentTotal(f.key); return { ...f, spent, balance: f.total - spent }; });
+    const grandTotal = funds.reduce((s,f)=>s+f.total,0);
+    const grandSpent = funds.reduce((s,f)=>s+f.spent,0);
+    const grandBalance = funds.reduce((s,f)=>s+f.balance,0);
+    const feRows = (appData.expense||[]).filter(e=>e.isFundExpense).slice().sort((a,b)=>b.id-a.id);
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:4px;font-size:15px">🏦 ফান্ড খাতভিত্তিক জমা হিসাব</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.6">প্রতি মাস ক্লোজের সময় নিট মুনাফা থেকে "লাভ বন্টন খাত" অনুযায়ী শতাংশ কেটে এখানে জমা হয়। প্রতিটি খাতে এখন পর্যন্ত মোট জমা, খরচ ও অবশিষ্ট ব্যালেন্স দেখানো হলো।</div>
+      ${funds.length ? `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">${funds.map(f=>`
+        <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:700;font-size:13.5px;color:#1e293b">${esc(f.name)}${f.active?'':' <span style="color:var(--danger);font-size:11px">(নিষ্ক্রিয়)</span>'}</div>
+            <div style="font-size:11.5px;color:#888">${f.active?'বরাদ্দ '+f.percent+'%':'সক্রিয় নেই'}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
+            <div style="grid-column:1/-1;background:#f0fdf4;border-radius:6px;padding:6px 8px"><span style="color:#065f46">অবশিষ্ট ব্যালেন্স:</span> <strong style="color:var(--success);font-size:14px">৳ ${fmt2(f.balance)}</strong></div>
+            <div><span style="color:#888">মোট জমা:</span> <strong>৳ ${fmt2(f.total)}</strong></div>
+            <div><span style="color:#888">মোট খরচ:</span> <strong style="color:var(--danger)">৳ ${fmt2(f.spent)}</strong></div>
+          </div>
+        </div>`).join('')}</div>
+        <div style="background:#f0f4f8;border-radius:8px;padding:12px 14px;font-size:12.5px;font-weight:700;margin-bottom:18px;line-height:1.9">
+          মোট অবশিষ্ট: <span style="color:var(--success)">৳ ${fmt2(grandBalance)}</span><br>
+          মোট জমা: ৳ ${fmt2(grandTotal)} &nbsp;|&nbsp; মোট খরচ: ৳ ${fmt2(grandSpent)}
+        </div>` : `<div style="text-align:center;color:#aaa;padding:20px;margin-bottom:16px">এখনো কোনো ফান্ড খাত সেট করা হয়নি অথবা কোনো মাস ক্লোজ হয়নি।</div>`}
+      <div style="font-weight:700;color:var(--primary);margin-bottom:10px;font-size:14px">🧾 ফান্ড খরচের ইতিহাস</div>
+      ${feRows.length ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">${feRows.map(e=>{
+        const payBadge = e.payMode==='bank'
+          ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:10.5px;font-weight:700">🏦 ব্যাংক${e.status==='pending'?' (পেন্ডিং)':''}</span>`
+          : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:10.5px;font-weight:700">💵 ক্যাশ</span>`;
+        return `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;background:#fafbfc">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <div style="font-weight:700;font-size:13px;color:#1e293b">${esc(e.fundName||'—')}</div>
+            ${payBadge}
+          </div>
+          <div style="font-size:11.5px;color:#666;margin-bottom:4px">${esc(e.note||'—')}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:#94a3b8">
+            <span>${formatDate(e.date)} • ${esc(e.voucher||'—')} • ${esc(e.by||'—')}</span>
+            <span style="font-weight:800;color:var(--danger);font-size:13.5px">৳ ${fmt2(e.amount)}</span>
+          </div>
+        </div>`;
+      }).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:16px;margin-bottom:16px">এখনো কোনো ফান্ড খরচ হয়নি</div>`}
+      <div style="font-weight:700;color:var(--primary);margin-bottom:10px;font-size:14px">📜 মাসভিত্তিক ফান্ড জমার হিস্ট্রি</div>
+      ${closings.length ? `<div style="display:flex;flex-direction:column;gap:8px">${closings.slice().reverse().map(mc=>{
+        const rowTotal = (mc.fundAllocations||[]).reduce((s,fa)=>s+fa.amount,0);
+        return `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;background:#fafbfc">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="font-weight:700;font-size:13px;color:#1e293b">${mc.label||'—'}</div>
+            <div style="font-weight:800;font-size:13px;color:#b45309">৳ ${fmt2(rowTotal)}</div>
+          </div>
+          ${(mc.fundAllocations||[]).length?`<div>${mc.fundAllocations.map(fa=>`<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#666;padding:2px 0"><span>↳ ${esc(fa.name)}</span><span style="font-weight:600">৳ ${fmt2(fa.amount)}</span></div>`).join('')}</div>`:'<div style="font-size:11.5px;color:#aaa">কোনো ফান্ড বরাদ্দ হয়নি</div>'}
+        </div>`;
+      }).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:16px">কোনো মাস ক্লোজ হয়নি</div>`}`;
   }
   if (feature === 'accounting-principles') {
     // এই পেজ সম্পূর্ণ তথ্যভিত্তিক/ডকুমেন্টেশন — কোনো ফর্ম নেই, তাই আসল pg-accounting-principles পেজের
