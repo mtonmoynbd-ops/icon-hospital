@@ -5293,7 +5293,7 @@ function openPrintWindow(htmlContent, title) {
 
 <!-- CAMPAIGNER PAGE -->
 <div id="camperPage" style="display:none;width:100%;min-height:100vh;background:var(--bg);flex-direction:column">
-  <div style="background:#ffffff;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0">
+  <div id="camperTopHeader" style="background:#ffffff;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="" id="camperLogoImg" style="height:36px;object-fit:contain">
     </div>
@@ -5400,6 +5400,7 @@ function openPrintWindow(htmlContent, title) {
           <div style="color:var(--accent);font-size:11px">রিসিট রেঞ্জ</div>
           <div style="color:white;font-size:13px;font-weight:600" id="cpReceiptRange"></div>
         </div>
+        <button class="btn btn-outline btn-sm" onclick="initCamperPage()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.35);color:white">▶️ ক্যাম্পে ফিরুন</button>
         <button class="btn btn-danger btn-sm" onclick="closeCamperCamp()" style="background:rgba(231,76,60,0.8);border:1px solid rgba(231,76,60,0.5)">🔒 ক্যাম্প ক্লোজ</button>
       </div>
     </div>
@@ -5415,7 +5416,7 @@ function openPrintWindow(htmlContent, title) {
     </div>
 
     <!-- ক্যাম্প মিনি অ্যাকশন বার — সবসময় HTML-এ থাকবে, JS শুধু show/hide করবে -->
-    <div id="campMiniBar" style="display:none;position:sticky;top:0;z-index:90;background:#0a2540;border-radius:10px;margin-bottom:8px;padding:6px 8px;display:none;align-items:center;justify-content:space-between;gap:4px;box-shadow:0 2px 10px rgba(0,0,0,0.25)">
+    <div id="campMiniBar" style="display:none;position:sticky;top:0;z-index:90;background:#3a6d95;border-radius:10px;margin-bottom:8px;padding:6px 8px;display:none;align-items:center;justify-content:space-between;gap:4px;box-shadow:0 2px 10px rgba(0,0,0,0.18)">
       <div style="color:var(--accent);font-size:10px;font-weight:700;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis" id="campMiniBarName"></div>
       <div style="display:flex;gap:4px;flex-shrink:0">
         <button onclick="switchCamperSessionTab('history')" style="background:rgba(255,255,255,0.1);border:none;border-radius:7px;padding:6px 9px;color:white;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="আজকের এন্ট্রি">
@@ -5485,8 +5486,8 @@ function openPrintWindow(htmlContent, title) {
           <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:8px 10px;margin-bottom:8px">
             <div style="display:flex;gap:8px;align-items:center">
               <div style="flex:1">
-                <div style="font-size:11px;color:var(--text-light);margin-bottom:3px">ডিসকাউন্ট % <span id="cpDiscLimit" style="color:var(--danger)"></span></div>
-                <input type="number" id="cpDiscPct" placeholder="০" min="0" oninput="updateCamperSummary()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;width:100%">
+                <div style="font-size:11px;color:var(--text-light);margin-bottom:3px">ডিসকাউন্ট (৳) <span id="cpDiscLimit" style="color:var(--danger)"></span></div>
+                <input type="number" id="cpDiscTaka" placeholder="০" min="0" oninput="updateCamperSummary()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:14px;width:100%">
               </div>
               <div style="flex:1">
                 <div style="font-size:11px;color:var(--text-light);margin-bottom:3px">নগদ প্রদান (৳)</div>
@@ -15427,6 +15428,7 @@ function openRoleFeature(feature) {
       initCamperReadOnlySection(feature);
     }
     renderRoleBottomTabs('camper', feature);
+    if (typeof camperSession !== 'undefined' && camperSession) injectCamperHomeTab();
     return;
   }
   setPageVisible('appPage');
@@ -16458,6 +16460,52 @@ function savePastCampReturn(campId) {
   showToast(`✅ ${returned}টি পণ্য মেইন স্টকে ফেরত দেওয়া হয়েছে`);
 }
 
+// ক্যাম্প সেশন চলাকালীন টপ হেডার (লোগো+লগআউট) লুকিয়ে নিল মিনি-বারকেই হেডার বানানো — মোবাইলে স্ক্রল বাঁচাতে
+function applyCamperHeaderVisibility() {
+  const th = document.getElementById('camperTopHeader');
+  if (!th) return;
+  th.style.display = camperSession ? 'none' : 'flex';
+}
+
+// বটম বারে "🏠 হোম" বাটন — সক্রিয় ক্যাম্প থাকাকালীন যেকোনো ফিচার থেকে হোম ওভারভিউতে ফেরার জন্য
+function injectCamperHomeTab() {
+  const bar = document.getElementById('camperBottomTabBar');
+  if (!bar) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.innerHTML = `<span class="obt-icon">🏠</span><span class="obt-label">হোম</span>`;
+  btn.onclick = () => openCamperHomeOverview();
+  bar.insertBefore(btn, bar.firstChild);
+}
+
+// ক্যাম্প সক্রিয় থাকা অবস্থায় "হোম" ওভারভিউ — সক্রিয় ক্যাম্প ব্যানার + বিগত ক্যাম্প রেকর্ড দেখাবে, বিলিং/সেশন ভিউ লুকিয়ে
+function openCamperHomeOverview() {
+  const ros = document.getElementById('camperReadOnlySection');
+  if (ros) ros.style.display = 'none';
+  ['camper-billing','camper-history','camper-expense','camper-oppatient','camper-returnstock','camper-lookup']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const mb = document.getElementById('campMiniBar');
+  if (mb) mb.style.display = 'none';
+  document.getElementById('campSelectorPanel').style.display = 'none';
+  document.getElementById('camperTabsRow').style.display = 'none';
+  const cashBar = document.getElementById('camperCashBar');
+  if (cashBar) cashBar.style.display = 'none';
+  document.getElementById('cpPastCampsPanel').style.display = 'block';
+  renderCamperPastCamps();
+  const banner = document.getElementById('cpActiveBanner');
+  if (camperSession && banner) {
+    banner.style.display = 'flex';
+    document.getElementById('cpActiveName').textContent = camperSession.name;
+    document.getElementById('cpActiveInfo').textContent = `${camperSession.location||''} • ${formatDate(camperSession.date)}`;
+  } else if (banner) {
+    banner.style.display = 'none';
+  }
+  const th = document.getElementById('camperTopHeader');
+  if (th) th.style.display = 'flex';
+  const cbb = document.getElementById('camperBottomTabBar');
+  if (cbb) cbb.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+}
+
 function initCamperPage() {
   const cl = document.getElementById('camperLogoImg');
   if (cl && LOGO_B64) { cl.src = LOGO_B64; cl.style.display = 'block'; }
@@ -16499,6 +16547,7 @@ function initCamperPage() {
     if (mbn) mbn.textContent = `⛺ ${camperSession.name}`;
     // ক্যাম্প সেশন বটম বার দেখাও
     renderCamperSessionBottomBar();
+    applyCamperHeaderVisibility();
   } else {
     // ক্যাম্প নেই → সিলেক্টর + বিগত রেকর্ড দেখাও
     if (cashBar) cashBar.style.display = '';
@@ -16510,6 +16559,7 @@ function initCamperPage() {
       .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
     // সাধারণ বটম ট্যাব বার (feature-based)
     renderRoleBottomTabs('camper', 'camp');
+    applyCamperHeaderVisibility();
   }
 }
 
@@ -16525,6 +16575,7 @@ function initCamperReadOnlySection(feature) {
   ].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
   const ros = document.getElementById('camperReadOnlySection');
   if (ros) { ros.style.display = ''; ros.innerHTML = buildReadOnlyHTML(feature); }
+  applyCamperHeaderVisibility();
 }
 
 // Owner read-only section render
@@ -16671,6 +16722,12 @@ function buildReadOnlyHTML(feature, role) {
     }
     const rows = (appData.demands||[]).filter(d=>d.by===currentUser.name).slice().sort((a,b)=>b.id-a.id).slice(0,30);
     const cats = ['ওষুধ','সার্জিক্যাল সামগ্রী','অফিস সামগ্রী','যন্ত্রপাতি','আসবাবপত্র','অন্যান্য'];
+    const statusBadgeStyle2 = {
+      pending:  'background:#fef3c7;color:#92400e',
+      approved: 'background:#dcfce7;color:#166534',
+      rejected: 'background:#fee2e2;color:#991b1b',
+      partial:  'background:#dbeafe;color:#1e40af'
+    };
     return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-weight:700;color:var(--primary);font-size:15px">📝 ডিমান্ড নোট</div>
         <button class="btn btn-primary btn-sm" onclick="toggleCdmForm()" id="cdmToggleBtn">+ নতুন ডিমান্ড নোট</button>
@@ -16703,10 +16760,24 @@ function buildReadOnlyHTML(feature, role) {
           <button class="btn btn-success" onclick="saveCdmNote()">✅ সাবমিট করুন</button>
         </div>
       </div>
-      <div style="overflow-x:auto;margin-top:8px"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">শিরোনাম</th><th style="${thStyle}">আইটেম</th><th style="${thStyle}">স্ট্যাটাস</th></tr>
-        ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle};font-weight:600">${d.title}</td><td style="${tdStyle};text-align:center">${(d.items||[]).length} টি</td><td style="${tdStyle}">${statusLabel[d.status]||d.status}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">আপনার কোনো ডিমান্ড নোট নেই</td></tr>`}
-      </table></div>`;
+      <div style="margin-top:10px">
+        ${rows.length ? `<div style="display:flex;flex-direction:column;gap:10px">${rows.map(d=>{
+          const badgeStyle = statusBadgeStyle2[d.status] || 'background:#f1f5f9;color:#475569';
+          return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div style="font-weight:700;font-size:13.5px;color:#1e293b;line-height:1.35">${d.title}</div>
+              <span style="flex-shrink:0;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;${badgeStyle}">${statusLabel[d.status]||d.status}</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-light)">📅 ${formatDate(d.date)}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:#334155">
+              <span>📦 আইটেম: <strong>${(d.items||[]).length} টি</strong></span>
+            </div>
+            ${d.approvedBy ? `<div style="font-size:12px;color:#334155">✅ অনুমোদনকারী: <strong>${d.approvedBy}</strong></div>` : ''}
+            ${d.adminNote ? `<div style="font-size:11.5px;color:#92400e;background:#fffbeb;border-radius:6px;padding:6px 8px">📝 ${d.adminNote}</div>` : ''}
+            <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:2px" onclick="viewDemand(${d.id})">👁️ বিস্তারিত দেখুন</button>
+          </div>`;
+        }).join('')}</div>` : `<div style="padding:24px;text-align:center;color:#aaa">আপনার কোনো ডিমান্ড নোট নেই</div>`}
+      </div>`;
   }
   if (feature === 'vendor') {
     const rows = (appData.vendors||[]).slice(0,30);
@@ -17022,7 +17093,7 @@ function onCampScheduleSelect() {
     if (regular.length) {
       regularBox.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:4px">👥 নিয়মিত কর্মী</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${regular.map(st=>`<span style="background:#dbeafe;color:#1e40af;padding:3px 8px;border-radius:6px;font-size:12px">${st.name} <span style="color:var(--success)">৳${fmt(st.dailyPay)}/দিন</span></span>`).join('')}
+          ${regular.map(st=>`<span style="background:#dbeafe;color:#1e40af;padding:3px 8px;border-radius:6px;font-size:12px">${st.name}</span>`).join('')}
         </div>`;
     } else {
       regularBox.innerHTML = '';
@@ -17066,14 +17137,20 @@ function addStockTakeRow() {
   const sellable  = (appData.stock||[]).filter(s => s.cat !== 'অফিস সামগ্রী' && s.qty > 0);
   const div = document.createElement('div');
   div.id = 'strow-' + id;
-  div.style.cssText = 'display:grid;grid-template-columns:3fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  div.style.cssText = 'border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fafbfc';
   div.innerHTML = `
-    <select id="stItem-${id}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:11.5px;font-weight:700;color:var(--text-light)">পণ্য #${id}</span>
+      <button class="btn-icon-del" onclick="document.getElementById('strow-${id}').remove()">✕</button>
+    </div>
+    <select id="stItem-${id}" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;width:100%;margin-bottom:8px;background:#fff">
       <option value="">-- পণ্য বেছে নিন --</option>
       ${sellable.map(s=>`<option value="${s.id}" data-max="${s.qty}">${s.name} (স্টক: ${s.qty} ${s.unit})</option>`).join('')}
     </select>
-    <input type="number" id="stQty-${id}" placeholder="পরিমাণ" min="1" value="1" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-    <button class="btn-icon-del" onclick="document.getElementById('strow-${id}').remove()">✕</button>`;
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:12.5px;color:var(--text-light);white-space:nowrap">পরিমাণ:</label>
+      <input type="number" id="stQty-${id}" placeholder="যেমন: ৫" min="1" value="1" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;flex:1">
+    </div>`;
   container.appendChild(div);
 }
 
@@ -17494,10 +17571,32 @@ function setCamperTestPrice(id) {
 }
 
 function setCamperItemPrice(id) {
-  const sel   = document.getElementById('cpItem-' + id);
-  const opt   = sel.options[sel.selectedIndex];
-  const price = parseFloat(opt.getAttribute('data-price'))||0;
-  document.getElementById('cpPrice-' + id).value = price||'';
+  const sel     = document.getElementById('cpItem-' + id);
+  const opt     = sel.options[sel.selectedIndex];
+  const priceEl = document.getElementById('cpPrice-' + id);
+  const stockItem = (appData.stock||[]).find(s => s.id === parseInt(sel.value));
+  if (stockItem && stockItem.cat === 'চশমা/লেন্স') {
+    const min = stockItem.sellMin||0, max = stockItem.sellMax||0;
+    priceEl.value = min || '';
+    priceEl.min = min; priceEl.max = max || 999999;
+    priceEl.placeholder = `মিন:${min} ~ ম্যাক্স:${max}`;
+    priceEl.title = `সর্বনিম্ন: ৳${fmt(min)} | সর্বোচ্চ: ৳${fmt(max)}`;
+    priceEl.style.background = '#fff9f0';
+    priceEl.onblur = function() {
+      const v = parseFloat(this.value)||0;
+      if (min && v < min) { showToast(`⚠️ সর্বনিম্ন বিক্রয়মূল্য ৳${fmt(min)}`); this.value = min; }
+      if (max && v > max) { showToast(`⚠️ সর্বোচ্চ বিক্রয়মূল্য ৳${fmt(max)}`); this.value = max; }
+      updateCamperSummary();
+    };
+  } else {
+    const price = parseFloat(opt.getAttribute('data-price'))||0;
+    priceEl.value = price||'';
+    priceEl.min = 0; priceEl.removeAttribute('max');
+    priceEl.placeholder = 'মূল্য';
+    priceEl.title = '';
+    priceEl.style.background = '';
+    priceEl.onblur = null;
+  }
   updateCamperSummary();
 }
 
@@ -17532,10 +17631,12 @@ function updateCamperSummary() {
   const addVisit = document.getElementById('cpAddVisit')?.checked;
   const visitFee = camperSession?.visitFee||0;
   if (addVisit && visitFee > 0) total += visitFee;
-  const discPct     = parseFloat(document.getElementById('cpDiscPct').value)||0;
-  const maxDisc     = appData.settings.camperDiscount||5;
-  const effectivePct = Math.min(discPct, maxDisc);
-  const discAmt     = Math.floor(total * effectivePct / 100);
+  const maxDiscPct  = appData.settings.camperDiscount||5;
+  const maxDiscTaka = Math.floor(total * maxDiscPct / 100);
+  const dl = document.getElementById('cpDiscLimit');
+  if (dl) dl.textContent = total > 0 ? `(সর্বোচ্চ ৳ ${fmt(maxDiscTaka)})` : `(সর্বোচ্চ ${maxDiscPct}%)`;
+  const discInput = parseFloat(document.getElementById('cpDiscTaka').value)||0;
+  const discAmt   = Math.max(0, Math.min(discInput, maxDiscTaka));
   const netTotal    = total - discAmt;
   const paid        = parseFloat(document.getElementById('cpCashPaid').value)||0;
   const due         = Math.max(0, netTotal - paid);
@@ -17548,7 +17649,7 @@ function updateCamperSummary() {
 }
 
 function clearCamperBill() {
-  ['cpPatName','cpPatAge','cpPatPhone','cpCashPaid','cpDiscPct'].forEach(id => {
+  ['cpPatName','cpPatAge','cpPatPhone','cpCashPaid','cpDiscTaka'].forEach(id => {
     const el = document.getElementById(id); if (el) { el.value=''; el.disabled=false; }
   });
   document.getElementById('camperServiceRows').innerHTML = '';
@@ -17561,14 +17662,14 @@ function clearCamperBill() {
 
 function onFreeReceiptToggle() {
   const isFree = document.getElementById('cpFreeReceipt')?.checked;
-  const fieldsToDisable = ['cpAddVisit','cpDiscPct','cpCashPaid'];
+  const fieldsToDisable = ['cpAddVisit','cpDiscTaka','cpCashPaid'];
   fieldsToDisable.forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.disabled = isFree; if(isFree) el.checked=false; }
   });
   if (isFree) {
     document.getElementById('cpCashPaid').value = '0';
-    document.getElementById('cpDiscPct').value  = '0';
+    document.getElementById('cpDiscTaka').value = '0';
   }
   updateCamperSummary();
 }
@@ -17595,8 +17696,8 @@ function saveCamperBill() {
     testItems.reduce((s,i) => s+i.price, 0) +
     (addVisit && visitFee > 0 ? visitFee : 0)
   );
-  const discPct  = isFree ? 0 : Math.min(parseFloat(document.getElementById('cpDiscPct').value)||0, appData.settings.camperDiscount||5);
-  const discAmt  = Math.floor(total * discPct / 100);
+  const maxDiscTaka = isFree ? 0 : Math.floor(total * (appData.settings.camperDiscount||5) / 100);
+  const discAmt  = isFree ? 0 : Math.max(0, Math.min(parseFloat(document.getElementById('cpDiscTaka').value)||0, maxDiscTaka));
   const netTotal = total - discAmt;
   const paid     = isFree ? 0 : (parseFloat(document.getElementById('cpCashPaid').value)||0);
   const due      = isFree ? 0 : Math.max(0, netTotal - paid);
