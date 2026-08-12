@@ -5369,9 +5369,16 @@ function openPrintWindow(htmlContent, title) {
         </div>
         <!-- স্টক নেওয়া -->
         <div id="cpStockTakeBox" style="display:none;margin-top:12px">
-          <div style="font-weight:700;font-size:14px;color:var(--primary);margin-bottom:8px">📦 ক্যাম্পে নিয়ে যাওয়ার স্টক</div>
-          <div id="cpStockTakeRows"></div>
-          <button class="btn btn-outline btn-sm" onclick="addStockTakeRow()" style="margin-top:6px">+ পণ্য যোগ করুন</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <div style="font-weight:700;font-size:14px;color:var(--primary)">📦 ক্যাম্পে নিয়ে যাওয়ার স্টক</div>
+            <button class="btn btn-outline btn-sm" onclick="loadPrevCampStockList()" style="font-size:11.5px">🔁 আগের ক্যাম্পের তালিকা থেকে লোড করুন</button>
+          </div>
+          <div style="font-weight:700;font-size:13px;color:var(--primary);margin:6px 0">💊 মেডিসিন / অন্যান্য</div>
+          <div id="cpStockTakeRowsMed"></div>
+          <button class="btn btn-outline btn-sm" onclick="addStockTakeRow('med')" style="margin-top:2px">+ মেডিসিন যোগ করুন</button>
+          <div style="font-weight:700;font-size:13px;color:var(--primary);margin:14px 0 6px">👓 চশমা / লেন্স</div>
+          <div id="cpStockTakeRowsGlass"></div>
+          <button class="btn btn-outline btn-sm" onclick="addStockTakeRow('glass')" style="margin-top:2px">+ চশমা যোগ করুন</button>
           <div style="margin-top:10px;display:flex;gap:10px">
             <button class="btn btn-success" onclick="initCamperSession()">✅ ক্যাম্প শুরু করুন</button>
           </div>
@@ -5418,27 +5425,28 @@ function openPrintWindow(htmlContent, title) {
     <!-- ক্যাম্প মিনি অ্যাকশন বার — সবসময় HTML-এ থাকবে, JS শুধু show/hide করবে -->
     <div id="campMiniBar" style="display:none;position:sticky;top:0;z-index:90;flex-direction:column;gap:3px;margin-bottom:8px;padding-top:2px">
       <div id="campMiniBarName" style="text-align:center;font-size:9.5px;font-weight:700;color:var(--primary);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.85"></div>
-      <div style="background:rgba(15,76,129,0.5);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border:1px solid rgba(255,255,255,0.22);border-radius:10px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:4px;box-shadow:0 4px 16px rgba(15,76,129,0.16)">
-        <button onclick="switchCamperSessionTab('history')" style="background:rgba(255,255,255,0.12);border:none;border-radius:7px;padding:6px 9px;color:white;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="আজকের এন্ট্রি">
-          <span>📋</span><span style="font-size:9px;opacity:0.8">এন্ট্রি</span>
+      <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
+        <button onclick="switchCamperSessionTab('history')" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:7px;padding:6px 9px;color:#1a1a1a;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="আজকের এন্ট্রি">
+          <span>📋</span><span style="font-size:9px;opacity:0.75">এন্ট্রি</span>
         </button>
-        <button onclick="switchCamperSessionTab('expense')" style="background:rgba(255,255,255,0.12);border:none;border-radius:7px;padding:6px 9px;color:white;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="ক্যাম্প খরচ">
-          <span>💸</span><span style="font-size:9px;opacity:0.8">খরচ</span>
+        <button onclick="switchCamperSessionTab('expense')" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:7px;padding:6px 9px;color:#1a1a1a;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="ক্যাম্প খরচ">
+          <span>💸</span><span style="font-size:9px;opacity:0.75">খরচ</span>
         </button>
-        <button onclick="switchCamperSessionTab('oppatient')" style="background:rgba(255,255,255,0.12);border:none;border-radius:7px;padding:6px 9px;color:white;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="অপারেশন রোগী">
-          <span>🔪</span><span style="font-size:9px;opacity:0.8">অপারেশন</span>
+        <button onclick="switchCamperSessionTab('oppatient')" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:7px;padding:6px 9px;color:#1a1a1a;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="অপারেশন রোগী">
+          <span>🔪</span><span style="font-size:9px;opacity:0.75">অপারেশন</span>
         </button>
-        <button onclick="switchCamperSessionTab('returnstock')" style="background:rgba(255,255,255,0.12);border:none;border-radius:7px;padding:6px 9px;color:white;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="স্টক ফেরত">
-          <span>↩️</span><span style="font-size:9px;opacity:0.8">স্টক</span>
+        <button onclick="switchCamperSessionTab('returnstock')" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:7px;padding:6px 9px;color:#1a1a1a;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="স্টক ফেরত">
+          <span>↩️</span><span style="font-size:9px;opacity:0.75">স্টক</span>
         </button>
-        <button onclick="showCamperCashSubmitModal()" style="background:rgba(0,180,216,0.3);border:1px solid rgba(0,180,216,0.45);border-radius:7px;padding:6px 9px;color:#eafcff;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="ক্যাশ জমা">
+        <button onclick="showCamperCashSubmitModal()" style="background:#f0fdff;border:1px solid #bff2fb;border-radius:7px;padding:6px 9px;color:#1a1a1a;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="ক্যাশ জমা">
           <span>💵</span><span style="font-size:9px">ক্যাশ</span>
         </button>
-        <button onclick="closeCamperCamp()" style="background:rgba(231,76,60,0.3);border:1px solid rgba(231,76,60,0.45);border-radius:7px;padding:6px 9px;color:#ffe5e2;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="ক্যাম্প ক্লোজ">
+        <button onclick="closeCamperCamp()" style="background:#fff5f5;border:1px solid #ffd9d9;border-radius:7px;padding:6px 9px;color:#1a1a1a;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="ক্যাম্প ক্লোজ">
           <span>🔒</span><span style="font-size:9px">ক্লোজ</span>
         </button>
       </div>
     </div>
+
 
     <!-- BILLING TAB -->
     <div id="camper-billing" class="rec-tab-view active" style="display:none">
@@ -11670,27 +11678,30 @@ function showCampDetail(id) {
   if (!c) return;
   const ratingEmoji = { 'খুব সফল':'🌟','সফল':'✅','মোটামুটি':'🆗','অসফল':'❌' };
 
-  const itemSalesHtml = c.itemSales ? Object.entries(c.itemSales).map(([k,v])=>`
+  const itemSalesMedHtml = c.itemSales ? Object.entries(c.itemSales).filter(([k,v])=>v.cat!=='চশমা/লেন্স').map(([k,v])=>`
+    <tr><td style="padding:5px 8px">${k}</td><td style="padding:5px 8px;text-align:center">${v.qty}টি</td><td style="padding:5px 8px;text-align:right;color:var(--success);font-weight:600">৳${fmt(v.total)}</td></tr>`).join('') : '';
+  const itemSalesGlassHtml = c.itemSales ? Object.entries(c.itemSales).filter(([k,v])=>v.cat==='চশমা/লেন্স').map(([k,v])=>`
     <tr><td style="padding:5px 8px">${k}</td><td style="padding:5px 8px;text-align:center">${v.qty}টি</td><td style="padding:5px 8px;text-align:right;color:var(--success);font-weight:600">৳${fmt(v.total)}</td></tr>`).join('') : '';
   const testSalesHtml = c.testSales ? Object.entries(c.testSales).map(([k,v])=>`
     <tr><td style="padding:5px 8px">${k}</td><td style="padding:5px 8px;text-align:center">${v.qty}জন</td><td style="padding:5px 8px;text-align:right;color:var(--success);font-weight:600">৳${fmt(v.total)}</td></tr>`).join('') : '';
-  const expHtml = (c.expList||[]).map(e=>`
-    <tr><td style="padding:5px 8px">${e.category}</td><td style="padding:5px 8px;font-size:12px;color:#888">${e.note||''}</td><td style="padding:5px 8px;text-align:right;color:var(--danger);font-weight:600">৳${fmt(e.amount)}</td></tr>`).join('');
+  // পার্টটাইমার পেমেন্ট — সবসময় camp রেকর্ড থেকেই নেওয়া (নির্ভরযোগ্য), ক্যাম্প খরচের একই টেবিলে মার্জ করা হবে
+  const parttimerRows = (c.parttimers||[]).filter(p=>(p.actualPay||p.pay||0) > 0);
+  const expHtml = (c.expList||[]).filter(e=>e.category!=='পার্টটাইমার পেমেন্ট').map(e=>`
+    <tr><td style="padding:5px 8px">${e.category}</td><td style="padding:5px 8px;font-size:12px;color:#888">${e.note||''}</td><td style="padding:5px 8px;text-align:right;color:var(--danger);font-weight:600">৳${fmt(e.amount)}</td></tr>`).join('')
+    + parttimerRows.map(p=>`<tr><td style="padding:5px 8px">পার্টটাইমার পেমেন্ট</td><td style="padding:5px 8px;font-size:12px;color:#888">${p.name||''}</td><td style="padding:5px 8px;text-align:right;color:var(--danger);font-weight:600">৳${fmt(p.actualPay||p.pay||0)}</td></tr>`).join('');
   const patHtml = (c.patients||[]).map(p=>`
     <tr><td style="padding:4px 8px;font-weight:600">${p.name}</td><td style="padding:4px 8px;text-align:center">${p.age||'—'}</td><td style="padding:4px 8px;color:var(--text-light)">${p.phone||'—'}</td><td style="padding:4px 8px;text-align:center;font-weight:600;color:var(--primary)">${p.receipt?'#'+p.receipt:'—'}</td><td style="padding:4px 8px;text-align:right;color:var(--success)">${p.paid?'৳'+fmt(p.paid):''}</td></tr>`).join('');
 
-  // নেট লাভ/লস — সঠিক হিসাবে পুনরায় calculate করি
-  // পার্টটাইমার totalExpense এ আছে, তাই আলাদা বাদ নয়
+  // নেট লাভ/লস — সঠিক হিসাবে পুনরায় calculate করি (পার্টটাইমার খরচ সবসময় c.parttimers থেকে ধরা হয়)
   const totalCOGS        = c.totalCOGS||0;
   const regularStaffCost = c.regularStaffCost||0;
   const totalExpense     = c.totalExpense||0;
-  const netProfit        = (c.totalIncome||0) - totalCOGS - totalExpense - regularStaffCost;
+  const parttimeCost     = c.parttimeCost!=null ? c.parttimeCost : parttimerRows.reduce((s,p)=>s+(p.actualPay||p.pay||0),0);
+  const netProfit        = (c.totalIncome||0) - totalCOGS - totalExpense - regularStaffCost - parttimeCost;
   const hasDetailedCalc  = c.totalCOGS !== undefined;
   const isLoss           = netProfit < 0;
   // মোট ডিসকাউন্ট — পুরনো রেকর্ডে totalDiscount ফিল্ড না থাকলে রোগীদের ডিসকাউন্ট যোগ করে বের করা হচ্ছে
   const totalDiscount    = c.totalDiscount!=null ? c.totalDiscount : (c.patients||[]).reduce((s,p)=>s+(p.discAmt||0),0);
-  // পার্টটাইমার পেমেন্ট — নাম অনুযায়ী, সবসময় camp রেকর্ড থেকেই নেওয়া (ম্যানুয়াল খরচ সেভ না করলেও দেখা যাবে)
-  const parttimerRows = (c.parttimers||[]).filter(p=>(p.actualPay||p.pay||0) > 0);
 
   const netBreakdownHtml = hasDetailedCalc ? `
     <div style="margin-bottom:14px">
@@ -11703,7 +11714,10 @@ function showCampDetail(id) {
           <span>পণ্যের ক্রয়মূল্য (COGS)</span><span>- ৳${fmt(totalCOGS)}</span>
         </div>
         ${totalExpense>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444">
-          <span>ক্যাম্প খরচ (যাতায়াত, রেন্ট, পার্টটাইমার ইত্যাদি)</span><span>- ৳${fmt(totalExpense)}</span>
+          <span>ক্যাম্প খরচ (যাতায়াত, রেন্ট ইত্যাদি)</span><span>- ৳${fmt(totalExpense)}</span>
+        </div>`:''}
+        ${parttimeCost>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444">
+          <span style="font-size:12px">পার্টটাইমার পেমেন্ট (${parttimerRows.map(p=>p.name).filter(Boolean).join(', ')||''})</span><span>- ৳${fmt(parttimeCost)}</span>
         </div>`:''}
         ${regularStaffCost>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444">
           <span style="font-size:12px">নিয়মিত কর্মী বেতন (${(c.regularStaff||[]).map(s=>s.name).join(', ')||''}) <span style="color:#aaa;font-size:11px">— মাসিক স্যালারিতে</span></span><span>- ৳${fmt(regularStaffCost)}</span>
@@ -11726,6 +11740,7 @@ function showCampDetail(id) {
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         ${c.rating?`<span style="background:#f0fff4;border:1.5px solid #86efac;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700">${ratingEmoji[c.rating]||''} ${c.rating}</span>`:''}
+        <button onclick="showPastCampCashSubmitModal(${c.id})" style="background:#f0fdff;border:1.5px solid #bff2fb;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#0891b2;">💵 ক্যাশ জমা</button>
         <button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove())" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#e74c3c;">✕ বন্ধ</button>
       </div>
     </div>
@@ -11743,7 +11758,7 @@ function showCampDetail(id) {
       </div>
       <div style="background:#fff9f0;border-radius:8px;padding:10px;text-align:center">
         <div style="font-size:11px;color:#888">মোট ব্যয়</div>
-        <div style="font-size:15px;font-weight:700;color:var(--danger)">৳${fmt((totalExpense)+(totalCOGS)+(regularStaffCost))}</div>
+        <div style="font-size:15px;font-weight:700;color:var(--danger)">৳${fmt(totalExpense+totalCOGS+regularStaffCost+parttimeCost)}</div>
       </div>
       <div style="background:${netProfit>=0?'#f0fff4':'#fff0f0'};border-radius:8px;padding:10px;text-align:center">
         <div style="font-size:11px;color:#888">নেট ${isLoss?'লস':'লাভ'}</div>
@@ -11759,14 +11774,24 @@ function showCampDetail(id) {
     <!-- নেট লাভ breakdown -->
     ${netBreakdownHtml}
 
-    <!-- পণ্য বিক্রয় -->
-    ${itemSalesHtml?`<div style="margin-bottom:10px;border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+    <!-- মেডিসিন বিক্রয় -->
+    ${itemSalesMedHtml?`<div style="margin-bottom:10px;border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
       <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f8fafc;border:none;font-family:inherit;font-size:13px;font-weight:700;color:var(--primary);cursor:pointer;">
-        <span>💊 পণ্য/চশমা বিক্রয়</span><span class="camp-toggle-arrow">▼</span></button>
+        <span>💊 মেডিসিন বিক্রয়</span><span class="camp-toggle-arrow">▼</span></button>
       <div class="camp-collapsible" style="display:none">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead><tr style="background:#f0f4f8"><th style="padding:6px 8px;text-align:left">পণ্য</th><th style="padding:6px 8px">পরিমাণ</th><th style="padding:6px 8px;text-align:right">বিক্রয়মূল্য</th></tr></thead>
-          <tbody>${itemSalesHtml}</tbody>
+          <tbody>${itemSalesMedHtml}</tbody>
+        </table></div></div>`:''}
+
+    <!-- চশমা/লেন্স বিক্রয় -->
+    ${itemSalesGlassHtml?`<div style="margin-bottom:10px;border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+      <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f8fafc;border:none;font-family:inherit;font-size:13px;font-weight:700;color:var(--primary);cursor:pointer;">
+        <span>👓 চশমা/লেন্স বিক্রয়</span><span class="camp-toggle-arrow">▼</span></button>
+      <div class="camp-collapsible" style="display:none">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f0f4f8"><th style="padding:6px 8px;text-align:left">পণ্য</th><th style="padding:6px 8px">পরিমাণ</th><th style="padding:6px 8px;text-align:right">বিক্রয়মূল্য</th></tr></thead>
+          <tbody>${itemSalesGlassHtml}</tbody>
         </table></div></div>`:''}
 
     <!-- সার্ভিস/টেস্ট -->
@@ -11779,7 +11804,7 @@ function showCampDetail(id) {
           <tbody>${testSalesHtml}</tbody>
         </table></div></div>`:''}
 
-    <!-- ক্যাম্প খরচ -->
+    <!-- ক্যাম্প খরচ (পার্টটাইমার পেমেন্ট সহ) -->
     ${expHtml?`<div style="margin-bottom:10px;border:1.5px solid #ffe4e4;border-radius:10px;overflow:hidden">
       <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f8;border:none;font-family:inherit;font-size:13px;font-weight:700;color:var(--danger);cursor:pointer;">
         <span>💸 ক্যাম্প খরচ</span><span class="camp-toggle-arrow">▼</span></button>
@@ -11789,27 +11814,16 @@ function showCampDetail(id) {
           <tbody>${expHtml}</tbody>
         </table></div></div>`:''}
 
-    <!-- পার্টটাইমার পেমেন্ট — কাকে কত দেওয়া হলো -->
-    ${parttimerRows.length?`<div style="margin-bottom:10px;border:1.5px solid #ffe4e4;border-radius:10px;overflow:hidden">
-      <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f8;border:none;font-family:inherit;font-size:13px;font-weight:700;color:var(--danger);cursor:pointer;">
-        <span>🧑‍🤝‍🧑 পার্টটাইমার পেমেন্ট</span><span class="camp-toggle-arrow">▼</span></button>
-      <div class="camp-collapsible" style="display:none">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead><tr style="background:#fff0f0"><th style="padding:6px 8px;text-align:left">নাম</th><th style="padding:6px 8px;text-align:right">পরিমাণ</th></tr></thead>
-          <tbody>${parttimerRows.map(p=>`<tr><td style="padding:5px 8px">${p.name||'—'}</td><td style="padding:5px 8px;text-align:right;color:var(--danger);font-weight:600">৳${fmt(p.actualPay||p.pay||0)}</td></tr>`).join('')}</tbody>
-          <tfoot><tr style="border-top:1.5px solid var(--border)"><td style="padding:5px 8px;font-weight:700">মোট</td><td style="padding:5px 8px;text-align:right;font-weight:700">৳${fmt(parttimerRows.reduce((s,p)=>s+(p.actualPay||p.pay||0),0))}</td></tr></tfoot>
-        </table></div></div>`:''}
-
     <!-- মোট ডিসকাউন্ট -->
     ${totalDiscount>0?`<div style="margin-bottom:10px;border:1.5px solid #fde68a;border-radius:10px;overflow:hidden">
       <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fffbeb;border:none;font-family:inherit;font-size:13px;font-weight:700;color:#b45309;cursor:pointer;">
         <span>🏷️ মোট ডিসকাউন্ট</span><span class="camp-toggle-arrow">▼</span></button>
       <div class="camp-collapsible" style="display:none">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead><tr style="background:#fffbeb"><th style="padding:6px 8px;text-align:left">রোগীর নাম</th><th style="padding:6px 8px;text-align:center">রিসিট</th><th style="padding:6px 8px;text-align:right">ডিসকাউন্ট</th></tr></thead>
+          <thead><tr style="background:#fffbeb"><th style="padding:6px 8px;text-align:left">রোগীর নাম</th><th style="padding:6px 8px;text-align:center">রিসিট</th><th style="padding:6px 8px;text-align:right">বিল এমাউন্ট</th><th style="padding:6px 8px;text-align:right">ডিসকাউন্ট</th></tr></thead>
           <tbody>${(c.patients||[]).filter(p=>(p.discAmt||0)>0).map(p=>`
-            <tr><td style="padding:5px 8px">${p.name||'—'}</td><td style="padding:5px 8px;text-align:center;color:var(--primary)">${p.receipt?'#'+p.receipt:'—'}</td><td style="padding:5px 8px;text-align:right;color:#b45309;font-weight:600">৳${fmt(p.discAmt||0)}</td></tr>`).join('')}</tbody>
-          <tfoot><tr style="border-top:1.5px solid var(--border)"><td colspan="2" style="padding:5px 8px;font-weight:700">মোট ডিসকাউন্ট</td><td style="padding:5px 8px;text-align:right;font-weight:700;color:#b45309">৳${fmt(totalDiscount)}</td></tr></tfoot>
+            <tr><td style="padding:5px 8px">${p.name||'—'}</td><td style="padding:5px 8px;text-align:center;color:var(--primary)">${p.receipt?'#'+p.receipt:'—'}</td><td style="padding:5px 8px;text-align:right">৳${fmt(p.total||0)}</td><td style="padding:5px 8px;text-align:right;color:#b45309;font-weight:600">৳${fmt(p.discAmt||0)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr style="border-top:1.5px solid var(--border)"><td colspan="3" style="padding:5px 8px;font-weight:700">মোট ডিসকাউন্ট</td><td style="padding:5px 8px;text-align:right;font-weight:700;color:#b45309">৳${fmt(totalDiscount)}</td></tr></tfoot>
         </table></div></div>`:''}
 
     <!-- রোগীর তালিকা -->
@@ -12819,6 +12833,53 @@ function showRecCashSubmitModal() {
 }
 function showCamperCashSubmitModal() {
   buildCashSubmitModal('campaigner');
+}
+
+// ✅ বন্ধ হয়ে যাওয়া (closed) নির্দিষ্ট ক্যাম্পের জন্য ক্যাশ জমা মডাল — যেহেতু ক্লোজের পর
+// স্টিকি হেডার আর দেখা যায় না, তাই বিস্তারিত মোডাল থেকেই এই বাটনে ক্যাশ জমা করা যাবে
+function showPastCampCashSubmitModal(campId) {
+  const c = (appData.camps||[]).find(x=>x.id===campId);
+  if (!c) return;
+  const todayInc = c.totalIncome||0;
+  const todayExp = c.totalExpense||0;
+  const net = todayInc - todayExp;
+  const modal = document.createElement('div');
+  modal.id = 'cashSubmitModalWrap';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:var(--primary);font-size:17px;margin:0">💵 ক্যাশ জমা — ${c.name}</h3>
+        <button onclick="document.getElementById('cashSubmitModalWrap').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button>
+      </div>
+      <div style="background:#f0fff4;border:1.5px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;padding:4px 0">
+          <span style="color:#666">ক্যাম্পের মোট আয়</span>
+          <span style="font-weight:700;color:#2ecc71">৳ ${fmt(todayInc)}</span>
+        </div>
+        ${todayExp>0?`<div style="display:flex;justify-content:space-between;padding:4px 0">
+          <span style="color:#666">ক্যাম্পের মোট ব্যয়</span>
+          <span style="font-weight:700;color:#e74c3c">৳ ${fmt(todayExp)}</span>
+        </div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1.5px solid #86efac;margin-top:6px">
+          <span style="font-weight:700;color:#065f46">জমাযোগ্য নেট ক্যাশ</span>
+          <span style="font-weight:800;color:#065f46;font-size:16px">৳ ${fmt(net)}</span>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:13px;font-weight:600;color:var(--primary);display:block;margin-bottom:6px">প্রকৃত জমার পরিমাণ *</label>
+        <input type="number" id="cashSubmitAmt" value="${net}" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:16px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;color:var(--primary);display:block;margin-bottom:6px">নোট (ঐচ্ছিক)</label>
+        <input type="text" id="cashSubmitNote" placeholder="যেমন: ${c.name} ক্যাম্প জমা" value="${c.name} ক্যাম্প জমা" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="background:#fef3c7;border-radius:8px;padding:10px;font-size:12px;color:#92400e;margin-bottom:16px">
+        ⚠️ এই পরিমাণ প্রধান ক্যাশ ব্যালেন্সে স্বয়ংক্রিয়ভাবে রেকর্ড হবে।
+      </div>
+      <button class="btn btn-success" style="width:100%" onclick="confirmCashSubmit('campaigner')">✅ ক্যাশ জমা নিশ্চিত করুন</button>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 
@@ -16394,23 +16455,23 @@ function renderCamperPastCamps() {
     const hasUnsold = (c.stockTaken||[]).some(item =>
       Math.max(0, item.qtyTaken - (item.qtySold||0) - (item.qtyReturned||0)) > 0
     );
-    return `<div style="border:1.5px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#fafafa">
-      <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+    return `<div style="border:1.5px solid var(--border);border-radius:9px;padding:9px 11px;margin-bottom:7px;background:#fafafa">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
         <div>
-          <div style="font-weight:700;font-size:14px">${c.name}</div>
-          <div style="font-size:12px;color:var(--text-light);margin-top:2px">📍 ${c.location} &nbsp;|&nbsp; 📅 ${formatDate(c.date)}</div>
-          <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-            <span style="font-size:12px;color:var(--success);font-weight:600">👥 ${c.totalPatients||0} জন</span>
-            <span style="font-size:12px;color:var(--success);font-weight:600">💰 ৳${fmt(c.totalIncome||0)}</span>
-            <span style="font-size:12px;color:var(--primary)">🧾 #${c.receiptStart||'—'}–${c.receiptEnd||'—'}</span>
-            ${c.rating ? `<span style="font-size:12px">${ratingEmoji[c.rating]||''} ${c.rating}</span>` : ''}
+          <div style="font-weight:700;font-size:12.5px">${c.name}</div>
+          <div style="font-size:10.5px;color:var(--text-light);margin-top:1px">📍 ${c.location} &nbsp;|&nbsp; 📅 ${formatDate(c.date)}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span style="font-size:10.5px;color:var(--success);font-weight:600">👥 ${c.totalPatients||0} জন</span>
+            <span style="font-size:10.5px;color:var(--success);font-weight:600">💰 ৳${fmt(c.totalIncome||0)}</span>
+            <span style="font-size:10.5px;color:var(--primary)">🧾 #${c.receiptStart||'—'}–${c.receiptEnd||'—'}</span>
+            ${c.rating ? `<span style="font-size:10.5px">${ratingEmoji[c.rating]||''} ${c.rating}</span>` : ''}
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
-          <button class="btn btn-primary btn-sm" onclick="showCampDetail(${c.id})">👁️ বিস্তারিত</button>
+        <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">
+          <button class="btn btn-primary btn-sm" style="font-size:11px;padding:5px 9px" onclick="showCampDetail(${c.id})">👁️ বিস্তারিত</button>
           ${hasUnsold
-            ? `<button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="showPastCampReturnStock(${c.id})">↩️ স্টক ফেরত</button>`
-            : '<span style="font-size:11px;color:#16a34a;font-weight:600">✅ স্টক ক্লিয়ার</span>'}
+            ? `<button class="btn btn-outline btn-sm" style="font-size:11px;padding:5px 9px;color:var(--danger);border-color:var(--danger)" onclick="showPastCampReturnStock(${c.id})">↩️ স্টক ফেরত</button>`
+            : '<span style="font-size:10px;color:#16a34a;font-weight:600">✅ স্টক ক্লিয়ার</span>'}
         </div>
       </div>
     </div>`;
@@ -17151,35 +17212,67 @@ function onCampScheduleSelect() {
 }
 
 function renderStockTakeRows() {
-  const container = document.getElementById('cpStockTakeRows');
-  if (!container) return;
-  container.innerHTML = '';
-  stockTakeRowCount = 0;
-  addStockTakeRow();
+  const cMed = document.getElementById('cpStockTakeRowsMed');
+  const cGlass = document.getElementById('cpStockTakeRowsGlass');
+  if (!cMed || !cGlass) return;
+  cMed.innerHTML = ''; cGlass.innerHTML = '';
+  stockTakeRowCount = { med: 0, glass: 0 };
+  addStockTakeRow('med');
+  addStockTakeRow('glass');
 }
 
-function addStockTakeRow() {
-  stockTakeRowCount++;
-  const id = stockTakeRowCount;
-  const container = document.getElementById('cpStockTakeRows');
-  const sellable  = (appData.stock||[]).filter(s => s.cat !== 'অফিস সামগ্রী' && s.qty > 0);
+function addStockTakeRow(kind, presetItemId, presetQty) {
+  kind = kind === 'glass' ? 'glass' : 'med';
+  if (typeof stockTakeRowCount !== 'object' || stockTakeRowCount===null) stockTakeRowCount = { med:0, glass:0 };
+  stockTakeRowCount[kind] = (stockTakeRowCount[kind]||0) + 1;
+  const id = stockTakeRowCount[kind];
+  const container = document.getElementById(kind==='glass' ? 'cpStockTakeRowsGlass' : 'cpStockTakeRowsMed');
+  if (!container) return;
+  const sellable = (appData.stock||[]).filter(s => {
+    if (s.qty <= 0) return false;
+    return kind === 'glass' ? s.cat === 'চশমা/লেন্স' : s.cat !== 'চশমা/লেন্স' && s.cat !== 'অফিস সামগ্রী';
+  });
   const div = document.createElement('div');
-  div.id = 'strow-' + id;
+  const suffix = kind + '-' + id;
+  const rowId = 'strow-' + suffix;
+  div.id = rowId;
   div.style.cssText = 'border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fafbfc';
   div.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-size:11.5px;font-weight:700;color:var(--text-light)">পণ্য #${id}</span>
-      <button class="btn-icon-del" onclick="document.getElementById('strow-${id}').remove()">✕</button>
+      <span style="font-size:11.5px;font-weight:700;color:var(--text-light)">${kind==='glass'?'চশমা':'পণ্য'} #${id}</span>
+      <button class="btn-icon-del" onclick="document.getElementById('${rowId}').remove()">✕</button>
     </div>
-    <select id="stItem-${id}" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;width:100%;margin-bottom:8px;background:#fff">
-      <option value="">-- পণ্য বেছে নিন --</option>
-      ${sellable.map(s=>`<option value="${s.id}" data-max="${s.qty}">${s.name} (স্টক: ${s.qty} ${s.unit})</option>`).join('')}
+    <select id="stItem-${suffix}" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;width:100%;margin-bottom:8px;background:#fff">
+      <option value="">-- ${kind==='glass'?'চশমা':'পণ্য'} বেছে নিন --</option>
+      ${sellable.map(s=>`<option value="${s.id}" data-max="${s.qty}" ${presetItemId && String(presetItemId)===String(s.id)?'selected':''}>${s.name} (স্টক: ${s.qty} ${s.unit})</option>`).join('')}
     </select>
     <div style="display:flex;align-items:center;gap:8px">
       <label style="font-size:12.5px;color:var(--text-light);white-space:nowrap">পরিমাণ:</label>
-      <input type="number" id="stQty-${id}" placeholder="যেমন: ৫" min="1" value="1" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;flex:1">
+      <input type="number" id="stQty-${suffix}" placeholder="যেমন: ৫" min="1" value="${presetQty||1}" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;flex:1">
     </div>`;
   container.appendChild(div);
+}
+
+// ✅ পূর্ববর্তী (সর্বশেষ) বন্ধ হওয়া ক্যাম্পে যে মেডিসিন ও চশমা নেওয়া হয়েছিল, সেই তালিকা লোড করে —
+// বর্তমান স্টক অনুযায়ী পরিমাণ ক্যাপ করে দেয়, স্টকে না থাকা পণ্য বাদ দেয়
+function loadPrevCampStockList() {
+  const lastCamp = (appData.camps||[]).slice().sort((a,b)=>(b.closedAt||'').localeCompare(a.closedAt||'') || (b.id||0)-(a.id||0))[0];
+  if (!lastCamp || !(lastCamp.stockTaken||[]).length) { showToast('⚠️ আগের কোনো ক্যাম্পের তালিকা পাওয়া যায়নি!'); return; }
+  const cMed = document.getElementById('cpStockTakeRowsMed');
+  const cGlass = document.getElementById('cpStockTakeRowsGlass');
+  cMed.innerHTML = ''; cGlass.innerHTML = '';
+  stockTakeRowCount = { med: 0, glass: 0 };
+  let added = 0, skipped = 0;
+  lastCamp.stockTaken.forEach(item => {
+    const stockItem = (appData.stock||[]).find(s => s.id === item.itemId);
+    if (!stockItem || stockItem.qty <= 0) { skipped++; return; }
+    const kind = stockItem.cat === 'চশমা/লেন্স' ? 'glass' : 'med';
+    const qty = Math.min(item.qtyTaken||1, stockItem.qty);
+    addStockTakeRow(kind, stockItem.id, qty);
+    added++;
+  });
+  if (!added) { addStockTakeRow('med'); addStockTakeRow('glass'); showToast('⚠️ আগের তালিকার কোনো পণ্যই এখন স্টকে নেই!'); return; }
+  showToast(`✅ ${added}টি পণ্য আগের ক্যাম্প থেকে লোড হলো${skipped?` (${skipped}টি স্টকে নেই)`:''} — প্রয়োজনে যোগ/বাদ দিন`);
 }
 
 function initCamperSession() {
@@ -17188,11 +17281,11 @@ function initCamperSession() {
   const schedule = (appData.campSchedules||[]).find(s => s.id === selId);
   if (!schedule) { showToast('⚠️ ক্যাম্প পাওয়া যায়নি!'); return; }
 
-  // Process stock take-out
-  const rows = Array.from(document.querySelectorAll('#cpStockTakeRows > div'));
+  // Process stock take-out (মেডিসিন + চশমা উভয় সেকশন থেকে)
+  const rows = Array.from(document.querySelectorAll('#cpStockTakeRowsMed > div, #cpStockTakeRowsGlass > div'));
   const stockTaken = [];
   for (const row of rows) {
-    const rid = row.id.split('-')[1];
+    const rid = row.id.substring('strow-'.length);
     const itemSel = document.getElementById('stItem-' + rid);
     const qty = parseInt(document.getElementById('stQty-' + rid).value)||0;
     if (!itemSel || !itemSel.value || !qty) continue;
@@ -17379,7 +17472,9 @@ function finalizeCampClose() {
   if (!rating) { showToast('⚠️ ক্যাম্পের মতামত বেছে নিন!'); return; }
   const note     = document.getElementById('campCloseNote').value.trim();
   const visits   = (appData.campVisits||[]).filter(v => v.campName === camperSession.name && v.date === camperSession.date);
-  const expenses = (appData.campExpenses||[]).filter(e => e.campName === camperSession.name && e.date === camperSession.date);
+  // ⚠️ 'পার্টটাইমার পেমেন্ট' ক্যাটাগরির এন্ট্রি এখানে বাদ — কারণ পার্টটাইমার খরচ camperSession.parttimers
+  // থেকে সরাসরি ও নির্ভরযোগ্যভাবে হিসাব করা হয় (নিচে parttimeCost), ম্যানুয়াল সেভের উপর নির্ভর নয়
+  const expenses = (appData.campExpenses||[]).filter(e => e.campName === camperSession.name && e.date === camperSession.date && e.category !== 'পার্টটাইমার পেমেন্ট');
   const totalIncome  = visits.reduce((s,v) => s+v.paid, 0);
   const totalDue     = visits.reduce((s,v) => s+v.due, 0);
   const totalExpense = expenses.reduce((s,e) => s+e.amount, 0);
@@ -17398,20 +17493,19 @@ function finalizeCampClose() {
     totalCOGS += nonExemptSoldQty * unitCost;
   });
 
-  // নিয়মিত কর্মীর দৈনিক বেতন (মাসিক ÷ ৩০) — শুধু এটাই আলাদা বাদ যাবে
-  // পার্টটাইমার পেমেন্ট totalExpense এ ইতোমধ্যে আছে, তাই আলাদা বাদ নয়
+  // নিয়মিত কর্মীর দৈনিক বেতন (মাসিক ÷ ৩০) ও পার্টটাইমার পেমেন্ট — উভয়ই আলাদাভাবে বাদ যাবে
   const regularStaffCost = (camperSession.regularStaff||[]).reduce((s,st) => s+(st.dailyPay||0), 0);
   const parttimeCost     = (camperSession.parttimers||[]).reduce((s,p) => s+(p.actualPay||0), 0);
   const totalStaffCost   = regularStaffCost + parttimeCost;
 
-  // নেট লাভ = আয় − COGS − ক্যাম্প খরচ (পার্টটাইমার সহ) − নিয়মিত কর্মী বেতন
-  const netProfit = totalIncome - totalCOGS - totalExpense - regularStaffCost;
+  // নেট লাভ = আয় − COGS − ক্যাম্প খরচ − পার্টটাইমার পেমেন্ট − নিয়মিত কর্মী বেতন
+  const netProfit = totalIncome - totalCOGS - totalExpense - regularStaffCost - parttimeCost;
 
-  // পণ্য বিক্রয় সারসংক্ষেপ
+  // পণ্য বিক্রয় সারসংক্ষেপ (ক্যাটাগরি সহ — মেডিসিন ও চশমা আলাদা দেখানোর জন্য)
   const itemSales = {};
   visits.forEach(v => {
     (v.items||[]).forEach(item => {
-      if (!itemSales[item.name]) itemSales[item.name] = { qty: 0, total: 0 };
+      if (!itemSales[item.name]) itemSales[item.name] = { qty: 0, total: 0, cat: (item.stockItem && item.stockItem.cat === 'চশমা/লেন্স') ? 'চশমা/লেন্স' : 'ওষুধ' };
       itemSales[item.name].qty   += item.qty || 1;
       itemSales[item.name].total += item.subtotal || 0;
     });
@@ -17430,7 +17524,8 @@ function finalizeCampClose() {
   // ক্যাম্পে মোট কত ডিসকাউন্ট দেওয়া হয়েছে
   const totalDiscount = visits.reduce((s,v)=>s+(v.discAmt||0),0);
   // ব্যয় বিভাজন — array হিসেবে রাখি (Firebase key সমস্যা এড়াতে)
-  const expList = expenses.map(e => ({ category: e.category, amount: e.amount, note: e.note||'' }));
+  const expList = expenses.map(e => ({ category: e.category, amount: e.amount, note: e.note||'' }))
+    .concat((camperSession.parttimers||[]).filter(p=>(p.actualPay||0)>0).map(p=>({ category: 'পার্টটাইমার পেমেন্ট', amount: p.actualPay, note: p.name||'' })));
   const expSummary = expList.map(e => e.category + ': ৳' + fmt(e.amount)).join(', ');
   // অবিক্রিত স্টক
   const unsoldStock = (camperSession.stockTaken||[]).map(item => ({
@@ -17460,7 +17555,7 @@ function finalizeCampClose() {
     closedBy: currentUser.name, closedAt: new Date().toLocaleString('bn-BD'),
     stockTaken: camperSession.stockTaken || [],
     unsoldStock,
-    patients: visits.map(v => ({ name: v.patName||'', age: v.patAge||'', phone: v.patPhone||'', receipt: v.receiptNo||0, paid: v.paid||0, due: v.due||0, discAmt: v.discAmt||0 })),
+    patients: visits.map(v => ({ name: v.patName||'', age: v.patAge||'', phone: v.patPhone||'', receipt: v.receiptNo||0, paid: v.paid||0, due: v.due||0, discAmt: v.discAmt||0, total: v.total||0 })),
     expList
   };
 
