@@ -467,12 +467,13 @@
   }
 
   @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
     body > *:not(#printPreviewOverlay) { display:none !important; }
     #printPreviewOverlay { position:fixed !important; top:0 !important; left:0 !important; width:100% !important; height:auto !important; background:white !important; padding:0 !important; margin:0 !important; box-shadow:none !important; border:none !important; z-index:99999 !important; }
     #printPreviewOverlay .print-toolbar { display:none !important; }
     #printPreviewOverlay .print-preview-card { max-width:none !important; width:100% !important; box-shadow:none !important; border-radius:0 !important; border:none !important; background:white !important; }
-    #printPreviewBody { padding:10mm !important; }
-    @page { margin:10mm; }
+    #printPreviewBody { padding:0 !important; }
+    @page { margin:0; }
   }
 
   /* ===== DASHBOARD 3-COLUMN LAYOUT: CARDS | BAR | PIE (same row, equal height) ===== */
@@ -664,6 +665,18 @@ function openPrintWindow(htmlContent, title) {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.remove();
   });
+}
+
+// ===== ডকুমেন্ট এক্সপোর্ট: https/GitHub Pages এ সরাসরি PDF ডাউনলোড, file:// (লোকাল টেস্টিং) এ প্রিন্ট-ডায়ালগ ফলব্যাক =====
+// কারণ: html2canvas/html2pdf তাদের রেন্ডারিং কৌশলের জন্য একটি অভ্যন্তরীণ iframe ব্যবহার করে, যেটা
+// file:// প্রোটোকলে ব্রাউজার সিকিউরিটির কারণে ব্লক হয়ে যায় (প্রতিটি file:// URL কে ইউনিক অরিজিন ধরা হয়),
+// ফলে ফাঁকা/সাদা PDF তৈরি হয়। GitHub Pages এ (https://) ডিপ্লয় করার পর এই সমস্যা থাকবে না।
+function exportDocumentPDF(pageInnerHtml, filename, title) {
+  if (location.protocol === 'file:') {
+    openPrintWindow(`<html><body>${pageInnerHtml}</body></html>`, title);
+  } else {
+    downloadHtmlAsPDF(pageInnerHtml, filename);
+  }
 }
 
 // ===== সরাসরি পিডিএফ ডাউনলোড (প্রিন্ট ডায়ালগ ছাড়াই, স্ক্রিনের ডিজাইন অবিকল) =====
@@ -7125,7 +7138,7 @@ function printOfficialPad() {
     </div>
   </div>`;
 
-  downloadHtmlAsPDF(html, `official-pad-${date||todayStr()}.pdf`);
+  exportDocumentPDF(html, `official-pad-${date||todayStr()}.pdf`, 'অফিসিয়াল প্যাড');
 }
 
 // ===== অফিসিয়াল প্যাড — বোর্ড নোটিস পাবলিশ =====
@@ -7278,7 +7291,7 @@ function printPadNotice(id) {
     </div>
   </div>`;
 
-  downloadHtmlAsPDF(html, `board-notice-${n.docNo||n.date||todayStr()}.pdf`);
+  exportDocumentPDF(html, `board-notice-${n.docNo||n.date||todayStr()}.pdf`, 'বোর্ড নোটিস');
 }
 
 // ===== MEMORANDUM & TOR =====
