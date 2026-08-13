@@ -5355,7 +5355,7 @@ function openPrintWindow(htmlContent, title) {
         <div class="form-row" style="margin-bottom:0;gap:8px">
           <div class="field" style="margin-bottom:0">
             <label style="font-size:11px;margin-bottom:4px">Admin নির্ধারিত ক্যাম্প সিলেক্ট করুন *</label>
-            <select id="cpCampSelect" onchange="onCampScheduleSelect()" style="padding:8px 10px;border:1.6px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13.5px;width:100%;background:#f8fafc">
+            <select id="cpCampSelect" onchange="onCampScheduleSelect()" onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(15,76,129,0.1)'" onblur="this.style.borderColor='#dbeafe';this.style.boxShadow='0 2px 6px rgba(15,76,129,0.06)'" style="appearance:none;-webkit-appearance:none;-moz-appearance:none;padding:12px 40px 12px 14px;border:1.8px solid #dbeafe;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;color:var(--primary);width:100%;background:#f8fbff url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%230f4c81%22 stroke-width=%222.5%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%226 9 12 15 18 9%22></polyline></svg>') no-repeat right 14px center/18px;cursor:pointer;box-shadow:0 2px 6px rgba(15,76,129,0.06);transition:border-color .15s,box-shadow .15s">
               <option value="">-- ক্যাম্প বেছে নিন --</option>
             </select>
           </div>
@@ -6374,7 +6374,7 @@ const DEFAULT_FEATURE_ACCESS = {
   moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','inquiries'],
   receptionist:['billing'],
   owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries','funds','testfees'],
-  campaigner:  ['camp','accounting-principles'],
+  campaigner:  ['camp','accounting-principles','campdue'],
 };
 
 function canAccess(role, feature) {
@@ -10811,6 +10811,9 @@ function confirmDuePayment() {
     }
     saveData(); closeDueModal();
     renderCampDueList();
+    if (currentUser && currentUser.role === 'campaigner' && currentCamperActiveFeature === 'campdue') {
+      initCamperReadOnlySection('campdue');
+    }
     refreshDashboard();
     showToast('✅ বাকি আদায় সম্পন্ন হয়েছে!');
     return;
@@ -11781,7 +11784,11 @@ function showCampDetail(id) {
     <tr><td style="padding:5px 8px">${e.category}</td><td style="padding:5px 8px;font-size:12px;color:#888">${e.note||''}</td><td style="padding:5px 8px;text-align:right;color:var(--danger);font-weight:600">৳${fmt(e.amount)}</td></tr>`).join('')
     + parttimerRows.map(p=>`<tr><td style="padding:5px 8px">পার্টটাইমার পেমেন্ট</td><td style="padding:5px 8px;font-size:12px;color:#888">${p.name||''}</td><td style="padding:5px 8px;text-align:right;color:var(--danger);font-weight:600">৳${fmt(p.actualPay||p.pay||0)}</td></tr>`).join('');
   const patHtml = (c.patients||[]).map(p=>`
-    <tr><td style="padding:4px 8px;font-weight:600">${p.name}</td><td style="padding:4px 8px;text-align:center">${p.age||'—'}</td><td style="padding:4px 8px;color:var(--text-light)">${p.phone||'—'}</td><td style="padding:4px 8px;text-align:center;font-weight:600;color:var(--primary)">${p.receipt?'#'+p.receipt:'—'}</td><td style="padding:4px 8px;text-align:right;color:var(--success)">${p.paid?'৳'+fmt(p.paid):''}</td></tr>`).join('');
+    <tr><td style="padding:4px 8px;font-weight:600">${p.name}</td><td style="padding:4px 8px;text-align:center">${p.age||'—'}</td><td style="padding:4px 8px;color:var(--text-light)">${p.phone||'—'}</td><td style="padding:4px 8px;text-align:center;font-weight:600;color:var(--primary)">${p.receipt?'#'+p.receipt:'—'}</td><td style="padding:4px 8px;text-align:right">${
+      p.isFree ? '<span style="background:#eef2ff;color:#4f46e5;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px">ফ্রি</span>'
+      : (p.due>0 ? `<span style="color:var(--success)">৳${fmt(p.paid)}</span> <span style="background:#fff0f0;color:var(--danger);font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:5px;margin-left:3px">বাকি ৳${fmt(p.due)}</span>`
+      : (p.paid?`<span style="color:var(--success)">৳${fmt(p.paid)}</span>`:''))
+    }</td></tr>`).join('');
 
   // নেট লাভ/লস — সঠিক হিসাবে পুনরায় calculate করি (পার্টটাইমার খরচ সবসময় c.parttimers থেকে ধরা হয়)
   const totalCOGS        = c.totalCOGS||0;
@@ -11826,11 +11833,14 @@ function showCampDetail(id) {
   modal.innerHTML = `<div style="max-width:640px;margin:0 auto;min-height:100vh;background:white;padding:0 0 40px;">
     <div style="position:sticky;top:0;z-index:10;background:white;border-bottom:1.5px solid #e2e8f0;padding:12px 18px;display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
-        <div style="font-weight:700;font-size:16px;color:var(--primary)">${c.name}${c.rating?` <span style="font-weight:500;font-size:11.5px;color:var(--text-light)">(${c.rating})</span>`:''}</div>
+        <div style="font-weight:700;font-size:16px;color:var(--primary)">${c.name}</div>
         <div style="color:var(--text-light);font-size:12px;margin-top:2px">📍 ${c.location}</div>
         <div style="color:var(--text-light);font-size:12px;margin-top:1px">📅 ${formatDate(c.date)}${c.doctor?' &nbsp;|&nbsp; ডাঃ '+c.doctor:''}</div>
       </div>
-      <button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove())" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:var(--primary);flex-shrink:0;margin-left:10px">🏠 হোম</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:10px">
+        <span style="font-weight:500;font-size:11.5px;color:var(--text-light);margin-top:2px">${c.rating?`(${c.rating})`:''}</span>
+        <button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove())" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:var(--primary);">🏠 হোম</button>
+      </div>
     </div>
     <div style="padding:14px 16px 0;">
 
@@ -15241,19 +15251,21 @@ const ALL_FEATURES = [
   { id:'patients',   label:'রোগীর ডেটাবেস' },
   { id:'officialpad', label:'অফিসিয়াল প্যাড' },
   { id:'adminbill',  label:'নতুন বিল (অ্যাডমিন)' },
+  { id:'campdue',    label:'ক্যাম্প বাকি' },
 ];
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
   owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees'],
-  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles']
+  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','campdue']
 };
 const FEATURE_ICONS = {
   dashboard:'🏠', income:'💰', expense:'🧾', camp:'⛺', due:'⏳', stock:'📦',
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
   bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
   delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️', funds:'🏦',
-  newbill:'🧾', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖'
+  newbill:'🧾', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖',
+  campdue:'🏕️'
 };
 const OWNER_TAB_CONFIG_KEY = 'hms_owner_tabs';
 const OWNER_TAB_DEFAULT = ['dashboard','income','expense','report'];
@@ -16856,6 +16868,45 @@ function buildReadOnlyHTML(feature, role) {
         ${rows.length ? rows.map(v=>`<tr><td style="${tdStyle}">${formatDate(v.date)}</td><td style="${tdStyle}">${v.patientName||'—'}</td><td style="${tdStyle}">৳ ${fmt2(v.total)}</td><td style="${tdStyle};font-weight:700;color:#e74c3c">৳ ${fmt2(v.due)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো বাকি নেই</td></tr>`}
       </table></div>`;
   }
+  if (feature === 'campdue') {
+    const dueVisits = (appData.campVisits||[]).filter(v => (v.due||0) > 0);
+    if (!dueVisits.length) {
+      return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏕️ ক্যাম্প বাকি তালিকা</div>
+        <div style="text-align:center;color:#aaa;padding:24px">কোনো ক্যাম্প বাকি নেই ✅</div>`;
+    }
+    const groups = {};
+    dueVisits.forEach(v => {
+      const key = v.campName + '|' + v.date;
+      if (!groups[key]) groups[key] = { campName: v.campName, date: v.date, visits: [] };
+      groups[key].visits.push(v);
+    });
+    const sorted = Object.values(groups).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+    const cardsHtml = sorted.map(g => {
+      const totalDue = g.visits.reduce((s,v)=>s+(v.due||0),0);
+      const rows = g.visits.map(v=>`
+        <tr>
+          <td style="padding:5px 8px;font-weight:600">${v.patName}</td>
+          <td style="padding:5px 8px;color:#888">${v.patPhone||'—'}</td>
+          <td style="padding:5px 8px;text-align:center">${v.receiptNo?'#'+v.receiptNo:'—'}</td>
+          <td style="padding:5px 8px;text-align:right">৳${fmt2(v.netTotal||v.total||0)}</td>
+          <td style="padding:5px 8px;text-align:right;color:#e74c3c;font-weight:700">৳${fmt2(v.due)}</td>
+          <td style="padding:5px 8px;text-align:right"><button class="btn btn-purple btn-sm" style="font-size:11px;padding:4px 8px" onclick="openCampDueModal(${v.id})">💳 আদায়</button></td>
+        </tr>`).join('');
+      return `<div style="margin-bottom:10px;border:1.5px solid #fde8e8;border-radius:10px;overflow:hidden">
+        <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f8;border:none;font-family:inherit;font-size:13px;font-weight:700;color:#e74c3c;cursor:pointer">
+          <span>🏕️ ${g.campName} <span style="font-weight:400;color:#999;font-size:11px">— ${formatDate(g.date)}</span></span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="font-size:12px">৳${fmt2(totalDue)}</span><span class="camp-toggle-arrow">▼</span></span>
+        </button>
+        <div class="camp-collapsible" style="display:none">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#fff0f0"><th style="padding:6px 8px;text-align:left">নাম</th><th style="padding:6px 8px;text-align:left">ফোন</th><th style="padding:6px 8px">রিসিট</th><th style="padding:6px 8px;text-align:right">বিল</th><th style="padding:6px 8px;text-align:right">বাকি</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏕️ ক্যাম্প বাকি তালিকা</div>${cardsHtml}`;
+  }
   if (feature === 'stock') {
     const allItems = (appData.stock||[]).filter(s=>s.status!=='inactive');
     const totalCapital = allItems.reduce((s,i) => s + (i.buyPrice||0)*(i.qty||0), 0);
@@ -17792,7 +17843,7 @@ function finalizeCampClose() {
     closedBy: currentUser.name, closedAt: new Date().toLocaleString('bn-BD'),
     stockTaken: camperSession.stockTaken || [],
     unsoldStock,
-    patients: visits.map(v => ({ name: v.patName||'', age: v.patAge||'', phone: v.patPhone||'', receipt: v.receiptNo||0, paid: v.paid||0, due: v.due||0, discAmt: v.discAmt||0, total: v.total||0 })),
+    patients: visits.map(v => ({ name: v.patName||'', age: v.patAge||'', phone: v.patPhone||'', receipt: v.receiptNo||0, paid: v.paid||0, due: v.due||0, discAmt: v.discAmt||0, total: v.total||0, isFree: v.isFree||false })),
     expList
   };
 
