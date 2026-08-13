@@ -602,7 +602,7 @@
 
 <script>
 // ===== IN-APP PRINT PREVIEW =====
-function openPrintWindow(htmlContent, title) {
+function openPrintWindow(htmlContent, title, filename) {
   // পুরানো overlay থাকলে সরাও
   const old = document.getElementById('printPreviewOverlay');
   if (old) old.remove();
@@ -665,67 +665,27 @@ function openPrintWindow(htmlContent, title) {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.remove();
   });
+
+  if (filename) {
+    // "Save as PDF" এ সঠিক ফাইলের নাম সাজেস্ট হওয়ার জন্য সাময়িকভাবে document.title বদলানো হয়
+    const originalTitle = document.title;
+    document.title = filename.replace(/\.pdf$/i, '');
+    const restoreTitle = () => { document.title = originalTitle; };
+    window.addEventListener('afterprint', restoreTitle, { once: true });
+
+    // প্রিভিউ রেন্ডার হওয়ার পরপরই স্বয়ংক্রিয়ভাবে প্রিন্ট ডায়ালগ খোলা হয় (near one-click PDF)
+    setTimeout(() => { try { window.print(); } catch(e) {} }, 350);
+  }
 }
 
-// ===== ডকুমেন্ট এক্সপোর্ট: https/GitHub Pages এ সরাসরি PDF ডাউনলোড, file:// (লোকাল টেস্টিং) এ প্রিন্ট-ডায়ালগ ফলব্যাক =====
-// কারণ: html2canvas/html2pdf তাদের রেন্ডারিং কৌশলের জন্য একটি অভ্যন্তরীণ iframe ব্যবহার করে, যেটা
-// file:// প্রোটোকলে ব্রাউজার সিকিউরিটির কারণে ব্লক হয়ে যায় (প্রতিটি file:// URL কে ইউনিক অরিজিন ধরা হয়),
-// ফলে ফাঁকা/সাদা PDF তৈরি হয়। GitHub Pages এ (https://) ডিপ্লয় করার পর এই সমস্যা থাকবে না।
+// ===== ডকুমেন্ট এক্সপোর্ট: ব্রাউজারের নেটিভ প্রিন্ট/Save-as-PDF ব্যবহার করে, ডিজাইন অবিকল =====
+// দ্রষ্টব্য: html2canvas/html2pdf (ক্যানভাস-ভিত্তিক পদ্ধতি) file:// এবং https:// দুই ক্ষেত্রেই
+// অনির্ভরযোগ্য প্রমাণিত হয়েছে (iframe cloning ও cross-origin Google Fonts stylesheet পড়তে
+// গিয়ে ব্যর্থ হয়, ফলে ফাঁকা/সাদা PDF তৈরি হয়)। তাই ব্রাউজারের নিজস্ব প্রিন্ট ইঞ্জিন ব্যবহার করা
+// হচ্ছে — এটা ১০০% নির্ভরযোগ্য এবং exact একই ডিজাইন রাখে। প্রিন্ট ডায়ালগ স্বয়ংক্রিয়ভাবে খুলে যায়,
+// ব্যবহারকারী শুধু "Save as PDF" বেছে নিলেই হয়।
 function exportDocumentPDF(pageInnerHtml, filename, title) {
-  if (location.protocol === 'file:') {
-    openPrintWindow(`<html><body>${pageInnerHtml}</body></html>`, title);
-  } else {
-    downloadHtmlAsPDF(pageInnerHtml, filename);
-  }
-}
-
-// ===== সরাসরি পিডিএফ ডাউনলোড (প্রিন্ট ডায়ালগ ছাড়াই, স্ক্রিনের ডিজাইন অবিকল) =====
-function downloadHtmlAsPDF(pageInnerHtml, filename) {
-  const container = document.createElement('div');
-  // দ্রষ্টব্য: বড় negative offset (যেমন left:-99999px) ব্যবহার করা হয় না কারণ তাতে
-  // html2canvas পুরো ডকুমেন্টকে অস্বাভাবিক বড় মনে করে ফাঁকা/সাদা ক্যানভাস তৈরি করে।
-  container.style.cssText = 'position:fixed;top:0;left:0;width:760px;background:#fff;z-index:-9999;pointer-events:none;';
-  container.innerHTML = `<div style="font-family:'Hind Siliguri',Arial,sans-serif;width:760px;background:#fff">${pageInnerHtml}</div>`;
-  document.body.appendChild(container);
-
-  const runExport = () => {
-    // কন্টেইনারের ভেতরের সব ছবি (লোগো ইত্যাদি) সম্পূর্ণ লোড হওয়া পর্যন্ত অপেক্ষা,
-    // নাহলে ক্যাপচারের সময় ছবি ফাঁকা/সাদা থেকে যেতে পারে
-    const imgs = Array.from(container.querySelectorAll('img'));
-    const waitImgs = imgs.map(img => img.complete && img.naturalWidth > 0
-      ? Promise.resolve()
-      : new Promise(res => { img.onload = res; img.onerror = res; }));
-
-    Promise.all(waitImgs).then(() => {
-      // লেআউট/ফন্ট স্থিতিশীল হওয়ার জন্য সামান্য অপেক্ষা
-      setTimeout(() => {
-        html2pdf().set({
-          margin: 0,
-          filename: filename || 'document.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 760 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          pagebreak: { mode: ['css', 'legacy'] }
-        }).from(container).save().then(() => {
-          document.body.removeChild(container);
-        }).catch((err) => {
-          console.error('PDF generation error:', err);
-          document.body.removeChild(container);
-          showToast('⚠️ পিডিএফ তৈরি করতে সমস্যা হয়েছে');
-        });
-      }, 300);
-    });
-  };
-
-  if (typeof html2pdf === 'undefined') {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-    s.onload = runExport;
-    s.onerror = () => { document.body.removeChild(container); showToast('⚠️ পিডিএফ লাইব্রেরি লোড করা যায়নি, ইন্টারনেট সংযোগ পরীক্ষা করুন'); };
-    document.head.appendChild(s);
-  } else {
-    runExport();
-  }
+  openPrintWindow(`<html><body>${pageInnerHtml}</body></html>`, title, filename);
 }
 </script>
 
@@ -1254,7 +1214,6 @@ function downloadHtmlAsPDF(pageInnerHtml, filename) {
 
 
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -7106,7 +7065,7 @@ function printOfficialPad() {
   const fontSize = _padBodyFontSize || 14;
 
   const html = `
-  <div style="max-width:760px;margin:0 auto;background:#fff">
+  <div style="max-width:760px;margin:0 auto;background:#fff;display:flex;flex-direction:column;min-height:277mm">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -7119,7 +7078,7 @@ function printOfficialPad() {
       <div>${docNo?`<strong>স্মারক নং:</strong> ${docNo}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(date)}</div>
     </div>
-    <div style="padding:20px 32px;min-height:400px;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
+    <div style="padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
       ${subject?`<div style="text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px">${subject}</div>`:''}
       ${body||'&nbsp;'}
     </div>
@@ -7259,7 +7218,7 @@ function printPadNotice(id) {
   const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
   const html = `
-  <div style="max-width:760px;margin:0 auto;background:#fff">
+  <div style="max-width:760px;margin:0 auto;background:#fff;display:flex;flex-direction:column;min-height:277mm">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -7272,7 +7231,7 @@ function printPadNotice(id) {
       <div>${n.docNo?`<strong>স্মারক নং:</strong> ${n.docNo}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(n.date)}</div>
     </div>
-    <div style="padding:20px 32px;min-height:400px;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
+    <div style="padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
       ${n.to?`<div style="text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px">${n.to}</div>`:''}
       ${bodyHtml||'&nbsp;'}
     </div>
