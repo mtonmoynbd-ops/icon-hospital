@@ -686,12 +686,17 @@ function openPrintWindow(htmlContent, title, filename) {
   }
 }
 
-// ===== ডকুমেন্ট এক্সপোর্ট: সরাসরি PDF ডাউনলোড (কোনো প্রিন্ট ডায়ালগ ছাড়াই) =====
-// html2pdf().save() ব্রাউজারের window.print() ব্যবহার করে না — এটা html2canvas দিয়ে DOM কে
-// ক্যানভাসে আঁকে, তারপর jsPDF দিয়ে আসল PDF বাইট বানিয়ে Blob+<a download> এর মাধ্যমে সরাসরি
-// ডাউনলোড ট্রিগার করে। তাই কোনো Save/Print ডায়ালগ লাগে না।
+// ===== ডকুমেন্ট এক্সপোর্ট: জেনুইন, শার্প (ভেক্টর টেক্সট) পিডিএফ =====
+// আগে html2canvas দিয়ে HTML-কে একটা ছবি/স্ক্রিনশটে রূপান্তর করে সেই ছবি থেকে PDF বানানো হতো —
+// এই কারণেই zoom করলে লেখা ঝাপসা/জেপিজি-এর মতো লাগত, এবং মাঝেমধ্যে সাইজ মিসম্যাচ/ব্লাংক
+// পেজের সমস্যাও হতো। এখন থেকে ব্রাউজারের নিজস্ব প্রিন্ট ইঞ্জিন (window.print → "Save as PDF")
+// ব্যবহার করা হচ্ছে, যেটা একই HTML/CSS (অ্যাপে যেমন দেখায় ঠিক তেমন) থেকে সরাসরি আসল/জেনুইন
+// ভেক্টর টেক্সটসহ PDF বানায় — তাই zoom করলেও লেখা একদম শার্প থাকবে, এবং মার্জিন/সাইজ/
+// পেজিনেশন অ্যাপের প্রিভিউয়ের সাথে হুবহু মিলবে।
+// openPrintWindow ইতিমধ্যে filename দিলে ৩৫০ms পর নিজে থেকেই window.print() কল করে —
+// প্রিন্ট ডায়ালগে ইউজারকে শুধু Destination = "Save as PDF" বেছে নিতে হবে (ব্রাউজার এটা মনে রাখে)।
 function exportDocumentPDF(pageInnerHtml, filename, title) {
-  downloadHtmlAsPDF(pageInnerHtml, filename);
+  openPrintWindow(pageInnerHtml, title, filename);
 }
 
 function downloadHtmlAsPDF(htmlContent, filename) {
