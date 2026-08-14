@@ -685,7 +685,7 @@ function openPrintWindow(htmlContent, title, filename) {
 // হচ্ছে — এটা ১০০% নির্ভরযোগ্য এবং exact একই ডিজাইন রাখে। প্রিন্ট ডায়ালগ স্বয়ংক্রিয়ভাবে খুলে যায়,
 // ব্যবহারকারী শুধু "Save as PDF" বেছে নিলেই হয়।
 function exportDocumentPDF(pageInnerHtml, filename, title) {
-  openPrintWindow(`<html><body>${pageInnerHtml}</body></html>`, title, filename);
+  openPrintWindow(pageInnerHtml, title, filename);
 }
 </script>
 
@@ -4935,10 +4935,8 @@ function exportDocumentPDF(pageInnerHtml, filename, title) {
             </div>
 
             <!-- ফুটার -->
-            <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;border-radius:0 0 8px 8px">
-              <div style="color:white;font-size:11px" id="padFooterLeft"></div>
-              <div style="color:rgba(255,255,255,0.8);font-size:11px" id="padFooterTagline"></div>
-              <div style="color:white;font-size:11px" id="padFooterRight"></div>
+            <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;border-radius:0 0 8px 8px">
+              <div style="color:white;font-size:11px;text-align:center" id="padFooterTagline"></div>
             </div>
           </div>
         </div>
@@ -7025,12 +7023,8 @@ function initOfficialPad() {
   if (addrEl) addrEl.textContent = s.address||'';
   const contEl = document.getElementById('padContact');
   if (contEl) contEl.textContent = [s.phone, s.email].filter(Boolean).join(' | ');
-  const flEl = document.getElementById('padFooterLeft');
-  if (flEl) flEl.textContent = s.phone||'';
-  const frEl = document.getElementById('padFooterRight');
-  if (frEl) frEl.textContent = s.email||'';
   const ftEl = document.getElementById('padFooterTagline');
-  if (ftEl) ftEl.textContent = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
+  if (ftEl) ftEl.textContent = s.tagline||'';
   // Set signed by to current user
   const snEl = document.getElementById('padSignName');
   if (snEl && !snEl.value) snEl.value = currentUser.name;
@@ -7057,7 +7051,7 @@ function printOfficialPad() {
   const address  = s.address||'';
   const phone    = s.phone||'';
   const email    = s.email||'';
-  const tagline  = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
+  const tagline  = s.tagline||'';
   const subject  = document.getElementById('padTo').value.trim();
   const date     = document.getElementById('padDate').value;
   const docNo    = document.getElementById('padDocNo').value.trim();
@@ -7090,11 +7084,9 @@ function printOfficialPad() {
         </div>
       </div>
     </div>
-    <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:11px">
-      <div>${phone}</div>
-      <div style="color:rgba(255,255,255,0.8)">${tagline}</div>
-      <div>${email}</div>
-    </div>
+    ${tagline?`<div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
+      <div>${tagline}</div>
+    </div>`:''}
   </div>`;
 
   exportDocumentPDF(html, `official-pad-${date||todayStr()}.pdf`, 'অফিসিয়াল প্যাড');
@@ -7213,7 +7205,7 @@ function printPadNotice(id) {
   const address  = s.address||'';
   const phone    = s.phone||'';
   const email    = s.email||'';
-  const tagline  = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
+  const tagline  = s.tagline||'';
   const fontSize = n.fontSize || 14;
   const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
@@ -7243,11 +7235,9 @@ function printPadNotice(id) {
         </div>
       </div>
     </div>
-    <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:11px">
-      <div>${phone}</div>
-      <div style="color:rgba(255,255,255,0.8)">${tagline}</div>
-      <div>${email}</div>
-    </div>
+    ${tagline?`<div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
+      <div>${tagline}</div>
+    </div>`:''}
   </div>`;
 
   exportDocumentPDF(html, `board-notice-${n.docNo||n.date||todayStr()}.pdf`, 'বোর্ড নোটিস');
@@ -11049,7 +11039,7 @@ function printBoardReport() {
     </tr>`;
   }
 
-  openPrintWindow(`
+  exportDocumentPDF(`
   <html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>${css}</style></head>
@@ -11192,7 +11182,7 @@ function printBoardReport() {
   <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">
     এই রিপোর্ট ${hospName} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।
   </div>
-  </body></html>`);
+  </body></html>`, `board-report-${monthName}-${year}.pdf`, `বোর্ড রিপোর্ট — ${monthName} ${year}`);
 }
 
 // ===== REPORT MODULE =====
@@ -11459,7 +11449,7 @@ function printReport() {
   const detailHtml = document.getElementById('rpDetailTable').innerHTML;
   const groupLabel = _rpGroupMode==='inccat' ? 'আয়-ক্যাটাগরি ওয়াইজ' : _rpGroupMode==='expcat' ? 'ব্যয়-ক্যাটাগরি ওয়াইজ' : 'দৈনিক সারসংক্ষেপ';
 
-  openPrintWindow(`
+  exportDocumentPDF(`
     <div style="max-width:720px;margin:0 auto;padding:24px">
       <div style="text-align:center;margin-bottom:20px;border-bottom:3px solid #0f4c81;padding-bottom:16px">
         <div style="font-size:22px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
@@ -11507,7 +11497,7 @@ function printReport() {
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;border-top:1px solid #eee;padding-top:10px">
         রিপোর্ট তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
-    </div>`, `মাসিক রিপোর্ট — ${months[month-1]} ${year}`);
+    </div>`, `monthly-report-${months[month-1]}-${year}.pdf`, `মাসিক রিপোর্ট — ${months[month-1]} ${year}`);
 }
 
 // ===== CAMP MODULE =====
@@ -20980,12 +20970,12 @@ function printSalarySlips() {
     gridRows += `<div style="margin-bottom:10px;page-break-inside:avoid">${slips[i]}</div>`;
   }
 
-  openPrintWindow(`
+  exportDocumentPDF(`
     <div style="text-align:center;margin-bottom:12px;border-bottom:2px solid #0f4c81;padding-bottom:8px">
       <strong style="color:#0f4c81;font-size:15px">${hospName} — বেতন স্লিপ — ${months[month-1]}, ${year}</strong>
       <div style="font-size:11px;color:#888;margin-top:2px">✂️ ছিঁড়ে প্রতিটি কর্মীকে দিন</div>
     </div>
-    ${gridRows}`, `বেতন স্লিপ — ${months[month-1]} ${year}`);
+    ${gridRows}`, `salary-slips-${months[month-1]}-${year}.pdf`, `বেতন স্লিপ — ${months[month-1]} ${year}`);
 }
 
 
@@ -21652,13 +21642,14 @@ function printSalarySheet() {
       <td style="padding:8px;text-align:center">____________</td>
     </tr>`;
   });
-  openPrintWindow(`
-    <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:720px;margin:0 auto;padding:24px">
+  const html = `
+    <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:720px;margin:0 auto;padding:24px;display:flex;flex-direction:column;min-height:277mm;box-sizing:border-box">
       <div style="text-align:center;margin-bottom:16px;border-bottom:3px solid #0f4c81;padding-bottom:12px">
         ${LOGO_B64?`<img src="${LOGO_B64}" style="height:70px;object-fit:contain;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">`:``}
         <div style="font-size:20px;font-weight:800;color:#0f4c81">${hospName}</div>
         <div style="font-size:15px;font-weight:600;margin-top:4px">কর্মী বেতন শিট — ${months[month-1]}, ${year}</div>
       </div>
+      <div style="flex:1 0 auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:#0f4c81;color:white">
           <th style="padding:8px">#</th><th style="padding:8px;text-align:left">নাম</th>
@@ -21679,6 +21670,7 @@ function printSalarySheet() {
           <td colspan="2"></td>
         </tr></tfoot>
       </table>
+      </div>
       <div style="display:flex;justify-content:space-between;margin-top:40px;font-size:13px">
         <div style="text-align:center">___________________<br>প্রস্তুতকারীর স্বাক্ষর</div>
         <div style="text-align:center">___________________<br>অনুমোদনকারীর স্বাক্ষর</div>
@@ -21686,7 +21678,8 @@ function printSalarySheet() {
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;border-top:1px solid #eee;padding-top:8px">
         তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
-    </div>`);
+    </div>`;
+  exportDocumentPDF(html, `salary-sheet-${months[month-1]}-${year}.pdf`, `বেতন শিট — ${months[month-1]} ${year}`);
 }
 
 // ===== RECEPTIONIST =====
