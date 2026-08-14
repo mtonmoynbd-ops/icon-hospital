@@ -706,37 +706,68 @@ function downloadHtmlAsPDF(htmlContent, filename) {
     bodyContent = bodyMatch ? bodyMatch[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
   }
 
-  const container = document.createElement('div');
-  // দ্রষ্টব্য: বড় negative offset (যেমন left:-99999px) ব্যবহার করা হয় না — এতে html2canvas
-  // পুরো ডকুমেন্টকে অস্বাভাবিক বড় মনে করে ফাঁকা/সাদা ক্যানভাস তৈরি করতে পারে।
-  container.style.cssText = 'position:fixed;top:0;left:0;width:210mm;background:#fff;z-index:-9999;pointer-events:none;';
-  container.innerHTML = `${extraStyle?`<style>${extraStyle}</style>`:''}<style>tr,.sig-box,.sig-row,.summary-box{page-break-inside:avoid}</style><div style="font-family:'Hind Siliguri',Arial,sans-serif;width:210mm;background:#fff">${bodyContent}</div>`;
-  document.body.appendChild(container);
+  // দ্রষ্টব্য: আগে একটা অদৃশ্য <div> সরাসরি এই (বিশাল, অনেক প্যানেল সম্বলিত) অ্যাপের
+  // document.body-তেই বসিয়ে html2canvas চালানো হতো (position:fixed/absolute দিয়ে)।
+  // কিন্তু এই অ্যাপের DOM এমনিতেই অনেক বড়/জটিল (অনেকগুলো রোল-প্যানেল, মোডাল, ইত্যাদি একই
+  // পেজে থাকে) — তাই html2canvas পুরো ডকুমেন্ট ক্লোন করে রেন্ডার করার সময় হয় ভুল
+  // স্ট্যাকিং/স্ক্রল হিসাব করত, নয়তো ক্যানভাস সাইজ সীমা ছাড়িয়ে যেত, ফলে সবসময় ৩কেবি সাদা/
+  // ব্লাংক ১-পেজ পিডিএফ তৈরি হতো — কন্টেন্ট যত বড়ই হোক না কেন।
+  // সমাধান: সম্পূর্ণ আলাদা, ছোট, নিজস্ব <iframe> ডকুমেন্টে শুধু এই PDF-এর কন্টেন্টটুকু বসিয়ে
+  // html2canvas চালানো হচ্ছে — এতে মূল অ্যাপের বিশাল/জটিল DOM এর সাথে কোনো সম্পর্কই থাকে না,
+  // তাই স্ট্যাকিং/স্ক্রল/সাইজ সংক্রান্ত কোনো গণ্ডগোল হওয়ার সুযোগ থাকে না।
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('scrolling', 'no');
+  iframe.style.cssText = 'position:fixed;top:0;left:0;width:210mm;height:10px;border:0;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1;background:#fff;';
+  document.body.appendChild(iframe);
+  const idoc = iframe.contentDocument || iframe.contentWindow.document;
+  idoc.open();
+  idoc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;overflow:hidden;width:210mm}</style>
+${extraStyle ? `<style>${extraStyle}</style>` : ''}
+<style>tr,.sig-box,.sig-row,.summary-box{page-break-inside:avoid}</style>
+</head><body><div id="pdfExportRoot" style="font-family:'Hind Siliguri',Arial,sans-serif;width:210mm;background:#fff">${bodyContent}</div></body></html>`);
+  idoc.close();
+
+  const cleanup = () => { if (iframe.parentNode) document.body.removeChild(iframe); };
 
   const runExport = () => {
+    const target = idoc.getElementById('pdfExportRoot');
+
     // ছবি (লোগো ইত্যাদি) সম্পূর্ণ লোড হওয়া পর্যন্ত অপেক্ষা
-    const imgs = Array.from(container.querySelectorAll('img'));
+    const imgs = Array.from(target.querySelectorAll('img'));
     const waitImgs = imgs.map(img => img.complete && img.naturalWidth > 0
       ? Promise.resolve()
       : new Promise(res => { img.onload = res; img.onerror = res; }));
     // ফন্ট (Hind Siliguri) সম্পূর্ণ লোড হওয়া পর্যন্ত অপেক্ষা — নাহলে ক্যাপচারের সময় ফাঁকা/ভাঙা টেক্সট আসতে পারে
-    const waitFonts = (document.fonts && document.fonts.ready) ? document.fonts.ready.catch(()=>{}) : Promise.resolve();
+    const waitFonts = (idoc.fonts && idoc.fonts.ready) ? idoc.fonts.ready.catch(()=>{}) : Promise.resolve();
 
     Promise.all([waitFonts, ...waitImgs]).then(() => {
-      // লেআউট স্থিতিশীল হওয়ার জন্য সামান্য অপেক্ষা
+      // লেআউট স্থিতিশীল হওয়ার জন্য সামান্য অপেক্ষা, তারপর iframe-এর উচ্চতা কন্টেন্ট অনুযায়ী ঠিক করা
       setTimeout(() => {
+        // width/height ঠিক করার পর আরেকবার নিশ্চিত হওয়া, যাতে html2canvas এর window size
+        // ঠিক target-এর প্রকৃত width/height এর সাথে হুবহু মিলে যায় (মিসম্যাচ হলেই লেখা জড়িয়ে
+        // যাওয়া/বাম দিক কেটে যাওয়ার সমস্যা হয়)
+        const contentHeight = Math.max(target.scrollHeight, target.offsetHeight, 100);
+        iframe.style.height = contentHeight + 'px';
+
         html2pdf().set({
           margin: 0,
           filename: filename || 'document.pdf',
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          html2canvas: {
+            scale: 2, useCORS: true, backgroundColor: '#ffffff',
+            scrollX: 0, scrollY: 0, x: 0, y: 0,
+            width: target.scrollWidth, height: contentHeight,
+            windowWidth: target.scrollWidth, windowHeight: contentHeight
+          },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'] }
-        }).from(container).save().then(() => {
-          document.body.removeChild(container);
+        }).from(target).save().then(() => {
+          cleanup();
         }).catch((err) => {
           console.error('PDF generation error:', err);
-          document.body.removeChild(container);
+          cleanup();
           showToast('⚠️ পিডিএফ তৈরি করতে সমস্যা হয়েছে');
         });
       }, 300);
@@ -747,7 +778,7 @@ function downloadHtmlAsPDF(htmlContent, filename) {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
     s.onload = runExport;
-    s.onerror = () => { document.body.removeChild(container); showToast('⚠️ পিডিএফ লাইব্রেরি লোড করা যায়নি, ইন্টারনেট সংযোগ পরীক্ষা করুন'); };
+    s.onerror = () => { cleanup(); showToast('⚠️ পিডিএফ লাইব্রেরি লোড করা যায়নি, ইন্টারনেট সংযোগ পরীক্ষা করুন'); };
     document.head.appendChild(s);
   } else {
     runExport();
