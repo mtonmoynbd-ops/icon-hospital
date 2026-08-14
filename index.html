@@ -469,12 +469,20 @@
   @media print {
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
     body > *:not(#printPreviewOverlay) { display:none !important; }
-    #printPreviewOverlay { position:fixed !important; top:0 !important; left:0 !important; width:100% !important; height:auto !important; background:white !important; padding:0 !important; margin:0 !important; box-shadow:none !important; border:none !important; z-index:99999 !important; }
+    /* position:fixed + overflow:auto ক্লিপ করে ফেলে প্রিন্টে — শুধু প্রথম পেজ/ভিউপোর্ট এর সমান অংশ প্রিন্ট হয়,
+       বাকি পেজ কাটা পড়ে এবং স্ক্রলবারও প্রিন্টে চলে আসে। তাই static/visible flow এ আনা হলো যাতে
+       ব্রাউজার একাধিক পেজে ঠিকমতো পেজিনেট করতে পারে। */
+    #printPreviewOverlay { position:static !important; inset:auto !important; display:block !important; overflow:visible !important; width:100% !important; height:auto !important; background:white !important; padding:0 !important; margin:0 !important; box-shadow:none !important; border:none !important; }
     #printPreviewOverlay .print-toolbar { display:none !important; }
-    #printPreviewOverlay .print-preview-card { max-width:none !important; width:100% !important; box-shadow:none !important; border-radius:0 !important; border:none !important; background:white !important; }
-    #printPreviewBody { padding:0 !important; }
-    @page { margin:0; }
+    #printPreviewOverlay .print-preview-card { max-width:none !important; width:100% !important; box-shadow:none !important; border-radius:0 !important; border:none !important; background:white !important; overflow:visible !important; }
+    #printPreviewBody { padding:0 !important; overflow:visible !important; }
+    @page { size: A4; margin:0; }
   }
+
+  /* স্ক্রিনে প্রিন্ট প্রিভিউ A4 পেজের রেশিওতে দেখানোর জন্য */
+  #printPreviewOverlay .print-preview-card { width:210mm; max-width:100%; }
+  #printPreviewBody .a4-page { width:210mm; max-width:100%; min-height:297mm; box-sizing:border-box; margin:0 auto 14px; box-shadow:0 2px 14px rgba(0,0,0,0.15); background:#fff; }
+  @media print { #printPreviewBody .a4-page { min-height:297mm; margin:0; box-shadow:none; page-break-after:always; } #printPreviewBody .a4-page:last-child { page-break-after:auto; } }
 
   /* ===== DASHBOARD 3-COLUMN LAYOUT: CARDS | BAR | PIE (same row, equal height) ===== */
   .dash-layout { display:flex; flex-direction:row; gap:10px; align-items:stretch; margin-bottom:12px; }
@@ -7059,7 +7067,7 @@ function printOfficialPad() {
   const fontSize = _padBodyFontSize || 14;
 
   const html = `
-  <div style="max-width:760px;margin:0 auto;background:#fff;display:flex;flex-direction:column;min-height:277mm">
+  <div class="a4-page" style="max-width:190mm;margin:0 auto 14px;background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -7210,7 +7218,7 @@ function printPadNotice(id) {
   const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
   const html = `
-  <div style="max-width:760px;margin:0 auto;background:#fff;display:flex;flex-direction:column;min-height:277mm">
+  <div class="a4-page" style="max-width:190mm;margin:0 auto 14px;background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -10909,28 +10917,27 @@ function printBoardReport() {
 
   // CSS
   const css = `
-    body{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;margin:0;padding:24px;background:#eef3f8}
-    body{max-width:960px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(15,76,129,0.12);padding:32px}
-    h1{font-size:22px;font-weight:800;color:#0f4c81;margin:0}
-    h2{font-size:15px;font-weight:800;color:#fff;margin:20px 0 10px;background:linear-gradient(90deg,#0f4c81,#1a6bb5);padding:8px 14px;border-radius:8px;display:inline-block}
-    h3{font-size:13px;font-weight:700;color:#333;margin:12px 0 6px}
-    table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
-    th{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;padding:8px 10px;text-align:left;font-weight:700}
-    td{padding:7px 10px;border-bottom:1px solid #e5e7eb}
-    tr:nth-child(even){background:#f8fafc}
-    .sum-row td{background:#eef4fa;font-weight:700}
-    .total-row td{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;font-weight:700}
-    .badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700}
-    .inc{color:#065f46;background:#d1fae5}.exp{color:#991b1b;background:#fee2e2}
-    .neutral{color:#1e40af;background:#dbeafe}
-    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
-    .summary-box{border:1.5px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(15,76,129,0.06)}
-    .summary-box .label{font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:.3px}
-    .summary-box .value{font-size:19px;font-weight:800;margin-top:5px}
-    .sig-row{display:flex;justify-content:space-between;margin-top:90px}
-    .sig-box{text-align:center;width:200px}
-    .sig-line{border-top:1.8px solid #1a2a3a;margin-bottom:4px;font-weight:600}
-    @media print{body{padding:16px;border-radius:0;box-shadow:none;background:#fff} .no-print{display:none}}
+    .brpt-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;background:#fff;max-width:190mm;margin:0 auto;padding:12mm;box-sizing:border-box}
+    .brpt-page h1{font-size:22px;font-weight:800;color:#0f4c81;margin:0}
+    .brpt-page h2{font-size:15px;font-weight:800;color:#fff;margin:20px 0 10px;background:linear-gradient(90deg,#0f4c81,#1a6bb5);padding:8px 14px;border-radius:8px;display:inline-block}
+    .brpt-page h3{font-size:13px;font-weight:700;color:#333;margin:12px 0 6px}
+    .brpt-page table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
+    .brpt-page th{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;padding:8px 10px;text-align:left;font-weight:700}
+    .brpt-page td{padding:7px 10px;border-bottom:1px solid #e5e7eb}
+    .brpt-page tr:nth-child(even){background:#f8fafc}
+    .brpt-page .sum-row td{background:#eef4fa;font-weight:700}
+    .brpt-page .total-row td{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;font-weight:700}
+    .brpt-page .badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700}
+    .brpt-page .inc{color:#065f46;background:#d1fae5}.brpt-page .exp{color:#991b1b;background:#fee2e2}
+    .brpt-page .neutral{color:#1e40af;background:#dbeafe}
+    .brpt-page .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+    .brpt-page .summary-box{border:1.5px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(15,76,129,0.06)}
+    .brpt-page .summary-box .label{font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:.3px}
+    .brpt-page .summary-box .value{font-size:19px;font-weight:800;margin-top:5px}
+    .brpt-page .sig-row{display:flex;justify-content:space-between;margin-top:90px}
+    .brpt-page .sig-box{text-align:center;width:200px}
+    .brpt-page .sig-line{border-top:1.8px solid #1a2a3a;margin-bottom:4px;font-weight:600}
+    @media print{.brpt-page{padding:10mm;box-shadow:none} .no-print{display:none}}
   `;
 
   // আয়ের বিস্তারিত তালিকা
@@ -11044,6 +11051,7 @@ function printBoardReport() {
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>${css}</style></head>
   <body>
+  <div class="brpt-page a4-page">
   <!-- HEADER -->
   <div style="text-align:center;border-bottom:3px solid #0f4c81;padding-bottom:16px;margin-bottom:20px">
     <img src="${LOGO_B64}" style="height:70px;object-fit:contain;margin-bottom:8px" /><br>
@@ -11181,6 +11189,7 @@ function printBoardReport() {
   </div>
   <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">
     এই রিপোর্ট ${hospName} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।
+  </div>
   </div>
   </body></html>`, `board-report-${monthName}-${year}.pdf`, `বোর্ড রিপোর্ট — ${monthName} ${year}`);
 }
@@ -11450,7 +11459,7 @@ function printReport() {
   const groupLabel = _rpGroupMode==='inccat' ? 'আয়-ক্যাটাগরি ওয়াইজ' : _rpGroupMode==='expcat' ? 'ব্যয়-ক্যাটাগরি ওয়াইজ' : 'দৈনিক সারসংক্ষেপ';
 
   exportDocumentPDF(`
-    <div style="max-width:720px;margin:0 auto;padding:24px">
+    <div class="a4-page" style="max-width:190mm;margin:0 auto;padding:12mm;box-sizing:border-box">
       <div style="text-align:center;margin-bottom:20px;border-bottom:3px solid #0f4c81;padding-bottom:16px">
         <div style="font-size:22px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
         <div style="font-size:16px;font-weight:600;color:#333;margin-top:6px">মাসিক আয়-ব্যয় রিপোর্ট</div>
@@ -21643,7 +21652,7 @@ function printSalarySheet() {
     </tr>`;
   });
   const html = `
-    <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:720px;margin:0 auto;padding:24px;display:flex;flex-direction:column;min-height:277mm;box-sizing:border-box">
+    <div class="a4-page" style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:190mm;margin:0 auto;padding:12mm;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
       <div style="text-align:center;margin-bottom:16px;border-bottom:3px solid #0f4c81;padding-bottom:12px">
         ${LOGO_B64?`<img src="${LOGO_B64}" style="height:70px;object-fit:contain;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">`:``}
         <div style="font-size:20px;font-weight:800;color:#0f4c81">${hospName}</div>
