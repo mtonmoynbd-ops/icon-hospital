@@ -467,22 +467,13 @@
   }
 
   @media print {
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
     body > *:not(#printPreviewOverlay) { display:none !important; }
-    /* position:fixed + overflow:auto ক্লিপ করে ফেলে প্রিন্টে — শুধু প্রথম পেজ/ভিউপোর্ট এর সমান অংশ প্রিন্ট হয়,
-       বাকি পেজ কাটা পড়ে এবং স্ক্রলবারও প্রিন্টে চলে আসে। তাই static/visible flow এ আনা হলো যাতে
-       ব্রাউজার একাধিক পেজে ঠিকমতো পেজিনেট করতে পারে। */
-    #printPreviewOverlay { position:static !important; inset:auto !important; display:block !important; overflow:visible !important; width:100% !important; height:auto !important; background:white !important; padding:0 !important; margin:0 !important; box-shadow:none !important; border:none !important; }
+    #printPreviewOverlay { position:fixed !important; top:0 !important; left:0 !important; width:100% !important; height:auto !important; background:white !important; padding:0 !important; margin:0 !important; box-shadow:none !important; border:none !important; z-index:99999 !important; }
     #printPreviewOverlay .print-toolbar { display:none !important; }
-    #printPreviewOverlay .print-preview-card { max-width:none !important; width:100% !important; box-shadow:none !important; border-radius:0 !important; border:none !important; background:white !important; overflow:visible !important; }
-    #printPreviewBody { padding:0 !important; overflow:visible !important; }
-    @page { size: A4; margin:0; }
+    #printPreviewOverlay .print-preview-card { max-width:none !important; width:100% !important; box-shadow:none !important; border-radius:0 !important; border:none !important; background:white !important; }
+    #printPreviewBody { padding:10mm !important; }
+    @page { margin:10mm; }
   }
-
-  /* স্ক্রিনে প্রিন্ট প্রিভিউ A4 পেজের রেশিওতে দেখানোর জন্য */
-  #printPreviewOverlay .print-preview-card { width:210mm; max-width:100%; }
-  #printPreviewBody .a4-page { width:210mm; max-width:100%; min-height:297mm; box-sizing:border-box; margin:0 auto 14px; box-shadow:0 2px 14px rgba(0,0,0,0.15); background:#fff; }
-  @media print { #printPreviewBody .a4-page { min-height:297mm; margin:0; box-shadow:none; page-break-after:always; } #printPreviewBody .a4-page:last-child { page-break-after:auto; } }
 
   /* ===== DASHBOARD 3-COLUMN LAYOUT: CARDS | BAR | PIE (same row, equal height) ===== */
   .dash-layout { display:flex; flex-direction:row; gap:10px; align-items:stretch; margin-bottom:12px; }
@@ -610,7 +601,7 @@
 
 <script>
 // ===== IN-APP PRINT PREVIEW =====
-function openPrintWindow(htmlContent, title, filename) {
+function openPrintWindow(htmlContent, title) {
   // পুরানো overlay থাকলে সরাও
   const old = document.getElementById('printPreviewOverlay');
   if (old) old.remove();
@@ -673,63 +664,33 @@ function openPrintWindow(htmlContent, title, filename) {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.remove();
   });
-
-  if (filename) {
-    // "Save as PDF" এ সঠিক ফাইলের নাম সাজেস্ট হওয়ার জন্য সাময়িকভাবে document.title বদলানো হয়
-    const originalTitle = document.title;
-    document.title = filename.replace(/\.pdf$/i, '');
-    const restoreTitle = () => { document.title = originalTitle; };
-    window.addEventListener('afterprint', restoreTitle, { once: true });
-
-    // প্রিভিউ রেন্ডার হওয়ার পরপরই স্বয়ংক্রিয়ভাবে প্রিন্ট ডায়ালগ খোলা হয় (near one-click PDF)
-    setTimeout(() => { try { window.print(); } catch(e) {} }, 350);
-  }
 }
 
-// ===== ডকুমেন্ট এক্সপোর্ট: সরাসরি PDF ডাউনলোড (কোনো প্রিন্ট ডায়ালগ ছাড়াই) =====
-// html2pdf().save() ব্রাউজারের window.print() ব্যবহার করে না — এটা html2canvas দিয়ে DOM কে
-// ক্যানভাসে আঁকে, তারপর jsPDF দিয়ে আসল PDF বাইট বানিয়ে Blob+<a download> এর মাধ্যমে সরাসরি
-// ডাউনলোড ট্রিগার করে। তাই কোনো Save/Print ডায়ালগ লাগে না।
-function exportDocumentPDF(pageInnerHtml, filename, title) {
-  downloadHtmlAsPDF(pageInnerHtml, filename);
-}
-
-function downloadHtmlAsPDF(htmlContent, filename) {
-  // কিছু কলার ফুল <html><head><style>...</style></head><body>...</body></html> পাঠায় (যেমন বোর্ড রিপোর্ট)।
-  // openPrintWindow এর মতোই style ও body আলাদা করে নেওয়া হলো।
-  let extraStyle = '';
-  let bodyContent = htmlContent;
-  if (/<html[\s>]/i.test(htmlContent)) {
-    const styleMatches = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-    extraStyle = styleMatches.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
-    const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    bodyContent = bodyMatch ? bodyMatch[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-  }
-
+// ===== সরাসরি পিডিএফ ডাউনলোড (প্রিন্ট ডায়ালগ ছাড়াই, স্ক্রিনের ডিজাইন অবিকল) =====
+function downloadHtmlAsPDF(pageInnerHtml, filename) {
   const container = document.createElement('div');
-  // দ্রষ্টব্য: বড় negative offset (যেমন left:-99999px) ব্যবহার করা হয় না — এতে html2canvas
-  // পুরো ডকুমেন্টকে অস্বাভাবিক বড় মনে করে ফাঁকা/সাদা ক্যানভাস তৈরি করতে পারে।
-  container.style.cssText = 'position:fixed;top:0;left:0;width:210mm;background:#fff;z-index:-9999;pointer-events:none;';
-  container.innerHTML = `${extraStyle?`<style>${extraStyle}</style>`:''}<div style="font-family:'Hind Siliguri',Arial,sans-serif;width:210mm;background:#fff">${bodyContent}</div>`;
+  // দ্রষ্টব্য: বড় negative offset (যেমন left:-99999px) ব্যবহার করা হয় না কারণ তাতে
+  // html2canvas পুরো ডকুমেন্টকে অস্বাভাবিক বড় মনে করে ফাঁকা/সাদা ক্যানভাস তৈরি করে।
+  container.style.cssText = 'position:fixed;top:0;left:0;width:760px;background:#fff;z-index:-9999;pointer-events:none;';
+  container.innerHTML = `<div style="font-family:'Hind Siliguri',Arial,sans-serif;width:760px;background:#fff">${pageInnerHtml}</div>`;
   document.body.appendChild(container);
 
   const runExport = () => {
-    // ছবি (লোগো ইত্যাদি) সম্পূর্ণ লোড হওয়া পর্যন্ত অপেক্ষা
+    // কন্টেইনারের ভেতরের সব ছবি (লোগো ইত্যাদি) সম্পূর্ণ লোড হওয়া পর্যন্ত অপেক্ষা,
+    // নাহলে ক্যাপচারের সময় ছবি ফাঁকা/সাদা থেকে যেতে পারে
     const imgs = Array.from(container.querySelectorAll('img'));
     const waitImgs = imgs.map(img => img.complete && img.naturalWidth > 0
       ? Promise.resolve()
       : new Promise(res => { img.onload = res; img.onerror = res; }));
-    // ফন্ট (Hind Siliguri) সম্পূর্ণ লোড হওয়া পর্যন্ত অপেক্ষা — নাহলে ক্যাপচারের সময় ফাঁকা/ভাঙা টেক্সট আসতে পারে
-    const waitFonts = (document.fonts && document.fonts.ready) ? document.fonts.ready.catch(()=>{}) : Promise.resolve();
 
-    Promise.all([waitFonts, ...waitImgs]).then(() => {
-      // লেআউট স্থিতিশীল হওয়ার জন্য সামান্য অপেক্ষা
+    Promise.all(waitImgs).then(() => {
+      // লেআউট/ফন্ট স্থিতিশীল হওয়ার জন্য সামান্য অপেক্ষা
       setTimeout(() => {
         html2pdf().set({
           margin: 0,
           filename: filename || 'document.pdf',
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 760 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'] }
         }).from(container).save().then(() => {
@@ -1280,6 +1241,7 @@ function downloadHtmlAsPDF(htmlContent, filename) {
 
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -5001,8 +4963,10 @@ function downloadHtmlAsPDF(htmlContent, filename) {
             </div>
 
             <!-- ফুটার -->
-            <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;border-radius:0 0 8px 8px">
-              <div style="color:white;font-size:11px;text-align:center" id="padFooterTagline"></div>
+            <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;border-radius:0 0 8px 8px">
+              <div style="color:white;font-size:11px" id="padFooterLeft"></div>
+              <div style="color:rgba(255,255,255,0.8);font-size:11px" id="padFooterTagline"></div>
+              <div style="color:white;font-size:11px" id="padFooterRight"></div>
             </div>
           </div>
         </div>
@@ -7089,8 +7053,12 @@ function initOfficialPad() {
   if (addrEl) addrEl.textContent = s.address||'';
   const contEl = document.getElementById('padContact');
   if (contEl) contEl.textContent = [s.phone, s.email].filter(Boolean).join(' | ');
+  const flEl = document.getElementById('padFooterLeft');
+  if (flEl) flEl.textContent = s.phone||'';
+  const frEl = document.getElementById('padFooterRight');
+  if (frEl) frEl.textContent = s.email||'';
   const ftEl = document.getElementById('padFooterTagline');
-  if (ftEl) ftEl.textContent = s.tagline||'';
+  if (ftEl) ftEl.textContent = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
   // Set signed by to current user
   const snEl = document.getElementById('padSignName');
   if (snEl && !snEl.value) snEl.value = currentUser.name;
@@ -7117,7 +7085,7 @@ function printOfficialPad() {
   const address  = s.address||'';
   const phone    = s.phone||'';
   const email    = s.email||'';
-  const tagline  = s.tagline||'';
+  const tagline  = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
   const subject  = document.getElementById('padTo').value.trim();
   const date     = document.getElementById('padDate').value;
   const docNo    = document.getElementById('padDocNo').value.trim();
@@ -7125,7 +7093,7 @@ function printOfficialPad() {
   const fontSize = _padBodyFontSize || 14;
 
   const html = `
-  <div class="a4-page" style="max-width:190mm;margin:0 auto 14px;background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
+  <div style="max-width:760px;margin:0 auto;background:#fff">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -7138,7 +7106,7 @@ function printOfficialPad() {
       <div>${docNo?`<strong>স্মারক নং:</strong> ${docNo}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(date)}</div>
     </div>
-    <div style="padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
+    <div style="padding:20px 32px;min-height:400px;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
       ${subject?`<div style="text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px">${subject}</div>`:''}
       ${body||'&nbsp;'}
     </div>
@@ -7150,12 +7118,14 @@ function printOfficialPad() {
         </div>
       </div>
     </div>
-    ${tagline?`<div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
-      <div>${tagline}</div>
-    </div>`:''}
+    <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:11px">
+      <div>${phone}</div>
+      <div style="color:rgba(255,255,255,0.8)">${tagline}</div>
+      <div>${email}</div>
+    </div>
   </div>`;
 
-  exportDocumentPDF(html, `official-pad-${date||todayStr()}.pdf`, 'অফিসিয়াল প্যাড');
+  downloadHtmlAsPDF(html, `official-pad-${date||todayStr()}.pdf`);
 }
 
 // ===== অফিসিয়াল প্যাড — বোর্ড নোটিস পাবলিশ =====
@@ -7271,12 +7241,12 @@ function printPadNotice(id) {
   const address  = s.address||'';
   const phone    = s.phone||'';
   const email    = s.email||'';
-  const tagline  = s.tagline||'';
+  const tagline  = s.tagline||'আপনার দৃষ্টি আমাদের অঙ্গীকার';
   const fontSize = n.fontSize || 14;
   const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
   const html = `
-  <div class="a4-page" style="max-width:190mm;margin:0 auto 14px;background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
+  <div style="max-width:760px;margin:0 auto;background:#fff">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -7289,7 +7259,7 @@ function printPadNotice(id) {
       <div>${n.docNo?`<strong>স্মারক নং:</strong> ${n.docNo}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(n.date)}</div>
     </div>
-    <div style="padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
+    <div style="padding:20px 32px;min-height:400px;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
       ${n.to?`<div style="text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px">${n.to}</div>`:''}
       ${bodyHtml||'&nbsp;'}
     </div>
@@ -7301,12 +7271,14 @@ function printPadNotice(id) {
         </div>
       </div>
     </div>
-    ${tagline?`<div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
-      <div>${tagline}</div>
-    </div>`:''}
+    <div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:11px">
+      <div>${phone}</div>
+      <div style="color:rgba(255,255,255,0.8)">${tagline}</div>
+      <div>${email}</div>
+    </div>
   </div>`;
 
-  exportDocumentPDF(html, `board-notice-${n.docNo||n.date||todayStr()}.pdf`, 'বোর্ড নোটিস');
+  downloadHtmlAsPDF(html, `board-notice-${n.docNo||n.date||todayStr()}.pdf`);
 }
 
 // ===== MEMORANDUM & TOR =====
@@ -10975,27 +10947,28 @@ function printBoardReport() {
 
   // CSS
   const css = `
-    .brpt-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;background:#fff;max-width:190mm;margin:0 auto;padding:12mm;box-sizing:border-box}
-    .brpt-page h1{font-size:22px;font-weight:800;color:#0f4c81;margin:0}
-    .brpt-page h2{font-size:15px;font-weight:800;color:#fff;margin:20px 0 10px;background:linear-gradient(90deg,#0f4c81,#1a6bb5);padding:8px 14px;border-radius:8px;display:inline-block}
-    .brpt-page h3{font-size:13px;font-weight:700;color:#333;margin:12px 0 6px}
-    .brpt-page table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
-    .brpt-page th{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;padding:8px 10px;text-align:left;font-weight:700}
-    .brpt-page td{padding:7px 10px;border-bottom:1px solid #e5e7eb}
-    .brpt-page tr:nth-child(even){background:#f8fafc}
-    .brpt-page .sum-row td{background:#eef4fa;font-weight:700}
-    .brpt-page .total-row td{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;font-weight:700}
-    .brpt-page .badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700}
-    .brpt-page .inc{color:#065f46;background:#d1fae5}.brpt-page .exp{color:#991b1b;background:#fee2e2}
-    .brpt-page .neutral{color:#1e40af;background:#dbeafe}
-    .brpt-page .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
-    .brpt-page .summary-box{border:1.5px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(15,76,129,0.06)}
-    .brpt-page .summary-box .label{font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:.3px}
-    .brpt-page .summary-box .value{font-size:19px;font-weight:800;margin-top:5px}
-    .brpt-page .sig-row{display:flex;justify-content:space-between;margin-top:90px}
-    .brpt-page .sig-box{text-align:center;width:200px}
-    .brpt-page .sig-line{border-top:1.8px solid #1a2a3a;margin-bottom:4px;font-weight:600}
-    @media print{.brpt-page{padding:10mm;box-shadow:none} .no-print{display:none}}
+    body{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;margin:0;padding:24px;background:#eef3f8}
+    body{max-width:960px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(15,76,129,0.12);padding:32px}
+    h1{font-size:22px;font-weight:800;color:#0f4c81;margin:0}
+    h2{font-size:15px;font-weight:800;color:#fff;margin:20px 0 10px;background:linear-gradient(90deg,#0f4c81,#1a6bb5);padding:8px 14px;border-radius:8px;display:inline-block}
+    h3{font-size:13px;font-weight:700;color:#333;margin:12px 0 6px}
+    table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
+    th{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;padding:8px 10px;text-align:left;font-weight:700}
+    td{padding:7px 10px;border-bottom:1px solid #e5e7eb}
+    tr:nth-child(even){background:#f8fafc}
+    .sum-row td{background:#eef4fa;font-weight:700}
+    .total-row td{background:linear-gradient(135deg,#0f4c81,#1a6bb5);color:white;font-weight:700}
+    .badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700}
+    .inc{color:#065f46;background:#d1fae5}.exp{color:#991b1b;background:#fee2e2}
+    .neutral{color:#1e40af;background:#dbeafe}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+    .summary-box{border:1.5px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(15,76,129,0.06)}
+    .summary-box .label{font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:.3px}
+    .summary-box .value{font-size:19px;font-weight:800;margin-top:5px}
+    .sig-row{display:flex;justify-content:space-between;margin-top:90px}
+    .sig-box{text-align:center;width:200px}
+    .sig-line{border-top:1.8px solid #1a2a3a;margin-bottom:4px;font-weight:600}
+    @media print{body{padding:16px;border-radius:0;box-shadow:none;background:#fff} .no-print{display:none}}
   `;
 
   // আয়ের বিস্তারিত তালিকা
@@ -11104,12 +11077,11 @@ function printBoardReport() {
     </tr>`;
   }
 
-  exportDocumentPDF(`
+  openPrintWindow(`
   <html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>${css}</style></head>
   <body>
-  <div class="brpt-page a4-page">
   <!-- HEADER -->
   <div style="text-align:center;border-bottom:3px solid #0f4c81;padding-bottom:16px;margin-bottom:20px">
     <img src="${LOGO_B64}" style="height:70px;object-fit:contain;margin-bottom:8px" /><br>
@@ -11248,8 +11220,7 @@ function printBoardReport() {
   <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">
     এই রিপোর্ট ${hospName} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।
   </div>
-  </div>
-  </body></html>`, `board-report-${monthName}-${year}.pdf`, `বোর্ড রিপোর্ট — ${monthName} ${year}`);
+  </body></html>`);
 }
 
 // ===== REPORT MODULE =====
@@ -11516,8 +11487,8 @@ function printReport() {
   const detailHtml = document.getElementById('rpDetailTable').innerHTML;
   const groupLabel = _rpGroupMode==='inccat' ? 'আয়-ক্যাটাগরি ওয়াইজ' : _rpGroupMode==='expcat' ? 'ব্যয়-ক্যাটাগরি ওয়াইজ' : 'দৈনিক সারসংক্ষেপ';
 
-  exportDocumentPDF(`
-    <div class="a4-page" style="max-width:190mm;margin:0 auto;padding:12mm;box-sizing:border-box">
+  openPrintWindow(`
+    <div style="max-width:720px;margin:0 auto;padding:24px">
       <div style="text-align:center;margin-bottom:20px;border-bottom:3px solid #0f4c81;padding-bottom:16px">
         <div style="font-size:22px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
         <div style="font-size:16px;font-weight:600;color:#333;margin-top:6px">মাসিক আয়-ব্যয় রিপোর্ট</div>
@@ -11564,7 +11535,7 @@ function printReport() {
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;border-top:1px solid #eee;padding-top:10px">
         রিপোর্ট তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
-    </div>`, `monthly-report-${months[month-1]}-${year}.pdf`, `মাসিক রিপোর্ট — ${months[month-1]} ${year}`);
+    </div>`, `মাসিক রিপোর্ট — ${months[month-1]} ${year}`);
 }
 
 // ===== CAMP MODULE =====
@@ -21037,12 +21008,12 @@ function printSalarySlips() {
     gridRows += `<div style="margin-bottom:10px;page-break-inside:avoid">${slips[i]}</div>`;
   }
 
-  exportDocumentPDF(`
+  openPrintWindow(`
     <div style="text-align:center;margin-bottom:12px;border-bottom:2px solid #0f4c81;padding-bottom:8px">
       <strong style="color:#0f4c81;font-size:15px">${hospName} — বেতন স্লিপ — ${months[month-1]}, ${year}</strong>
       <div style="font-size:11px;color:#888;margin-top:2px">✂️ ছিঁড়ে প্রতিটি কর্মীকে দিন</div>
     </div>
-    ${gridRows}`, `salary-slips-${months[month-1]}-${year}.pdf`, `বেতন স্লিপ — ${months[month-1]} ${year}`);
+    ${gridRows}`, `বেতন স্লিপ — ${months[month-1]} ${year}`);
 }
 
 
@@ -21709,14 +21680,13 @@ function printSalarySheet() {
       <td style="padding:8px;text-align:center">____________</td>
     </tr>`;
   });
-  const html = `
-    <div class="a4-page" style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:190mm;margin:0 auto;padding:12mm;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
+  openPrintWindow(`
+    <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:720px;margin:0 auto;padding:24px">
       <div style="text-align:center;margin-bottom:16px;border-bottom:3px solid #0f4c81;padding-bottom:12px">
         ${LOGO_B64?`<img src="${LOGO_B64}" style="height:70px;object-fit:contain;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">`:``}
         <div style="font-size:20px;font-weight:800;color:#0f4c81">${hospName}</div>
         <div style="font-size:15px;font-weight:600;margin-top:4px">কর্মী বেতন শিট — ${months[month-1]}, ${year}</div>
       </div>
-      <div style="flex:1 0 auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:#0f4c81;color:white">
           <th style="padding:8px">#</th><th style="padding:8px;text-align:left">নাম</th>
@@ -21737,7 +21707,6 @@ function printSalarySheet() {
           <td colspan="2"></td>
         </tr></tfoot>
       </table>
-      </div>
       <div style="display:flex;justify-content:space-between;margin-top:40px;font-size:13px">
         <div style="text-align:center">___________________<br>প্রস্তুতকারীর স্বাক্ষর</div>
         <div style="text-align:center">___________________<br>অনুমোদনকারীর স্বাক্ষর</div>
@@ -21745,8 +21714,7 @@ function printSalarySheet() {
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;border-top:1px solid #eee;padding-top:8px">
         তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
-    </div>`;
-  exportDocumentPDF(html, `salary-sheet-${months[month-1]}-${year}.pdf`, `বেতন শিট — ${months[month-1]} ${year}`);
+    </div>`);
 }
 
 // ===== RECEPTIONIST =====
