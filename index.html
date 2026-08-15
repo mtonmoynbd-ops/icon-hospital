@@ -610,7 +610,21 @@
 
 <script>
 // ===== IN-APP PRINT PREVIEW =====
-function openPrintWindow(htmlContent, title, filename) {
+// দ্রষ্টব্য: আগে html2canvas-ভিত্তিক downloadHtmlAsPDF ফাংশনে একটা গুরুত্বপূর্ণ CSS রুল
+// (tr/sig-box/sig-row/summary-box ভেঙে না যাওয়া) ইনজেক্ট করা হতো। এটা এখন সব প্রিন্ট
+// প্রিভিউয়ের জন্য (openPrintWindow-এর নিজস্ব স্টাইলে) সরাসরি বেক করা আছে, সাথে নতুন একটা
+// রুলও আছে — কোনো সেকশন-হেডলাইনের (h1-h4) ঠিক পরেই পেজ-ব্রেক না করার জন্য। এতে হেডলাইন
+// একা পেজের নিচে থেকে যায় না — পুরো হেডলাইনটাই (তার পরের কিছু কন্টেন্টসহ) পরের পেজে চলে
+// যায়, প্রয়োজনে আগের পেজের নিচে কিছুটা ফাঁকা থেকে যায়।
+const PDF_PAGE_BREAK_CSS = `
+  tr,.sig-box,.sig-row,.summary-box{page-break-inside:avoid;break-inside:avoid}
+  h1,h2,h3,h4,.section-title{page-break-after:avoid;break-after:avoid}
+`;
+
+function openPrintWindow(htmlContent, title, filename, opts) {
+  opts = opts || {};
+  const editable = !!opts.editable;
+
   // পুরানো overlay থাকলে সরাও
   const old = document.getElementById('printPreviewOverlay');
   if (old) old.remove();
@@ -637,18 +651,45 @@ function openPrintWindow(htmlContent, title, filename) {
     overflow-y:auto;padding:10px;box-sizing:border-box;
   `;
 
+  // এডিটেবল মোডে — কোথায় কোন পার্ট কোন পেজে যাবে সেটা ইউজার নিজে ঠিক করতে পারবেন:
+  // কার্সার একটা জায়গায় রেখে "✂️ পেজ ব্রেক বসান" চাপলে সেখানে একটা মার্কার বসে যাবে —
+  // স্ক্রিনে এটা একটা হলুদ ড্যাশড লাইন হিসেবে দেখা যায় (মুছে ফেলার বাটনসহ), কিন্তু প্রিন্ট/
+  // পিডিএফ-এ এটা অদৃশ্য থেকে ঠিক ওই জায়গা থেকেই নতুন পেজ শুরু করিয়ে দেয়।
+  const editToolbarHtml = editable ? `
+    <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+      <button onclick="insertManualPageBreak()" style="background:#f59e0b;color:#1a1200;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap">✂️ পেজ ব্রেক বসান</button>
+    </div>` : '';
+
+  const editHintHtml = editable ? `
+    <div style="background:#fffbeb;border:1px solid #fcd34d;color:#92400e;font-size:11.5px;padding:8px 14px;line-height:1.6">
+      ✏️ এখানে সরাসরি লেখা এডিট করা যাবে। যেখান থেকে নতুন পেজ শুরু করতে চান, সেখানে কার্সার রেখে <b>"✂️ পেজ ব্রেক বসান"</b> চাপুন। সব ঠিকঠাক হলে <b>"🖨️ প্রিন্ট"</b> চাপুন — তখন এই বিন্যাস অনুযায়ীই পেজ সাজানো হবে।
+    </div>` : '';
+
   overlay.innerHTML = `
     <div class="print-preview-card" style="background:white;max-width:720px;width:100%;border-radius:16px;overflow:visible;box-shadow:0 24px 70px rgba(0,0,0,0.4);box-sizing:border-box">
       <div class="print-toolbar" style="background:linear-gradient(120deg,#081b30,#0f4c81);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-radius:16px 16px 0 0;gap:8px;flex-wrap:wrap">
         <div style="color:white;font-weight:700;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
+        ${editToolbarHtml}
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button onclick="window.print()" style="background:linear-gradient(135deg,#16a34a,#0f8c46);color:white;border:none;border-radius:9px;padding:8px 14px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(22,163,74,.35)">🖨️ প্রিন্ট</button>
           <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.16);color:white;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600">✕ বন্ধ</button>
         </div>
       </div>
+      ${editHintHtml}
       <div id="printPreviewBody" style="padding:24px;font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;line-height:1.6;border-radius:0 0 16px 16px;overflow-x:hidden">
         ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <style>
+          /* সারি/সেকশন-হেডলাইন/স্বাক্ষর যেন দুই পেজে ভেঙে/জড়িয়ে না যায় — সব প্রিন্ট প্রিভিউতে প্রযোজ্য */
+          ${PDF_PAGE_BREAK_CSS}
+          /* ম্যানুয়াল পেজ-ব্রেক মার্কার — স্ক্রিনে দেখা যায়, প্রিন্টে অদৃশ্য কিন্তু আসল পেজ-ব্রেক তৈরি করে */
+          .manual-page-break{margin:16px 0;text-align:center;user-select:none;position:relative}
+          .manual-page-break .mpb-line{border-top:1.5px dashed #f59e0b}
+          .manual-page-break .mpb-label{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#92400e;background:#fffbeb;padding:3px 6px 3px 10px;margin-top:-10px;border-radius:10px;border:1px solid #fcd34d}
+          .manual-page-break .mpb-del{background:#f59e0b;color:#1a1200;border:none;border-radius:6px;padding:1px 7px;font-size:10px;cursor:pointer;font-weight:700}
+          @media print {
+            .manual-page-break{page-break-before:always;break-before:page;margin:0;height:0;overflow:hidden;border:none}
+            .manual-page-break .mpb-line,.manual-page-break .mpb-label{display:none}
+          }
           /* মোবাইলে প্যাড/মেমো প্রিন্ট প্রিভিউ রেসপন্সিভ করার জন্য override */
           @media (max-width:640px){
             #printPreviewBody{padding:10px}
@@ -663,7 +704,7 @@ function openPrintWindow(htmlContent, title, filename) {
             #printPreviewBody .watermark{font-size:48px!important}
           }
         </style>
-        ${bodyContent}
+        <div id="printPreviewEditableArea"${editable ? ' contenteditable="true" style="outline:none"' : ''}>${bodyContent}</div>
       </div>
     </div>`;
 
@@ -681,20 +722,59 @@ function openPrintWindow(htmlContent, title, filename) {
     const restoreTitle = () => { document.title = originalTitle; };
     window.addEventListener('afterprint', restoreTitle, { once: true });
 
-    // প্রিভিউ রেন্ডার হওয়ার পরপরই স্বয়ংক্রিয়ভাবে প্রিন্ট ডায়ালগ খোলা হয় (near one-click PDF)
-    setTimeout(() => { try { window.print(); } catch(e) {} }, 350);
+    // এডিটেবল মোডে অটো-প্রিন্ট বন্ধ রাখা হয় — ইউজার আগে পেজ-ব্রেক সাজিয়ে নেবেন, তারপর নিজে "🖨️ প্রিন্ট" চাপবেন
+    if (!editable) {
+      // প্রিভিউ রেন্ডার হওয়ার পরপরই স্বয়ংক্রিয়ভাবে প্রিন্ট ডায়ালগ খোলা হয় (near one-click PDF)
+      setTimeout(() => { try { window.print(); } catch(e) {} }, 350);
+    }
   }
+}
+
+// ===== ম্যানুয়াল পেজ-ব্রেক বসানো (এডিটেবল প্রিন্ট প্রিভিউতে) =====
+// কার্সার যেখানে আছে (বা যেই অংশ সিলেক্ট করা আছে, সেটা মুছে) ঠিক সেই জায়গায় একটা
+// পেজ-ব্রেক মার্কার বসিয়ে দেয়। স্ক্রিনে এটা হলুদ ড্যাশড লাইন হিসেবে দেখা যায় (একটা "✕ সরান"
+// বাটনসহ), আর প্রিন্ট/পিডিএফ-এ এই মার্কারটাই অদৃশ্য থাকা অবস্থায় ঠিক ওই জায়গা থেকে নতুন পেজ
+// শুরু করিয়ে দেয় (page-break-before:always)।
+function insertManualPageBreak() {
+  const area = document.getElementById('printPreviewEditableArea');
+  if (!area) return;
+  const sel = window.getSelection();
+  let range;
+  if (sel && sel.rangeCount > 0 && area.contains(sel.anchorNode)) {
+    range = sel.getRangeAt(0);
+  } else {
+    // কার্সার এডিটেবল এরিয়ার বাইরে থাকলে (যেমন বাটনে সরাসরি ক্লিক করলে), শেষে বসানো হবে
+    range = document.createRange();
+    range.selectNodeContents(area);
+    range.collapse(false);
+  }
+  const marker = document.createElement('div');
+  marker.className = 'manual-page-break';
+  marker.setAttribute('contenteditable', 'false');
+  marker.innerHTML = `<div class="mpb-line"></div><div class="mpb-label">✂️ এখান থেকে নতুন পেজ শুরু হবে <button type="button" class="mpb-del" onclick="this.closest('.manual-page-break').remove()">✕ সরান</button></div>`;
+  range.deleteContents();
+  range.insertNode(marker);
+  range.setStartAfter(marker);
+  range.setEndAfter(marker);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  area.focus();
+}
+
+// ===== রিপোর্ট-টাইপ ডকুমেন্ট: প্রিন্ট/পিডিএফ সেভ করার আগে এডিট করে পেজ সাজানো যায় =====
+// মাসিক রিপোর্ট/বোর্ড রিপোর্টের মতো একাধিক ছোট-বড় পার্ট থাকা ডকুমেন্টে এটা ব্যবহার হয় —
+// সাধারণ exportDocumentPDF (official pad, salary slip ইত্যাদি) সরাসরি প্রিন্ট ডায়ালগ
+// খুলে ফেলে, কিন্তু এটা আগে এডিট করার সুযোগ দেয় (দেখুন insertManualPageBreak)।
+function exportReportPDFEditable(pageInnerHtml, filename, title) {
+  openPrintWindow(pageInnerHtml, title, filename, { editable: true });
 }
 
 // ===== ডকুমেন্ট এক্সপোর্ট: জেনুইন, শার্প (ভেক্টর টেক্সট) পিডিএফ =====
 // আগে html2canvas দিয়ে HTML-কে একটা ছবি/স্ক্রিনশটে রূপান্তর করে সেই ছবি থেকে PDF বানানো হতো —
 // এই কারণেই zoom করলে লেখা ঝাপসা/জেপিজি-এর মতো লাগত, এবং মাঝেমধ্যে সাইজ মিসম্যাচ/ব্লাংক
 // পেজের সমস্যাও হতো। এখন থেকে ব্রাউজারের নিজস্ব প্রিন্ট ইঞ্জিন (window.print → "Save as PDF")
-// ব্যবহার করা হচ্ছে, যেটা একই HTML/CSS (অ্যাপে যেমন দেখায় ঠিক তেমন) থেকে সরাসরি আসল/জেনুইন
-// ভেক্টর টেক্সটসহ PDF বানায় — তাই zoom করলেও লেখা একদম শার্প থাকবে, এবং মার্জিন/সাইজ/
-// পেজিনেশন অ্যাপের প্রিভিউয়ের সাথে হুবহু মিলবে।
 // openPrintWindow ইতিমধ্যে filename দিলে ৩৫০ms পর নিজে থেকেই window.print() কল করে —
-// প্রিন্ট ডায়ালগে ইউজারকে শুধু Destination = "Save as PDF" বেছে নিতে হবে (ব্রাউজার এটা মনে রাখে)।
 function exportDocumentPDF(pageInnerHtml, filename, title) {
   openPrintWindow(pageInnerHtml, title, filename);
 }
@@ -7162,7 +7242,7 @@ function printOfficialPad() {
   const fontSize = _padBodyFontSize || 14;
 
   const html = `
-  <div class="a4-page" style="max-width:190mm;margin:0 auto 14px;background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
+  <div class="a4-page" style="background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -7313,7 +7393,7 @@ function printPadNotice(id) {
   const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
   const html = `
-  <div class="a4-page" style="max-width:190mm;margin:0 auto 14px;background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
+  <div class="a4-page" style="background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
     <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
@@ -11032,7 +11112,7 @@ function printBoardReport() {
     .brpt-page .summary-box{border:1.5px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(15,76,129,0.06)}
     .brpt-page .summary-box .label{font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:.3px}
     .brpt-page .summary-box .value{font-size:19px;font-weight:800;margin-top:5px}
-    .brpt-page .sig-row{display:flex;justify-content:space-between;margin-top:90px}
+    .brpt-page .sig-row{display:flex;justify-content:space-between;margin-top:40px}
     .brpt-page .sig-box{text-align:center;width:200px}
     .brpt-page .sig-line{border-top:1.8px solid #1a2a3a;margin-bottom:4px;font-weight:600}
     @media print{.brpt-page{padding:10mm;box-shadow:none} .no-print{display:none}}
@@ -11144,7 +11224,7 @@ function printBoardReport() {
     </tr>`;
   }
 
-  exportDocumentPDF(`
+  exportReportPDFEditable(`
   <html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>${css}</style></head>
@@ -11556,8 +11636,8 @@ function printReport() {
   const detailHtml = document.getElementById('rpDetailTable').innerHTML;
   const groupLabel = _rpGroupMode==='inccat' ? 'আয়-ক্যাটাগরি ওয়াইজ' : _rpGroupMode==='expcat' ? 'ব্যয়-ক্যাটাগরি ওয়াইজ' : 'দৈনিক সারসংক্ষেপ';
 
-  exportDocumentPDF(`
-    <div class="a4-page" style="max-width:190mm;margin:0 auto;padding:12mm;box-sizing:border-box">
+  exportReportPDFEditable(`
+    <div class="a4-page" style="padding:12mm;box-sizing:border-box">
       <div style="text-align:center;margin-bottom:20px;border-bottom:3px solid #0f4c81;padding-bottom:16px">
         <div style="font-size:22px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
         <div style="font-size:16px;font-weight:600;color:#333;margin-top:6px">মাসিক আয়-ব্যয় রিপোর্ট</div>
@@ -21798,7 +21878,7 @@ function printSalarySheet() {
     </tr>`;
   });
   const html = `
-    <div class="a4-page" style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:190mm;margin:0 auto;padding:12mm;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
+    <div class="a4-page" style="font-family:'Hind Siliguri',Arial,sans-serif;padding:12mm;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
       <div style="text-align:center;margin-bottom:16px;border-bottom:3px solid #0f4c81;padding-bottom:12px">
         ${LOGO_B64?`<img src="${LOGO_B64}" style="height:70px;object-fit:contain;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">`:``}
         <div style="font-size:20px;font-weight:800;color:#0f4c81">${hospName}</div>
