@@ -621,10 +621,7 @@ const PDF_PAGE_BREAK_CSS = `
   h1,h2,h3,h4,.section-title{page-break-after:avoid;break-after:avoid}
 `;
 
-function openPrintWindow(htmlContent, title, filename, opts) {
-  opts = opts || {};
-  const editable = !!opts.editable;
-
+function openPrintWindow(htmlContent, title, filename) {
   // পুরানো overlay থাকলে সরাও
   const old = document.getElementById('printPreviewOverlay');
   if (old) old.remove();
@@ -651,45 +648,20 @@ function openPrintWindow(htmlContent, title, filename, opts) {
     overflow-y:auto;padding:10px;box-sizing:border-box;
   `;
 
-  // এডিটেবল মোডে — কোথায় কোন পার্ট কোন পেজে যাবে সেটা ইউজার নিজে ঠিক করতে পারবেন:
-  // কার্সার একটা জায়গায় রেখে "✂️ পেজ ব্রেক বসান" চাপলে সেখানে একটা মার্কার বসে যাবে —
-  // স্ক্রিনে এটা একটা হলুদ ড্যাশড লাইন হিসেবে দেখা যায় (মুছে ফেলার বাটনসহ), কিন্তু প্রিন্ট/
-  // পিডিএফ-এ এটা অদৃশ্য থেকে ঠিক ওই জায়গা থেকেই নতুন পেজ শুরু করিয়ে দেয়।
-  const editToolbarHtml = editable ? `
-    <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
-      <button onclick="insertManualPageBreak()" style="background:#f59e0b;color:#1a1200;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap">✂️ পেজ ব্রেক বসান</button>
-    </div>` : '';
-
-  const editHintHtml = editable ? `
-    <div style="background:#fffbeb;border:1px solid #fcd34d;color:#92400e;font-size:11.5px;padding:8px 14px;line-height:1.6">
-      ✏️ এখানে সরাসরি লেখা এডিট করা যাবে। যেখান থেকে নতুন পেজ শুরু করতে চান, সেখানে কার্সার রেখে <b>"✂️ পেজ ব্রেক বসান"</b> চাপুন। সব ঠিকঠাক হলে <b>"🖨️ প্রিন্ট"</b> চাপুন — তখন এই বিন্যাস অনুযায়ীই পেজ সাজানো হবে।
-    </div>` : '';
-
   overlay.innerHTML = `
     <div class="print-preview-card" style="background:white;max-width:720px;width:100%;border-radius:16px;overflow:visible;box-shadow:0 24px 70px rgba(0,0,0,0.4);box-sizing:border-box">
       <div class="print-toolbar" style="background:linear-gradient(120deg,#081b30,#0f4c81);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-radius:16px 16px 0 0;gap:8px;flex-wrap:wrap">
         <div style="color:white;font-weight:700;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
-        ${editToolbarHtml}
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button onclick="window.print()" style="background:linear-gradient(135deg,#16a34a,#0f8c46);color:white;border:none;border-radius:9px;padding:8px 14px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(22,163,74,.35)">🖨️ প্রিন্ট</button>
           <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.16);color:white;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600">✕ বন্ধ</button>
         </div>
       </div>
-      ${editHintHtml}
       <div id="printPreviewBody" style="padding:24px;font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;line-height:1.6;border-radius:0 0 16px 16px;overflow-x:hidden">
         ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <style>
           /* সারি/সেকশন-হেডলাইন/স্বাক্ষর যেন দুই পেজে ভেঙে/জড়িয়ে না যায় — সব প্রিন্ট প্রিভিউতে প্রযোজ্য */
           ${PDF_PAGE_BREAK_CSS}
-          /* ম্যানুয়াল পেজ-ব্রেক মার্কার — স্ক্রিনে দেখা যায়, প্রিন্টে অদৃশ্য কিন্তু আসল পেজ-ব্রেক তৈরি করে */
-          .manual-page-break{margin:16px 0;text-align:center;user-select:none;position:relative}
-          .manual-page-break .mpb-line{border-top:1.5px dashed #f59e0b}
-          .manual-page-break .mpb-label{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#92400e;background:#fffbeb;padding:3px 6px 3px 10px;margin-top:-10px;border-radius:10px;border:1px solid #fcd34d}
-          .manual-page-break .mpb-del{background:#f59e0b;color:#1a1200;border:none;border-radius:6px;padding:1px 7px;font-size:10px;cursor:pointer;font-weight:700}
-          @media print {
-            .manual-page-break{page-break-before:always;break-before:page;margin:0;height:0;overflow:hidden;border:none}
-            .manual-page-break .mpb-line,.manual-page-break .mpb-label{display:none}
-          }
           /* মোবাইলে প্যাড/মেমো প্রিন্ট প্রিভিউ রেসপন্সিভ করার জন্য override */
           @media (max-width:640px){
             #printPreviewBody{padding:10px}
@@ -704,7 +676,7 @@ function openPrintWindow(htmlContent, title, filename, opts) {
             #printPreviewBody .watermark{font-size:48px!important}
           }
         </style>
-        <div id="printPreviewEditableArea"${editable ? ' contenteditable="true" style="outline:none"' : ''}>${bodyContent}</div>
+        <div id="printPreviewEditableArea">${bodyContent}</div>
       </div>
     </div>`;
 
@@ -722,52 +694,167 @@ function openPrintWindow(htmlContent, title, filename, opts) {
     const restoreTitle = () => { document.title = originalTitle; };
     window.addEventListener('afterprint', restoreTitle, { once: true });
 
-    // এডিটেবল মোডে অটো-প্রিন্ট বন্ধ রাখা হয় — ইউজার আগে পেজ-ব্রেক সাজিয়ে নেবেন, তারপর নিজে "🖨️ প্রিন্ট" চাপবেন
-    if (!editable) {
-      // প্রিভিউ রেন্ডার হওয়ার পরপরই স্বয়ংক্রিয়ভাবে প্রিন্ট ডায়ালগ খোলা হয় (near one-click PDF)
-      setTimeout(() => { try { window.print(); } catch(e) {} }, 350);
-    }
+    // প্রিভিউ রেন্ডার হওয়ার পরপরই স্বয়ংক্রিয়ভাবে প্রিন্ট ডায়ালগ খোলা হয় (near one-click PDF)
+    setTimeout(() => { try { window.print(); } catch(e) {} }, 350);
   }
 }
 
-// ===== ম্যানুয়াল পেজ-ব্রেক বসানো (এডিটেবল প্রিন্ট প্রিভিউতে) =====
-// কার্সার যেখানে আছে (বা যেই অংশ সিলেক্ট করা আছে, সেটা মুছে) ঠিক সেই জায়গায় একটা
-// পেজ-ব্রেক মার্কার বসিয়ে দেয়। স্ক্রিনে এটা হলুদ ড্যাশড লাইন হিসেবে দেখা যায় (একটা "✕ সরান"
-// বাটনসহ), আর প্রিন্ট/পিডিএফ-এ এই মার্কারটাই অদৃশ্য থাকা অবস্থায় ঠিক ওই জায়গা থেকে নতুন পেজ
-// শুরু করিয়ে দেয় (page-break-before:always)।
-function insertManualPageBreak() {
-  const area = document.getElementById('printPreviewEditableArea');
-  if (!area) return;
-  const sel = window.getSelection();
-  let range;
-  if (sel && sel.rangeCount > 0 && area.contains(sel.anchorNode)) {
-    range = sel.getRangeAt(0);
+// ===== রিপোর্ট-টাইপ ডকুমেন্ট: A4 পেজে ভাগ করে দেখানো প্রিন্ট প্রিভিউ (মাসিক রিপোর্ট/বোর্ড রিপোর্ট/স্যালারি শিট) =====
+// আগে এখানে একটা জটিল সিস্টেম ছিল — ইউজারকে নিজে থেকে "✂️ পেজ ব্রেক বসান" বাটন চেপে চেপে
+// প্রতিটা পেজ-ব্রেক বসাতে হতো, সাথে আলাদা একটা গাইড-লাইন হিসাব চলতো। এখন সিম্পল লজিক:
+// কন্টেন্ট বাই ডিফল্ট স্বয়ংক্রিয়ভাবে A4 সাইজের আলাদা আলাদা "পাতা"-য় ভাগ হয়ে দেখানো হয়
+// (ঠিক Word-এর Print Layout ভিউয়ের মতো) — কোনো বাটনে চাপার দরকার নেই। কন্টেন্ট সরাসরি
+// এডিট করা যায় (Word ফাইলের মতোই); এডিট করার পর "🔄 পাতা সাজান" চাপলে নতুন করে বিভাজন
+// হিসাব হয়ে যায়। প্রিন্ট/Save as PDF করলে ব্রাউজার ঠিক এই বিভাজন অনুযায়ীই আসল পেজ-ব্রেক করবে।
+function openA4PrintPreview(htmlContent, title, filename) {
+  const old = document.getElementById('printPreviewOverlay');
+  if (old) old.remove();
+
+  // কিছু কলার ফুল <html><head><style>...</style></head><body>...</body></html> পাঠায় (যেমন বোর্ড রিপোর্ট)
+  let extraStyle = '';
+  let bodyContent = htmlContent;
+  if (/<html[\s>]/i.test(htmlContent)) {
+    const styleMatches = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+    extraStyle = styleMatches.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+    const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    bodyContent = bodyMatch ? bodyMatch[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'printPreviewOverlay';
+  overlay.style.cssText = `position:fixed;inset:0;background:#eef1f5;z-index:99999;display:flex;flex-direction:column;overflow:hidden;`;
+
+  overlay.innerHTML = `
+    <div class="print-toolbar" style="background:linear-gradient(120deg,#081b30,#0f4c81);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex-shrink:0">
+      <div style="color:white;font-weight:700;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">
+        <button onclick="repaginateA4Preview()" style="background:rgba(255,255,255,0.16);color:white;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap">🔄 পাতা সাজান</button>
+        <button onclick="window.print()" style="background:linear-gradient(135deg,#16a34a,#0f8c46);color:white;border:none;border-radius:9px;padding:8px 14px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(22,163,74,.35)">🖨️ প্রিন্ট / PDF</button>
+        <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.16);color:white;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600">✕ বন্ধ</button>
+      </div>
+    </div>
+    <div id="printPreviewHint" style="background:#fffbeb;border-bottom:1px solid #fcd34d;color:#92400e;font-size:11.5px;padding:7px 16px;line-height:1.6;flex-shrink:0">
+      ✏️ কন্টেন্ট সরাসরি এডিট করা যাবে (Word ফাইলের মতো)। কোনো অংশ অন্য পাতায় নিতে চাইলে এডিট করে <b>"🔄 পাতা সাজান"</b> চাপুন — স্বয়ংক্রিয়ভাবে A4 সাইজ অনুযায়ী নতুন করে পাতা ভাগ হয়ে যাবে।
+    </div>
+    <div id="printPreviewScrollArea" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:20px 10px 60px">
+      ${extraStyle ? `<style>${extraStyle}</style>` : ''}
+      <style>
+        ${PDF_PAGE_BREAK_CSS}
+        #printPreviewA4Pages{display:flex;flex-direction:column;align-items:center;gap:14px;font-family:'Hind Siliguri',Arial,sans-serif}
+        .a4-print-page{background:#fff;width:210mm;max-width:100%;min-height:297mm;box-sizing:border-box;box-shadow:0 4px 18px rgba(15,23,42,.18);outline:none;position:relative}
+        .a4-print-page-num{position:absolute;bottom:6mm;right:8mm;font-size:10px;color:#b0b8c2;user-select:none}
+        @media (max-width:640px){ .a4-print-page{min-height:0;box-shadow:0 2px 10px rgba(15,23,42,.15)} }
+        @media print {
+          #printPreviewOverlay{position:static;background:#fff;display:block;overflow:visible;padding:0}
+          .print-toolbar,#printPreviewHint{display:none!important}
+          #printPreviewScrollArea{padding:0;overflow:visible}
+          #printPreviewA4Pages{gap:0}
+          .a4-print-page{box-shadow:none;width:auto;min-height:0;page-break-after:always;break-after:page}
+          .a4-print-page:last-child{page-break-after:auto;break-after:auto}
+          .a4-print-page-num{display:none}
+          @page{size:A4;margin:0}
+        }
+      </style>
+      <div id="printPreviewA4Pages" contenteditable="true"></div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  window._a4PreviewRawHtml = bodyContent;
+  const waitFonts = (document.fonts && document.fonts.ready) ? document.fonts.ready.catch(()=>{}) : Promise.resolve();
+  waitFonts.then(() => setTimeout(paginateA4Preview, 60));
+
+  if (filename) {
+    // "Save as PDF" এ সঠিক ফাইলের নাম সাজেস্ট হওয়ার জন্য সাময়িকভাবে document.title বদলানো হয়
+    const originalTitle = document.title;
+    document.title = filename.replace(/\.pdf$/i, '');
+    window.addEventListener('afterprint', () => { document.title = originalTitle; }, { once: true });
+  }
+}
+
+// এডিট করার পর ইউজার "🔄 পাতা সাজান" চাপলে — বর্তমান (এডিট করা) কন্টেন্ট নিয়েই নতুন করে A4 পাতায় ভাগ করা হয়
+function repaginateA4Preview() {
+  const pagesEl = document.getElementById('printPreviewA4Pages');
+  if (!pagesEl) return;
+  window._a4PreviewRawHtml = pagesEl.innerHTML;
+  paginateA4Preview();
+}
+
+// ===== মূল A4 পেজিনেশন লজিক =====
+// কন্টেন্টের সবচেয়ে বাইরের wrapper (যেমন .a4-page/.brpt-page) এর সরাসরি চাইল্ড উপাদানগুলোর
+// (হেডার, টেবিল, সেকশন-হেডিং ইত্যাদি) height মেপে মেপে একটার পর একটা 297mm এর পাতায় বসানো হয় —
+// একটা পাতায় যতগুলো এলিমেন্ট ধরে ততগুলোই রাখা হয়, না ধরলে নতুন পাতা শুরু হয়ে যায়।
+function paginateA4Preview() {
+  const pagesEl = document.getElementById('printPreviewA4Pages');
+  if (!pagesEl || typeof window._a4PreviewRawHtml !== 'string') return;
+
+  // পরিমাপের জন্য একটা লুকানো স্টেজিং এলাকায় কন্টেন্ট বসানো হচ্ছে
+  const stage = document.createElement('div');
+  stage.style.cssText = 'position:fixed;left:-99999px;top:0;visibility:hidden;';
+  stage.innerHTML = window._a4PreviewRawHtml;
+  document.body.appendChild(stage);
+
+  let wrapperEl = stage.firstElementChild;
+  let wrapperClass = '', wrapperStyle = '';
+  if (stage.children.length === 1 && wrapperEl && wrapperEl.children.length > 0) {
+    wrapperClass = wrapperEl.className || '';
+    wrapperStyle = wrapperEl.getAttribute('style') || '';
   } else {
-    // কার্সার এডিটেবল এরিয়ার বাইরে থাকলে (যেমন বাটনে সরাসরি ক্লিক করলে), শেষে বসানো হবে
-    range = document.createRange();
-    range.selectNodeContents(area);
-    range.collapse(false);
+    wrapperEl = stage; // একক wrapper না পেলে পুরো stage-কেই wrapper ধরা হচ্ছে
   }
-  const marker = document.createElement('div');
-  marker.className = 'manual-page-break';
-  marker.setAttribute('contenteditable', 'false');
-  marker.innerHTML = `<div class="mpb-line"></div><div class="mpb-label">✂️ এখান থেকে নতুন পেজ শুরু হবে <button type="button" class="mpb-del" onclick="this.closest('.manual-page-break').remove()">✕ সরান</button></div>`;
-  range.deleteContents();
-  range.insertNode(marker);
-  range.setStartAfter(marker);
-  range.setEndAfter(marker);
-  range.collapse(true);
-  sel.removeAllRanges();
-  sel.addRange(range);
-  area.focus();
+
+  // চাইল্ডদের height নির্ভুলভাবে মাপার জন্য wrapper-কে ঠিক ১টা A4 পাতার width-এ বাধ্য করা হচ্ছে
+  wrapperEl.style.cssText = (wrapperStyle ? wrapperStyle + ';' : '') + 'width:210mm !important;box-sizing:border-box !important;';
+
+  const children = Array.from(wrapperEl.children);
+  if (!children.length) { stage.remove(); pagesEl.innerHTML = window._a4PreviewRawHtml; return; }
+
+  const cs = getComputedStyle(wrapperEl);
+  const padTop = parseFloat(cs.paddingTop) || 0;
+  const padBottom = parseFloat(cs.paddingBottom) || 0;
+  const rectWidth = wrapperEl.getBoundingClientRect().width || 1;
+  const pxPerMm = rectWidth / 210;
+  const pageHeightPx = Math.max(297 * pxPerMm - padTop - padBottom, 100);
+
+  const pages = [];
+  let current = [], currentHeight = 0;
+  children.forEach(child => {
+    const h = child.getBoundingClientRect().height;
+    if (current.length > 0 && currentHeight + h > pageHeightPx) {
+      pages.push(current);
+      current = [];
+      currentHeight = 0;
+    }
+    current.push(child);
+    currentHeight += h;
+  });
+  if (current.length) pages.push(current);
+  if (!pages.length) pages.push(children);
+
+  pagesEl.innerHTML = '';
+  pages.forEach((group, idx) => {
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'a4-print-page' + (wrapperClass ? ' ' + wrapperClass : '');
+    if (wrapperStyle) pageDiv.setAttribute('style', wrapperStyle);
+    group.forEach(node => pageDiv.appendChild(node)); // stage থেকে আসল পাতায় সরিয়ে নেওয়া হচ্ছে
+    if (pages.length > 1) {
+      const numTag = document.createElement('div');
+      numTag.className = 'a4-print-page-num';
+      numTag.textContent = `পাতা ${idx + 1}/${pages.length}`;
+      pageDiv.appendChild(numTag);
+    }
+    pagesEl.appendChild(pageDiv);
+  });
+
+  stage.remove();
 }
 
-// ===== রিপোর্ট-টাইপ ডকুমেন্ট: প্রিন্ট/পিডিএফ সেভ করার আগে এডিট করে পেজ সাজানো যায় =====
-// মাসিক রিপোর্ট/বোর্ড রিপোর্টের মতো একাধিক ছোট-বড় পার্ট থাকা ডকুমেন্টে এটা ব্যবহার হয় —
-// সাধারণ exportDocumentPDF (official pad, salary slip ইত্যাদি) সরাসরি প্রিন্ট ডায়ালগ
-// খুলে ফেলে, কিন্তু এটা আগে এডিট করার সুযোগ দেয় (দেখুন insertManualPageBreak)।
+// ===== রিপোর্ট-টাইপ ডকুমেন্ট: A4 পাতায় ভাগ করে দেখানো এডিটযোগ্য প্রিভিউ =====
+// মাসিক রিপোর্ট/বোর্ড রিপোর্ট/স্যালারি শিটের মতো একাধিক ছোট-বড় পার্ট থাকা ডকুমেন্টে এটা ব্যবহার হয় —
+// সাধারণ exportDocumentPDF (official pad, salary slip ইত্যাদি) সরাসরি প্রিন্ট ডায়ালগ খুলে ফেলে,
+// কিন্তু এটা আগে A4 পাতায় ভাগ করে দেখায় ও এডিট করার সুযোগ দেয়।
 function exportReportPDFEditable(pageInnerHtml, filename, title) {
-  openPrintWindow(pageInnerHtml, title, filename, { editable: true });
+  openA4PrintPreview(pageInnerHtml, title, filename);
 }
 
 // ===== ডকুমেন্ট এক্সপোর্ট: জেনুইন, শার্প (ভেক্টর টেক্সট) পিডিএফ =====
@@ -21914,7 +22001,7 @@ function printSalarySheet() {
         তৈরি: ${new Date().toLocaleString('bn-BD')} — ICON Eye Hospital Management System
       </div>
     </div>`;
-  exportDocumentPDF(html, `salary-sheet-${months[month-1]}-${year}.pdf`, `বেতন শিট — ${months[month-1]} ${year}`);
+  exportReportPDFEditable(html, `salary-sheet-${months[month-1]}-${year}.pdf`, `বেতন শিট — ${months[month-1]} ${year}`);
 }
 
 // ===== RECEPTIONIST =====
