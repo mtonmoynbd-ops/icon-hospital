@@ -700,15 +700,31 @@ function openPrintWindow(htmlContent, title, filename) {
 }
 
 // ===== রিপোর্ট-টাইপ ডকুমেন্ট: A4 পেজে ভাগ করে দেখানো প্রিন্ট প্রিভিউ (মাসিক রিপোর্ট/বোর্ড রিপোর্ট/স্যালারি শিট) =====
-// আগে এখানে একটা জটিল সিস্টেম ছিল — ইউজারকে নিজে থেকে "✂️ পেজ ব্রেক বসান" বাটন চেপে চেপে
-// প্রতিটা পেজ-ব্রেক বসাতে হতো, সাথে আলাদা একটা গাইড-লাইন হিসাব চলতো। এখন সিম্পল লজিক:
 // কন্টেন্ট বাই ডিফল্ট স্বয়ংক্রিয়ভাবে A4 সাইজের আলাদা আলাদা "পাতা"-য় ভাগ হয়ে দেখানো হয়
-// (ঠিক Word-এর Print Layout ভিউয়ের মতো) — কোনো বাটনে চাপার দরকার নেই। কন্টেন্ট সরাসরি
-// এডিট করা যায় (Word ফাইলের মতোই); এডিট করার পর "🔄 পাতা সাজান" চাপলে নতুন করে বিভাজন
-// হিসাব হয়ে যায়। প্রিন্ট/Save as PDF করলে ব্রাউজার ঠিক এই বিভাজন অনুযায়ীই আসল পেজ-ব্রেক করবে।
+// (ঠিক Word-এর Print Layout ভিউয়ের মতো)। প্রতিটা পাতার height ফিক্সড (297mm) — তাই টাইপ
+// করলে বা এন্টার চাপলে পাতার সাইজ/রেশিও কখনো নষ্ট হয় না; বদলে অতিরিক্ত অংশ এডিট থামানোর
+// পরপরই (debounce) স্বয়ংক্রিয়ভাবে পরের পাতায় সরে যায় — আলাদা কোনো "পাতা সাজান" বাটনে
+// চাপার দরকার নেই। বাঁ-ডান খালি জায়গায় একটা ছোট টুলবক্সে মার্জিন/ফন্ট সাইজ/হাইলাইট
+// কন্ট্রোল রাখা আছে। প্রিন্ট/Save as PDF করলে ব্রাউজার ঠিক এই বিভাজন অনুযায়ীই পেজ-ব্রেক করবে।
+//
+// গুরুত্বপূর্ণ: মূল ডকুমেন্টের বাইরের wrapper (ক্লাস/স্টাইল, যেমন .a4-page/.brpt-page)
+// একবারই (window._a4WrapperClass/_a4WrapperStyle) বের করে রাখা হয় এবং পুরো সেশনে অপরিবর্তিত
+// থাকে। প্রতিটা রি-পেজিনেশনে শুধু "ফ্ল্যাট কন্টেন্ট" (window._a4InnerHtml — একগাদা টপ-লেভেল
+// চাইল্ড, কোনো পেজ-wrapper ছাড়া) আবার ঐ একই wrapper দিয়ে নতুন করে A4 পাতায় ভাগ করা হয়।
+// আগে প্রতিবার রেন্ডার-করা পেজগুলোর innerHTML-ই কাঁচামাল হিসেবে ব্যবহার হতো — তাতে ২য়/৩য়
+// রি-পেজিনেশনে একাধিক পেজ-wrapper একটার ভেতর আরেকটা ঢুকে গিয়ে (nested) স্ক্রিনে স্তরে স্তরে
+// পাতা জমে যাওয়ার বাগ হতো (বিশেষত বোর্ড রিপোর্টের মতো মাল্টি-পেজ ডকুমেন্টে)।
 function openA4PrintPreview(htmlContent, title, filename) {
   const old = document.getElementById('printPreviewOverlay');
   if (old) old.remove();
+
+  // প্রতিটা নতুন প্রিভিউ সেশনে মার্জিন/জুম/wrapper রিসেট — আগের ডকুমেন্টের কাস্টমাইজেশন যেন লিক না করে
+  window._a4MarginMm = null;
+  window._a4ZoomPct = 100;
+  window._a4WrapperClass = '';
+  window._a4WrapperStyle = '';
+  window._a4InnerHtml = '';
+  window._a4ExtraStyleBase = '';
 
   // কিছু কলার ফুল <html><head><style>...</style></head><body>...</body></html> পাঠায় (যেমন বোর্ড রিপোর্ট)
   let extraStyle = '';
@@ -719,6 +735,20 @@ function openA4PrintPreview(htmlContent, title, filename) {
     const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     bodyContent = bodyMatch ? bodyMatch[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
   }
+  window._a4ExtraStyleBase = extraStyle;
+
+  // মূল wrapper (থাকলে) একবারই শনাক্ত করে ক্লাস/স্টাইল আলাদা করে রাখা হচ্ছে, আর ভেতরের
+  // ফ্ল্যাট কন্টেন্ট (আসল টপ-লেভেল অংশগুলো) window._a4InnerHtml-এ রাখা হচ্ছে
+  const parseDiv = document.createElement('div');
+  parseDiv.innerHTML = bodyContent;
+  const wEl = parseDiv.firstElementChild;
+  if (parseDiv.children.length === 1 && wEl && wEl.children.length > 0) {
+    window._a4WrapperClass = wEl.className || '';
+    window._a4WrapperStyle = wEl.getAttribute('style') || '';
+    window._a4InnerHtml = wEl.innerHTML;
+  } else {
+    window._a4InnerHtml = bodyContent;
+  }
 
   const overlay = document.createElement('div');
   overlay.id = 'printPreviewOverlay';
@@ -728,41 +758,75 @@ function openA4PrintPreview(htmlContent, title, filename) {
     <div class="print-toolbar" style="background:linear-gradient(120deg,#081b30,#0f4c81);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex-shrink:0">
       <div style="color:white;font-weight:700;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🖨️ ${title||'প্রিন্ট প্রিভিউ'}</div>
       <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">
-        <button onclick="repaginateA4Preview()" style="background:rgba(255,255,255,0.16);color:white;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap">🔄 পাতা সাজান</button>
         <button onclick="window.print()" style="background:linear-gradient(135deg,#16a34a,#0f8c46);color:white;border:none;border-radius:9px;padding:8px 14px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap;box-shadow:0 3px 10px rgba(22,163,74,.35)">🖨️ প্রিন্ট / PDF</button>
         <button onclick="document.getElementById('printPreviewOverlay').remove()" style="background:rgba(255,255,255,0.16);color:white;border:none;border-radius:9px;padding:8px 12px;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600">✕ বন্ধ</button>
       </div>
     </div>
     <div id="printPreviewHint" style="background:#fffbeb;border-bottom:1px solid #fcd34d;color:#92400e;font-size:11.5px;padding:7px 16px;line-height:1.6;flex-shrink:0">
-      ✏️ কন্টেন্ট সরাসরি এডিট করা যাবে (Word ফাইলের মতো)। কোনো অংশ অন্য পাতায় নিতে চাইলে এডিট করে <b>"🔄 পাতা সাজান"</b> চাপুন — স্বয়ংক্রিয়ভাবে A4 সাইজ অনুযায়ী নতুন করে পাতা ভাগ হয়ে যাবে।
+      ✏️ কন্টেন্ট সরাসরি এডিট করা যাবে (Word ফাইলের মতো)। কোনো অংশ পরের পাতায় নিতে চাইলে জাস্ট এন্টার চাপুন/লিখুন — কয়েক মুহূর্ত পরে স্বয়ংক্রিয়ভাবে A4 অনুযায়ী পাতা আবার সাজিয়ে দেওয়া হবে।
     </div>
-    <div id="printPreviewScrollArea" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:20px 10px 60px">
-      ${extraStyle ? `<style>${extraStyle}</style>` : ''}
+    <div id="printPreviewScrollArea" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:20px 10px 60px;position:relative">
+      ${extraStyle ? `<style id="a4ExtraStyleTag">${extraStyle}</style>` : ''}
       <style>
         ${PDF_PAGE_BREAK_CSS}
         #printPreviewA4Pages{display:flex;flex-direction:column;align-items:center;gap:14px;font-family:'Hind Siliguri',Arial,sans-serif}
-        .a4-print-page{background:#fff;width:210mm;max-width:100%;min-height:297mm;box-sizing:border-box;box-shadow:0 4px 18px rgba(15,23,42,.18);outline:none;position:relative}
+        .a4-print-page{background:#fff;width:210mm;max-width:100%;height:297mm;box-sizing:border-box;box-shadow:0 4px 18px rgba(15,23,42,.18);outline:none;position:relative;overflow:hidden}
         .a4-print-page-num{position:absolute;bottom:6mm;right:8mm;font-size:10px;color:#b0b8c2;user-select:none}
-        @media (max-width:640px){ .a4-print-page{min-height:0;box-shadow:0 2px 10px rgba(15,23,42,.15)} }
+        mark{background:#fff59d;padding:0 1px}
+        #a4SideTools{position:fixed;left:14px;top:110px;width:172px;background:#fff;border-radius:12px;box-shadow:0 6px 22px rgba(15,23,42,.16);padding:12px;display:flex;flex-direction:column;gap:10px;z-index:9998;max-height:calc(100vh - 130px);overflow-y:auto}
+        #a4SideTools .a4t-label{font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.3px}
+        #a4SideTools .a4t-row{display:flex;align-items:center;gap:6px}
+        #a4SideTools .a4t-row label{font-size:11.5px;color:#475569;white-space:nowrap;flex-shrink:0}
+        #a4SideTools input[type=number]{width:50px;padding:5px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:inherit}
+        #a4SideTools button.a4t-btn{border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;cursor:pointer;font-weight:700;font-family:inherit}
+        #a4SideTools .a4t-hint{font-size:10px;color:#94a3b8;line-height:1.5}
+        @media (max-width:1100px){
+          #a4SideTools{position:static;width:auto;margin:8px 10px 0;flex-direction:row;flex-wrap:wrap;align-items:center;box-shadow:none;border:1px solid #e2e8f0;max-height:none}
+          #a4SideTools .a4t-hint{display:none}
+        }
+        @media (max-width:640px){ .a4-print-page{height:auto;min-height:0;box-shadow:0 2px 10px rgba(15,23,42,.15);overflow:visible} }
         @media print {
           #printPreviewOverlay{position:static;background:#fff;display:block;overflow:visible;padding:0}
-          .print-toolbar,#printPreviewHint{display:none!important}
+          .print-toolbar,#printPreviewHint,#a4SideTools{display:none!important}
           #printPreviewScrollArea{padding:0;overflow:visible}
           #printPreviewA4Pages{gap:0}
-          .a4-print-page{box-shadow:none;width:auto;min-height:0;page-break-after:always;break-after:page}
+          .a4-print-page{box-shadow:none;width:auto;height:auto;min-height:0;overflow:visible;page-break-after:always;break-after:page}
           .a4-print-page:last-child{page-break-after:auto;break-after:auto}
           .a4-print-page-num{display:none}
           @page{size:A4;margin:0}
         }
       </style>
+      <div id="a4SideTools">
+        <div class="a4t-label">🛠️ পেজ টুলস</div>
+        <div class="a4t-row">
+          <label>মার্জিন</label>
+          <input id="a4MarginInput" type="number" min="5" max="40" value="12" onchange="setA4Margin(this.value)">
+          <span style="font-size:11px;color:#94a3b8">mm</span>
+        </div>
+        <div class="a4t-row">
+          <label>পুরো লেখা</label>
+          <button class="a4t-btn" style="width:26px;height:26px" onclick="adjustA4Zoom(-10)">−</button>
+          <span id="a4ZoomLabel" style="font-size:11.5px;min-width:34px;text-align:center">100%</span>
+          <button class="a4t-btn" style="width:26px;height:26px" onclick="adjustA4Zoom(10)">+</button>
+        </div>
+        <div class="a4t-row">
+          <label>সিলেক্টেড</label>
+          <button class="a4t-btn" style="padding:5px 9px;font-size:11px" onclick="adjustSelectedFontSize(-2)">A−</button>
+          <button class="a4t-btn" style="padding:5px 9px;font-size:13px" onclick="adjustSelectedFontSize(2)">A+</button>
+        </div>
+        <button class="a4t-btn" style="width:100%;padding:7px;border-color:#fcd34d;background:#fffbeb;color:#92400e;font-size:12px" onclick="highlightSelectedText()">🖍️ হাইলাইট</button>
+        <div class="a4t-hint">হাইলাইট করা অংশ সিলেক্ট করে আবার বাটনে চাপলে হাইলাইট উঠে যাবে।</div>
+      </div>
       <div id="printPreviewA4Pages" contenteditable="true"></div>
     </div>`;
 
   document.body.appendChild(overlay);
 
-  window._a4PreviewRawHtml = bodyContent;
+  const pagesEl = document.getElementById('printPreviewA4Pages');
+  pagesEl.addEventListener('input', () => scheduleA4Repaginate());
+
   const waitFonts = (document.fonts && document.fonts.ready) ? document.fonts.ready.catch(()=>{}) : Promise.resolve();
-  waitFonts.then(() => setTimeout(paginateA4Preview, 60));
+  waitFonts.then(() => setTimeout(() => { paginateA4Preview(); syncA4MarginInput(); }, 60));
 
   if (filename) {
     // "Save as PDF" এ সঠিক ফাইলের নাম সাজেস্ট হওয়ার জন্য সাময়িকভাবে document.title বদলানো হয়
@@ -772,42 +836,88 @@ function openA4PrintPreview(htmlContent, title, filename) {
   }
 }
 
-// এডিট করার পর ইউজার "🔄 পাতা সাজান" চাপলে — বর্তমান (এডিট করা) কন্টেন্ট নিয়েই নতুন করে A4 পাতায় ভাগ করা হয়
-function repaginateA4Preview() {
+// বর্তমানে স্ক্রিনে থাকা (এডিট-করা) পেজগুলো থেকে ফ্ল্যাট (wrapper ছাড়া, টপ-লেভেল চাইল্ডদের
+// একটানা তালিকা) কন্টেন্ট বের করে আনে — "পাতা নম্বর" লেবেলগুলো বাদ দিয়ে। এটাই
+// re-pagination-এর কাঁচামাল, যাতে বারবার ভাগ করলেও পেজ-wrapper একটার ভেতর আরেকটা ঢুকে না যায়।
+function captureFlatA4Content() {
+  const pagesEl = document.getElementById('printPreviewA4Pages');
+  if (!pagesEl) return window._a4InnerHtml || '';
+  const temp = document.createElement('div');
+  Array.from(pagesEl.children).forEach(pageDiv => {
+    Array.from(pageDiv.children).forEach(child => {
+      if (child.classList && child.classList.contains('a4-print-page-num')) return;
+      temp.appendChild(child.cloneNode(true));
+    });
+  });
+  return temp.innerHTML;
+}
+
+// টাইপ করা/এন্টার চাপার পর একটু থেমে (debounce) স্বয়ংক্রিয়ভাবে A4 পাতায় নতুন করে ভাগ করে —
+// কার্সার পজিশন যেন হারিয়ে না যায় তার জন্য একটা অদৃশ্য মার্কার বসিয়ে সেটার জায়গা মনে রাখা হয়
+function scheduleA4Repaginate() {
+  clearTimeout(window._a4RepagTimer);
+  window._a4RepagTimer = setTimeout(runA4RepaginatePreservingCursor, 550);
+}
+
+function runA4RepaginatePreservingCursor() {
   const pagesEl = document.getElementById('printPreviewA4Pages');
   if (!pagesEl) return;
-  window._a4PreviewRawHtml = pagesEl.innerHTML;
+
+  const sel = window.getSelection();
+  let markerId = null;
+  if (sel && sel.rangeCount > 0 && pagesEl.contains(sel.anchorNode)) {
+    markerId = 'a4CursorMarker_' + Date.now();
+    const marker = document.createElement('span');
+    marker.id = markerId;
+    try {
+      const range = sel.getRangeAt(0).cloneRange();
+      range.collapse(false);
+      range.insertNode(marker);
+    } catch(e) { markerId = null; }
+  }
+
+  window._a4InnerHtml = captureFlatA4Content();
   paginateA4Preview();
+
+  if (markerId) {
+    const marker = document.getElementById(markerId);
+    if (marker) {
+      const range = document.createRange();
+      range.setStartAfter(marker);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      marker.remove();
+      pagesEl.focus();
+    }
+  }
 }
 
 // ===== মূল A4 পেজিনেশন লজিক =====
-// কন্টেন্টের সবচেয়ে বাইরের wrapper (যেমন .a4-page/.brpt-page) এর সরাসরি চাইল্ড উপাদানগুলোর
-// (হেডার, টেবিল, সেকশন-হেডিং ইত্যাদি) height মেপে মেপে একটার পর একটা 297mm এর পাতায় বসানো হয় —
-// একটা পাতায় যতগুলো এলিমেন্ট ধরে ততগুলোই রাখা হয়, না ধরলে নতুন পাতা শুরু হয়ে যায়।
+// window._a4InnerHtml (ফ্ল্যাট টপ-লেভেল কন্টেন্ট) কে window._a4WrapperClass/_a4WrapperStyle
+// দিয়ে একটা পরিমাপ-স্টেজে বসিয়ে প্রতিটা চাইল্ডের height মেপে মেপে একটার পর একটা 297mm-এর
+// পাতায় বসানো হয় — একটা পাতায় যতগুলো এলিমেন্ট ধরে ততগুলোই রাখা হয়, না ধরলে নতুন পাতা শুরু।
 function paginateA4Preview() {
   const pagesEl = document.getElementById('printPreviewA4Pages');
-  if (!pagesEl || typeof window._a4PreviewRawHtml !== 'string') return;
+  if (!pagesEl || typeof window._a4InnerHtml !== 'string') return;
 
-  // পরিমাপের জন্য একটা লুকানো স্টেজিং এলাকায় কন্টেন্ট বসানো হচ্ছে
-  const stage = document.createElement('div');
-  stage.style.cssText = 'position:fixed;left:-99999px;top:0;visibility:hidden;';
-  stage.innerHTML = window._a4PreviewRawHtml;
-  document.body.appendChild(stage);
-
-  let wrapperEl = stage.firstElementChild;
-  let wrapperClass = '', wrapperStyle = '';
-  if (stage.children.length === 1 && wrapperEl && wrapperEl.children.length > 0) {
-    wrapperClass = wrapperEl.className || '';
-    wrapperStyle = wrapperEl.getAttribute('style') || '';
-  } else {
-    wrapperEl = stage; // একক wrapper না পেলে পুরো stage-কেই wrapper ধরা হচ্ছে
+  let finalWrapperStyle = window._a4WrapperStyle || '';
+  if (window._a4MarginMm != null) {
+    finalWrapperStyle = finalWrapperStyle.replace(/padding\s*:[^;]+;?/i, '') + `;padding:${window._a4MarginMm}mm;`;
   }
 
-  // চাইল্ডদের height নির্ভুলভাবে মাপার জন্য wrapper-কে ঠিক ১টা A4 পাতার width-এ বাধ্য করা হচ্ছে
-  wrapperEl.style.cssText = (wrapperStyle ? wrapperStyle + ';' : '') + 'width:210mm !important;box-sizing:border-box !important;';
+  // পরিমাপের জন্য একটা লুকানো স্টেজিং এলাকা — আসল wrapper ক্লাস/স্টাইলসহ, ঠিক ১টা A4 পাতার width-এ
+  const stage = document.createElement('div');
+  stage.style.cssText = 'position:fixed;left:-99999px;top:0;visibility:hidden;';
+  const wrapperEl = document.createElement('div');
+  if (window._a4WrapperClass) wrapperEl.className = window._a4WrapperClass;
+  wrapperEl.setAttribute('style', (finalWrapperStyle ? finalWrapperStyle + ';' : '') + 'width:210mm !important;box-sizing:border-box !important;');
+  wrapperEl.innerHTML = window._a4InnerHtml;
+  stage.appendChild(wrapperEl);
+  document.body.appendChild(stage);
 
   const children = Array.from(wrapperEl.children);
-  if (!children.length) { stage.remove(); pagesEl.innerHTML = window._a4PreviewRawHtml; return; }
+  if (!children.length) { stage.remove(); pagesEl.innerHTML = ''; return; }
 
   const cs = getComputedStyle(wrapperEl);
   const padTop = parseFloat(cs.paddingTop) || 0;
@@ -815,6 +925,12 @@ function paginateA4Preview() {
   const rectWidth = wrapperEl.getBoundingClientRect().width || 1;
   const pxPerMm = rectWidth / 210;
   const pageHeightPx = Math.max(297 * pxPerMm - padTop - padBottom, 100);
+
+  // প্রথমবার (মার্জিন এখনো ওভাররাইড করা না থাকলে) ডকুমেন্টের নিজস্ব প্যাডিং মান মনে রাখা হচ্ছে,
+  // যাতে টুলবক্সের মার্জিন ইনপুট সঠিক ডিফল্ট মান দেখাতে পারে
+  if (window._a4MarginMm == null) {
+    window._a4MarginMm = Math.round(padTop / pxPerMm);
+  }
 
   const pages = [];
   let current = [], currentHeight = 0;
@@ -834,8 +950,8 @@ function paginateA4Preview() {
   pagesEl.innerHTML = '';
   pages.forEach((group, idx) => {
     const pageDiv = document.createElement('div');
-    pageDiv.className = 'a4-print-page' + (wrapperClass ? ' ' + wrapperClass : '');
-    if (wrapperStyle) pageDiv.setAttribute('style', wrapperStyle);
+    pageDiv.className = 'a4-print-page' + (window._a4WrapperClass ? ' ' + window._a4WrapperClass : '');
+    if (finalWrapperStyle) pageDiv.setAttribute('style', finalWrapperStyle);
     group.forEach(node => pageDiv.appendChild(node)); // stage থেকে আসল পাতায় সরিয়ে নেওয়া হচ্ছে
     if (pages.length > 1) {
       const numTag = document.createElement('div');
@@ -847,6 +963,102 @@ function paginateA4Preview() {
   });
 
   stage.remove();
+}
+
+// টুলবক্সের মার্জিন ইনপুট বক্সে ডকুমেন্টের প্রকৃত (ব্যবহৃত) মার্জিন মান দেখানো হচ্ছে
+function syncA4MarginInput() {
+  const input = document.getElementById('a4MarginInput');
+  if (input && window._a4MarginMm != null) input.value = window._a4MarginMm;
+}
+
+// HTML স্ট্রিং-এর ভেতরের সব ইনলাইন "font-size:Npx" মান একটা অনুপাত দিয়ে গুণ করে দেয়
+function scaleFontSizesInHtml(html, factor) {
+  if (!html || !factor || factor === 1) return html;
+  return html.replace(/font-size\s*:\s*([\d.]+)px/gi, (m, num) => {
+    const newSize = Math.max(6, Math.round(parseFloat(num) * factor * 10) / 10);
+    return `font-size:${newSize}px`;
+  });
+}
+
+// ===== টুলবক্স অ্যাকশন: মার্জিন, পুরো লেখার জুম, সিলেক্টেড টেক্সট সাইজ, হাইলাইট =====
+function setA4Margin(mm) {
+  const v = Math.max(5, Math.min(40, parseFloat(mm) || 12));
+  window._a4MarginMm = v;
+  window._a4InnerHtml = captureFlatA4Content();
+  paginateA4Preview();
+}
+
+// "পুরো লেখা" +/− বাটন — এটা স্ক্রিনের zoom না, বরং কন্টেন্টের আসল ফন্ট-সাইজ (px) বাড়ায়/কমায়,
+// তাই A4 পাতার সাইজ ঠিক থাকে আর দরকার হলে নতুন করে বিভাজন হয়ে পরের পাতায় কন্টেন্ট চলে যায়
+// (ঠিক Word-এ ফন্ট সাইজ বাড়ালে যেমন হয়)। মূল ডকুমেন্টের CSS ক্লাস-ভিত্তিক ফন্ট-সাইজও (extraStyle,
+// যেমন বোর্ড রিপোর্টের h1/h2/টেবিল) একইভাবে স্কেল করা হয়।
+function adjustA4Zoom(deltaPct) {
+  const oldPct = window._a4ZoomPct || 100;
+  const newPct = Math.max(70, Math.min(160, oldPct + deltaPct));
+  if (newPct === oldPct) return;
+  const relFactor = newPct / oldPct; // বর্তমান (ইতিমধ্যে স্কেল-করা) সাইজ থেকে নতুন টার্গেটে যেতে দরকারি অনুপাত
+  const baseFactor = newPct / 100;   // মূল (অপরিবর্তিত) CSS-এর জন্য — সবসময় original থেকে হিসাব হয়
+  window._a4ZoomPct = newPct;
+
+  window._a4InnerHtml = scaleFontSizesInHtml(captureFlatA4Content(), relFactor);
+
+  const styleTag = document.getElementById('a4ExtraStyleTag');
+  if (styleTag && window._a4ExtraStyleBase) {
+    styleTag.textContent = scaleFontSizesInHtml(window._a4ExtraStyleBase, baseFactor);
+  }
+
+  const lbl = document.getElementById('a4ZoomLabel');
+  if (lbl) lbl.textContent = newPct + '%';
+
+  paginateA4Preview();
+}
+
+function adjustSelectedFontSize(deltaPx) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { showToast('⚠️ আগে টেক্সট সিলেক্ট করুন'); return; }
+  const range = sel.getRangeAt(0);
+  const refNode = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentElement : range.commonAncestorContainer;
+  const curSize = parseFloat(getComputedStyle(refNode).fontSize) || 13;
+  const newSize = Math.max(8, Math.min(60, curSize + deltaPx));
+  try {
+    const span = document.createElement('span');
+    span.style.fontSize = newSize + 'px';
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+    sel.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.selectNodeContents(span);
+    sel.addRange(newRange);
+    scheduleA4Repaginate();
+  } catch(e) { showToast('⚠️ ফন্ট সাইজ পরিবর্তন করা যায়নি'); }
+}
+
+// সিলেক্ট করা অংশ ইতিমধ্যে হাইলাইট করা থাকলে (একটা <mark>-এর ভেতরে থাকলে) আবার চাপলে
+// হাইলাইট উঠিয়ে দেয় (আনডু/টগল); নাহলে নতুন হাইলাইট বসায়
+function highlightSelectedText() {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { showToast('⚠️ আগে টেক্সট সিলেক্ট করুন'); return; }
+  const range = sel.getRangeAt(0);
+
+  let container = range.commonAncestorContainer;
+  if (container.nodeType === 3) container = container.parentElement;
+  const existingMark = container ? container.closest('mark') : null;
+  if (existingMark) {
+    const parent = existingMark.parentNode;
+    while (existingMark.firstChild) parent.insertBefore(existingMark.firstChild, existingMark);
+    parent.removeChild(existingMark);
+    sel.removeAllRanges();
+    scheduleA4Repaginate();
+    return;
+  }
+
+  try {
+    const mark = document.createElement('mark');
+    mark.appendChild(range.extractContents());
+    range.insertNode(mark);
+    sel.removeAllRanges();
+    scheduleA4Repaginate();
+  } catch(e) { showToast('⚠️ হাইলাইট করা যায়নি'); }
 }
 
 // ===== রিপোর্ট-টাইপ ডকুমেন্ট: A4 পাতায় ভাগ করে দেখানো এডিটযোগ্য প্রিভিউ =====
