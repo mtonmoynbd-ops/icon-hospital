@@ -752,9 +752,9 @@ function openA4PrintPreview(htmlContent, title, filename) {
   if (parseDiv.children.length === 1 && wEl && wEl.children.length > 0) {
     window._a4WrapperClass = wEl.className || '';
     window._a4WrapperStyle = wEl.getAttribute('style') || '';
-    window._a4InnerHtml = markA4HeadlinesNonEditable(wEl.innerHTML);
+    window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(wEl.innerHTML));
   } else {
-    window._a4InnerHtml = markA4HeadlinesNonEditable(bodyContent);
+    window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(bodyContent));
   }
   window._a4FreshInnerHtml = window._a4InnerHtml; // "মূল অবস্থায় ফিরুন"-এর জন্য অক্ষত কপি
 
@@ -792,11 +792,17 @@ function openA4PrintPreview(htmlContent, title, filename) {
         .a4-print-page{background:#fff;width:210mm;max-width:100%;height:297mm;box-sizing:border-box;box-shadow:0 4px 18px rgba(15,23,42,.18);outline:none;position:relative;overflow:hidden}
         .a4-print-page-num{position:absolute;bottom:6mm;right:8mm;font-size:10px;color:#b0b8c2;user-select:none}
         mark{background:#fff59d;padding:0 1px}
-        /* টেবিলের/সেকশন-হেডলাইনের গাঢ় নীল টপ বার — পেপারে প্রিন্টের জন্য হালকা আকাশি ব্যাকগ্রাউন্ড +
-           কালো লেখায় বদলে দেওয়া হচ্ছে (ইনলাইন স্টাইল/CSS ক্লাস যা-ই থাকুক না কেন, !important দিয়ে) */
+        /* টেবিলের/সেকশন-হেডলাইনের গাঢ় নীল টপ বার/সর্বমোট বার — পেপারে প্রিন্টের জন্য হালকা আকাশি
+           ব্যাকগ্রাউন্ড + কালো লেখায় বদলে দেওয়া হচ্ছে (ইনলাইন স্টাইল/CSS ক্লাস যা-ই থাকুক না কেন,
+           !important দিয়ে)। td-লেভেলেও ওভাররাইড লাগে কারণ কিছু "সর্বমোট" রো-র রং td-তে বসানো
+           থাকে (tr-এ না), যেমন বোর্ড রিপোর্টের .total-row td */
         #printPreviewA4Pages th,
         #printPreviewA4Pages thead tr,
+        #printPreviewA4Pages thead td,
         #printPreviewA4Pages tfoot tr,
+        #printPreviewA4Pages tfoot td,
+        #printPreviewA4Pages tr.total-row td,
+        #printPreviewA4Pages tr.sum-row td,
         #printPreviewA4Pages h1,
         #printPreviewA4Pages h2,
         #printPreviewA4Pages h3,
@@ -806,6 +812,8 @@ function openA4PrintPreview(htmlContent, title, filename) {
         #printPreviewA4Pages th *,
         #printPreviewA4Pages thead tr *,
         #printPreviewA4Pages tfoot tr *,
+        #printPreviewA4Pages tr.total-row td *,
+        #printPreviewA4Pages tr.sum-row td *,
         #printPreviewA4Pages h1 *,
         #printPreviewA4Pages h2 *,
         #printPreviewA4Pages h3 *,
@@ -907,6 +915,65 @@ function markA4HeadlinesNonEditable(html) {
   tmp.innerHTML = html;
   tmp.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => h.setAttribute('contenteditable', 'false'));
   return tmp.innerHTML;
+}
+
+// প্রতিটা মূল <table>-কে একটা ইউনিক আইডি (data-a4-tbl) দিয়ে ট্যাগ করে রাখা হয় — যখন একটা বড়
+// টেবিল একাধিক পাতায় ভাগ হয় (splitA4Table), সব কটা টুকরাই cloneNode-এর মাধ্যমে এই একই আইডি
+// পেয়ে যায়। এই আইডি দিয়েই পরের রি-পেজিনেশনে reassembleA4TableFragments() বুঝতে পারে কোন
+// টুকরাগুলো আসলে একই টেবিলের অংশ ছিল — নাহলে বারবার এডিট/মার্জিন-বদলে একই টেবিল বারবার ভেঙে
+// একাধিক ছোট ছোট থিড (thead) জমে "ডুপ্লিকেট হেডার" বাগ হতো।
+function tagA4Tables(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  tmp.querySelectorAll('table').forEach((t, i) => {
+    if (!t.getAttribute('data-a4-tbl')) t.setAttribute('data-a4-tbl', 'tbl' + i + '_' + Date.now());
+  });
+  return tmp.innerHTML;
+}
+
+// পরপর থাকা একই data-a4-tbl আইডির টেবিল-টুকরাগুলোকে (আগের কোনো রি-পেজিনেশনে ভাগ হয়ে থাকলে)
+// আবার একটা সম্পূর্ণ টেবিলে জোড়া দেয় — যাতে প্রতিটা রি-পেজিনেশনে কাঁচা/অক্ষত অবস্থা থেকে নতুন
+// করে বিভাজন হিসাব হয়, আগের ভাঙা টুকরার ওপর আরেকবার ভাঙাভাঙি করে ডুপ্লিকেট হেডার/অস্বাভাবিক
+// ছোট টুকরা জমে না যায়।
+function reassembleA4TableFragments(children) {
+  const merged = [];
+  let i = 0;
+  while (i < children.length) {
+    const el = children[i];
+    const groupId = el.tagName === 'TABLE' ? el.getAttribute('data-a4-tbl') : null;
+    if (groupId) {
+      const group = [el];
+      let j = i + 1;
+      while (j < children.length && children[j].tagName === 'TABLE' && children[j].getAttribute('data-a4-tbl') === groupId) {
+        group.push(children[j]);
+        j++;
+      }
+      if (group.length > 1) {
+        const first = group[0];
+        const thead = first.querySelector(':scope > thead');
+        const mergedTable = first.cloneNode(false);
+        if (thead) mergedTable.appendChild(thead.cloneNode(true));
+        const mergedTbody = document.createElement('tbody');
+        let tfootEl = null;
+        group.forEach(t => {
+          const tb = t.querySelector(':scope > tbody');
+          if (tb) Array.from(tb.children).forEach(r => mergedTbody.appendChild(r));
+          const tf = t.querySelector(':scope > tfoot');
+          if (tf) tfootEl = tf; // একাধিক টুকরায় tfoot থাকলে শেষেরটাই আসল
+        });
+        mergedTable.appendChild(mergedTbody);
+        if (tfootEl) mergedTable.appendChild(tfootEl);
+        merged.push(mergedTable);
+      } else {
+        merged.push(el);
+      }
+      i = j;
+    } else {
+      merged.push(el);
+      i++;
+    }
+  }
+  return merged;
 }
 
 // বর্তমানে স্ক্রিনে থাকা (এডিট-করা) পেজগুলো থেকে ফ্ল্যাট (wrapper ছাড়া, টপ-লেভেল চাইল্ডদের
@@ -1033,7 +1100,10 @@ function paginateA4Preview() {
   stage.appendChild(wrapperEl);
   document.body.appendChild(stage);
 
-  const children = Array.from(wrapperEl.children);
+  // আগের কোনো রি-পেজিনেশনে ভাঙা টেবিল-টুকরা থাকলে সেগুলো আবার জোড়া দিয়ে অক্ষত অবস্থা থেকে
+  // নতুন করে বিভাজন হিসাব করা হচ্ছে — নাহলে বারবার এডিট/মার্জিন-বদলে একই টেবিল বারবার ভেঙে
+  // ডুপ্লিকেট হেডার/অস্বাভাবিক ছোট টুকরা জমে যেত
+  const children = reassembleA4TableFragments(Array.from(wrapperEl.children));
   if (!children.length) { stage.remove(); pagesEl.innerHTML = ''; return; }
 
   const cs = getComputedStyle(wrapperEl);
@@ -21703,17 +21773,23 @@ function printSalarySlips() {
     const key = getSalaryKey(s.id, month, year);
     const sal = appData.salaries&&appData.salaries[key] ? appData.salaries[key] : {bonus:0,cut:0,paid:false};
     const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
-    const advTotal = sal.paid ? (sal.advanceTotal||0) : getStaffAdvanceTotal(s.id, month, year);
+    const advList = getStaffAdvanceList(s.id, month, year);
+    const advTotal = sal.paid ? (sal.advanceTotal||0) : advList.reduce((sum,a)=>sum+(a.amount||0), 0);
     const net = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - (sal.absentCut||0) - advTotal;
+    const advChipsHtml = advList.length ? `
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-bottom:3px;padding:2px 5px;background:#fff7ed;border:1px solid #fdba74;border-radius:5px">
+            <span style="font-size:6px;color:#9a3412;font-weight:800;text-transform:uppercase;flex-shrink:0">অগ্রিম:</span>
+            ${advList.map(a=>`<span style="font-size:6.5px;color:#9a3412;font-weight:700;background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:0.5px 5px;white-space:nowrap">${isNaN(new Date(a.date))?(a.date||''):new Date(a.date).toLocaleDateString('bn-BD',{day:'numeric',month:'short'})} — ৳${fmt(a.amount)}</span>`).join('')}
+          </div>` : '';
     return `
       <div style="border:2px solid #0f4c81;border-radius:6px;padding:0;page-break-inside:avoid;background:white;width:6.7in;height:2.7in;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12);display:flex;flex-direction:column">
         <!-- Header strip -->
-        <div style="background:linear-gradient(135deg,#0f4c81,#1a6db5);padding:5px 12px;display:flex;align-items:center;justify-content:space-between">
+        <div style="background:#eaf4fb;border-bottom:2px solid #0f4c81;padding:5px 12px;display:flex;align-items:center;justify-content:space-between">
           <div>
-            <div style="font-size:12px;font-weight:800;color:white;letter-spacing:0.5px">${hospName}</div>
-            <div style="font-size:8px;color:rgba(255,255,255,0.8);margin-top:0px">বেতন স্লিপ — ${months[month-1]}, ${year}</div>
+            <div style="font-size:12px;font-weight:800;color:#0f4c81;letter-spacing:0.5px">${hospName}</div>
+            <div style="font-size:8px;color:#475569;margin-top:0px">বেতন স্লিপ — ${months[month-1]}, ${year}</div>
           </div>
-          <img src="${LOGO_B64}" style="height:28px;object-fit:contain;opacity:0.9" onerror="this.style.display='none'" />
+          <img src="${LOGO_B64}" style="height:28px;object-fit:contain" onerror="this.style.display='none'" />
         </div>
         <!-- Employee info bar -->
         <div style="background:#f0f7ff;padding:4px 12px;display:flex;gap:16px;border-bottom:1px solid #dbeafe">
@@ -21723,7 +21799,7 @@ function printSalarySlips() {
         </div>
         <!-- Salary details -->
         <div style="padding:6px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:5px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:3px">
             <div style="background:#f0fff4;border:1px solid #86efac;border-radius:5px;padding:3px;text-align:center">
               <div style="font-size:7px;color:#166534;font-weight:700;text-transform:uppercase">বেসিক বেতন</div>
               <div style="font-size:11px;font-weight:800;color:#166534;margin-top:0px">৳ ${fmt(s.basic)}</div>
@@ -21741,11 +21817,12 @@ function printSalarySlips() {
               <div style="font-size:11px;font-weight:800;color:#ea580c;margin-top:0px">৳ ${fmt(sal.absentCut||0)}</div>
             </div>
           </div>
+${advChipsHtml}
           <!-- Net pay + attendance row combined -->
-          <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:5px">
-            <div style="background:linear-gradient(135deg,#0f4c81,#1a6db5);border-radius:6px;padding:5px 10px;display:flex;align-items:center;justify-content:space-between;flex:1.4">
-              <div style="color:rgba(255,255,255,0.85);font-size:9px;font-weight:600">নেট প্রদেয়${advTotal>0?' <span style=\'font-size:7px;opacity:0.8\'>(অগ্রিম ৳'+fmt(advTotal)+' বাদে)</span>':''}</div>
-              <div style="color:white;font-size:15px;font-weight:900">৳ ${fmt(net)}</div>
+          <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:3px">
+            <div style="background:#eaf4fb;border:1px solid #bcd9ec;border-radius:6px;padding:5px 10px;display:flex;align-items:center;justify-content:space-between;flex:1.4">
+              <div style="color:#475569;font-size:9px;font-weight:600">নেট প্রদেয়</div>
+              <div style="color:#0f4c81;font-size:15px;font-weight:900">৳ ${fmt(net)}</div>
             </div>
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;display:flex;align-items:center;gap:5px;flex:1">
               <span style="font-size:13px">📅</span>
@@ -21756,15 +21833,15 @@ function printSalarySlips() {
               <div><div style="font-size:7px;color:#64748b">কর্মঘন্টা</div><div style="font-size:11px;font-weight:700;color:#0f4c81">${calcWorkHours(s.id,month,year)} ঘ.</div></div>
             </div>
           </div>
-          <!-- Signature -->
+          <!-- Signature: বামে টাকা বুঝিয়া পাইছি লেখা, মাঝে কর্মীর স্বাক্ষর, ডানে কর্তৃপক্ষের স্বাক্ষর -->
           <div style="border-top:1px dashed #cbd5e1;padding-top:4px">
-            <div style="font-size:7px;color:#0f4c81;font-weight:700;margin-bottom:3px">৳ ${fmt(net)} (${numberToWords(net)}) টাকা বুঝে পেয়েছি।</div>
-            <div style="display:flex;justify-content:space-between">
-              <div style="text-align:center">
-                <div style="width:95px;border-top:1px solid #334155;padding-top:2px;font-size:7px;color:#64748b">কর্মীর স্বাক্ষর/তারিখ</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:5px">
+              <div style="flex:1.4;font-size:6.3px;color:#0f4c81;font-weight:700;line-height:1.3">৳ ${fmt(net)} (${numberToWords(net)}) টাকা বুঝে পেয়েছি।</div>
+              <div style="text-align:center;flex-shrink:0">
+                <div style="width:78px;border-top:1px solid #334155;padding-top:2px;font-size:6.5px;color:#64748b;white-space:nowrap">কর্মীর স্বাক্ষর/তারিখ</div>
               </div>
-              <div style="text-align:center">
-                <div style="width:85px;border-top:1px solid #334155;padding-top:2px;font-size:7px;color:#64748b">কর্তৃপক্ষের স্বাক্ষর</div>
+              <div style="text-align:center;flex-shrink:0">
+                <div style="width:72px;border-top:1px solid #334155;padding-top:2px;font-size:6.5px;color:#64748b;white-space:nowrap">কর্তৃপক্ষের স্বাক্ষর</div>
               </div>
             </div>
           </div>
@@ -22448,7 +22525,6 @@ function printSalarySheet() {
       <td style="padding:8px;text-align:right">${advTotal>0?'৳ '+fmt(advTotal):'—'}</td>
       <td style="padding:8px;text-align:right;font-weight:700">৳ ${fmt(net)}</td>
       <td style="padding:8px;text-align:center"><span style="color:${sal.paid?'green':'red'}">${sal.paid?'✅ পরিশোধিত':'⏳ বাকি'}</span></td>
-      <td style="padding:8px;text-align:center">____________</td>
     </tr>`;
   });
   const html = `
@@ -22469,7 +22545,6 @@ function printSalarySheet() {
           <th style="padding:8px;text-align:right">বোনাস</th><th style="padding:8px;text-align:right">কাটা</th>
           <th style="padding:8px;text-align:right">অগ্রিম</th>
           <th style="padding:8px;text-align:right">নেট বেতন</th><th style="padding:8px;text-align:center">স্ট্যাটাস</th>
-          <th style="padding:8px;text-align:center">স্বাক্ষর</th>
         </tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr style="background:#f0f4f8;font-weight:700">
@@ -22479,7 +22554,7 @@ function printSalarySheet() {
           <td style="padding:8px;text-align:right">৳ ${fmt(totalCut)}</td>
           <td style="padding:8px;text-align:right">৳ ${fmt(totalAdv)}</td>
           <td style="padding:8px;text-align:right;color:#0f4c81">৳ ${fmt(totalNet)}</td>
-          <td colspan="2"></td>
+          <td></td>
         </tr></tfoot>
       </table>
       </div>
