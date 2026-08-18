@@ -2976,7 +2976,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel">
         <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stFormPanelBody','stFormPanelIcon')">
           <div class="panel-title">📦 স্টক ব্যবস্থাপনা <span id="stFormPanelIcon" class="stock-collapse-icon open">▶</span></div>
-          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();toggleStockForm()">➕ নতুন আইটেম</button>
+          <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
+            <button class="btn btn-outline btn-sm" onclick="openBulkStockInPage()">📦↕️ বাল্ক স্টক ইন</button>
+            <button class="btn btn-primary btn-sm" onclick="toggleStockForm()">➕ নতুন আইটেম</button>
+          </div>
         </div>
         <div class="panel-body stock-panel-body" id="stFormPanelBody">
           <div class="form-row three">
@@ -3364,7 +3367,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field"><label>✈️ Telegram Chat ID</label>
               <input type="text" id="sfTelegramId" placeholder="যেমন: 123456789">
             </div>
-            <div class="field"><label>বেসিক বেতন (৳) *</label><input type="number" id="sfBasic" placeholder="০.০০" min="0"></div>
+            <div class="field"><label>মাসিক বেতন (৳) *</label><input type="number" id="sfBasic" placeholder="০.০০" min="0"></div>
           </div>
           <div class="form-row three">
             <div class="field"><label>যোগদানের তারিখ</label><input type="date" id="sfJoinDate"></div>
@@ -3441,6 +3444,17 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
         </div>
         <div class="panel-body" style="padding-top:0">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+            <label style="font-size:12px;color:var(--text-light);font-weight:600">🔍 ফিল্টার:</label>
+            <select id="advFilterStaff" onchange="renderAdvanceTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px"></select>
+            <select id="advFilterMonth" onchange="renderAdvanceTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব মাস</option>
+              <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
+              <option value="5">মে</option><option value="6">জুন</option><option value="7">জুলাই</option><option value="8">আগস্ট</option>
+              <option value="9">সেপ্টেম্বর</option><option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+            </select>
+            <select id="advFilterYear" onchange="renderAdvanceTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px"></select>
+          </div>
           <div class="table-wrap"><table>
             <thead><tr><th>তারিখ</th><th>কর্মী</th><th>পরিমাণ (৳)</th><th>কর্তনের মাস</th><th>ভাউচার</th><th>নোট</th><th>অ্যাকশন</th></tr></thead>
             <tbody id="advanceTable"></tbody>
@@ -3471,7 +3485,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="table-wrap"><table>
             <thead><tr>
               <th>#</th><th>নাম</th><th>পদবি</th>
-              <th>বেসিক (৳)</th><th>বোনাস (৳)</th><th>🩺 ডাক্তার কমিশন (৳)</th><th>কাটা (৳)</th><th>💵 অগ্রিম (৳)</th>
+              <th>মাসিক বেতন (৳)</th><th>বোনাস (৳)</th><th>🩺 ডাক্তার কমিশন (৳)</th><th>কর্তন (৳)</th><th>🗓️ অনুপস্থিতি কর্তন (৳)</th><th>💵 অগ্রিম (৳)</th>
               <th>নেট বেতন (৳)</th><th>পেমেন্ট</th><th>অ্যাকশন</th>
             </tr></thead>
             <tbody id="salaryTable"></tbody>
@@ -3556,6 +3570,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
         <div class="panel-body" style="padding-top:0">
           <div id="leaveListPanel"></div>
+        </div>
+        <div class="panel-body" style="padding-top:0;border-top:1px solid var(--border);margin-top:4px">
+          <div style="font-weight:700;color:#0f4c81;font-size:13px;margin-bottom:2px">🗓️ সাপ্তাহিক/মাসিক ছুটির কোটা</div>
+          <div style="font-size:11.5px;color:var(--text-light);margin-bottom:8px">প্রতি কর্মীর জন্য সাপ্তাহিক/মাসিক কতদিন ছুটি মঞ্জুর তা সেট করুন — এই কোটার ভেতরের অনুপস্থিতি বেতন থেকে কর্তন হবে না</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>কর্মী</th><th>পদবি</th><th>কোটার ধরন</th><th>দিনের সংখ্যা</th><th>এই মাসে সমতুল্য</th></tr></thead>
+            <tbody id="leaveQuotaTable"></tbody>
+          </table></div>
         </div>
       </div>
 
@@ -6504,6 +6526,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="rp-nav-item" id="rtab-delivery" onclick="switchRecTab('delivery',this)"><span class="nav-icon">🚚</span> ডেলিভারি<span id="recDlvBadge" class="nbadge" style="display:none"></span></div>
       </div>
       <div class="rp-nav-footer">
+        <div class="rp-nav-item" onclick="openBulkStockInPage()"><span class="nav-icon">📦</span> বাল্ক স্টক ইন</div>
         <div class="rp-nav-item rp-nav-cash" onclick="showRecCashSubmitModal()"><span class="nav-icon">💵</span> ক্যাশ জমা</div>
         <div class="rp-nav-item rp-nav-logout" onclick="doLogout()"><span class="nav-icon">🚪</span> লগআউট</div>
       </div>
@@ -7042,6 +7065,24 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeStockModal()">বাতিল</button>
       <button class="btn btn-success" id="stockModalBtn" onclick="confirmStockMove()">✅ নিশ্চিত করুন</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK STOCK IN — সরবরাহকারীর এক্সিস্টিং ভাউচার নির্বাচন ও মূল্য যাচাই (একাধিক পণ্য একসাথে স্টক ইন করার শেষ ধাপ) -->
+<div class="modal-overlay" id="bulkStockVoucherModal" style="z-index:10000">
+  <div class="modal">
+    <div class="modal-title">🧾 ভাউচার নির্বাচন ও যাচাই</div>
+    <div id="bsSummaryLine" style="font-size:13px;color:var(--text-light);margin-bottom:14px;background:#f0f4f8;border-radius:8px;padding:8px 12px"></div>
+    <div class="field" style="margin-bottom:10px">
+      <label>সরবরাহকারী পেজের ভাউচার খুঁজুন (ভাউচার নং বা প্রতিষ্ঠানের নাম) *</label>
+      <input type="text" id="bsVoucherSearch" oninput="searchBsVoucher(this.value)" placeholder="🔍 ভাউচার নং বা সরবরাহকারীর নাম লিখুন..." style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;box-sizing:border-box">
+    </div>
+    <div id="bsVoucherResults" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:12px"></div>
+    <div id="bsSelectedVoucherCard" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBulkVoucherModal()">◀ পেছনে</button>
+      <button class="btn btn-success" onclick="confirmBulkStockIn()">✅ স্টক ইন নিশ্চিত করুন</button>
     </div>
   </div>
 </div>
@@ -8772,7 +8813,7 @@ function showEditHistory(module, entryId, label) {
     name:'নাম', amount:'পরিমাণ', date:'তারিখ', category:'ক্যাটাগরি',
     qty:'স্টক পরিমাণ', buyPrice:'ক্রয়মূল্য', sellPrice:'বিক্রয়মূল্য',
     minQty:'নিম্নসীমা', note:'নোট', phone:'ফোন', status:'স্ট্যাটাস',
-    basic:'বেসিক বেতন', desig:'পদবি', shares:'শেয়ার', address:'ঠিকানা',
+    basic:'মাসিক বেতন', desig:'পদবি', shares:'শেয়ার', address:'ঠিকানা',
     cat:'ক্যাটাগরি', unit:'একক', subCat:'সাব-ক্যাটাগরি', code:'কোড',
     ref:'রেফারেন্স', voucher:'ভাউচার', subCategory:'উপ-ক্যাটাগরি',
     cashPaid:'পরিশোধিত', due:'বাকি', patName:'রোগীর নাম', patPhone:'ফোন',
@@ -9184,7 +9225,7 @@ function showPage(name) {
   }
   if (name === 'dashboard') { refreshDashboard(); makeTableResizable('recentTable'); }
   if (name === 'report') { initReportFilters(); renderReport(); }
-  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderWaOutboxTable(); renderTgOutboxTable(); }
+  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderLeaveQuotaTable(); renderWaOutboxTable(); renderTgOutboxTable(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); }
@@ -11979,7 +12020,7 @@ function printBoardReport() {
   <!-- স্যালারি -->
   <h2>৮. কর্মী বেতন সারসংক্ষেপ</h2>
   ${appData.staff.filter(s=>s.status==='active').length?`<table>
-    <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">বেসিক</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কাটা</th><th style="text-align:right">অগ্রিম</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
+    <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">মাসিক বেতন</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কর্তন</th><th style="text-align:right">অগ্রিম</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
     <tbody>${appData.staff.filter(s=>s.status==='active').map((s,i)=>{
       const key=`sal_${s.id}_${year}_${pad(month)}`;
       const sal=(appData.salaries&&appData.salaries[key])||{bonus:0,cut:0,paid:false};
@@ -17768,7 +17809,7 @@ function buildReadOnlyHTML(feature, role) {
     const rows = (appData.staff||[]).filter(s=>s.status==='active');
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">👨‍💼 কর্মী তালিকা ${badge}</div>
       <div style="overflow-x:auto"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">নাম</th><th style="${thStyle}">পদবি</th><th style="${thStyle}">বেসিক বেতন</th></tr>
+        <tr><th style="${thStyle}">নাম</th><th style="${thStyle}">পদবি</th><th style="${thStyle}">মাসিক বেতন</th></tr>
         ${rows.length ? rows.map(s=>`<tr><td style="${tdStyle};font-weight:600">${s.name}</td><td style="${tdStyle}">${s.desig||'—'}</td><td style="${tdStyle}">৳ ${fmt2(s.basic)}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px;text-align:center;color:#aaa">কোনো কর্মী নেই</td></tr>`}
       </table></div>`;
   }
@@ -21047,13 +21088,341 @@ function printStockReport() {
     </div>`);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ✅ বাল্ক স্টক ইন — একসাথে অনেকগুলো এক্সিস্টিং পণ্যের (যেমন: ২০ রকম চশমা + ৫০ রকম মেডিসিন)
+// পরিমাণ বাড়ানোর জন্য। বাস্তব প্রবাহ: "সরবরাহকারী" পেজে সাপ্লায়ারের ভাউচার (মোট মূল্য, পরিশোধ/বাকি)
+// আগেই এন্ট্রি দেওয়া থাকে (টাকার হিসাব সেখানেই হয়ে যায়) — এই ফিচার শুধু সেই হার্ড-কপি ভাউচারের
+// পণ্য তালিকা (কী কী পণ্য, কী পরিমাণে, কোন ক্রয়মূল্যে) স্টকে টুকে দেওয়ার জন্য, টাকা দ্বিতীয়বার
+// কাটে না — শুধু ইনভেন্টরি (পরিমাণ ও ওয়েটেড এভারেজ ক্রয়মূল্য) আপডেট হয়।
+// ধাপ ১: ক্যাটাগরি/সাব-ক্যাটাগরি ওয়াইজ পুরো তালিকা দেখিয়ে যে যে পণ্য কেনা হয়েছে তার পরিমাণ ও
+//        ক্রয়মূল্য বসানো হয়; তালিকায় না থাকা নতুন পণ্য চাইলে সাথে সাথে যোগ করে নেওয়া যায়।
+// ধাপ ২: "সরবরাহকারী" পেজে আগে থেকে তৈরি হওয়া এক্সিস্টিং ভাউচার খুঁজে নির্বাচন করা হয় — অ্যাপ
+//        এই ধাপে ভাউচারের সরবরাহকারীর নাম ও মোট মূল্যের সাথে এন্ট্রির মোট মূল্য মিলিয়ে দেখায়,
+//        মিললে ✅, না মিললে ⚠️ সতর্কতা দেখিয়ে সংশোধনের সুযোগ দেয় (জোর করে এগোতে চাইলে চেকবক্স টিক দিতে হয়)।
+let bulkStockInSelection = {}; // itemId -> {qty, price}
+let bulkStockInCat = '';
+let bulkStockInSearch = '';
+let bulkStockInSelectedVoucherId = null;
+
+function openBulkStockInPage() {
+  bulkStockInSelection = {};
+  const cats = getStockCats();
+  bulkStockInCat = cats.find(c=>c!=='অফিস সামগ্রী') || cats[0] || '';
+  bulkStockInSearch = '';
+  renderBulkStockInPage();
+}
+
+function renderBulkStockInPage() {
+  let page = document.getElementById('bulkStockInPage');
+  if (!page) {
+    page = document.createElement('div');
+    page.id = 'bulkStockInPage';
+    page.style.cssText = 'position:fixed;inset:0;background:#f0f4f8;z-index:9999;overflow-y:auto';
+    document.body.appendChild(page);
+  }
+  const cats = getStockCats();
+  const tabsHtml = cats.map(c=>`<button onclick="switchBulkStockInCat('${c.replace(/'/g,"\\'")}')" style="padding:7px 12px;border-radius:8px;border:1.5px solid ${bulkStockInCat===c?'var(--primary)':'#e2e8f0'};background:${bulkStockInCat===c?'#eff6ff':'#fff'};color:${bulkStockInCat===c?'var(--primary)':'#666'};font-weight:700;font-size:12.5px;font-family:inherit;cursor:pointer;white-space:nowrap;flex-shrink:0">${c}</button>`).join('');
+  page.innerHTML = `
+    <div style="max-width:720px;margin:0 auto;min-height:100vh;background:white;padding:0 0 110px">
+      <div style="position:sticky;top:0;z-index:10;background:white;border-bottom:1.5px solid #e2e8f0;padding:12px 18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-weight:700;font-size:16px;color:var(--primary)">📦↕️ বাল্ক স্টক ইন</div>
+          <button onclick="closeBulkStockInPage()" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#475569">✕ বন্ধ</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="text" id="bulkStockInSearchBox" value="${(bulkStockInSearch||'').replace(/"/g,'&quot;')}" oninput="onBulkStockInSearch(this.value)" placeholder="🔍 পণ্যের নাম বা কোড খুঁজুন..." style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box">
+          <button onclick="toggleBulkNewItemForm()" style="background:#ecfdf5;border:1.5px solid #86efac;color:#15803d;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">+ নতুন পণ্য</button>
+        </div>
+        <div id="bulkNewItemFormWrap" style="display:none;margin-bottom:8px"></div>
+        <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">${tabsHtml}</div>
+      </div>
+      <div style="padding:10px 14px" id="bulkStockInListWrap"></div>
+      <div style="position:fixed;bottom:0;left:0;right:0;background:white;border-top:1.5px solid #e2e8f0;padding:12px 18px;max-width:720px;margin:0 auto;box-shadow:0 -4px 12px rgba(0,0,0,.06)">
+        <div id="bulkStockInFooterSummary" style="font-size:12.5px;color:var(--text-light);margin-bottom:8px;text-align:center"></div>
+        <button class="btn btn-success" style="width:100%" onclick="proceedToBulkVoucherStep()">➡️ পরবর্তী ধাপ — ভাউচার নির্বাচন</button>
+      </div>
+    </div>`;
+  renderBulkStockInList();
+  renderBulkStockInFooter();
+}
+
+function switchBulkStockInCat(cat) { bulkStockInCat = cat; bulkStockInSearch=''; renderBulkStockInPage(); }
+
+function onBulkStockInSearch(val) {
+  bulkStockInSearch = val;
+  renderBulkStockInList();
+}
+
+function renderBulkStockInList() {
+  const wrap = document.getElementById('bulkStockInListWrap');
+  if (!wrap) return;
+  const q = (bulkStockInSearch||'').toLowerCase().trim();
+  const items = (appData.stock||[]).filter(s => s.cat === bulkStockInCat &&
+    (!q || s.name.toLowerCase().includes(q) || (s.code&&s.code.toLowerCase().includes(q)))
+  ).sort((a,b)=> (a.subCat||'').localeCompare(b.subCat||'','bn') || (a.name||'').localeCompare(b.name||'','bn'));
+  if (!items.length) { wrap.innerHTML = `<div style="text-align:center;color:#aaa;padding:40px">কোনো পণ্য পাওয়া যায়নি। উপরে "+ নতুন পণ্য" থেকে যোগ করুন।</div>`; return; }
+  const groups = {};
+  items.forEach(s=>{ const key = s.subCat || '—'; if (!groups[key]) groups[key]=[]; groups[key].push(s); });
+  const subKeys = Object.keys(groups).sort((a,b)=> a==='—'?1:(b==='—'?-1:a.localeCompare(b,'bn')));
+  wrap.innerHTML = subKeys.map(sk=>{
+    const rows = groups[sk].map(s=>{
+      const sel = bulkStockInSelection[s.id]||{};
+      const defaultPrice = s.avgCost!=null ? s.avgCost : (s.buyPrice||0);
+      const isNew = (s.qty===0 && !s.buyPrice && s._bulkNew);
+      return `<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:7px 8px"><div style="font-weight:600">${s.name}${isNew?' <span style="font-size:10px;color:var(--success);font-weight:700">🆕নতুন</span>':''}</div>${s.code?`<div style="font-size:11px;color:var(--accent)">${s.code}</div>`:''}</td>
+        <td style="padding:7px 8px;text-align:center;color:#666">${s.qty} ${s.unit}</td>
+        <td style="padding:7px 8px;text-align:center"><input type="number" min="0" value="${sel.qty||''}" placeholder="০" oninput="updateBulkStockQty(${s.id}, this.value)" style="width:60px;padding:6px;border:1.5px solid var(--border);border-radius:6px;text-align:center;font-family:inherit;font-size:13px"></td>
+        <td style="padding:7px 8px;text-align:center"><input type="number" min="0" value="${sel.price!=null?sel.price:''}" placeholder="৳${fmt(defaultPrice)}" oninput="updateBulkStockPrice(${s.id}, this.value)" style="width:74px;padding:6px;border:1.5px solid var(--border);border-radius:6px;text-align:center;font-family:inherit;font-size:13px"></td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:14px">
+      ${sk!=='—'?`<div style="font-weight:700;color:var(--warning);font-size:12.5px;padding:6px 4px">📁 ${sk}</div>`:''}
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f8fafc"><th style="padding:8px;text-align:left">পণ্যের নাম</th><th style="padding:8px;text-align:center">বর্তমান স্টক</th><th style="padding:8px;text-align:center">ক্রয় পরিমাণ</th><th style="padding:8px;text-align:center">একক মূল্য (৳)</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+function updateBulkStockQty(itemId, val) {
+  let qty = parseFloat(val); if (isNaN(qty) || qty<0) qty = 0;
+  if (!bulkStockInSelection[itemId]) bulkStockInSelection[itemId] = {qty:0, price:null};
+  bulkStockInSelection[itemId].qty = qty;
+  if (qty<=0 && !bulkStockInSelection[itemId].price) delete bulkStockInSelection[itemId];
+  renderBulkStockInFooter();
+}
+function updateBulkStockPrice(itemId, val) {
+  let price = parseFloat(val); if (isNaN(price) || price<0) price = null;
+  if (!bulkStockInSelection[itemId]) bulkStockInSelection[itemId] = {qty:0, price:null};
+  bulkStockInSelection[itemId].price = price;
+  renderBulkStockInFooter();
+}
+function calcBulkStockInSessionTotal() {
+  return Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0).reduce((s,[id,v])=>{
+    const st = (appData.stock||[]).find(x=>x.id===parseInt(id));
+    const price = v.price!=null ? v.price : (st ? (st.avgCost!=null?st.avgCost:(st.buyPrice||0)) : 0);
+    return s + v.qty*price;
+  },0);
+}
+function renderBulkStockInFooter() {
+  const el = document.getElementById('bulkStockInFooterSummary');
+  if (!el) return;
+  const entries = Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0);
+  const totalQty = entries.reduce((s,[id,v])=>s+v.qty,0);
+  const totalCost = calcBulkStockInSessionTotal();
+  el.innerHTML = entries.length ? `✅ <strong>${entries.length}টি পণ্য</strong> নির্বাচিত | মোট পরিমাণ: <strong>${totalQty}</strong> | আনুমানিক খরচ: <strong style="color:var(--danger)">৳ ${fmt(totalCost)}</strong>` : 'এখনো কোনো পণ্যের পরিমাণ দেওয়া হয়নি';
+}
+function closeBulkStockInPage() {
+  const page = document.getElementById('bulkStockInPage');
+  if (page) page.remove();
+}
+
+// ─── তালিকায় না-থাকা নতুন পণ্য (মেডিসিন/চশমা/সার্জিক্যাল ইত্যাদি) সাথে সাথে যোগ করা ───
+function toggleBulkNewItemForm() {
+  const wrap = document.getElementById('bulkNewItemFormWrap');
+  if (!wrap) return;
+  if (wrap.style.display === 'none' || !wrap.innerHTML) {
+    const subCats = getStockSubCats(bulkStockInCat);
+    wrap.innerHTML = `
+      <div style="border:1.5px solid #86efac;background:#f0fdf4;border-radius:8px;padding:10px">
+        <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:8px">🆕 "${bulkStockInCat}" ক্যাটাগরিতে নতুন পণ্য যোগ করুন</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <input type="text" id="bniName" placeholder="পণ্যের নাম *" style="padding:7px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;grid-column:1/3">
+          <input type="text" id="bniSubCat" list="bniSubCatList" placeholder="সাব-ক্যাটাগরি (ঐচ্ছিক)" style="padding:7px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+          <datalist id="bniSubCatList">${subCats.map(sc=>`<option value="${sc}">`).join('')}</datalist>
+          <select id="bniUnit" style="padding:7px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <option>পিস</option><option>বোতল</option><option>বক্স</option><option>প্যাকেট</option><option>পেয়ার</option><option>সেট</option>
+          </select>
+          <input type="text" id="bniCode" placeholder="কোড (ঐচ্ছিক)" style="padding:7px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;grid-column:1/3">
+        </div>
+        <div style="display:flex;gap:6px;justify-content:flex-end">
+          <button onclick="toggleBulkNewItemForm()" style="background:#fff;border:1.5px solid #ccc;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer">বাতিল</button>
+          <button onclick="saveBulkNewItem()" style="background:var(--success);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">✅ যোগ করুন</button>
+        </div>
+      </div>`;
+    wrap.style.display = 'block';
+    setTimeout(()=>{ const el=document.getElementById('bniName'); if (el) el.focus(); }, 0);
+  } else {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+  }
+}
+function saveBulkNewItem() {
+  const name = (document.getElementById('bniName')||{}).value?.trim() || '';
+  const subCat = (document.getElementById('bniSubCat')||{}).value?.trim() || '';
+  const unit = (document.getElementById('bniUnit')||{}).value || 'পিস';
+  const code = (document.getElementById('bniCode')||{}).value?.trim().toUpperCase() || '';
+  if (!name) { showToast('⚠️ পণ্যের নাম দিন!'); return; }
+  const dup = (appData.stock||[]).find(s=>s.cat===bulkStockInCat && s.name.trim().toLowerCase()===name.toLowerCase());
+  if (dup) { showToast('⚠️ এই নামে পণ্য আগেই এই ক্যাটাগরিতে আছে!'); return; }
+  const newItem = {
+    id: Date.now(), name, code, cat: bulkStockInCat, subCat, unit,
+    qty: 0, minQty: 5, buyPrice: 0, sellPrice: 0, sellMin: 0, sellMax: 0,
+    note: '', isOpening: false, voucherRef: '',
+    // ⚠️ ইচ্ছাকৃতভাবে addedDate সেট করা হচ্ছে না — এই আইটেমের প্রকৃত ক্রয় "বাল্ক স্টক ইন" এর মাধ্যমে
+    // ভাউচারসহ stockLog-এ রেকর্ড হবে, addedDate থাকলে renderPurchaseRecord() এ একই পণ্য দুইবার
+    // ("ভাউচার নেই" + "প্রকৃত ভাউচার" দুই গ্রুপে) দেখানোর ভুল হতো।
+    avgCost: 0, cogsExemptQty: 0, _bulkNew: true
+  };
+  appData.stock.push(newItem);
+  saveData();
+  logActivity('add', 'স্টক', `${name} — নতুন পণ্য যোগ (বাল্ক স্টক ইন থেকে, প্রাথমিক পরিমাণ ০)`);
+  toggleBulkNewItemForm();
+  bulkStockInSearch = name;
+  const searchBox = document.getElementById('bulkStockInSearchBox'); if (searchBox) searchBox.value = name;
+  renderBulkStockInList();
+  showToast(`✅ "${name}" যোগ হয়েছে — এবার পরিমাণ ও ক্রয়মূল্য বসান`);
+}
+
+// ─── ধাপ ২: সরবরাহকারীর এক্সিস্টিং ভাউচার খুঁজে নির্বাচন ও মূল্য যাচাই ───
+function proceedToBulkVoucherStep() {
+  const entries = Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0);
+  if (!entries.length) { showToast('⚠️ অন্তত একটি পণ্যের পরিমাণ দিন!'); return; }
+  openBulkVoucherModal();
+}
+
+function openBulkVoucherModal() {
+  bulkStockInSelectedVoucherId = null;
+  const searchEl = document.getElementById('bsVoucherSearch'); if (searchEl) searchEl.value='';
+  const cardEl = document.getElementById('bsSelectedVoucherCard'); if (cardEl) { cardEl.style.display='none'; cardEl.innerHTML=''; }
+  const entries = Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0);
+  const totalCost = calcBulkStockInSessionTotal();
+  const sumEl = document.getElementById('bsSummaryLine');
+  if (sumEl) sumEl.textContent = `${entries.length}টি পণ্য নির্বাচিত | আপনার এন্ট্রির মোট মূল্য: ৳ ${fmt(totalCost)}`;
+  searchBsVoucher('');
+  document.getElementById('bulkStockVoucherModal').classList.add('open');
+}
+function closeBulkVoucherModal() { document.getElementById('bulkStockVoucherModal').classList.remove('open'); }
+
+function searchBsVoucher(q) {
+  q = (q||'').toLowerCase().trim();
+  const list = (appData.vouchers||[]).filter(v => !q || (v.voucher||'').toLowerCase().includes(q) || (v.vendorName||'').toLowerCase().includes(q))
+    .sort((a,b)=>b.id-a.id).slice(0,25);
+  const wrap = document.getElementById('bsVoucherResults');
+  if (!wrap) return;
+  if (!list.length) { wrap.innerHTML = '<div style="padding:14px;text-align:center;color:#aaa;font-size:13px">কোনো ভাউচার পাওয়া যায়নি। আগে "সরবরাহকারী" পেজ থেকে ভাউচার এন্ট্রি দিন।</div>'; return; }
+  wrap.innerHTML = list.map(v=>{
+    const due = Math.max(0, v.amount - (v.paidAmount||0));
+    const sel = bulkStockInSelectedVoucherId===v.id;
+    return `<div onclick="selectBsVoucher(${v.id})" style="padding:9px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;background:${sel?'#eff6ff':'#fff'};display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <div>
+        <div style="font-weight:700;font-size:13px;color:var(--primary)">🧾 ${v.voucher}</div>
+        <div style="font-size:12px;color:#666">${v.vendorName||'—'} | ${formatDate(v.date)}</div>
+      </div>
+      <div style="text-align:right;font-size:12px">
+        <div style="font-weight:700">৳ ${fmt(v.amount)}</div>
+        ${due>0?`<div style="color:var(--danger)">বাকি ৳${fmt(due)}</div>`:'<div style="color:var(--success)">পরিশোধিত</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectBsVoucher(id) {
+  bulkStockInSelectedVoucherId = id;
+  const searchEl = document.getElementById('bsVoucherSearch');
+  searchBsVoucher(searchEl ? searchEl.value : '');
+  renderBsSelectedVoucherCard();
+}
+function renderBsSelectedVoucherCard() {
+  const card = document.getElementById('bsSelectedVoucherCard');
+  if (!card) return;
+  const v = (appData.vouchers||[]).find(x=>x.id===bulkStockInSelectedVoucherId);
+  if (!v) { card.style.display='none'; card.innerHTML=''; return; }
+  const already = (appData.stockLog||[]).filter(l=>l.move==='in' && l.note==='বাল্ক স্টক ইন' && l.voucherRef===v.voucher)
+    .reduce((s,l)=>s+((l.qty||0)*(l.unitCost||0)),0);
+  const sessionTotal = calcBulkStockInSessionTotal();
+  const grandTotal = already + sessionTotal;
+  const diff = Math.round((grandTotal - v.amount)*100)/100;
+  const match = Math.abs(diff) < 1;
+  card.style.display='block';
+  card.innerHTML = `
+    <div style="border:2px solid ${match?'#86efac':'#fca5a5'};background:${match?'#f0fdf4':'#fff5f5'};border-radius:10px;padding:12px 14px;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+        <div style="font-weight:700;color:var(--primary)">🧾 ভাউচার: ${v.voucher}</div>
+        <div style="font-weight:700">🏢 ${v.vendorName||'—'}</div>
+      </div>
+      <div style="font-size:13px;display:grid;gap:3px">
+        <div>হার্ড কপি/ভাউচারের মোট মূল্য: <strong>৳ ${fmt(v.amount)}</strong></div>
+        ${already>0?`<div>আগেই এন্ট্রি দেওয়া হয়েছে: <strong>৳ ${fmt(already)}</strong></div>`:''}
+        <div>এই মুহূর্তে আপনার এন্ট্রি: <strong>৳ ${fmt(sessionTotal)}</strong></div>
+        <div style="border-top:1px dashed #ccc;padding-top:4px;margin-top:2px">সর্বমোট এন্ট্রি: <strong>৳ ${fmt(grandTotal)}</strong></div>
+      </div>
+      <div style="margin-top:8px;font-weight:700;font-size:13.5px;color:${match?'var(--success)':'var(--danger)'}">
+        ${match ? '✅ ভাউচারের মোট মূল্যের সাথে পুরোপুরি মিলেছে!' : `⚠️ অমিল — পার্থক্য ৳ ${fmt(Math.abs(diff))} (${diff>0?'বেশি':'কম'}) — হার্ড কপি আবার মিলিয়ে দেখুন`}
+      </div>
+      ${!match?`<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--danger);cursor:pointer">
+        <input type="checkbox" id="bsForceConfirm"> ⚠️ পরিমাণে অমিল থাকা সত্ত্বেও আমি নিশ্চিত, এগিয়ে যেতে চাই
+      </label>`:''}
+    </div>`;
+}
+
+function confirmBulkStockIn() {
+  const entries = Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0);
+  if (!entries.length) { showToast('⚠️ অন্তত একটি পণ্যের পরিমাণ দিন!'); return; }
+  const v = (appData.vouchers||[]).find(x=>x.id===bulkStockInSelectedVoucherId);
+  if (!v) { showToast('⚠️ সরবরাহকারীর ভাউচার নির্বাচন করুন!'); return; }
+  const already = (appData.stockLog||[]).filter(l=>l.move==='in' && l.note==='বাল্ক স্টক ইন' && l.voucherRef===v.voucher)
+    .reduce((s,l)=>s+((l.qty||0)*(l.unitCost||0)),0);
+  const sessionTotal = calcBulkStockInSessionTotal();
+  const grandTotal = already + sessionTotal;
+  const match = Math.abs(grandTotal - v.amount) < 1;
+  if (!match) {
+    const forceEl = document.getElementById('bsForceConfirm');
+    if (!forceEl || !forceEl.checked) { showToast('⚠️ ভাউচারের মূল্যের সাথে অমিল! নিশ্চিত হলে চেকবক্সে টিক দিন।'); return; }
+  }
+  const date = todayStr();
+  let totalCost = 0, itemCount = 0;
+
+  // ✅ স্টক আইটেম আপডেট — শুধু পরিমাণ ও ওয়েটেড এভারেজ ক্রয়মূল্য; কোনো ব্যয়/ক্যাশ-ব্যাংক এন্ট্রি তৈরি হয় না,
+  // কারণ টাকার হিসাব "সরবরাহকারী" পেজের ভাউচার এন্ট্রির মাধ্যমে আগেই করা হয়ে গেছে।
+  entries.forEach(([idStr, val]) => {
+    const s = appData.stock.find(x=>x.id===parseInt(idStr));
+    if (!s) return;
+    const price = (val.price!=null && val.price>0) ? val.price : (s.avgCost!=null?s.avgCost:(s.buyPrice||0));
+    if (s.cogsExemptQty == null) s.cogsExemptQty = 0;
+    if (s.avgCost == null) s.avgCost = s.buyPrice || 0;
+    // ✅ ওয়েটেড এভারেজ ক্রয়মূল্য — confirmStockMove()-এর মতোই একই ফর্মুলা
+    const nonExemptBefore = Math.max(0, s.qty - (s.cogsExemptQty||0));
+    const denom = nonExemptBefore + val.qty;
+    const newAvgCost = denom > 0 ? ((nonExemptBefore * (s.avgCost||0)) + (val.qty * price)) / denom : price;
+    s.avgCost = newAvgCost;
+    s.buyPrice = newAvgCost;
+    const autoSell = calcAutoSellPriceFor(s.cat, newAvgCost);
+    if (autoSell) {
+      if (autoSell.sellPrice != null) s.sellPrice = autoSell.sellPrice;
+      if (autoSell.sellMin != null) { s.sellMin = autoSell.sellMin; s.sellMax = autoSell.sellMax; }
+    }
+    s.qty = s.qty + val.qty;
+    delete s._bulkNew;
+    if (!appData.stockLog) appData.stockLog=[];
+    appData.stockLog.push({
+      id: Date.now()+Math.random(), date, itemId:s.id, itemName:s.name, move:'in', qty:val.qty,
+      unitCost:price, voucherRef:v.voucher, vendorVoucherId:v.id, vendorName:v.vendorName||'',
+      note:'বাল্ক স্টক ইন', by:currentUser.name
+    });
+    totalCost += val.qty * price;
+    itemCount++;
+  });
+
+  logActivity('add', 'স্টক', `বাল্ক স্টক ইন — ${itemCount}টি আইটেম, ভাউচার: ${v.voucher} (${v.vendorName||'—'}), মোট ৳${fmt(totalCost)}`);
+  saveData();
+  closeBulkVoucherModal();
+  closeBulkStockInPage();
+  renderStockTable(); renderStockLog(); if (typeof renderStockTurnover==='function') renderStockTurnover(); populatePurchaseMonthFilter(); renderPurchaseRecord(); refreshDashboard();
+  showToast(`✅ ${itemCount}টি পণ্য স্টক ইন হয়েছে! মোট ৳${fmt(totalCost)} — ভাউচার: ${v.voucher} (${v.vendorName||'—'})`);
+}
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+
 // ─── ভাউচার অনুযায়ী ক্রয় রেকর্ড ───────────────────────────────
 function populatePurchaseMonthFilter() {
   const sel = document.getElementById('purchaseMonthFilter');
   if (!sel) return;
   // stockLog থেকে 'নতুন আইটেম' এন্ট্রির তারিখ সংগ্রহ করি
   const months = new Set();
-  const logEntries = (appData.stockLog||[]).filter(l => l.move==='in' && l.note==='নতুন আইটেম');
+  const logEntries = (appData.stockLog||[]).filter(l => l.move==='in' && (l.note==='নতুন আইটেম' || l.note==='বাল্ক স্টক ইন'));
   logEntries.forEach(l => { if (l.date) months.add(l.date.slice(0,7)); });
   // stockLog না থাকলে stock আইটেমের addedDate থেকেও নিই
   (appData.stock||[]).forEach(s => { if (s.addedDate) months.add(s.addedDate.slice(0,7)); });
@@ -21077,9 +21446,15 @@ function renderPurchaseRecord() {
     if (!logMap[l.itemId]) logMap[l.itemId] = { date: l.date, by: l.by||'' };
   });
 
-  // প্রতিটি স্টক আইটেম → মাস ও ভাউচার অনুযায়ী গ্রুপ
+  // প্রতিটি স্টক আইটেম/এন্ট্রি → মাস ও ভাউচার অনুযায়ী গ্রুপ
   // key: "YYYY-MM|||voucherNo"
   const groups = {};
+  function pushPurchaseItem(key, month, voucher, entry, addedBy) {
+    if (!groups[key]) groups[key] = { month, voucher, items: [], addedBy: addedBy||'' };
+    groups[key].items.push(entry);
+  }
+
+  // ১) নতুন আইটেম হিসেবে যোগ হওয়া পণ্য (আইটেম তৈরির সময় দেওয়া ভাউচার)
   (appData.stock||[]).forEach(s => {
     const log  = logMap[s.id];
     const date = (log && log.date) ? log.date : (s.addedDate||'');
@@ -21088,13 +21463,31 @@ function renderPurchaseRecord() {
     if (monthF && month !== monthF) return;
     const voucher = (s.voucherRef||'').trim() || '— ভাউচার নেই';
     const key = `${month}|||${voucher}`;
-    if (!groups[key]) groups[key] = { month, voucher, items: [], addedBy: log?.by||'' };
     // নিট লাভ হিসাব
     const sellPx = s.cat==='চশমা/লেন্স' ? (s.sellMin||0) : (s.sellPrice||0);
-    const buyTotal  = (s.buyPrice||0) * s.qty;
-    const sellTotal = sellPx * s.qty;
-    const profit    = (s.buyPrice && sellPx) ? sellTotal - buyTotal : null;
-    groups[key].items.push({ s, date, buyTotal, sellTotal, profit, sellPx });
+    const qty = s.qty;
+    const unitPrice = s.buyPrice||0;
+    const buyTotal  = unitPrice * qty;
+    const sellTotal = sellPx * qty;
+    const profit    = (unitPrice && sellPx) ? sellTotal - buyTotal : null;
+    pushPurchaseItem(key, month, voucher, { s, date, qty, unitPrice, buyTotal, sellTotal, profit, sellPx }, log?.by);
+  });
+
+  // ২) বাল্ক স্টক ইন (এক্সিস্টিং পণ্যের রিস্টক) — stockLog এন্ট্রিতে রাখা ভাউচার ও ঐ সময়ের ক্রয়মূল্য অনুযায়ী
+  (appData.stockLog||[]).filter(l => l.move==='in' && l.note==='বাল্ক স্টক ইন' && (l.voucherRef||'').trim()).forEach(l => {
+    const s = (appData.stock||[]).find(x=>x.id===l.itemId);
+    if (!s || !l.date) return;
+    const month = l.date.slice(0,7);
+    if (monthF && month !== monthF) return;
+    const voucher = (l.voucherRef||'').trim() || '— ভাউচার নেই';
+    const key = `${month}|||${voucher}`;
+    const sellPx = s.cat==='চশমা/লেন্স' ? (s.sellMin||0) : (s.sellPrice||0);
+    const qty = l.qty||0;
+    const unitPrice = l.unitCost!=null ? l.unitCost : (s.buyPrice||0);
+    const buyTotal  = unitPrice * qty;
+    const sellTotal = sellPx * qty;
+    const profit    = (unitPrice && sellPx) ? sellTotal - buyTotal : null;
+    pushPurchaseItem(key, month, voucher, { s, date: l.date, qty, unitPrice, buyTotal, sellTotal, profit, sellPx }, l.by);
   });
 
   if (!Object.keys(groups).length) {
@@ -21140,13 +21533,22 @@ function renderPurchaseRecord() {
       const gSell     = g.items.reduce((s,i)=>s+i.sellTotal,0);
       const gProfit   = gSell - gBuy;
       const profitKnown = g.items.some(i=>i.profit!==null);
+      // ✅ ভাউচার নম্বর মিলিয়ে সরবরাহকারী পেজের ভাউচার রেকর্ড খুঁজে বের করি — সরবরাহকারীর নাম ও
+      // হার্ড কপির মোট মূল্যের সাথে মিলেছে কিনা তা এখানেও দেখানো হয়
+      const vRec = hasV ? (appData.vouchers||[]).find(vc=>vc.voucher===g.voucher) : null;
+      const vendorTag = vRec ? '<span style="font-size:12px;color:var(--primary);font-weight:700;margin-left:8px">🏢 '+(vRec.vendorName||'—')+'</span>' : '';
+      const matchTag = vRec ? (Math.abs(gBuy - vRec.amount) < 1
+        ? '<span style="font-size:11px;color:var(--success);font-weight:700;margin-left:8px">✅ ভাউচার মূল্যের সাথে মিলেছে</span>'
+        : '<span style="font-size:11px;color:var(--danger);font-weight:700;margin-left:8px">⚠️ ভাউচার মূল্য ৳'+fmt(vRec.amount)+' — অমিল ৳'+fmt(Math.abs(gBuy-vRec.amount))+'</span>') : '';
 
       var vHtml = '<div style="border:1.5px solid '+(hasV?'var(--warning)':'var(--border)')+';border-radius:8px;margin-bottom:12px;overflow:hidden">'
         +'<div style="background:'+(hasV?'#fffbeb':'#f8fafc')+';padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
         +'<div>'
         +'<span style="font-weight:700;font-size:14px;color:'+(hasV?'#92400e':'var(--text-light)')+'">'+( hasV ? '🧾 ভাউচার নং: <span style="font-size:15px;letter-spacing:0.5px">'+g.voucher+'</span>' : '🧾 ভাউচার নম্বর নেই')+'</span>'
+        +vendorTag
         +'<span style="font-size:12px;color:var(--text-light);margin-left:10px">'+g.items.length+' টি পণ্য</span>'
         +(g.addedBy ? '<span style="font-size:11px;color:var(--text-light);margin-left:8px">| এন্ট্রি: '+g.addedBy+'</span>' : '')
+        +matchTag
         +'</div>'
         +'<div style="display:flex;gap:14px;font-size:13px;font-weight:700">'
         +'<span style="color:var(--danger)">ক্রয়: ৳ '+fmt(gBuy)+'</span>'
@@ -21162,7 +21564,7 @@ function renderPurchaseRecord() {
         +'<th style="text-align:center">তারিখ</th>'
         +'</tr></thead><tbody>'
         + g.items.map(function(it,rowIdx) {
-            var s2=it.s, d2=it.date, bt=it.buyTotal, pf=it.profit, sp=it.sellPx;
+            var s2=it.s, d2=it.date, bt=it.buyTotal, pf=it.profit, sp=it.sellPx, qty2=it.qty, up2=it.unitPrice;
             var codeH  = s2.code   ? '<div style="font-size:11px;color:var(--accent)">'+s2.code+'</div>' : '';
             var subH   = s2.subCat ? '<div style="font-size:11px;color:var(--warning)">📁 '+s2.subCat+'</div>' : '';
             var sellH  = sp ? '৳ '+fmt(sp)+(s2.cat==='চশমা/লেন্স'?'<div style="font-size:10px;color:var(--text-light)">(সর্বনিম্ন)</div>':'') : '—';
@@ -21171,9 +21573,9 @@ function renderPurchaseRecord() {
               +'<td style="color:var(--text-light)">'+(rowIdx+1)+'</td>'
               +'<td><div style="font-weight:600">'+s2.name+'</div>'+codeH+subH+'</td>'
               +'<td><span class="badge badge-info">'+s2.cat+'</span></td>'
-              +'<td style="text-align:center;font-weight:700">'+s2.qty+'</td>'
+              +'<td style="text-align:center;font-weight:700">'+qty2+'</td>'
               +'<td style="color:var(--text-light)">'+s2.unit+'</td>'
-              +'<td style="text-align:right;color:var(--danger)">'+(s2.buyPrice?'৳ '+fmt(s2.buyPrice):'—')+'</td>'
+              +'<td style="text-align:right;color:var(--danger)">'+(up2?'৳ '+fmt(up2):'—')+'</td>'
               +'<td style="text-align:right;font-weight:700;color:var(--danger)">৳ '+fmt(bt)+'</td>'
               +'<td style="text-align:right;color:var(--success)">'+sellH+'</td>'
               +'<td style="text-align:right">'+profH+'</td>'
@@ -21342,7 +21744,7 @@ function saveStaff() {
   const join   = document.getElementById('sfJoinDate').value;
   const status = document.getElementById('sfStatus').value;
   const editId = document.getElementById('sfEditId').value;
-  if (!name || !desig || isNaN(basic) || basic < 0) { showToast('⚠️ নাম, পদবি ও বেসিক বেতন আবশ্যক!'); return; }
+  if (!name || !desig || isNaN(basic) || basic < 0) { showToast('⚠️ নাম, পদবি ও মাসিক বেতন আবশ্যক!'); return; }
   const profile = {
     dob:            (document.getElementById('sfDob')||{}).value||'',
     nid:            (document.getElementById('sfNid')||{}).value?.trim()||'',
@@ -21538,6 +21940,18 @@ function deleteStaff(id) {
   saveData(); renderSalarySheet(); showToast('🗑️ কর্মী মুছে ফেলা হয়েছে');
 }
 
+// কর্মী প্রোফাইল থেকে "কর্ম দিবস"/"কর্ম ঘন্টা" (মাসিক চুক্তি) সেভ করা হয় — অনুপস্থিতি কর্তন
+// হিসাবের জন্য এই মানগুলোই ব্যবহার হয় (দেখুন getStaffAbsentCut)
+function updateStaffContractFields(staffId, field, value) {
+  const s = (appData.staff||[]).find(s=>s.id===staffId);
+  if (!s) return;
+  const v = parseFloat(value);
+  s[field] = (isNaN(v) || v<=0) ? null : v;
+  saveData();
+  if (typeof renderSalarySheet==='function' && document.getElementById('salaryTable')) renderSalarySheet();
+  showToast('✅ কর্ম চুক্তি আপডেট হয়েছে');
+}
+
 function viewStaffProfile(id) {
   const s = appData.staff.find(s=>s.id===id);
   if (!s) return;
@@ -21569,7 +21983,7 @@ function viewStaffProfile(id) {
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">✈️ Telegram</td><td style="padding:5px">${s.telegramId||'—'}</td></tr>
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">যোগদান</td><td style="padding:5px">${formatDate(s.join)}</td></tr>
               <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">স্ট্যাটাস</td><td style="padding:5px"><strong style="color:${s.status==='active'?'#2ecc71':'#e74c3c'}">${s.status==='active'?'কর্মরত':'অব্যাহতি'}</strong></td></tr>
-              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">বেসিক বেতন</td><td style="padding:5px"><strong>৳ ${fmt(s.basic)}</strong></td></tr>
+              <tr style="border-top:1px solid #f0f0f0"><td style="padding:5px;color:#666;font-weight:600">মাসিক বেতন</td><td style="padding:5px"><strong>৳ ${fmt(s.basic)}</strong></td></tr>
             </table>
           </div>
           <div style="background:#f8fafc;border-radius:8px;padding:12px">
@@ -21600,24 +22014,20 @@ function viewStaffProfile(id) {
           </div>
         </div>
       </div>
-      ${(()=>{
-        const advList = (appData.staffAdvances||[]).filter(a=>a.staffId===s.id).slice().sort((a,b)=>(b.id||0)-(a.id||0));
-        if (!advList.length) return '';
-        const monthsBn = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
-        const totalAdv = advList.reduce((sum,a)=>sum+(a.amount||0),0);
-        return `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px;margin-top:14px">
-          <div style="font-weight:700;color:#9a3412;margin-bottom:8px;font-size:13px">💵 অগ্রিম বেতন ইতিহাস (সর্বমোট ৳ ${fmt(totalAdv)})</div>
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead><tr style="color:#9a3412"><th style="text-align:left;padding:4px">তারিখ</th><th style="text-align:right;padding:4px">পরিমাণ</th><th style="text-align:left;padding:4px">কর্তনের মাস</th><th style="text-align:left;padding:4px">ভাউচার</th></tr></thead>
-            <tbody>${advList.map(a=>`<tr style="border-top:1px solid #fed7aa">
-              <td style="padding:4px">${formatDate(a.date)}</td>
-              <td style="padding:4px;text-align:right">৳ ${fmt(a.amount)}</td>
-              <td style="padding:4px">${monthsBn[a.forMonth-1]} ${a.forYear}</td>
-              <td style="padding:4px">${a.voucher||'—'}</td>
-            </tr>`).join('')}</tbody>
-          </table>
-        </div>`;
-      })()}
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:14px">
+        <div style="font-weight:700;color:#0f4c81;margin-bottom:8px;font-size:13px">🗓️ কর্ম চুক্তি (অনুপস্থিতি কর্তন হিসাবের জন্য)</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+          <div>
+            <label style="display:block;font-size:11px;color:#666;font-weight:600;margin-bottom:3px">কর্ম দিবস (মাসিক)</label>
+            <input type="number" id="spContractDays" value="${s.contractWorkDays||''}" min="1" max="31" placeholder="যেমন ২৬" style="width:110px;padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px" onchange="updateStaffContractFields(${s.id},'contractWorkDays',this.value)">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;font-weight:600;margin-bottom:3px">কর্ম ঘন্টা (দৈনিক)</label>
+            <input type="number" id="spContractHours" value="${s.contractWorkHours||''}" min="1" max="24" step="0.5" placeholder="যেমন ৮" style="width:110px;padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px" onchange="updateStaffContractFields(${s.id},'contractWorkHours',this.value)">
+          </div>
+        </div>
+        <div style="font-size:10.5px;color:#64748b;margin-top:6px;line-height:1.5">এই কর্মদিবস অনুযায়ী প্রতিদিনের বেতনের হার (মাসিক বেতন ÷ কর্মদিবস) হিসাব হয় — বিনা ছুটি মঞ্জুরে অনুপস্থিত থাকলে স্যালারি শিটে অটো কর্তন হবে। অগ্রিম বেতন ইতিহাস ও ছুটির কোটা এখন স্যালারি শিট পেজে আলাদা প্যানেলে দেখা যাবে।</div>
+      </div>
     </div>`;
 
   const modal = document.createElement('div');
@@ -21775,7 +22185,13 @@ function printSalarySlips() {
     const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
     const advList = getStaffAdvanceList(s.id, month, year);
     const advTotal = sal.paid ? (sal.advanceTotal||0) : advList.reduce((sum,a)=>sum+(a.amount||0), 0);
-    const net = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - (sal.absentCut||0) - advTotal;
+    const absentCut = sal.paid ? (sal.absentCut||0) : getStaffAbsentCut(s.id, month, year);
+    const net = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - absentCut - advTotal;
+    const contractDays = parseFloat(s.contractWorkDays) || 0;
+    const contractHoursPerDay = parseFloat(s.contractWorkHours) || 0;
+    const totalContractHours = (contractDays && contractHoursPerDay) ? (contractDays * contractHoursPerDay) : 0;
+    const workDaysDisplay = contractDays ? `${calcWorkDays(s.id,month,year)}/${contractDays} দিন` : `${calcWorkDays(s.id,month,year)} দিন`;
+    const workHoursDisplay = totalContractHours ? `${calcWorkHours(s.id,month,year)}/${totalContractHours} ঘ.` : `${calcWorkHours(s.id,month,year)} ঘ.`;
     const advChipsHtml = advList.length ? `
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-bottom:3px;padding:2px 5px;background:#fff7ed;border:1px solid #fdba74;border-radius:5px">
             <span style="font-size:6px;color:#9a3412;font-weight:800;text-transform:uppercase;flex-shrink:0">অগ্রিম:</span>
@@ -21801,7 +22217,7 @@ function printSalarySlips() {
         <div style="padding:5px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;min-height:0">
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:2px">
             <div style="background:#f0fff4;border:1px solid #86efac;border-radius:5px;padding:2.5px;text-align:center">
-              <div style="font-size:7px;color:#166534;font-weight:700;text-transform:uppercase">বেসিক বেতন</div>
+              <div style="font-size:7px;color:#166534;font-weight:700;text-transform:uppercase">মাসিক বেতন</div>
               <div style="font-size:11px;font-weight:800;color:#166534;margin-top:0px">৳ ${fmt(s.basic)}</div>
             </div>
             <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:5px;padding:2.5px;text-align:center">
@@ -21809,12 +22225,12 @@ function printSalarySlips() {
               <div style="font-size:11px;font-weight:800;color:#2ecc71;margin-top:0px">৳ ${fmt((sal.bonus||0)+docComm)}</div>
             </div>
             <div style="background:#fff0f0;border:1px solid #fca5a5;border-radius:5px;padding:2.5px;text-align:center">
-              <div style="font-size:7px;color:#991b1b;font-weight:700;text-transform:uppercase">সাধারণ কাটা</div>
+              <div style="font-size:7px;color:#991b1b;font-weight:700;text-transform:uppercase">সাধারণ কর্তন</div>
               <div style="font-size:11px;font-weight:800;color:#e74c3c;margin-top:0px">৳ ${fmt(sal.cut||0)}</div>
             </div>
             <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:5px;padding:2.5px;text-align:center">
-              <div style="font-size:7px;color:#9a3412;font-weight:700;text-transform:uppercase">অনুপস্থিতি কাটা</div>
-              <div style="font-size:11px;font-weight:800;color:#ea580c;margin-top:0px">৳ ${fmt(sal.absentCut||0)}</div>
+              <div style="font-size:7px;color:#9a3412;font-weight:700;text-transform:uppercase">অনুপস্থিতি কর্তন</div>
+              <div style="font-size:11px;font-weight:800;color:#ea580c;margin-top:0px">৳ ${fmt(absentCut)}</div>
             </div>
           </div>
 ${advChipsHtml}
@@ -21826,17 +22242,18 @@ ${advChipsHtml}
             </div>
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:2.5px 8px;display:flex;align-items:center;gap:5px;flex:1">
               <span style="font-size:13px">📅</span>
-              <div><div style="font-size:7px;color:#64748b">কর্মদিবস</div><div style="font-size:11px;font-weight:700;color:#0f4c81">${calcWorkDays(s.id,month,year)} দিন</div></div>
+              <div><div style="font-size:7px;color:#64748b">কর্মদিবস</div><div style="font-size:11px;font-weight:700;color:#0f4c81">${workDaysDisplay}</div></div>
             </div>
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:2.5px 8px;display:flex;align-items:center;gap:5px;flex:1">
               <span style="font-size:13px">⏱️</span>
-              <div><div style="font-size:7px;color:#64748b">কর্মঘন্টা</div><div style="font-size:11px;font-weight:700;color:#0f4c81">${calcWorkHours(s.id,month,year)} ঘ.</div></div>
+              <div><div style="font-size:7px;color:#64748b">কর্মঘন্টা</div><div style="font-size:11px;font-weight:700;color:#0f4c81">${workHoursDisplay}</div></div>
             </div>
           </div>
-          <!-- Signature: শুধু কর্মীর স্বাক্ষর (কর্তৃপক্ষের স্বাক্ষর বাদ দেওয়া হয়েছে, বেশি জায়গার জন্য) -->
-          <div style="border-top:1px dashed #cbd5e1;padding-top:5px;flex-shrink:0">
-            <div style="font-size:8.5px;color:#0f4c81;font-weight:700;margin-bottom:7px">৳ ${fmt(net)} (${numberToWords(net)}) টাকা বুঝে পেয়েছি।</div>
-            <div style="width:230px;border-top:1.5px solid #334155;padding-top:3px;font-size:8.5px;color:#64748b;font-weight:600">কর্মীর স্বাক্ষর ও তারিখ</div>
+          <!-- Signature: বামে বুঝে পেয়েছি লেখা, মাঝে কর্মীর স্বাক্ষর লেখা, ডানে সাইন করার ফাঁকা জায়গা + লাইন -->
+          <div style="border-top:1px dashed #cbd5e1;padding-top:5px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:9.5px;color:#0f4c81;font-weight:700;line-height:1.35;flex:1.4">৳ ${fmt(net)} (${numberToWords(net)}) টাকা বুঝে পেয়েছি।</div>
+            <div style="font-size:9px;color:#334155;font-weight:700;white-space:nowrap;flex-shrink:0">কর্মীর স্বাক্ষর</div>
+            <div style="width:190px;height:16px;border-bottom:1.3px solid #334155;flex-shrink:0"></div>
           </div>
         </div>
       </div>`;
@@ -21945,6 +22362,48 @@ function getStaffAdvanceList(staffId, month, year) {
   return (appData.staffAdvances||[]).filter(a=>a.staffId===staffId && a.forMonth===month && a.forYear===year)
     .slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 }
+
+// ===== অনুপস্থিতি কর্তন (Auto Absence Deduction) =====
+// কর্মীর প্রোফাইলে সেট করা "কর্ম দিবস" (মাসিক চুক্তিকৃত কর্মদিবস) অনুযায়ী প্রতিদিনের বেতনের হার
+// বের করা হয় (বেসিক ÷ কর্মদিবস)। এটেন্ডেন্স শিট অনুযায়ী প্রকৃত উপস্থিত দিন ও নির্দিষ্ট
+// তারিখে মঞ্জুরকৃত ছুটি (leaveRecords) বাদ দিয়ে যা থাকে সেটাই "অনুমোদনহীন অনুপস্থিতি"। এর
+// থেকে কর্মীর সাপ্তাহিক/মাসিক ছুটির কোটা (leaveQuotaType/leaveQuotaDays) বাদ দিয়ে যেটুকু
+// থাকে সেটুকুর জন্যই কর্তন হয় — কোটার ভেতরের অনুপস্থিতি কর্তনযোগ্য না।
+function getStaffMonthlyLeaveQuota(staff, month, year) {
+  const type  = staff.leaveQuotaType || 'monthly';
+  const count = parseFloat(staff.leaveQuotaDays) || 0;
+  if (!count) return 0;
+  if (type === 'weekly') {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    return Math.round(count * (daysInMonth / 7));
+  }
+  return count;
+}
+
+function getStaffUnapprovedAbsentDays(staffId, month, year) {
+  const staff = (appData.staff||[]).find(s => String(s.id)===String(staffId));
+  if (!staff) return 0;
+  const contractDays = parseFloat(staff.contractWorkDays) || 0;
+  if (!contractDays) return 0; // চুক্তির কর্মদিবস সেট না থাকলে হিসাব করা সম্ভব না
+  const presentDays = calcWorkDays(staffId, month, year);
+  const prefix = year + '-' + String(month).padStart(2,'0');
+  const explicitLeaveDays = (appData.leaveRecords||[]).filter(l =>
+    String(l.staffId)===String(staffId) && (l.date||'').startsWith(prefix)
+  ).length;
+  const absentDays = Math.max(0, contractDays - presentDays - explicitLeaveDays);
+  const quota = getStaffMonthlyLeaveQuota(staff, month, year);
+  return Math.max(0, absentDays - quota);
+}
+
+function getStaffAbsentCut(staffId, month, year) {
+  const staff = (appData.staff||[]).find(s => String(s.id)===String(staffId));
+  if (!staff) return 0;
+  const contractDays = parseFloat(staff.contractWorkDays) || 0;
+  if (!contractDays) return 0;
+  const deductibleDays = getStaffUnapprovedAbsentDays(staffId, month, year);
+  const perDayRate = staff.basic / contractDays;
+  return Math.round(deductibleDays * perDayRate);
+}
 function populateAdvStaffSelect() {
   const sel = document.getElementById('advStaffId');
   if (!sel) return;
@@ -22026,11 +22485,36 @@ function saveStaffAdvance() {
   refreshDashboard();
   showToast('✅ অগ্রিম বেতন প্রদান সেভ হয়েছে! ভাউচার: ' + voucher);
 }
+function populateAdvFilters() {
+  const staffSel = document.getElementById('advFilterStaff');
+  if (staffSel) {
+    const cur = staffSel.value;
+    const staffList = (appData.staff||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    staffSel.innerHTML = '<option value="">সব কর্মী</option>' + staffList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    staffSel.value = cur || '';
+  }
+  const yearSel = document.getElementById('advFilterYear');
+  if (yearSel && !yearSel.dataset.populated) {
+    const curYear = new Date().getFullYear();
+    let opts = '<option value="">সব বছর</option>';
+    for (let y = curYear+1; y >= curYear-3; y--) opts += `<option value="${y}">${y}</option>`;
+    yearSel.innerHTML = opts;
+    yearSel.dataset.populated = '1';
+  }
+}
+
 function renderAdvanceTable() {
   const tbody = document.getElementById('advanceTable');
   if (!tbody) return;
+  populateAdvFilters();
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
-  const list = (appData.staffAdvances||[]).slice().sort((a,b)=>(b.id||0)-(a.id||0));
+  const filterStaff = document.getElementById('advFilterStaff') ? document.getElementById('advFilterStaff').value : '';
+  const filterMonth = document.getElementById('advFilterMonth') ? document.getElementById('advFilterMonth').value : '';
+  const filterYear  = document.getElementById('advFilterYear')  ? document.getElementById('advFilterYear').value  : '';
+  let list = (appData.staffAdvances||[]).slice().sort((a,b)=>(b.id||0)-(a.id||0));
+  if (filterStaff) list = list.filter(a=>String(a.staffId)===String(filterStaff));
+  if (filterMonth) list = list.filter(a=>String(a.forMonth)===String(filterMonth));
+  if (filterYear)  list = list.filter(a=>String(a.forYear)===String(filterYear));
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">কোনো অগ্রিম প্রদান নেই।</td></tr>'; return; }
   const isAdmin = currentUser.role === 'admin';
   const advEsc = s => (s==null?'':String(s)).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -22047,6 +22531,51 @@ function renderAdvanceTable() {
     </tr>`;
   }).join('');
 }
+
+// ===== ছুটি অনুমোদন (মঞ্জুরকৃত ছুটির কোটা) =====
+// প্রতি কর্মীর জন্য সাপ্তাহিক/মাসিক কতদিন ছুটি মঞ্জুর তা এখানে সেট করা হয় — এই কোটার ভেতরের
+// অনুপস্থিতি বেতন থেকে কর্তন হয় না (দেখুন getStaffMonthlyLeaveQuota/getStaffAbsentCut)
+function renderLeaveQuotaTable() {
+  const tbody = document.getElementById('leaveQuotaTable');
+  if (!tbody) return;
+  const month = parseInt((document.getElementById('salMonth')||{}).value) || (new Date().getMonth()+1);
+  const year  = parseInt((document.getElementById('salYear')||{}).value)  || new Date().getFullYear();
+  const activeStaff = (appData.staff||[]).filter(s=>s.status==='active').slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if (!activeStaff.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">কোনো কর্মী নেই।</td></tr>'; return; }
+  tbody.innerHTML = activeStaff.map(s=>{
+    const type = s.leaveQuotaType || 'monthly';
+    const days = s.leaveQuotaDays || 0;
+    const equiv = getStaffMonthlyLeaveQuota(s, month, year);
+    return `<tr>
+      <td style="font-weight:600">${s.name}</td>
+      <td><span class="badge badge-info">${s.desig||'—'}</span></td>
+      <td>
+        <select onchange="updateStaffLeaveQuota(${s.id},'leaveQuotaType',this.value)" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+          <option value="monthly" ${type==='monthly'?'selected':''}>মাসিক</option>
+          <option value="weekly" ${type==='weekly'?'selected':''}>সাপ্তাহিক</option>
+        </select>
+      </td>
+      <td><input type="number" value="${days||''}" min="0" step="0.5" placeholder="০" style="width:80px;padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateStaffLeaveQuota(${s.id},'leaveQuotaDays',this.value)"></td>
+      <td style="color:var(--text-light)">${days>0 ? equiv+' দিন/মাস' : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStaffLeaveQuota(staffId, field, value) {
+  const s = (appData.staff||[]).find(s=>s.id===staffId);
+  if (!s) return;
+  if (field==='leaveQuotaType') {
+    s.leaveQuotaType = value;
+  } else {
+    const v = parseFloat(value);
+    s.leaveQuotaDays = (isNaN(v) || v<0) ? 0 : v;
+  }
+  saveData();
+  renderLeaveQuotaTable();
+  if (typeof renderSalarySheet==='function' && document.getElementById('salaryTable')) renderSalarySheet();
+  showToast('✅ ছুটির কোটা আপডেট হয়েছে');
+}
+
 function deleteStaffAdvance(id) {
   const adv = (appData.staffAdvances||[]).find(a=>a.id===id);
   if (!adv) return;
@@ -22358,12 +22887,12 @@ function renderSalarySheet() {
   const activeStaff = appData.staff.filter(s=>s.status==='active');
 
   if (!activeStaff.length) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#aaa;padding:40px">কোনো কর্মী নেই। প্রথমে কর্মী যোগ করুন।</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#aaa;padding:40px">কোনো কর্মী নেই। প্রথমে কর্মী যোগ করুন।</td></tr>';
     tfoot.innerHTML = '';
     return;
   }
 
-  let totalBasic=0, totalBonus=0, totalDocComm=0, totalCut=0, totalAdv=0, totalNet=0;
+  let totalBasic=0, totalBonus=0, totalDocComm=0, totalCut=0, totalAbsentCut=0, totalAdv=0, totalNet=0;
   tbody.innerHTML = activeStaff.map((s,i) => {
     const key   = getSalaryKey(s.id, month, year);
     const sal   = appData.salaries && appData.salaries[key] ? appData.salaries[key] : { bonus:0, cut:0, paid:false, note:'' };
@@ -22371,11 +22900,14 @@ function renderSalarySheet() {
     const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
     const advList = getStaffAdvanceList(s.id, month, year);
     const advTotal = sal.paid ? (sal.advanceTotal||0) : advList.reduce((sum,a)=>sum+(a.amount||0),0);
-    const net   = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - advTotal;
+    const absentCut = sal.paid ? (sal.absentCut||0) : getStaffAbsentCut(s.id, month, year);
+    const absentDays = getStaffUnapprovedAbsentDays(s.id, month, year);
+    const net   = s.basic + (sal.bonus||0) + docComm - (sal.cut||0) - absentCut - advTotal;
     totalBasic += s.basic; totalBonus += sal.bonus||0; totalDocComm += docComm;
-    totalCut   += sal.cut||0; totalAdv += advTotal; totalNet  += net;
+    totalCut   += sal.cut||0; totalAbsentCut += absentCut; totalAdv += advTotal; totalNet  += net;
     const isAdmin = currentUser.role === 'admin';
     const advTitle = advList.length ? advList.map(a=>`${formatDate(a.date)}: ৳${fmt(a.amount)}`).join(', ') : '';
+    const absentTitle = s.contractWorkDays ? `চুক্তিকৃত কর্মদিবস: ${s.contractWorkDays} — অনুমোদনহীন অনুপস্থিতি: ${absentDays} দিন` : 'কর্মীর প্রোফাইলে "কর্ম দিবস" সেট না থাকায় অটো-কর্তন হিসাব করা যায়নি';
     return `<tr>
       <td style="color:var(--text-light)">${i+1}</td>
       <td style="font-weight:600">${s.name}${(s.whatsapp||s.phone)?` <span title="হোয়াটসঅ্যাপ: ${s.whatsapp||s.phone}" style="font-size:11px">📱</span>`:` <span title="হোয়াটসঅ্যাপ নম্বর যোগ করা নেই" style="font-size:11px;opacity:0.35">📱</span>`}${s.telegramId?` <span title="Telegram: ${s.telegramId}" style="font-size:11px">✈️</span>`:` <span title="Telegram Chat ID যোগ করা নেই" style="font-size:11px;opacity:0.35">✈️</span>`}</td>
@@ -22392,6 +22924,7 @@ function renderSalarySheet() {
           ? `<input type="number" value="${sal.cut||0}" min="0" style="width:90px;padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateSalEntry(${s.id},${month},${year},'cut',this.value)" />`
           : `৳ ${fmt(sal.cut||0)}`}
       </td>
+      <td style="color:#ea580c;font-weight:600" title="${absentTitle}">${absentCut>0 ? '৳ '+fmt(absentCut)+(sal.paid?'':' <span style=\'color:#94a3b8;font-size:10px\'>(অটো)</span>') : '—'}</td>
       <td style="color:var(--danger,#e74c3c);font-weight:600" ${advTitle?`title="${advTitle}"`:''}>${advTotal>0 ? '৳ '+fmt(advTotal) : '—'}</td>
       <td style="font-weight:700;color:var(--primary)">৳ ${fmt(net)}</td>
       <td>
@@ -22418,6 +22951,7 @@ function renderSalarySheet() {
     <td>৳ ${fmt(totalBonus)}</td>
     <td>৳ ${fmt(totalDocComm)}</td>
     <td>৳ ${fmt(totalCut)}</td>
+    <td>৳ ${fmt(totalAbsentCut)}</td>
     <td>৳ ${fmt(totalAdv)}</td>
     <td>৳ ${fmt(totalNet)}</td>
     <td colspan="2"></td>
@@ -22435,7 +22969,7 @@ function updateSalEntry(staffId, month, year, field, value) {
     const staff = (appData.staff||[]).find(s=>s.id===staffId);
     const expEntry = (appData.expense||[]).find(e=>e.id===sal.expenseId);
     if (staff && expEntry) {
-      expEntry.amount = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.advanceTotal||0);
+      expEntry.amount = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.absentCut||0) - (sal.advanceTotal||0);
     }
   }
   saveData();
@@ -22454,15 +22988,18 @@ function toggleSalPaid(staffId, month, year) {
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
 
   if (sal.paid) {
-    // পরিশোধের মুহূর্তে ডাক্তার কমিশন ও অগ্রিমের পরিমাণ ফ্রিজ করে রাখি (পরে নতুন কমিশন/অগ্রিম যোগ হলেও এই রেকর্ড পাল্টাবে না)
+    // পরিশোধের মুহূর্তে ডাক্তার কমিশন, অনুপস্থিতি কর্তন ও অগ্রিমের পরিমাণ ফ্রিজ করে রাখি (পরে
+    // এটেন্ডেন্স/অগ্রিম বদলালেও এই রেকর্ড পাল্টাবে না)
     sal.doctorCommission = getLinkedDoctorCommission(staffId, month, year);
+    sal.absentCut = getStaffAbsentCut(staffId, month, year);
     sal.advanceTotal = getStaffAdvanceTotal(staffId, month, year);
     // স্যালারি পরিশোধ — অটো ভাউচার নাম্বারে ব্যয় এন্ট্রি তৈরি (অগ্রিম আগেই আলাদা ভাউচারে ব্যয় হিসেবে বুকড, তাই এখানে বাদ দেওয়া হয়, দ্বিগুণ গণনা এড়াতে)
     if (staff) {
-      const net = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.advanceTotal||0);
+      const net = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.absentCut||0) - (sal.advanceTotal||0);
       const payDate = todayStr();
       const voucher = generateNextVoucherNo(payDate);
       const docCommNote = sal.doctorCommission>0 ? ` (এর মধ্যে ডাক্তার কমিশন ৳${fmt(sal.doctorCommission)})` : '';
+      const absentNote = sal.absentCut>0 ? ` (অনুপস্থিতি কর্তন ৳${fmt(sal.absentCut)})` : '';
       const advNote = sal.advanceTotal>0 ? ` (অগ্রিম ৳${fmt(sal.advanceTotal)} বাদ দেওয়া হয়েছে)` : '';
       const expEntry = {
         id: Date.now(),
@@ -22471,7 +23008,7 @@ function toggleSalPaid(staffId, month, year) {
         amount: net,
         voucher,
         ref: staff.name,
-        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)${docCommNote}${advNote}`,
+        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)${docCommNote}${absentNote}${advNote}`,
         by: currentUser.name,
         salaryRef: key
       };
@@ -22486,6 +23023,7 @@ function toggleSalPaid(staffId, month, year) {
       sal.expenseId = null;
       sal.voucher = null;
       sal.doctorCommission = null;
+      sal.absentCut = null;
       sal.advanceTotal = null;
     }
   }
@@ -22501,13 +23039,14 @@ function printSalarySheet() {
   const hospName = appData.settings.hospName || 'ICON Eye Hospital';
   const address  = appData.settings.address || '';
   const activeStaff = appData.staff.filter(s=>s.status==='active');
-  let rows='', totalBasic=0, totalBonus=0, totalCut=0, totalAdv=0, totalNet=0;
+  let rows='', totalBasic=0, totalBonus=0, totalCut=0, totalAbsentCut=0, totalAdv=0, totalNet=0;
   activeStaff.forEach((s,i) => {
     const key = getSalaryKey(s.id, month, year);
     const sal = appData.salaries && appData.salaries[key] ? appData.salaries[key] : { bonus:0, cut:0, paid:false };
     const advTotal = sal.paid ? (sal.advanceTotal||0) : getStaffAdvanceTotal(s.id, month, year);
-    const net = s.basic + (sal.bonus||0) - (sal.cut||0) - advTotal;
-    totalBasic+=s.basic; totalBonus+=sal.bonus||0; totalCut+=sal.cut||0; totalAdv+=advTotal; totalNet+=net;
+    const absentCut = sal.paid ? (sal.absentCut||0) : getStaffAbsentCut(s.id, month, year);
+    const net = s.basic + (sal.bonus||0) - (sal.cut||0) - absentCut - advTotal;
+    totalBasic+=s.basic; totalBonus+=sal.bonus||0; totalCut+=sal.cut||0; totalAbsentCut+=absentCut; totalAdv+=advTotal; totalNet+=net;
     rows += `<tr style="border-bottom:1px solid #eee">
       <td style="padding:8px">${i+1}</td>
       <td style="padding:8px;font-weight:600">${s.name}</td>
@@ -22515,6 +23054,7 @@ function printSalarySheet() {
       <td style="padding:8px;text-align:right">৳ ${fmt(s.basic)}</td>
       <td style="padding:8px;text-align:right">৳ ${fmt(sal.bonus||0)}</td>
       <td style="padding:8px;text-align:right">৳ ${fmt(sal.cut||0)}</td>
+      <td style="padding:8px;text-align:right">${absentCut>0?'৳ '+fmt(absentCut):'—'}</td>
       <td style="padding:8px;text-align:right">${advTotal>0?'৳ '+fmt(advTotal):'—'}</td>
       <td style="padding:8px;text-align:right;font-weight:700">৳ ${fmt(net)}</td>
       <td style="padding:8px;text-align:center"><span style="color:${sal.paid?'green':'red'}">${sal.paid?'✅ পরিশোধিত':'⏳ বাকি'}</span></td>
@@ -22534,8 +23074,9 @@ function printSalarySheet() {
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:#0f4c81;color:white">
           <th style="padding:8px">#</th><th style="padding:8px;text-align:left">নাম</th>
-          <th style="padding:8px;text-align:left">পদবি</th><th style="padding:8px;text-align:right">বেসিক</th>
-          <th style="padding:8px;text-align:right">বোনাস</th><th style="padding:8px;text-align:right">কাটা</th>
+          <th style="padding:8px;text-align:left">পদবি</th><th style="padding:8px;text-align:right">মাসিক বেতন</th>
+          <th style="padding:8px;text-align:right">বোনাস</th><th style="padding:8px;text-align:right">কর্তন</th>
+          <th style="padding:8px;text-align:right">অনুপস্থিতি কর্তন</th>
           <th style="padding:8px;text-align:right">অগ্রিম</th>
           <th style="padding:8px;text-align:right">নেট বেতন</th><th style="padding:8px;text-align:center">স্ট্যাটাস</th>
         </tr></thead>
@@ -22545,6 +23086,7 @@ function printSalarySheet() {
           <td style="padding:8px;text-align:right">৳ ${fmt(totalBasic)}</td>
           <td style="padding:8px;text-align:right">৳ ${fmt(totalBonus)}</td>
           <td style="padding:8px;text-align:right">৳ ${fmt(totalCut)}</td>
+          <td style="padding:8px;text-align:right">৳ ${fmt(totalAbsentCut)}</td>
           <td style="padding:8px;text-align:right">৳ ${fmt(totalAdv)}</td>
           <td style="padding:8px;text-align:right;color:#0f4c81">৳ ${fmt(totalNet)}</td>
           <td></td>
