@@ -3012,9 +3012,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <select id="stCatFilter" onchange="renderStockTable()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
               <option value="">সব ক্যাটাগরি</option>
             </select>
-            <button id="stGroupBtn" class="btn btn-outline btn-sm" onclick="toggleStockGroup()" title="ক্লিক করুন: ক্যাটাগরি গ্রুপ → ভাউচার গ্রুপ → বন্ধ">🗂️ গ্রুপ</button>
+            <button id="stGroupBtn" class="btn btn-outline btn-sm" onclick="toggleStockGroup()" title="ক্লিক করুন: ক্যাটাগরি গ্রুপ → ভাউচার গ্রুপ → বন্ধ" style="background:var(--primary);color:#fff">🗂️ ক্যাটাগরি ✓</button>
             <button class="btn btn-warning btn-sm" onclick="printStockReport()">🖨️ প্রিন্ট</button>
             <button class="btn btn-primary btn-sm" onclick="openBulkStockInPage()">📦↕️ বাল্ক স্টক ইন (নতুন/রিস্টক)</button>
+            <button class="btn btn-outline btn-sm" title="যেকোনো পণ্য সিলেক্ট করে সমন্বয় করুন" onclick="openStockPicker('adjust')">🔧 অ্যাডজাস্ট</button>
+            <button class="btn btn-outline btn-sm admin-only" title="যেকোনো পণ্য সিলেক্ট করে এডিট করুন" onclick="openStockPicker('edit')">✏️ এডিট</button>
+            <button class="btn btn-outline btn-sm admin-only" title="যেকোনো পণ্যের এডিট হিস্ট্রি দেখুন" onclick="openStockPicker('history')">🕐 হিস্ট্রি</button>
+            <button class="btn btn-outline btn-sm admin-only" title="যেকোনো পণ্য মুছে ফেলুন" onclick="openStockPicker('delete')">🗑️ ডিলিট</button>
           </div>
         </div>
         <div class="panel-body stock-panel-body" id="stListBody">
@@ -3028,7 +3032,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <thead><tr>
               <th>#</th><th>আইটেমের নাম</th><th>ক্যাটাগরি</th>
               <th>স্টক</th><th>ইউনিট</th><th>ক্রয়মূল্য</th><th>বিক্রয়মূল্য</th>
-              <th>নিট লাভ (স্টক)</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th>
+              <th>নিট লাভ (স্টক)</th><th>স্ট্যাটাস</th>
             </tr></thead>
             <tbody id="stockTable"></tbody>
           </table></div>
@@ -7000,6 +7004,30 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
   </div>
 </div>
 
+<!-- STOCK PICKER MODAL — যেকোনো অ্যাকশন (অ্যাডজাস্ট/এডিট/হিস্ট্রি/ডিলিট) এর আগে পণ্য নির্বাচনের জন্য -->
+<div class="modal-overlay" id="stockPickerModal">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="stockPickerTitle">পণ্য নির্বাচন করুন</div>
+    <input type="text" id="stockPickerSearch" oninput="renderStockPickerList(this.value)" placeholder="🔍 নাম বা কোড দিয়ে খুঁজুন..." style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:10px">
+    <div id="stockPickerList" style="max-height:380px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeStockPicker()">বাতিল</button>
+    </div>
+  </div>
+</div>
+
+<!-- STOCK BALANCE MODAL — নির্দিষ্ট তারিখ শেষে সব পণ্যের স্টক ব্যালেন্স (অডিট) -->
+<div class="modal-overlay" id="stockBalanceModal">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="stockBalanceTitle">📊 স্টক ব্যালেন্স</div>
+    <div style="font-size:12px;color:var(--text-light);margin-bottom:10px">স্টক লগের সব মুভমেন্ট যোগ-বিয়োগ করে হিসাব করা হয়েছে (বাতিল/reversed এন্ট্রি বাদে)।</div>
+    <div id="stockBalanceList" style="max-height:420px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeStockBalanceModal()">বন্ধ করুন</button>
+    </div>
+  </div>
+</div>
+
 <!-- BULK STOCK IN — সরবরাহকারীর এক্সিস্টিং ভাউচার নির্বাচন ও মূল্য যাচাই (একাধিক পণ্য একসাথে স্টক ইন করার শেষ ধাপ) -->
 <div class="modal-overlay" id="bulkStockVoucherModal" style="z-index:10000">
   <div class="modal">
@@ -9659,33 +9687,55 @@ function showDashCardModal(cardId, modalId) {
 
   } else if (cardId === 'dashCashBalance') {
     const {cash} = calcCashBankBalance();
-    const cashIn  = (appData.bankTx||[]).filter(t=>t.type==='cash_in').reduce((s,t)=>s+t.amount,0);
-    const cashOut = (appData.bankTx||[]).filter(t=>t.type==='cash_out').reduce((s,t)=>s+t.amount,0);
-    const c2b     = (appData.bankTx||[]).filter(t=>t.type==='cash_to_bank').reduce((s,t)=>s+t.amount,0);
-    const b2c     = (appData.bankTx||[]).filter(t=>t.type==='bank_to_cash').reduce((s,t)=>s+t.amount,0);
-    icon='💵'; title='ক্যাশ ব্যালেন্স'; sub='হাতে নগদ মজুদ';
+    // ✅ পুরো মাসের ক্যাশ-মুভমেন্ট হিসাব — শুধু bankTx অ্যাডজাস্টমেন্ট না, আয়/ভিজিট/ক্যাম্প/ব্যয়ও
+    // ধরা হচ্ছে, যেন "মাস শুরুর ব্যালেন্স" আর ব্রেকডাউন সবসময় বর্তমান ব্যালেন্সের সাথে মিলে যায়
+    // এবং এই মাসের হিসেবেই দেখায় (আগে অল-টাইম bankTx যোগফল দেখাতো)
+    const opIncome = (appData.income||[]).filter(e=>!e.visitId&&e.payMode!=='bank'&&e.payMode!=='mfs'&&e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+(e.amount||0),0);
+    const visitCash = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+((v.cashPaid||0)-(v.mfsPaid||0)),0);
+    const campCash = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+(c.totalIncome||0),0);
+    const opExpense = (appData.expense||[]).filter(e=>e.payMode!=='bank'&&e.payMode!=='mfs'&&expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).reduce((s,e)=>s+(e.amount||0),0);
+    const campExpense = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+((c.totalExpense||0)+(c.totalCOGS||0)+(c.regularStaffCost||0)),0);
+    const cashIn  = (appData.bankTx||[]).filter(t=>t.type==='cash_in'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const cashOut = (appData.bankTx||[]).filter(t=>t.type==='cash_out'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const c2b     = (appData.bankTx||[]).filter(t=>t.type==='cash_to_bank'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const b2c     = (appData.bankTx||[]).filter(t=>t.type==='bank_to_cash'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const mfs2cash= (appData.bankTx||[]).filter(t=>t.type==='mfs_to_cash'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const cash2mfs= (appData.bankTx||[]).filter(t=>t.type==='cash_to_mfs'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const totalIn  = opIncome+visitCash+campCash+cashIn+b2c+mfs2cash;
+    const totalOut = opExpense+campExpense+cashOut+c2b+cash2mfs;
+    const openingCash = cash - (totalIn - totalOut);
+    icon='💵'; title='ক্যাশ ব্যালেন্স'; sub='হাতে নগদ মজুদ — '+prefix+' মাস';
     amtText='৳ '+fmt(cash); amtColor='#16a34a';
-    body = row('প্রারম্ভিক ব্যালেন্স', '৳ '+fmt(s.cashBalance||0))
-      + row('ক্যাশ ইন (জমা)', '+ ৳ '+fmt(cashIn), '#16a34a')
-      + row('ব্যাংক → ক্যাশ', '+ ৳ '+fmt(b2c), '#16a34a')
-      + row('ক্যাশ আউট (ব্যয়)', '- ৳ '+fmt(cashOut), '#e74c3c')
-      + row('ক্যাশ → ব্যাংক', '- ৳ '+fmt(c2b), '#e74c3c')
-      + row('<strong>হাতে নগদ</strong>', '<strong>৳ '+fmt(cash)+'</strong>', '#16a34a');
+    body = row('মাস শুরুর ব্যালেন্স', '৳ '+fmt(openingCash))
+      + row('আয় (ম্যানুয়াল + ভিজিট + ক্যাম্প)', '+ ৳ '+fmt(opIncome+visitCash+campCash), '#16a34a')
+      + row('ব্যাংক/মোবাইল → ক্যাশ', '+ ৳ '+fmt(b2c+mfs2cash), '#16a34a')
+      + row('ব্যয় (ম্যানুয়াল + ক্যাম্প)', '- ৳ '+fmt(opExpense+campExpense), '#e74c3c')
+      + row('ক্যাশ → ব্যাংক/মোবাইল', '- ৳ '+fmt(c2b+cash2mfs), '#e74c3c')
+      + row('<strong>হাতে নগদ (বর্তমান)</strong>', '<strong>৳ '+fmt(cash)+'</strong>', '#16a34a');
 
   } else if (cardId === 'dashBankBalance') {
     const {bank} = calcCashBankBalance();
-    const bankIn  = (appData.bankTx||[]).filter(t=>t.type==='bank_in').reduce((s,t)=>s+t.amount,0);
-    const bankOut = (appData.bankTx||[]).filter(t=>t.type==='bank_out').reduce((s,t)=>s+t.amount,0);
-    const c2b     = (appData.bankTx||[]).filter(t=>t.type==='cash_to_bank').reduce((s,t)=>s+t.amount,0);
-    const b2c     = (appData.bankTx||[]).filter(t=>t.type==='bank_to_cash').reduce((s,t)=>s+t.amount,0);
-    icon='🏦'; title='ব্যাংক ব্যালেন্স'; sub=s.bankName||'ব্যাংক একাউন্ট';
+    // ✅ পুরো মাসের ব্যাংক-মুভমেন্ট হিসাব — শুধু bankTx অ্যাডজাস্টমেন্ট না, আয়/ব্যয়ও ধরা হচ্ছে,
+    // এই মাসের হিসেবেই দেখায় (আগে অল-টাইম bankTx যোগফল দেখাতো)
+    const opIncomeBank = (appData.income||[]).filter(e=>!e.visitId&&e.payMode==='bank'&&e.date&&e.date.startsWith(prefix)).reduce((s,e)=>s+(e.amount||0),0);
+    const opExpenseBank = (appData.expense||[]).filter(e=>e.payMode==='bank'&&e.status!=='pending'&&expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).reduce((s,e)=>s+(e.amount||0),0);
+    const bankIn  = (appData.bankTx||[]).filter(t=>t.type==='bank_in'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const bankOut = (appData.bankTx||[]).filter(t=>t.type==='bank_out'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const c2b     = (appData.bankTx||[]).filter(t=>t.type==='cash_to_bank'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const b2c     = (appData.bankTx||[]).filter(t=>t.type==='bank_to_cash'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const mfs2bank= (appData.bankTx||[]).filter(t=>t.type==='mfs_to_bank'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const bank2mfs= (appData.bankTx||[]).filter(t=>t.type==='bank_to_mfs'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
+    const totalIn  = opIncomeBank+bankIn+c2b+mfs2bank;
+    const totalOut = opExpenseBank+bankOut+b2c+bank2mfs;
+    const openingBank = bank - (totalIn - totalOut);
+    icon='🏦'; title='ব্যাংক ব্যালেন্স'; sub=(s.bankName||'ব্যাংক একাউন্ট')+' — '+prefix+' মাস';
     amtText='৳ '+fmt(bank); amtColor='#3498db';
-    body = row('প্রারম্ভিক ব্যালেন্স', '৳ '+fmt(s.bankBalance||0))
-      + row('ব্যাংক ইন (জমা)', '+ ৳ '+fmt(bankIn), '#16a34a')
-      + row('ক্যাশ → ব্যাংক', '+ ৳ '+fmt(c2b), '#16a34a')
-      + row('ব্যাংক আউট (ব্যয়)', '- ৳ '+fmt(bankOut), '#e74c3c')
-      + row('ব্যাংক → ক্যাশ', '- ৳ '+fmt(b2c), '#e74c3c')
-      + row('<strong>ব্যাংক ব্যালেন্স</strong>', '<strong>৳ '+fmt(bank)+'</strong>', '#3498db');
+    body = row('মাস শুরুর ব্যালেন্স', '৳ '+fmt(openingBank))
+      + row('আয় (ব্যাংক মাধ্যমে)', '+ ৳ '+fmt(opIncomeBank), '#16a34a')
+      + row('ক্যাশ/মোবাইল → ব্যাংক', '+ ৳ '+fmt(c2b+mfs2bank), '#16a34a')
+      + row('ব্যয় (ব্যাংক মাধ্যমে)', '- ৳ '+fmt(opExpenseBank), '#e74c3c')
+      + row('ব্যাংক → ক্যাশ/মোবাইল', '- ৳ '+fmt(b2c+bank2mfs), '#e74c3c')
+      + row('<strong>ব্যাংক ব্যালেন্স (বর্তমান)</strong>', '<strong>৳ '+fmt(bank)+'</strong>', '#3498db');
 
   } else if (cardId === 'dashMfsBalance') {
     const accs = (typeof calcAllMfsBalances==='function') ? calcAllMfsBalances() : [];
@@ -20221,6 +20271,61 @@ function renderOperationSheet() {
 }
 let activeStockId = null;
 
+function deductStockForSale(stockId, qtySold, dateStr, note, visitId) {
+  const st = appData.stock.find(s => s.id === stockId);
+  if (!st || !qtySold) return 0;
+  if (st.cogsExemptQty == null) st.cogsExemptQty = 0;
+  if (st.avgCost == null) st.avgCost = st.buyPrice || 0;
+  const exemptUsed = Math.min(st.cogsExemptQty, qtySold);
+  const nonExemptUsed = qtySold - exemptUsed;
+  const cogsAmount = nonExemptUsed * (st.avgCost || 0);
+  st.cogsExemptQty -= exemptUsed;
+  st.qty = Math.max(0, st.qty - qtySold);
+  if (!appData.stockLog) appData.stockLog = [];
+  appData.stockLog.push({
+    id: Date.now()+Math.random(), date: dateStr, itemId: st.id, itemName: st.name,
+    move: 'out', qty: qtySold, note: note || 'বিল',
+    unitCost: st.avgCost || 0, cogsAmount, exemptQtyUsed: exemptUsed, visitId: visitId||null, by: currentUser.name
+  });
+  return cogsAmount;
+}
+// ✅ কোনো বিল ডিলিট হলে সেই বিলের জন্য কমানো স্টক ও হিসাব করা COGS ফেরত দেওয়ার জন্য — visitId দিয়ে সংশ্লিষ্ট
+// stockLog এন্ট্রি(গুলো) খুঁজে বের করে প্রতিটার exempt/non-exempt অনুপাত ঠিক রেখে স্টক ও cogsExemptQty ফেরত দেয়,
+// এবং সেই stockLog এন্ট্রিগুলোকে "বাতিল" চিহ্নিত করে (মুছে ফেলা হয় না, অডিট ট্রেইলের জন্য রেখে দেওয়া হয়)
+function reverseStockForVisit(visitId) {
+  if (!visitId || !appData.stockLog) return;
+  appData.stockLog.filter(l => l.visitId === visitId && l.move === 'out' && !l.reversed).forEach(l => {
+    const st = appData.stock.find(s => s.id === l.itemId);
+    if (st) {
+      st.qty = (st.qty||0) + (l.qty||0);
+      st.cogsExemptQty = (st.cogsExemptQty||0) + (l.exemptQtyUsed||0);
+    }
+    l.reversed = true; // এন্ট্রি মুছে ফেলা হয় না, শুধু "বাতিল" চিহ্নিত হয় — যাতে COGS/রিপোর্ট থেকে বাদ যায় কিন্তু ইতিহাস থেকে না
+  });
+}
+// ✅ বিক্রয়মূল্য রাউন্ডিং — সেটিংসে নির্বাচিত মোড অনুযায়ী। ডিফল্ট 'floor' (রাউন্ড ডাউন) —
+// এতে প্রকৃত লাভের % সেট করা টার্গেটের চেয়ে সবসময় সামান্য কম হয় (কখনো বেশি না), যা একটা
+// নিয়মিত/পূর্বাভাসযোগ্য বায়াস, এলোমেলো না। 'nearest' বা 'ceil' বেছে নিলে এই বায়াস দূর/উল্টে যায়।
+function roundPrice(raw) {
+  const mode = (appData.settings||{}).priceRoundingMode || 'floor';
+  if (mode === 'ceil') return Math.ceil(raw);
+  if (mode === 'nearest') return Math.round(raw);
+  return Math.floor(raw);
+}
+function calcAutoSellPriceFor(cat, buyPrice) {
+  const s = appData.settings||{};
+  if (!buyPrice) return null;
+  if (cat === 'ওষুধ') {
+    const profit = (s.medProfit||20) / 100;
+    return { sellPrice: roundPrice(buyPrice * (1 + profit)) };
+  } else if (cat === 'চশমা/লেন্স') {
+    const minP = (s.glassMinProfit||30) / 100;
+    const maxP = (s.glassMaxProfit||80) / 100;
+    return { sellMin: roundPrice(buyPrice * (1 + minP)), sellMax: roundPrice(buyPrice * (1 + maxP)) };
+  }
+  return null;
+}
+
 function onEditStockCatChange() {
   const cat = document.getElementById('esCat').value;
   const sellPriceField = document.getElementById('esSellPriceField');
@@ -20343,6 +20448,42 @@ function saveEditStockModal() {
 // ✅ স্টক অ্যাডজাস্ট — নষ্ট/অপচয়/গণনা-সংশোধন ইত্যাদি ম্যানুয়াল কারণে স্টক বাড়ানো/কমানোর জন্য।
 // ক্রয়/বিক্রয়ের জন্য নয় (ক্রয় "বাল্ক স্টক ইন" দিয়ে, বিক্রয়/ক্যাম্প নিজস্ব সিস্টেমে হয়) — তাই এখানে
 // কোনো ক্যাশ/ব্যাংক বা ব্যয় এন্ট্রি তৈরি হয় না; শুধু পরিমাণ ঠিক হয় ও কারণ লগে থেকে যায়।
+// ✅ ইউনিভার্সাল পণ্য-পিকার — প্রতিটি সারিতে আলাদা অ্যাডজাস্ট/এডিট/হিস্ট্রি/ডিলিট বাটনের বদলে,
+// এখান থেকে পণ্য খুঁজে/সিলেক্ট করে তারপর প্রাসঙ্গিক অ্যাকশন চালানো হয় (কম ব্যবহৃত ফিচার বলে টেবিল হালকা রাখতে)।
+let stockPickerAction = null; // 'adjust' | 'edit' | 'history' | 'delete'
+function openStockPicker(action) {
+  stockPickerAction = action;
+  const titles = { adjust:'🔧 কোন পণ্য সমন্বয় করবেন?', edit:'✏️ কোন পণ্য এডিট করবেন?', history:'🕐 কোন পণ্যের হিস্ট্রি দেখবেন?', delete:'🗑️ কোন পণ্য মুছে ফেলবেন?' };
+  document.getElementById('stockPickerTitle').textContent = titles[action] || 'পণ্য নির্বাচন করুন';
+  document.getElementById('stockPickerSearch').value = '';
+  renderStockPickerList('');
+  document.getElementById('stockPickerModal').classList.add('open');
+  setTimeout(()=>{ const el=document.getElementById('stockPickerSearch'); if(el) el.focus(); },50);
+}
+function closeStockPicker() { document.getElementById('stockPickerModal').classList.remove('open'); stockPickerAction=null; }
+function renderStockPickerList(q) {
+  q = (q||'').toLowerCase().trim();
+  const wrap = document.getElementById('stockPickerList');
+  if (!wrap) return;
+  const items = (appData.stock||[]).filter(s => !q || s.name.toLowerCase().includes(q) || (s.code&&s.code.toLowerCase().includes(q)))
+    .sort((a,b)=> (a.cat||'').localeCompare(b.cat||'','bn') || (a.name||'').localeCompare(b.name||'','bn'));
+  if (!items.length) { wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">কোনো পণ্য পাওয়া যায়নি</div>'; return; }
+  wrap.innerHTML = items.map(s=>`<div onclick="selectStockPickerItem(${s.id})" style="padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <div><div style="font-weight:600;font-size:13.5px">${s.name}</div><div style="font-size:11px;color:var(--text-light)">${s.cat}${s.code?' | '+s.code:''}</div></div>
+    <div style="font-size:12.5px;color:var(--text-light)">স্টক: <strong>${s.qty}</strong> ${s.unit}</div>
+  </div>`).join('');
+}
+function selectStockPickerItem(id) {
+  const action = stockPickerAction;
+  closeStockPicker();
+  const s = appData.stock.find(x=>x.id===id);
+  if (!s) return;
+  if (action === 'adjust') openStockModal(id);
+  else if (action === 'edit') editStockItem(id);
+  else if (action === 'history') showEditHistory('স্টক', id, s.name);
+  else if (action === 'delete') deleteStockItem(id);
+}
+
 function openStockModal(id) {
   activeStockId = id;
   const s = appData.stock.find(s=>s.id===id);
@@ -20409,20 +20550,26 @@ function deleteStockItem(id) {
   saveData(); renderStockTable(); renderStockLog(); populatePurchaseMonthFilter(); renderPurchaseRecord(); showToast('🗑️ আইটেম মুছে ফেলা হয়েছে');
 }
 
-let stockGroupMode = false;
+let stockGroupMode = true;
 let stockGroupBy = 'cat'; // 'cat' or 'voucher'
+let stockCollapsedGroups = new Set(); // কোন গ্রুপ কলাপ্সড আছে (সেশন-ভিত্তিক), key: 'cat:...' বা 'voucher:...'
 
 function toggleStockGroup() {
-  // cycle: off → cat → voucher → off
-  if (!stockGroupMode) { stockGroupMode = true; stockGroupBy = 'cat'; }
-  else if (stockGroupBy === 'cat') { stockGroupBy = 'voucher'; }
-  else { stockGroupMode = false; }
+  // cycle: cat → voucher → off → cat
+  if (stockGroupMode && stockGroupBy === 'cat') { stockGroupBy = 'voucher'; }
+  else if (stockGroupMode && stockGroupBy === 'voucher') { stockGroupMode = false; }
+  else { stockGroupMode = true; stockGroupBy = 'cat'; }
   const btn = document.getElementById('stGroupBtn');
   if (btn) {
     if (!stockGroupMode) { btn.textContent='🗂️ গ্রুপ'; btn.style.background=''; btn.style.color=''; }
     else if (stockGroupBy==='cat') { btn.textContent='🗂️ ক্যাটাগরি ✓'; btn.style.background='var(--primary)'; btn.style.color='#fff'; }
     else { btn.textContent='🧾 ভাউচার ✓'; btn.style.background='var(--warning)'; btn.style.color='#fff'; }
   }
+  renderStockTable();
+}
+
+function toggleStockGroupCollapse(key) {
+  if (stockCollapsedGroups.has(key)) stockCollapsedGroups.delete(key); else stockCollapsedGroups.add(key);
   renderStockTable();
 }
 
@@ -20540,6 +20687,11 @@ function renderStockTable() {
   // ✅ কত টাকার স্টক "আগে থেকে ব্যয় হওয়া" (cogsExempt, বিক্রি হলে COGS ধরা হবে না) বনাম "নতুন" (COGS-eligible)
   const exemptValue = allItems.reduce((s,i) => s + (i.avgCost!=null?i.avgCost:(i.buyPrice||0)) * (i.cogsExemptQty||0), 0);
   const newValue = allItems.reduce((s,i) => s + (i.avgCost!=null?i.avgCost:(i.buyPrice||0)) * Math.max(0,(i.qty||0)-(i.cogsExemptQty||0)), 0);
+  // ✅ ক্যাটাগরি অনুযায়ী আইটেম সংখ্যা — "মোট আইটেম" কার্ডে ওষুধ ও চশমা আলাদাভাবে দেখানোর জন্য
+  const catCounts = {};
+  allItems.forEach(i => { catCounts[i.cat] = (catCounts[i.cat]||0) + 1; });
+  const catCountsHtml = Object.keys(catCounts).sort((a,b)=>catCounts[b]-catCounts[a])
+    .map(c=>`${c}: <strong>${catCounts[c]}</strong>`).join(' &nbsp;|&nbsp; ');
   const capitalDiv = document.getElementById('stockCapitalSummary');
   if (capitalDiv) {
     capitalDiv.innerHTML = `
@@ -20558,7 +20710,7 @@ function renderStockTable() {
         </div>
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
           <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">মোট আইটেম</div>
-          <div style="font-size:18px;font-weight:800;color:var(--primary)">${allItems.length} টি</div>
+          <div style="font-size:15px;font-weight:800;color:var(--primary);line-height:1.5">${catCountsHtml||'০ টি'}</div>
         </div>
         <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px;text-align:center">
           <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">আগে থেকে ব্যয়-হওয়া স্টক (COGS নেই)</div>
@@ -20572,13 +20724,21 @@ function renderStockTable() {
     capitalDiv.style.display = 'block';
   }
 
-  // Low stock alert
-  const lowItems = appData.stock.filter(s => s.qty <= (s.minQty||5));
+  // Low stock alert — "কম" (০ এর বেশি কিন্তু সর্বনিম্নের নিচে) ও "নেই" (একদম ০) আলাদাভাবে দেখানো হয়
+  const outItems = appData.stock.filter(s => (s.qty||0) <= 0);
+  const lowItems = appData.stock.filter(s => (s.qty||0) > 0 && s.qty <= (s.minQty||5));
   const alertDiv = document.getElementById('lowStockAlert');
-  if (lowItems.length) {
+  if (lowItems.length || outItems.length) {
     alertDiv.style.display='block';
     const lowValue = lowItems.reduce((s,i)=>s+(i.avgCost!=null?i.avgCost:(i.buyPrice||0))*(i.qty||0),0);
-    document.getElementById('lowStockItems').textContent = lowItems.map(s=>`${s.name} (${s.qty} ${s.unit})`).join(', ') + ` — মোট আটকে থাকা মূল্য: ৳${fmt(lowValue)}`;
+    let html = '';
+    if (lowItems.length) {
+      html += `⚠️ <strong>কম স্টক সতর্কতা (${lowItems.length}টি):</strong> ${lowItems.map(s=>`${s.name} (${s.qty} ${s.unit})`).join(', ')} — মোট আটকে থাকা মূল্য: ৳${fmt(lowValue)}`;
+    }
+    if (outItems.length) {
+      html += `${lowItems.length?'<br><br>':''}❌ <strong>স্টক নেই (${outItems.length}টি):</strong> ${outItems.map(s=>s.name).join(', ')}`;
+    }
+    document.getElementById('lowStockItems').innerHTML = html;
   } else {
     alertDiv.style.display='none';
   }
@@ -20599,8 +20759,8 @@ function renderStockTable() {
   }
 
   function renderRow(s, i) {
-    const isLow     = s.qty <= (s.minQty||5);
-    const isAdmin   = currentUser.role==='admin';
+    const isOut     = (s.qty||0) <= 0;
+    const isLow     = !isOut && s.qty <= (s.minQty||5);
     const netProfit = calcNetProfit(s);
     return `<tr id="stock-row-${s.id}">
       <td style="color:var(--text-light)">${i+1}</td>
@@ -20611,7 +20771,7 @@ function renderStockTable() {
         ${s.note?`<div style="font-size:11px;color:var(--text-light)">${s.note}</div>`:''}
       </td>
       <td><span class="badge badge-info">${s.cat}</span></td>
-      <td style="font-weight:700;color:${isLow?'var(--danger)':'var(--text)'};font-size:16px">${s.qty}</td>
+      <td style="font-weight:700;color:${isOut?'var(--danger)':(isLow?'var(--warning)':'var(--text)')};font-size:16px">${s.qty}</td>
       <td style="color:var(--text-light)">${s.unit}</td>
       <td style="color:var(--danger)">${s.buyPrice?'৳ '+fmt(s.buyPrice):'—'}</td>
       <td style="color:var(--success)">
@@ -20624,20 +20784,16 @@ function renderStockTable() {
           ? `<span style="color:#8e44ad;font-weight:700;font-size:13px">৳ ${fmt(netProfit)}</span>${s.cat==='চশমা/লেন্স'?'<div style="font-size:10px;color:var(--text-light)">(সর্বনিম্ন)</div>':''}`
           : '—'}
       </td>
-      <td><span class="badge ${isLow?'badge-expense':'badge-income'}">${isLow?'⚠️ কম':'✅ ঠিক'}</span></td>
-      <td style="display:flex;gap:4px;flex-wrap:wrap">
-        <button class="btn btn-outline btn-sm" title="নষ্ট/অপচয়/গণনা-সংশোধন ইত্যাদি কারণে ম্যানুয়াল সমন্বয়" onclick="openStockModal(${s.id})">🔧 অ্যাডজাস্ট</button>
-        ${isAdmin?`<button class="btn btn-primary btn-sm" onclick="editStockItem(${s.id})">✏️</button>
-        <button class="btn btn-outline btn-sm" title="এডিট হিস্ট্রি" onclick="showEditHistory('স্টক',${s.id},'${s.name.replace(/'/g,"\\'")}')">🕐</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteStockItem(${s.id})">🗑️</button>`:''}
-      </td>
+      <td><span class="badge ${isOut?'badge-expense':(isLow?'badge-expense':'badge-income')}">${isOut?'❌ নেই':(isLow?'⚠️ কম':'✅ ঠিক')}</span></td>
     </tr>`;
   }
 
-  // গ্রুপ হেডার রো — শুধু বর্ডার, ভরাট নেই
-  function groupHeader(label, count, netTotal, color) {
-    return `<tr>
-      <td colspan="10" style="padding:6px 12px;border-top:2px solid ${color};border-bottom:1px solid ${color};background:transparent">
+  // গ্রুপ হেডার রো — ক্লিক করে এক্সপান্ড/কলাপ্স করা যায়
+  function groupHeader(label, count, netTotal, color, groupKey) {
+    const collapsed = stockCollapsedGroups.has(groupKey);
+    return `<tr onclick="toggleStockGroupCollapse('${groupKey.replace(/'/g,"\\'")}')" style="cursor:pointer">
+      <td colspan="9" style="padding:6px 12px;border-top:2px solid ${color};border-bottom:1px solid ${color};background:transparent">
+        <span style="display:inline-block;font-size:11px;transition:transform .15s;transform:rotate(${collapsed?'0':'90'}deg);margin-right:6px">▶</span>
         <span style="font-weight:700;color:${color};font-size:13px">${label}</span>
         <span style="font-weight:400;color:var(--text-light);font-size:12px"> &nbsp;(${count} আইটেম)</span>
         <span style="color:${netTotal>=0?'#8e44ad':'var(--danger)'};font-size:12px;margin-left:10px">নিট: ৳${fmt(netTotal)}</span>
@@ -20652,8 +20808,11 @@ function renderStockTable() {
     Object.keys(groups).forEach(cat => {
       const items = groups[cat];
       const catTotal = items.reduce((sum,i)=>sum+(calcNetProfit(i)||0),0);
-      html += groupHeader('📦 '+cat, items.length, catTotal, 'var(--primary)');
-      items.forEach(s=>{ html+=renderRow(s,counter); counter++; });
+      const key = 'cat:'+cat;
+      html += groupHeader('📦 '+cat, items.length, catTotal, 'var(--primary)', key);
+      if (!stockCollapsedGroups.has(key)) {
+        items.forEach(s=>{ html+=renderRow(s,counter); counter++; });
+      } else { counter += items.length; }
     });
     tbody.innerHTML = html;
 
@@ -20671,12 +20830,15 @@ function renderStockTable() {
       return b.localeCompare(a);
     });
     let counter=0, html='';
-    sortedKeys.forEach(key => {
-      const items = groups[key];
+    sortedKeys.forEach(k => {
+      const items = groups[k];
       const vTotal = items.reduce((sum,i)=>sum+(calcNetProfit(i)||0),0);
-      const label = key==='— ভাউচার নেই' ? '🧾 ভাউচার নেই' : `🧾 ভাউচার: ${key}`;
-      html += groupHeader(label, items.length, vTotal, 'var(--warning)');
-      items.forEach(s=>{ html+=renderRow(s,counter); counter++; });
+      const label = k==='— ভাউচার নেই' ? '🧾 ভাউচার নেই' : `🧾 ভাউচার: ${k}`;
+      const key = 'voucher:'+k;
+      html += groupHeader(label, items.length, vTotal, 'var(--warning)', key);
+      if (!stockCollapsedGroups.has(key)) {
+        items.forEach(s=>{ html+=renderRow(s,counter); counter++; });
+      } else { counter += items.length; }
     });
     tbody.innerHTML = html;
 
@@ -20710,16 +20872,71 @@ function renderStockLog() {
     if (countEl) countEl.textContent = '';
     return;
   }
-  tbody.innerHTML = logs.map(l=>`<tr>
-    <td>${formatDate(l.date)}</td>
-    <td style="font-weight:600">${l.itemName}</td>
-    <td><span class="badge ${l.move==='in'?'badge-income':'badge-expense'}">${l.move==='in'?'📥 ইন':'📤 আউট'}</span></td>
-    <td style="font-weight:700;color:${l.move==='in'?'var(--success)':'var(--danger)'}">${l.move==='in'?'+':'-'}${l.qty}</td>
-    <td style="color:var(--text-light)">${l.note||'—'}</td>
-    <td style="font-size:12px;color:var(--text-light)">${l.by||'—'}</td>
-  </tr>`).join('');
-  if (countEl) countEl.textContent = `মোট ${logs.length}টি এন্ট্রি দেখানো হচ্ছে`;
+  // ✅ তারিখ অনুযায়ী গ্রুপ করা — প্রতিটি তারিখের হেডারে সেদিনের স্টক ব্যালেন্স দেখার বাটন থাকবে (অডিটের জন্য)
+  const groups = {};
+  logs.forEach(l => { const d = l.date || '—'; if (!groups[d]) groups[d]=[]; groups[d].push(l); });
+  const dates = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
+  let html = '';
+  dates.forEach(d => {
+    const entries = groups[d];
+    const totalIn  = entries.filter(l=>l.move==='in').reduce((s,l)=>s+(l.qty||0),0);
+    const totalOut = entries.filter(l=>l.move==='out').reduce((s,l)=>s+(l.qty||0),0);
+    html += `<tr style="background:#f8fafc">
+      <td colspan="5" style="padding:8px 12px;font-weight:700;color:var(--primary);font-size:13px">📅 ${formatDate(d)}
+        <span style="font-weight:400;color:var(--text-light);font-size:12px">&nbsp;(${entries.length}টি এন্ট্রি | ইন +${totalIn} | আউট -${totalOut})</span>
+      </td>
+      <td style="padding:8px 12px;text-align:right"><button class="btn btn-outline btn-sm" onclick="showStockBalanceModal('${d}')">📊 ব্যালেন্স দেখুন</button></td>
+    </tr>`;
+    entries.forEach(l => {
+      html += `<tr>
+        <td></td>
+        <td style="font-weight:600">${l.itemName}</td>
+        <td><span class="badge ${l.move==='in'?'badge-income':'badge-expense'}">${l.move==='in'?'📥 ইন':'📤 আউট'}</span>${l.reversed?' <span style="font-size:10px;color:var(--danger)">(বাতিল)</span>':''}</td>
+        <td style="font-weight:700;color:${l.move==='in'?'var(--success)':'var(--danger)'}">${l.move==='in'?'+':'-'}${l.qty}</td>
+        <td style="color:var(--text-light)">${l.note||'—'}</td>
+        <td style="font-size:12px;color:var(--text-light)">${l.by||'—'}</td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = html;
+  if (countEl) countEl.textContent = `মোট ${logs.length}টি এন্ট্রি, ${dates.length}টি তারিখে দেখানো হচ্ছে`;
 }
+
+// ✅ নির্দিষ্ট তারিখ শেষে প্রতিটি পণ্যের স্টক ব্যালেন্স — স্টক লগের সমস্ত মুভমেন্ট যোগ-বিয়োগ করে হিসাব করা হয়
+// (বাতিল/reversed এন্ট্রি বাদ) — অডিটে "কোন তারিখে স্টক কেমন ছিল" যাচাইয়ের জন্য কাজে লাগে।
+function computeStockBalanceAsOf(dateStr) {
+  const balances = {}; // itemId -> {name, unit, qty}
+  (appData.stockLog||[]).forEach(l => {
+    if (!l.date || l.date > dateStr) return;
+    if (l.reversed) return;
+    if (!balances[l.itemId]) {
+      const s = (appData.stock||[]).find(x=>x.id===l.itemId);
+      balances[l.itemId] = { name: l.itemName, unit: (s?s.unit:'') || '', qty: 0 };
+    }
+    balances[l.itemId].qty += (l.move==='in' ? (l.qty||0) : -(l.qty||0));
+  });
+  return Object.entries(balances).map(([id,v])=>({ id:parseInt(id), ...v })).sort((a,b)=>a.name.localeCompare(b.name,'bn'));
+}
+
+function showStockBalanceModal(dateStr) {
+  const rows = computeStockBalanceAsOf(dateStr);
+  const wrap = document.getElementById('stockBalanceList');
+  document.getElementById('stockBalanceTitle').textContent = `📊 ${formatDate(dateStr)} তারিখ শেষে স্টক ব্যালেন্স`;
+  if (!rows.length) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa">এই তারিখ পর্যন্ত কোনো স্টক লগ পাওয়া যায়নি</div>';
+  } else {
+    wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:#f8fafc"><th style="padding:8px;text-align:left">পণ্যের নাম</th><th style="padding:8px;text-align:right">তারিখ শেষে স্টক</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:7px 8px">${r.name}</td>
+        <td style="padding:7px 8px;text-align:right;font-weight:700;color:${r.qty<0?'var(--danger)':'var(--text)'}">${r.qty} ${r.unit}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+  document.getElementById('stockBalanceModal').classList.add('open');
+}
+function closeStockBalanceModal() { document.getElementById('stockBalanceModal').classList.remove('open'); }
+
 
 function printStockReport() {
   const hospName = appData.settings.hospName||'ICON Eye Hospital';
@@ -20729,18 +20946,21 @@ function printStockReport() {
     <td style="padding:7px">${i+1}</td>
     <td style="padding:7px;font-weight:600">${s.name}</td>
     <td style="padding:7px">${s.cat}</td>
-    <td style="padding:7px;text-align:center;font-weight:700;color:${s.qty<=(s.minQty||5)?'#e74c3c':'#2ecc71'}">${s.qty}</td>
+    <td style="padding:7px;text-align:center;font-weight:700;color:${(s.qty||0)<=0?'#e74c3c':(s.qty<=(s.minQty||5)?'#e67e22':'#2ecc71')}">${s.qty}</td>
     <td style="padding:7px">${s.unit}</td>
     <td style="padding:7px;text-align:right">${s.buyPrice?'৳ '+fmt(s.buyPrice):'—'}</td>
     <td style="padding:7px;text-align:right">${s.sellPrice?'৳ '+fmt(s.sellPrice):'—'}</td>
-    <td style="padding:7px;text-align:center"><span style="color:${s.qty<=(s.minQty||5)?'#e74c3c':'#2ecc71'}">${s.qty<=(s.minQty||5)?'⚠️ কম':'✅ ঠিক'}</span></td>
+    <td style="padding:7px;text-align:center"><span style="color:${(s.qty||0)<=0?'#e74c3c':(s.qty<=(s.minQty||5)?'#e67e22':'#2ecc71')}">${(s.qty||0)<=0?'❌ নেই':(s.qty<=(s.minQty||5)?'⚠️ কম':'✅ ঠিক')}</span></td>
   </tr>`).join('');
   openPrintWindow(`
     <div style="font-family:'Hind Siliguri',Arial,sans-serif;max-width:720px;margin:0 auto;padding:24px">
-      <div style="text-align:center;margin-bottom:16px;border-bottom:3px solid #0f4c81;padding-bottom:12px">
-        <div style="font-size:20px;font-weight:800;color:#0f4c81">👁️ ${hospName}</div>
-        <div style="font-size:15px;font-weight:600;margin-top:4px">স্টক রিপোর্ট</div>
-        <div style="font-size:12px;color:#666;margin-top:2px">তৈরি: ${new Date().toLocaleString('bn-BD')}</div>
+      <div style="margin:-24px -24px 20px -24px;padding:24px 32px 16px;border-bottom:3px solid #0f4c81;display:flex;align-items:center;justify-content:space-between;gap:16px">
+        <img src="${LOGO_B64}" style="height:70px;object-fit:contain;flex-shrink:0" />
+        <div style="text-align:right">
+          <div style="font-size:20px;font-weight:800;color:#0f4c81">${hospName}</div>
+          <div style="font-size:15px;font-weight:700;color:#1a2a3a;margin-top:6px">স্টক রিপোর্ট</div>
+          <div style="font-size:10.5px;color:#9ca3af;margin-top:2px">রিপোর্ট তৈরি: ${new Date().toLocaleString('bn-BD')}</div>
+        </div>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="background:#0f4c81;color:white">
@@ -20751,7 +20971,7 @@ function printStockReport() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div style="margin-top:12px;font-size:12px;color:#666">মোট আইটেম: ${data.length}টি | কম স্টক: ${data.filter(s=>s.qty<=(s.minQty||5)).length}টি</div>
+      <div style="margin-top:12px;font-size:12px;color:#666">মোট আইটেম: ${data.length}টি | কম স্টক: ${data.filter(s=>(s.qty||0)>0 && s.qty<=(s.minQty||5)).length}টি | স্টক নেই: ${data.filter(s=>(s.qty||0)<=0).length}টি</div>
     </div>`);
 }
 
@@ -20794,7 +21014,10 @@ function renderBulkStockInPage() {
       <div style="position:sticky;top:0;z-index:10;background:white;border-bottom:1.5px solid #e2e8f0;padding:12px 18px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div style="font-weight:700;font-size:16px;color:var(--primary)">📦↕️ বাল্ক স্টক ইন</div>
-          <button onclick="closeBulkStockInPage()" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#475569">✕ বন্ধ</button>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button onclick="confirmBulkStockInAsOpening()" title="আগে থেকেই মজুদ থাকা পণ্যের জন্য — ভাউচার/ব্যয় ছাড়াই সরাসরি স্টক যোগ হবে (কম ব্যবহৃত)" style="background:#f8fafc;border:1.5px solid #e2e8f0;color:#64748b;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">🗂️ প্রারম্ভিক স্টক</button>
+            <button onclick="closeBulkStockInPage()" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#475569">✕ বন্ধ</button>
+          </div>
         </div>
         <div style="display:flex;gap:6px;margin-bottom:8px">
           <input type="text" id="bulkStockInSearchBox" value="${(bulkStockInSearch||'').replace(/"/g,'&quot;')}" oninput="onBulkStockInSearch(this.value)" placeholder="🔍 পণ্যের নাম বা কোড খুঁজুন..." style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box">
@@ -21027,32 +21250,17 @@ function renderBsSelectedVoucherCard() {
     </div>`;
 }
 
-function confirmBulkStockIn() {
-  const entries = Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0);
-  if (!entries.length) { showToast('⚠️ অন্তত একটি পণ্যের পরিমাণ দিন!'); return; }
-  const v = (appData.vouchers||[]).find(x=>x.id===bulkStockInSelectedVoucherId);
-  if (!v) { showToast('⚠️ সরবরাহকারীর ভাউচার নির্বাচন করুন!'); return; }
-  const already = (appData.stockLog||[]).filter(l=>l.move==='in' && l.note==='বাল্ক স্টক ইন' && l.voucherRef===v.voucher)
-    .reduce((s,l)=>s+((l.qty||0)*(l.unitCost||0)),0);
-  const sessionTotal = calcBulkStockInSessionTotal();
-  const grandTotal = already + sessionTotal;
-  const match = Math.abs(grandTotal - v.amount) < 1;
-  if (!match) {
-    const forceEl = document.getElementById('bsForceConfirm');
-    if (!forceEl || !forceEl.checked) { showToast('⚠️ ভাউচারের মূল্যের সাথে অমিল! নিশ্চিত হলে চেকবক্সে টিক দিন।'); return; }
-  }
-  const date = todayStr();
+// ✅ বাল্ক স্টক ইন এন্ট্রি প্রয়োগ — voucher-ভিত্তিক ক্রয় ও ভাউচার-ছাড়া প্রারম্ভিক স্টক দুই ক্ষেত্রেই ব্যবহৃত হয়
+function applyBulkStockInEntries(entries, opts) {
+  const date = opts.date || todayStr();
   let totalCost = 0, itemCount = 0;
-
-  // ✅ স্টক আইটেম আপডেট — শুধু পরিমাণ ও ওয়েটেড এভারেজ ক্রয়মূল্য; কোনো ব্যয়/ক্যাশ-ব্যাংক এন্ট্রি তৈরি হয় না,
-  // কারণ টাকার হিসাব "সরবরাহকারী" পেজের ভাউচার এন্ট্রির মাধ্যমে আগেই করা হয়ে গেছে।
   entries.forEach(([idStr, val]) => {
     const s = appData.stock.find(x=>x.id===parseInt(idStr));
     if (!s) return;
     const price = (val.price!=null && val.price>0) ? val.price : (s.avgCost!=null?s.avgCost:(s.buyPrice||0));
     if (s.cogsExemptQty == null) s.cogsExemptQty = 0;
     if (s.avgCost == null) s.avgCost = s.buyPrice || 0;
-    // ✅ ওয়েটেড এভারেজ ক্রয়মূল্য — confirmStockMove()-এর মতোই একই ফর্মুলা
+    // ✅ ওয়েটেড এভারেজ ক্রয়মূল্য — confirmStockAdjust()-এর মতোই একই ফর্মুলা
     const nonExemptBefore = Math.max(0, s.qty - (s.cogsExemptQty||0));
     const denom = nonExemptBefore + val.qty;
     const newAvgCost = denom > 0 ? ((nonExemptBefore * (s.avgCost||0)) + (val.qty * price)) / denom : price;
@@ -21068,11 +21276,33 @@ function confirmBulkStockIn() {
     if (!appData.stockLog) appData.stockLog=[];
     appData.stockLog.push({
       id: Date.now()+Math.random(), date, itemId:s.id, itemName:s.name, move:'in', qty:val.qty,
-      unitCost:price, voucherRef:v.voucher, vendorVoucherId:v.id, vendorName:v.vendorName||'',
-      note:'বাল্ক স্টক ইন', by:currentUser.name
+      unitCost:price, voucherRef: opts.voucherRef||'', vendorVoucherId: opts.vendorVoucherId||null, vendorName: opts.vendorName||'',
+      note: opts.isOpening ? 'প্রারম্ভিক স্টক (বাল্ক)' : 'বাল্ক স্টক ইন', isOpening: !!opts.isOpening, by:currentUser.name
     });
     totalCost += val.qty * price;
     itemCount++;
+  });
+  return { totalCost, itemCount };
+}
+
+function confirmBulkStockIn() {
+  const entries = Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0);
+  if (!entries.length) { showToast('⚠️ অন্তত একটি পণ্যের পরিমাণ দিন!'); return; }
+  const v = (appData.vouchers||[]).find(x=>x.id===bulkStockInSelectedVoucherId);
+  if (!v) { showToast('⚠️ সরবরাহকারীর ভাউচার নির্বাচন করুন!'); return; }
+  const already = (appData.stockLog||[]).filter(l=>l.move==='in' && l.note==='বাল্ক স্টক ইন' && l.voucherRef===v.voucher)
+    .reduce((s,l)=>s+((l.qty||0)*(l.unitCost||0)),0);
+  const sessionTotal = calcBulkStockInSessionTotal();
+  const grandTotal = already + sessionTotal;
+  const match = Math.abs(grandTotal - v.amount) < 1;
+  if (!match) {
+    const forceEl = document.getElementById('bsForceConfirm');
+    if (!forceEl || !forceEl.checked) { showToast('⚠️ ভাউচারের মূল্যের সাথে অমিল! নিশ্চিত হলে চেকবক্সে টিক দিন।'); return; }
+  }
+  // ✅ স্টক আইটেম আপডেট — শুধু পরিমাণ ও ওয়েটেড এভারেজ ক্রয়মূল্য; কোনো ব্যয়/ক্যাশ-ব্যাংক এন্ট্রি তৈরি হয় না,
+  // কারণ টাকার হিসাব "সরবরাহকারী" পেজের ভাউচার এন্ট্রির মাধ্যমে আগেই করা হয়ে গেছে।
+  const { totalCost, itemCount } = applyBulkStockInEntries(entries, {
+    voucherRef: v.voucher, vendorVoucherId: v.id, vendorName: v.vendorName||'', isOpening: false, date: todayStr()
   });
 
   logActivity('add', 'স্টক', `বাল্ক স্টক ইন — ${itemCount}টি আইটেম, ভাউচার: ${v.voucher} (${v.vendorName||'—'}), মোট ৳${fmt(totalCost)}`);
@@ -21082,6 +21312,22 @@ function confirmBulkStockIn() {
   renderStockTable(); renderStockLog(); if (typeof renderStockTurnover==='function') renderStockTurnover(); populatePurchaseMonthFilter(); renderPurchaseRecord(); refreshDashboard();
   showToast(`✅ ${itemCount}টি পণ্য স্টক ইন হয়েছে! মোট ৳${fmt(totalCost)} — ভাউচার: ${v.voucher} (${v.vendorName||'—'})`);
 }
+
+// ✅ প্রারম্ভিক স্টক — আগে থেকেই মজুদ থাকা পণ্য অ্যাপে প্রথমবার তোলার জন্য। কোনো ভাউচার/ক্রয়-ব্যয় এন্ট্রি
+// তৈরি হয় না (কারণ টাকা এই মুহূর্তে খরচ হচ্ছে না, পণ্য আগে থেকেই মালিকানায় ছিল) — কিন্তু ক্রয়মূল্য/গড় দাম
+// ঠিকই সংরক্ষণ হয়, যাতে ভবিষ্যতে বিক্রির সময় সঠিক COGS (বিক্রয় খরচ) হিসাব করা যায়।
+function confirmBulkStockInAsOpening() {
+  const entries = Object.entries(bulkStockInSelection).filter(([id,v])=>v.qty>0);
+  if (!entries.length) { showToast('⚠️ অন্তত একটি পণ্যের পরিমাণ দিন!'); return; }
+  if (!confirm('এটি "প্রারম্ভিক স্টক" হিসেবে যোগ হবে — কোনো ভাউচার লাগবে না ও কোনো ব্যয় তৈরি হবে না। আগে থেকেই মজুদ থাকা পণ্যের জন্য এটি ব্যবহার করুন। এগিয়ে যাবেন?')) return;
+  const { totalCost, itemCount } = applyBulkStockInEntries(entries, { isOpening: true, date: todayStr() });
+  logActivity('add', 'স্টক', `প্রারম্ভিক স্টক যোগ — ${itemCount}টি আইটেম, আনুমানিক মূল্য ৳${fmt(totalCost)} (ভাউচার ছাড়া, ব্যয় নয়)`);
+  saveData();
+  closeBulkStockInPage();
+  renderStockTable(); renderStockLog(); if (typeof renderStockTurnover==='function') renderStockTurnover(); populatePurchaseMonthFilter(); renderPurchaseRecord(); refreshDashboard();
+  showToast(`✅ ${itemCount}টি পণ্য প্রারম্ভিক স্টক হিসেবে যোগ হয়েছে! (কোনো ব্যয় তৈরি হয়নি)`);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
 
@@ -21091,7 +21337,7 @@ function populatePurchaseMonthFilter() {
   if (!sel) return;
   // stockLog থেকে 'নতুন আইটেম' এন্ট্রির তারিখ সংগ্রহ করি
   const months = new Set();
-  const logEntries = (appData.stockLog||[]).filter(l => l.move==='in' && (l.note==='নতুন আইটেম' || l.note==='বাল্ক স্টক ইন'));
+  const logEntries = (appData.stockLog||[]).filter(l => l.move==='in' && (l.note==='নতুন আইটেম' || l.note==='বাল্ক স্টক ইন' || l.isOpening));
   logEntries.forEach(l => { if (l.date) months.add(l.date.slice(0,7)); });
   // stockLog না থাকলে stock আইটেমের addedDate থেকেও নিই
   (appData.stock||[]).forEach(s => { if (s.addedDate) months.add(s.addedDate.slice(0,7)); });
@@ -21152,6 +21398,23 @@ function renderPurchaseRecord() {
     const month = l.date.slice(0,7);
     if (monthF && month !== monthF) return;
     const voucher = (l.voucherRef||'').trim() || '— ভাউচার নেই';
+    const key = `${month}|||${voucher}`;
+    const sellPx = s.cat==='চশমা/লেন্স' ? (s.sellMin||0) : (s.sellPrice||0);
+    const qty = l.qty||0;
+    const unitPrice = l.unitCost!=null ? l.unitCost : (s.buyPrice||0);
+    const buyTotal  = unitPrice * qty;
+    const sellTotal = sellPx * qty;
+    const profit    = (unitPrice && sellPx) ? sellTotal - buyTotal : null;
+    pushPurchaseItem(key, month, voucher, { s, date: l.date, qty, unitPrice, buyTotal, sellTotal, profit, sellPx }, l.by);
+  });
+
+  // ৩) প্রারম্ভিক স্টক (ভাউচার ছাড়া বাল্ক স্টক ইন) — আলাদা ছদ্ম-ভাউচার গ্রুপে দেখানো হয়, কোনো ব্যয় হিসেবে গণ্য নয়
+  (appData.stockLog||[]).filter(l => l.move==='in' && l.isOpening).forEach(l => {
+    const s = (appData.stock||[]).find(x=>x.id===l.itemId);
+    if (!s || !l.date) return;
+    const month = l.date.slice(0,7);
+    if (monthF && month !== monthF) return;
+    const voucher = '🗂️ প্রারম্ভিক স্টক (ভাউচার নেই)';
     const key = `${month}|||${voucher}`;
     const sellPx = s.cat==='চশমা/লেন্স' ? (s.sellMin||0) : (s.sellPrice||0);
     const qty = l.qty||0;
@@ -28280,7 +28543,16 @@ function showDashPieDetailForIdx(idx){
   // Build detailed rows from raw data
   const rows=getDashPieDetailRows(catLabel, _dPieType, _dPiePeriod);
   if(rows.length){
-    listEl.innerHTML=rows.map(r=>`
+    const groups=_groupPieRowsBySub(rows);
+    const summaryHtml = groups.length>1 ? `
+      <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #ddd">
+        ${groups.map(g=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">
+            <span style="color:#555">${g.sub} <span style="color:#aaa">(${g.count})</span></span>
+            <span style="font-weight:600;color:#111">৳ ${fmt(g.amount)}</span>
+          </div>`).join('')}
+      </div>` : '';
+    listEl.innerHTML = summaryHtml + rows.map(r=>`
       <div class="pie-detail-row">
         <span class="dr-label">${r.label}</span>
         <span class="dr-amt">৳ ${fmt(r.amount)}</span>
@@ -28314,18 +28586,67 @@ function getDashPieDetailRows(catLabel, type, period){
     return false;
   }
   if(type==='income'){
-    (appData.income||[]).filter(e=>inPeriod(e.date)&&e.category===catLabel).forEach(e=>rows.push({label:e.note||e.category,amount:e.amount,date:e.date}));
-    // visits (OPD/পরামর্শ)
-    if(catLabel==='OPD/পরামর্শ'||(catLabel+'').includes('OPD')||(catLabel+'').includes('পরামর্শ')){
-      (appData.visits||[]).filter(v=>inPeriod(v.date)&&v.cashPaid>0).forEach(v=>rows.push({label:v.patientName||'রোগী',amount:v.cashPaid,date:v.date}));
-    }
-    if((catLabel+'').includes('ক্যাম্প')||(catLabel+'').includes('লামামু')||(catLabel+'').includes('camp')){
-      (appData.camps||[]).filter(c=>inPeriod(c.date)&&c.totalIncome>0).forEach(c=>rows.push({label:c.campName||'ক্যাম্প',amount:c.totalIncome,date:c.date}));
-    }
+    // ম্যানুয়াল ইনকাম এন্ট্রি — canonicalCat দিয়ে ম্যাচ করা হচ্ছে, যাতে পাই চার্টের
+    // ক্যাটাগরি ম্যাপিং এর সাথে হুবহু মিলে যায় (আগে সরাসরি e.category===catLabel
+    // চেক করায় 'অন্যান্য' সহ বেশিরভাগ ক্যাটাগরিতে কোনো ফলাফল আসতো না)
+    // sub = সাব-ক্যাটাগরি (গ্রুপিং-এর জন্য, যেমন নির্দিষ্ট আইটেমের নাম/খাত), label = পূর্ণ এন্ট্রি বর্ণনা
+    (appData.income||[]).filter(e=>inPeriod(e.date)&&canonicalCat(e.category)===catLabel).forEach(e=>rows.push({sub:e.category||'সাধারণ আয়',label:e.note||e.category,amount:e.amount,date:e.date}));
+
+    // রিসেপশন ভিজিট — ভিজিট ফি (OPD/পরামর্শ) + বিক্রিত আইটেম (চশমা/মেডিসিন/টেস্ট/অপারেশন/ইত্যাদি)
+    // getVisitItemBreakdown()-এর লজিকের সাথে হুবহু মিলিয়ে বানানো, যেন পাই চার্টের
+    // প্রতিটি স্লাইসের বিস্তারিত এন্ট্রি লিস্ট এখানে দেখা যায়
+    (appData.visits||[]).filter(v=>inPeriod(v.date)).forEach(v=>{
+      if(v.visitFee>0 && catLabel==='OPD/পরামর্শ'){
+        rows.push({sub:'ভিজিট ফি',label:(v.patientName||'রোগী')+' — ভিজিট ফি',amount:v.visitFee,date:v.date});
+      }
+      (v.items||[]).forEach(it=>{
+        const k=canonicalCat(it.type||it.name||'');
+        const amt=it.total||(it.price*it.qty)||0;
+        const subName=it.name||it.type||'আইটেম';
+        if(k===catLabel && amt) rows.push({sub:subName,label:(v.patientName?v.patientName+' — ':'')+subName,amount:amt,date:v.date});
+      });
+      if(!(v.items&&v.items.length) && v.cashPaid>0 && catLabel==='OPD/পরামর্শ'){
+        const amt=v.cashPaid-(v.visitFee||0);
+        if(amt) rows.push({sub:'ভিজিট (অন্যান্য পেমেন্ট)',label:v.patientName||'রোগী',amount:amt,date:v.date});
+      }
+    });
+
+    // ক্যাম্প — ক্যাম্পের ভিতরের ভিজিট আইটেম/ফি, আর ডিটেইল না থাকলে লামসাম ফলব্যাক
+    (appData.camps||[]).filter(c=>inPeriod(c.date)).forEach(c=>{
+      const cVisits=c.visits||c.campVisits||[];
+      cVisits.forEach(v=>{
+        (v.items||[]).forEach(it=>{
+          const k=canonicalCat(it.type||it.name||'');
+          const amt=it.total||(it.price*it.qty)||0;
+          const subName=it.name||it.type||'আইটেম';
+          if(k===catLabel && amt) rows.push({sub:subName,label:(c.campName?c.campName+' — ':'')+subName,amount:amt,date:c.date});
+        });
+        if(v.visitFee>0 && catLabel==='OPD/পরামর্শ'){
+          rows.push({sub:'ভিজিট ফি (ক্যাম্প)',label:(c.campName||'ক্যাম্প')+' — ভিজিট ফি',amount:v.visitFee,date:c.date});
+        }
+      });
+      if(c.totalIncome>0 && !cVisits.length && catLabel==='ক্যাম্প (লামসাম)'){
+        rows.push({sub:'লামসাম আয়',label:c.campName||'ক্যাম্প',amount:c.totalIncome,date:c.date});
+      }
+    });
   } else {
-    (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&inPeriod(expenseEffectiveDate(e))&&e.category===catLabel).forEach(e=>rows.push({label:e.note||e.category,amount:e.amount,date:expenseEffectiveDate(e)}));
+    // ব্যয়ের ক্ষেত্রেও canonicalCat দিয়ে ম্যাচ, exact category name match এর বদলে
+    (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&inPeriod(expenseEffectiveDate(e))&&canonicalCat(e.category)===catLabel).forEach(e=>rows.push({sub:e.category||'সাধারণ ব্যয়',label:e.note||e.category,amount:e.amount,date:expenseEffectiveDate(e)}));
   }
   return rows.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+
+// rows থেকে সাব-ক্যাটাগরি অনুযায়ী গ্রুপ করে যোগফল বের করে — মোডালে
+// এন্ট্রি লিস্টের উপরে একটা কম্প্যাক্ট সামারি দেখানোর জন্য
+function _groupPieRowsBySub(rows){
+  const map={};
+  rows.forEach(r=>{
+    const k=r.sub||r.label||'অন্যান্য';
+    if(!map[k]) map[k]={sub:k,amount:0,count:0};
+    map[k].amount+=(r.amount||0);
+    map[k].count+=1;
+  });
+  return Object.values(map).sort((a,b)=>b.amount-a.amount);
 }
 
 // --- Dashboard bar state ---
@@ -28787,7 +29108,16 @@ function showOwnerPieDetailForIdx(idx){
 
   const rows=getDashPieDetailRows(catLabel, _oPieType, _oPiePeriod);
   if(rows.length){
-    listEl.innerHTML=rows.map(r=>`
+    const groups=_groupPieRowsBySub(rows);
+    const summaryHtml = groups.length>1 ? `
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #ddd">
+        ${groups.map(g=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">
+            <span style="color:#555">${g.sub} <span style="color:#aaa">(${g.count})</span></span>
+            <span style="font-weight:600;color:#111">৳ ${fmt(g.amount)}</span>
+          </div>`).join('')}
+      </div>` : '';
+    listEl.innerHTML = summaryHtml + rows.map(r=>`
       <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:11px;gap:6px">
         <span style="flex:1;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.label}</span>
         <span style="font-weight:700;color:#111;white-space:nowrap">৳ ${fmt(r.amount)}</span>
