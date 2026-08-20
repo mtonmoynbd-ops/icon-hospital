@@ -2126,6 +2126,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="nav-item admin-only" data-page="checkbook"><span class="nav-icon">📒</span> চেক বই</div>
       <div class="nav-item admin-only" data-page="loan"><span class="nav-icon">💳</span> লোন ট্র্যাকিং</div>
       <div class="nav-item admin-only" data-page="shareholders"><span class="nav-icon">👥</span> শেয়ারহোল্ডার</div>
+      <div class="nav-item admin-only" data-page="notifications"><span class="nav-icon">🔔</span> নোটিফিকেশন ও মেসেজিং</div>
       <div class="nav-item admin-only" data-page="funds"><span class="nav-icon">🏦</span> ফান্ড</div>
       <div class="nav-item admin-only" data-page="doctors"><span class="nav-icon">🩺</span> ডাক্তার</div>
       <div class="nav-item" data-page="balancesheet"><span class="nav-icon">📊</span> ব্যালেন্স শিট</div>
@@ -3184,18 +3185,18 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel admin-only">
         <div class="panel-header">
           <div class="panel-title">🗓️ ছুটি অনুমোদন</div>
-          <button class="btn btn-primary btn-sm" onclick="toggleLeaveFormMain()">➕ ছুটি দিন</button>
+          <button class="btn btn-primary btn-sm" onclick="toggleLeaveForm()">➕ ছুটি দিন</button>
         </div>
-        <div class="panel-body" id="leaveFormBodyMain" style="display:none">
+        <div class="panel-body" id="leaveFormBody" style="display:none">
           <div class="form-row three">
             <div class="field"><label>কর্মী *</label>
-              <select id="lfStaffMain" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <select id="lfStaff" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
                 <option value="">-- কর্মী বেছে নিন --</option>
               </select>
             </div>
-            <div class="field"><label>ছুটির তারিখ *</label><input type="date" id="lfDateMain"></div>
+            <div class="field"><label>ছুটির তারিখ *</label><input type="date" id="lfDate"></div>
             <div class="field"><label>ছুটির ধরন *</label>
-              <select id="lfTypeMain" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <select id="lfType" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
                 <option value="casual">নৈমিত্তিক ছুটি (CL)</option>
                 <option value="sick">অসুস্থতাজনিত ছুটি (SL)</option>
                 <option value="annual">বার্ষিক ছুটি (AL)</option>
@@ -3204,16 +3205,27 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </div>
           </div>
           <div class="form-row">
-            <div class="field"><label>কারণ / নোট</label><input type="text" id="lfNoteMain" placeholder="ঐচ্ছিক"></div>
+            <div class="field"><label>কারণ / নোট</label><input type="text" id="lfNote" placeholder="ঐচ্ছিক"></div>
           </div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-outline" onclick="toggleLeaveFormMain()">বাতিল</button>
-            <button class="btn btn-success" onclick="saveLeaveMain()">✅ ছুটি অনুমোদন করুন</button>
+            <button class="btn btn-outline" onclick="toggleLeaveForm()">বাতিল</button>
+            <button class="btn btn-success" onclick="saveLeave()">✅ ছুটি অনুমোদন করুন</button>
           </div>
         </div>
-        <div class="panel-body" style="padding-top:0"><div id="leaveListPanelMain"></div></div>
+        <div class="panel-body" style="padding-top:0">
+          <div id="leaveListPanel"></div>
+        </div>
+        <div class="panel-body" style="padding-top:0;border-top:1px solid var(--border);margin-top:4px">
+          <div style="font-weight:700;color:#0f4c81;font-size:13px;margin-bottom:2px">🗓️ সাপ্তাহিক/মাসিক ছুটির কোটা</div>
+          <div style="font-size:11.5px;color:var(--text-light);margin-bottom:8px">প্রতি কর্মীর জন্য সাপ্তাহিক/মাসিক কতদিন ছুটি মঞ্জুর তা সেট করুন — এই কোটার ভেতরের অনুপস্থিতি বেতন থেকে কর্তন হবে না</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>কর্মী</th><th>পদবি</th><th>কোটার ধরন</th><th>দিনের সংখ্যা</th><th>এই মাসে সমতুল্য</th></tr></thead>
+            <tbody id="leaveQuotaTable"></tbody>
+          </table></div>
+        </div>
       </div>
       <div class="panel">
+
         <div class="panel-header">
           <div class="panel-title">📊 মাসিক বিস্তারিত এটেন্ডেন্স</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -3375,8 +3387,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <select id="salYear" onchange="renderSalarySheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;"></select>
             <button class="btn btn-success btn-sm" onclick="queueAllSalaryWhatsApp()">🚀 সবাইকে WhatsApp পাঠান</button>
             <button class="btn btn-success btn-sm" onclick="queueAllSalaryTelegram()">🚀 সবাইকে Telegram পাঠান</button>
-            <button class="btn btn-warning btn-sm" id="btnTriggerOutbox" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-whatsapp-bot')">🔄 এখনই WhatsApp আউটবক্স পাঠান</button>
-            <button class="btn btn-warning btn-sm" id="btnTriggerOutboxTgSal" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram আউটবক্স পাঠান</button>
             <button class="btn btn-warning btn-sm" onclick="printSalarySheet()">🖨️ হাসপাতাল কপি</button>
             <button class="btn btn-primary btn-sm" onclick="printSalarySlips()">✉️ স্যালারি স্লিপ</button>
           </div>
@@ -3391,127 +3401,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <tbody id="salaryTable"></tbody>
             <tfoot id="salaryFoot"></tfoot>
           </table></div>
-        </div>
-      </div>
-
-      <!-- WhatsApp আউটবক্স (পাঠানোর অপেক্ষমাণ/সফল/ব্যর্থ লিস্ট) -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">📤 WhatsApp আউটবক্স</div>
-          <div style="font-size:12px;color:var(--text-light)">প্রতি কয়েক মিনিটে বট মেসেজ পাঠায় — এখানে স্ট্যাটাস দেখা যাবে</div>
-        </div>
-        <div class="panel-body">
-          <div class="table-wrap"><table>
-            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>নম্বর</th><th>স্ট্যাটাস</th></tr></thead>
-            <tbody id="waOutboxTable" class="wa-outbox-tbody"></tbody>
-          </table></div>
-        </div>
-      </div>
-
-      <!-- Telegram আউটবক্স (পাঠানোর অপেক্ষমাণ/সফল/ব্যর্থ লিস্ট) -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">📤 Telegram আউটবক্স</div>
-          <div style="font-size:12px;color:var(--text-light)">প্রতি কয়েক মিনিটে বট মেসেজ পাঠায় — এখানে স্ট্যাটাস দেখা যাবে</div>
-        </div>
-        <div class="panel-body">
-          <div class="table-wrap"><table>
-            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>Chat ID</th><th>স্ট্যাটাস</th></tr></thead>
-            <tbody id="tgOutboxTable" class="tg-outbox-tbody"></tbody>
-          </table></div>
-        </div>
-      </div>
-
-      <!-- এটেন্ডেন্স ট্র্যাকার -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">🕐 এটেন্ডেন্স ট্র্যাকার</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input type="date" id="attendDate" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="renderAttendancePanel()">
-            <button class="btn btn-outline btn-sm" onclick="renderAttendancePanel()">🔄 রিফ্রেশ</button>
-            <button class="btn btn-primary btn-sm" onclick="printAttendanceSheet()">🖨️ এটেন্ডেন্স শিট</button>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div id="attendancePanel"></div>
-        </div>
-      </div>
-
-      <!-- অনুমোদিত ছুটি -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">🗓️ ছুটি অনুমোদন</div>
-          <button class="btn btn-primary btn-sm" onclick="toggleLeaveForm()">➕ ছুটি দিন</button>
-        </div>
-        <div class="panel-body" id="leaveFormBody" style="display:none">
-          <div class="form-row three">
-            <div class="field"><label>কর্মী *</label>
-              <select id="lfStaff" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-                <option value="">-- কর্মী বেছে নিন --</option>
-              </select>
-            </div>
-            <div class="field"><label>ছুটির তারিখ *</label><input type="date" id="lfDate"></div>
-            <div class="field"><label>ছুটির ধরন *</label>
-              <select id="lfType" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-                <option value="casual">নৈমিত্তিক ছুটি (CL)</option>
-                <option value="sick">অসুস্থতাজনিত ছুটি (SL)</option>
-                <option value="annual">বার্ষিক ছুটি (AL)</option>
-                <option value="unpaid">বিনা বেতনে ছুটি</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="field"><label>কারণ / নোট</label><input type="text" id="lfNote" placeholder="ঐচ্ছিক"></div>
-          </div>
-          <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-outline" onclick="toggleLeaveForm()">বাতিল</button>
-            <button class="btn btn-success" onclick="saveLeave()">✅ ছুটি অনুমোদন করুন</button>
-          </div>
-        </div>
-        <div class="panel-body" style="padding-top:0">
-          <div id="leaveListPanel"></div>
-        </div>
-        <div class="panel-body" style="padding-top:0;border-top:1px solid var(--border);margin-top:4px">
-          <div style="font-weight:700;color:#0f4c81;font-size:13px;margin-bottom:2px">🗓️ সাপ্তাহিক/মাসিক ছুটির কোটা</div>
-          <div style="font-size:11.5px;color:var(--text-light);margin-bottom:8px">প্রতি কর্মীর জন্য সাপ্তাহিক/মাসিক কতদিন ছুটি মঞ্জুর তা সেট করুন — এই কোটার ভেতরের অনুপস্থিতি বেতন থেকে কর্তন হবে না</div>
-          <div class="table-wrap"><table>
-            <thead><tr><th>কর্মী</th><th>পদবি</th><th>কোটার ধরন</th><th>দিনের সংখ্যা</th><th>এই মাসে সমতুল্য</th></tr></thead>
-            <tbody id="leaveQuotaTable"></tbody>
-          </table></div>
-        </div>
-      </div>
-
-      <!-- সার্জন / অপারেশন ডাক্তার -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">🔪 সার্জন / অপারেশন ডাক্তার</div>
-          <button class="btn btn-primary btn-sm" onclick="toggleSurgeonForm()">➕ নতুন সার্জন</button>
-        </div>
-        <div class="panel-body" id="surgeonFormBody" style="display:none">
-          <div class="form-row three">
-            <div class="field"><label>ডাক্তারের নাম *</label><input type="text" id="sgName" placeholder="ডাক্তারের নাম"></div>
-            <div class="field"><label>বিশেষত্ব</label><input type="text" id="sgSpec" placeholder="যেমন: Cataract Surgeon"></div>
-            <div class="field"><label>ফোন</label><input type="text" id="sgPhone" placeholder="০১XXXXXXXXX"></div>
-          </div>
-          <div class="form-row three">
-            <div class="field"><label>স্যালারি ধরন *</label>
-              <select id="sgType" onchange="toggleSurgeonPayType()">
-                <option value="per_op">প্রতি অপারেশন ভিত্তিক</option>
-                <option value="fixed">সেশন ফিক্সড (যত অপারেশন হোক)</option>
-              </select>
-            </div>
-            <div class="field" id="sgPerOpField">
-              <label>প্রতি অপারেশন পারিশ্রমিক (৳)</label>
-              <input type="number" id="sgPerOp" placeholder="০.০০" min="0"></div>
-            <div class="field" id="sgFixedField" style="display:none">
-              <label>সেশন ফিক্সড পেমেন্ট (৳)</label>
-              <input type="number" id="sgFixed" placeholder="০.০০" min="0"></div>
-          </div>
-          <input type="hidden" id="sgEditId" value="">
-          <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-outline" onclick="clearSurgeonForm()">🔄 রিসেট</button>
-            <button class="btn btn-success" onclick="saveSurgeon()">✅ সেভ করুন</button>
-          </div>
         </div>
       </div>
 
@@ -3579,16 +3468,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
 
-      <!-- সার্জন তালিকা -->
-      <div class="panel">
-        <div class="panel-header"><div class="panel-title">👨‍⚕️ সার্জনের তালিকা</div></div>
-        <div class="panel-body">
-          <div class="table-wrap"><table>
-            <thead><tr><th>#</th><th>নাম</th><th>বিশেষত্ব</th><th>ফোন</th><th>স্যালারি ধরন</th><th>পারিশ্রমিক</th><th>অ্যাকশন</th></tr></thead>
-            <tbody id="surgeonListTable"></tbody>
-          </table></div>
-        </div>
-      </div>
     </div>
     <!-- নিয়োগপত্র -->
     <div id="pg-appointletter" class="page-view">
@@ -4153,136 +4032,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
 
-      <!-- ম্যানুয়াল ট্রিগার সেটিংস -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">⚙️ ম্যানুয়াল ট্রিগার সেটিংস</div>
-        </div>
-        <div class="panel-body">
-          <div class="form-row three">
-            <div class="field"><label>Worker URL</label>
-              <input type="text" id="triggerWorkerUrl" placeholder="https://xxx.workers.dev" onchange="saveTriggerSettings()">
-            </div>
-            <div class="field"><label>App Secret</label>
-              <input type="text" id="triggerAppSecret" placeholder="আপনার সেট করা secret" onchange="saveTriggerSettings()">
-            </div>
-            <div class="field"><label>✈️ Telegram Group Chat ID <span style="font-size:11px;color:var(--text-light);font-weight:400">("গ্রুপ"/"উভয়" মোডের owner-রা এই গ্রুপেই মেসেজ পাবেন)</span></label>
-              <input type="text" id="tgGroupChatId" placeholder="যেমন: -1001234567890" onchange="saveTriggerSettings()">
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <button class="btn btn-warning btn-sm" id="btnTriggerSummary" onclick="triggerWorkflow('daily-summary.yml', this, 'icon-hospital-whatsapp-bot')">🔄 এখনই WhatsApp দৈনিক সামারি পাঠান</button>
-            <button class="btn btn-warning btn-sm" id="btnTriggerSummaryTg" onclick="triggerWorkflow('daily-summary.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram দৈনিক সামারি পাঠান</button>
-            <button class="btn btn-warning btn-sm" id="btnTriggerOutboxTg" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram আউটবক্স পাঠান</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- রিমোট QR স্ক্যান (WhatsApp সেশন মেয়াদোত্তীর্ণ হলে PC ছাড়াই নতুন করা) -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">🔗 রিমোট QR স্ক্যান (সেশন রিফ্রেশ)</div>
-          <button class="btn btn-warning btn-sm" onclick="triggerWorkflow('generate-session-remote.yml', this)">🔄 নতুন সেশন জেনারেট শুরু করুন</button>
-        </div>
-        <div class="panel-body">
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px">
-            উপরের বাটনে ক্লিক করার ৩০-৬০ সেকেন্ড পর নিচে QR কোড দেখা যাবে —
-            হাসপাতালের WhatsApp নম্বর দিয়ে (Settings → Linked Devices → Link a Device)
-            স্ক্যান করুন। স্ক্যান সফল হলে নতুন সেশন স্বয়ংক্রিয়ভাবে GitHub-এ সেভ হয়ে যাবে,
-            কিছু কপি-পেস্ট করতে হবে না।
-          </p>
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
-            <button class="btn btn-outline btn-sm" onclick="checkRemoteQr()">🔍 এখনই চেক করুন</button>
-            <span id="remoteQrStatus" style="font-size:12px;color:var(--text-light)">প্রতি ৪ সেকেন্ডে স্বয়ংক্রিয়ভাবে চেক হচ্ছে...</span>
-          </div>
-          <div id="remoteQrDisplay" style="text-align:center;padding:10px"></div>
-        </div>
-      </div>
-
-      <!-- কাস্টম WhatsApp ব্রডকাস্ট -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">📢 কাস্টম বার্তা পাঠান (Owner-দের WhatsApp-এ)</div>
-        </div>
-        <div class="panel-body">
-          <div class="field" style="margin-bottom:12px">
-            <label>প্রাপক নির্বাচন করুন</label>
-            <div style="margin-bottom:8px">
-              <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
-                <input type="checkbox" id="bcSelectAll" onchange="toggleBcSelectAll()"> সব Owner নির্বাচন করুন
-              </label>
-            </div>
-            <div id="bcOwnerCheckboxes" style="display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)"></div>
-          </div>
-          <div class="field" style="margin-bottom:12px">
-            <label>বার্তা লিখুন</label>
-            <textarea id="bcMessage" rows="4" placeholder="এখানে আপনার বার্তা লিখুন..." style="resize:vertical" oninput="updateBcPreview()"></textarea>
-          </div>
-          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:12px">
-            <div style="font-size:11px;color:#0369a1;font-weight:600;margin-bottom:6px">📱 প্রিভিউ (এইভাবে পৌঁছাবে)</div>
-            <div id="bcPreview" style="font-size:13px;white-space:pre-wrap;color:#1e293b;font-family:inherit;line-height:1.6">🏥 হাসপাতালের নাম\n━━━━━━━━━━━━━━━\n[আপনার লেখা বার্তা এখানে দেখাবে]\n━━━━━━━━━━━━━━━\n📅 তারিখ — এডমিন প্যানেল থেকে</div>
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            <button class="btn btn-success" onclick="queueBroadcastMessage()">🚀 নির্বাচিত সবাইকে পাঠান</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- কাস্টম Telegram ব্রডকাস্ট -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">📢 কাস্টম বার্তা পাঠান (Owner-দের Telegram-এ)</div>
-        </div>
-        <div class="panel-body">
-          <div class="field" style="margin-bottom:12px">
-            <label>প্রাপক নির্বাচন করুন</label>
-            <div style="margin-bottom:8px">
-              <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
-                <input type="checkbox" id="bcSelectAllTg" onchange="toggleTgBcSelectAll()"> সব Owner নির্বাচন করুন
-              </label>
-            </div>
-            <div id="bcOwnerCheckboxesTg" style="display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)"></div>
-          </div>
-          <div class="field" style="margin-bottom:12px">
-            <label>বার্তা লিখুন</label>
-            <textarea id="bcMessageTg" rows="4" placeholder="এখানে আপনার বার্তা লিখুন..." style="resize:vertical" oninput="updateTgBcPreview()"></textarea>
-          </div>
-          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:12px">
-            <div style="font-size:11px;color:#0369a1;font-weight:600;margin-bottom:6px">✈️ প্রিভিউ (এইভাবে পৌঁছাবে)</div>
-            <div id="bcPreviewTg" style="font-size:13px;white-space:pre-wrap;color:#1e293b;font-family:inherit;line-height:1.6">🏥 হাসপাতালের নাম\n━━━━━━━━━━━━━━━\n[আপনার লেখা বার্তা এখানে দেখাবে]\n━━━━━━━━━━━━━━━\n📅 তারিখ — এডমিন প্যানেল থেকে</div>
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            <button class="btn btn-success" onclick="queueTgBroadcastMessage()">🚀 নির্বাচিত সবাইকে পাঠান</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- WhatsApp আউটবক্স স্ট্যাটাস (Owner পেজ থেকেও দেখা যাবে) -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">📤 WhatsApp আউটবক্স</div>
-        </div>
-        <div class="panel-body">
-          <div class="table-wrap"><table>
-            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>নম্বর</th><th>স্ট্যাটাস</th></tr></thead>
-            <tbody id="waOutboxTableOwners" class="wa-outbox-tbody"></tbody>
-          </table></div>
-        </div>
-      </div>
-
-      <!-- Telegram আউটবক্স স্ট্যাটাস (Owner পেজ থেকেও দেখা যাবে) -->
-      <div class="panel admin-only">
-        <div class="panel-header">
-          <div class="panel-title">📤 Telegram আউটবক্স</div>
-        </div>
-        <div class="panel-body">
-          <div class="table-wrap"><table>
-            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>Chat ID</th><th>স্ট্যাটাস</th></tr></thead>
-            <tbody id="tgOutboxTableOwners" class="tg-outbox-tbody"></tbody>
-          </table></div>
-        </div>
-      </div>
-
       <!-- শেয়ারহোল্ডার তালিকা -->
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 শেয়ারহোল্ডার তালিকা</div></div>
@@ -4399,6 +4148,142 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <thead><tr><th>উত্তোলন নং</th><th>তারিখ</th><th>শেয়ারহোল্ডার</th><th>পরিমাণ</th><th>মাধ্যম</th><th>ব্যক্তি</th><th>স্ট্যাটাস</th><th>বিবরণ</th><th>এন্ট্রিকারী</th></tr></thead>
           <tbody id="shWithdrawalHistTable"></tbody>
         </table></div></div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS & MESSAGING (ম্যানুয়াল ট্রিগার, রিমোট QR স্ক্যান, কাস্টম বার্তা, আউটবক্স) -->
+    <div id="pg-notifications" class="page-view">
+      <!-- ম্যানুয়াল ট্রিগার সেটিংস -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">⚙️ ম্যানুয়াল ট্রিগার সেটিংস</div>
+        </div>
+        <div class="panel-body">
+          <div class="form-row three">
+            <div class="field"><label>Worker URL</label>
+              <input type="text" id="triggerWorkerUrl" placeholder="https://xxx.workers.dev" onchange="saveTriggerSettings()">
+            </div>
+            <div class="field"><label>App Secret</label>
+              <input type="text" id="triggerAppSecret" placeholder="আপনার সেট করা secret" onchange="saveTriggerSettings()">
+            </div>
+            <div class="field"><label>✈️ Telegram Group Chat ID <span style="font-size:11px;color:var(--text-light);font-weight:400">("গ্রুপ"/"উভয়" মোডের owner-রা এই গ্রুপেই মেসেজ পাবেন)</span></label>
+              <input type="text" id="tgGroupChatId" placeholder="যেমন: -1001234567890" onchange="saveTriggerSettings()">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn btn-warning btn-sm" id="btnTriggerSummary" onclick="triggerWorkflow('daily-summary.yml', this, 'icon-hospital-whatsapp-bot')">🔄 এখনই WhatsApp দৈনিক সামারি পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerSummaryTg" onclick="triggerWorkflow('daily-summary.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram দৈনিক সামারি পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerOutbox" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-whatsapp-bot')">🔄 এখনই WhatsApp আউটবক্স পাঠান</button>
+            <button class="btn btn-warning btn-sm" id="btnTriggerOutboxTg" onclick="triggerWorkflow('process-outbox.yml', this, 'icon-hospital-telegram-bot')">🔄 এখনই Telegram আউটবক্স পাঠান</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- রিমোট QR স্ক্যান (WhatsApp সেশন মেয়াদোত্তীর্ণ হলে PC ছাড়াই নতুন করা) -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">🔗 রিমোট QR স্ক্যান (সেশন রিফ্রেশ)</div>
+          <button class="btn btn-warning btn-sm" onclick="triggerWorkflow('generate-session-remote.yml', this)">🔄 নতুন সেশন জেনারেট শুরু করুন</button>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px">
+            উপরের বাটনে ক্লিক করার ৩০-৬০ সেকেন্ড পর নিচে QR কোড দেখা যাবে —
+            হাসপাতালের WhatsApp নম্বর দিয়ে (Settings → Linked Devices → Link a Device)
+            স্ক্যান করুন। স্ক্যান সফল হলে নতুন সেশন স্বয়ংক্রিয়ভাবে GitHub-এ সেভ হয়ে যাবে,
+            কিছু কপি-পেস্ট করতে হবে না।
+          </p>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+            <button class="btn btn-outline btn-sm" onclick="checkRemoteQr()">🔍 এখনই চেক করুন</button>
+            <span id="remoteQrStatus" style="font-size:12px;color:var(--text-light)">প্রতি ৪ সেকেন্ডে স্বয়ংক্রিয়ভাবে চেক হচ্ছে...</span>
+          </div>
+          <div id="remoteQrDisplay" style="text-align:center;padding:10px"></div>
+        </div>
+      </div>
+
+      <!-- কাস্টম WhatsApp ব্রডকাস্ট -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">📢 কাস্টম বার্তা পাঠান (Owner-দের WhatsApp-এ)</div>
+        </div>
+        <div class="panel-body">
+          <div class="field" style="margin-bottom:12px">
+            <label>প্রাপক নির্বাচন করুন</label>
+            <div style="margin-bottom:8px">
+              <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+                <input type="checkbox" id="bcSelectAll" onchange="toggleBcSelectAll()"> সব Owner নির্বাচন করুন
+              </label>
+            </div>
+            <div id="bcOwnerCheckboxes" style="display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)"></div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>বার্তা লিখুন</label>
+            <textarea id="bcMessage" rows="4" placeholder="এখানে আপনার বার্তা লিখুন..." style="resize:vertical" oninput="updateBcPreview()"></textarea>
+          </div>
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-size:11px;color:#0369a1;font-weight:600;margin-bottom:6px">📱 প্রিভিউ (এইভাবে পৌঁছাবে)</div>
+            <div id="bcPreview" style="font-size:13px;white-space:pre-wrap;color:#1e293b;font-family:inherit;line-height:1.6">🏥 হাসপাতালের নাম\n━━━━━━━━━━━━━━━\n[আপনার লেখা বার্তা এখানে দেখাবে]\n━━━━━━━━━━━━━━━\n📅 তারিখ — এডমিন প্যানেল থেকে</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-success" onclick="queueBroadcastMessage()">🚀 নির্বাচিত সবাইকে পাঠান</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- কাস্টম Telegram ব্রডকাস্ট -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">📢 কাস্টম বার্তা পাঠান (Owner-দের Telegram-এ)</div>
+        </div>
+        <div class="panel-body">
+          <div class="field" style="margin-bottom:12px">
+            <label>প্রাপক নির্বাচন করুন</label>
+            <div style="margin-bottom:8px">
+              <label style="display:inline-flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+                <input type="checkbox" id="bcSelectAllTg" onchange="toggleTgBcSelectAll()"> সব Owner নির্বাচন করুন
+              </label>
+            </div>
+            <div id="bcOwnerCheckboxesTg" style="display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)"></div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>বার্তা লিখুন</label>
+            <textarea id="bcMessageTg" rows="4" placeholder="এখানে আপনার বার্তা লিখুন..." style="resize:vertical" oninput="updateTgBcPreview()"></textarea>
+          </div>
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-size:11px;color:#0369a1;font-weight:600;margin-bottom:6px">✈️ প্রিভিউ (এইভাবে পৌঁছাবে)</div>
+            <div id="bcPreviewTg" style="font-size:13px;white-space:pre-wrap;color:#1e293b;font-family:inherit;line-height:1.6">🏥 হাসপাতালের নাম\n━━━━━━━━━━━━━━━\n[আপনার লেখা বার্তা এখানে দেখাবে]\n━━━━━━━━━━━━━━━\n📅 তারিখ — এডমিন প্যানেল থেকে</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-success" onclick="queueTgBroadcastMessage()">🚀 নির্বাচিত সবাইকে পাঠান</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- WhatsApp আউটবক্স স্ট্যাটাস -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">📤 WhatsApp আউটবক্স</div>
+          <div style="font-size:12px;color:var(--text-light)">প্রতি কয়েক মিনিটে বট মেসেজ পাঠায় — এখানে স্ট্যাটাস দেখা যাবে</div>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>নম্বর</th><th>স্ট্যাটাস</th></tr></thead>
+            <tbody id="waOutboxTable" class="wa-outbox-tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Telegram আউটবক্স স্ট্যাটাস -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">📤 Telegram আউটবক্স</div>
+          <div style="font-size:12px;color:var(--text-light)">প্রতি কয়েক মিনিটে বট মেসেজ পাঠায় — এখানে স্ট্যাটাস দেখা যাবে</div>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>সময়</th><th>ধরন</th><th>প্রাপক</th><th>Chat ID</th><th>স্ট্যাটাস</th></tr></thead>
+            <tbody id="tgOutboxTable" class="tg-outbox-tbody"></tbody>
+          </table></div>
+        </div>
       </div>
     </div>
 
@@ -4690,6 +4575,51 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="table-wrap"><table>
             <thead><tr><th>তারিখ</th><th>মেমো</th><th>ডাক্তার</th><th style="text-align:right">যোগ্য এমাউন্ট</th><th>%</th><th style="text-align:right">কমিশন</th><th>ডিউটির পরে?</th></tr></thead>
             <tbody id="docCommHistTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- সার্জন / অপারেশন ডাক্তার -->
+      <div class="panel admin-only">
+        <div class="panel-header">
+          <div class="panel-title">🔪 সার্জন / অপারেশন ডাক্তার</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleSurgeonForm()">➕ নতুন সার্জন</button>
+        </div>
+        <div class="panel-body" id="surgeonFormBody" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>ডাক্তারের নাম *</label><input type="text" id="sgName" placeholder="ডাক্তারের নাম"></div>
+            <div class="field"><label>বিশেষত্ব</label><input type="text" id="sgSpec" placeholder="যেমন: Cataract Surgeon"></div>
+            <div class="field"><label>ফোন</label><input type="text" id="sgPhone" placeholder="০১XXXXXXXXX"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>স্যালারি ধরন *</label>
+              <select id="sgType" onchange="toggleSurgeonPayType()">
+                <option value="per_op">প্রতি অপারেশন ভিত্তিক</option>
+                <option value="fixed">সেশন ফিক্সড (যত অপারেশন হোক)</option>
+              </select>
+            </div>
+            <div class="field" id="sgPerOpField">
+              <label>প্রতি অপারেশন পারিশ্রমিক (৳)</label>
+              <input type="number" id="sgPerOp" placeholder="০.০০" min="0"></div>
+            <div class="field" id="sgFixedField" style="display:none">
+              <label>সেশন ফিক্সড পেমেন্ট (৳)</label>
+              <input type="number" id="sgFixed" placeholder="০.০০" min="0"></div>
+          </div>
+          <input type="hidden" id="sgEditId" value="">
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="clearSurgeonForm()">🔄 রিসেট</button>
+            <button class="btn btn-success" onclick="saveSurgeon()">✅ সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- সার্জন তালিকা -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">👨‍⚕️ সার্জনের তালিকা</div></div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>#</th><th>নাম</th><th>বিশেষত্ব</th><th>ফোন</th><th>স্যালারি ধরন</th><th>পারিশ্রমিক</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="surgeonListTable"></tbody>
           </table></div>
         </div>
       </div>
@@ -7253,7 +7183,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
 let activeDueId = null;
 let activeDueSource = 'visit'; // 'visit' | 'camp'
 let serviceCount = 0;
@@ -7695,7 +7625,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -8547,7 +8477,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -8648,7 +8578,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -9163,6 +9093,7 @@ const pageMap = {
   checkbook:    { title:'📒 চেক বই', sub:'চেক বই ও প্রতিটি চেকের লেনদেনের বিস্তারিত' },
   loan:         { title:'💳 লোন ট্র্যাকিং', sub:'লোন গ্রহণ ও পরিশোধের রেকর্ড' },
   shareholders: { title:'👥 শেয়ারহোল্ডার', sub:'মালিকানা ও লাভ বন্টন' },
+  notifications:{ title:'🔔 নোটিফিকেশন ও মেসেজিং', sub:'ম্যানুয়াল ট্রিগার, রিমোট QR স্ক্যান, কাস্টম বার্তা ও আউটবক্স স্ট্যাটাস' },
   funds:        { title:'🏦 ফান্ড', sub:'লাভ বন্টন ফান্ড খাতভিত্তিক জমা হিসাব' },
   doctors:      { title:'🩺 ডাক্তার', sub:'ডাক্তার ব্যবস্থাপনা ও কমিশন' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
@@ -9207,7 +9138,7 @@ function showPage(name) {
   }
   if (name === 'dashboard') { refreshDashboard(); makeTableResizable('recentTable'); }
   if (name === 'report') { initReportFilters(); renderReport(); }
-  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderLeaveQuotaTable(); renderWaOutboxTable(); renderTgOutboxTable(); }
+  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderLeaveQuotaTable(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); }
@@ -9220,7 +9151,8 @@ function showPage(name) {
   if (name === 'bank')         { initBankPage(); }
   if (name === 'checkbook')    { initCheckbookPage(); }
   if (name === 'loan')         { initLoanPage(); }
-  if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); renderBcOwnerCheckboxes(); updateBcPreview(); renderWaOutboxTable(); renderTgOutboxTable(); renderTgBcOwnerCheckboxes(); updateTgBcPreview(); loadTriggerSettings(); startRemoteQrPolling(); } else { stopRemoteQrPolling(); }
+  if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); }
+  if (name === 'notifications') { renderBcOwnerCheckboxes(); updateBcPreview(); renderTgBcOwnerCheckboxes(); updateTgBcPreview(); renderWaOutboxTable(); renderTgOutboxTable(); loadTriggerSettings(); startRemoteQrPolling(); } else { stopRemoteQrPolling(); }
   if (name === 'funds')        { renderFundsPage(); }
   if (name === 'doctors')      { renderDoctorsPage(); }
   if (name === 'officialpad')  { initOfficialPad(); }
@@ -14020,7 +13952,6 @@ function editAttendanceRecord(recordId) {
 
 function _refreshAllAttendanceViews() {
   if (typeof rebuildAttendModal==='function') rebuildAttendModal();
-  if (typeof renderAttendancePanel==='function' && document.getElementById('attendancePanel')) renderAttendancePanel();
   if (typeof renderAttendanceMain==='function' && document.getElementById('attendancePanelMain')) renderAttendanceMain();
   if (window._rebuildAttendDayDetail && document.getElementById('attendDayDetailWrap')) window._rebuildAttendDayDetail();
   ['adm','rec'].forEach(function(p){ if (document.getElementById(p+'AdtWrap')) renderAttendanceDetailTable(p); });
@@ -14099,14 +14030,14 @@ function saveLeave() {
   if (exists) { showToast('⚠️ এই তারিখে ছুটি আগেই দেওয়া আছে!'); return; }
   var staff = (appData.staff||[]).find(function(s){return String(s.id)===staffId;});
   appData.leaveRecords.push({id:Date.now(),staffId:staffId,staffName:staff?staff.name:'—',date:date,type:type,note:note.trim(),by:currentUser?currentUser.name:'অ্যাডমিন'});
-  saveData(); toggleLeaveForm(); renderLeaveList(); renderAttendancePanel();
+  saveData(); toggleLeaveForm(); renderLeaveList(); renderAttendanceMain();
   showToast('✅ '+(staff?staff.name:'কর্মী')+' — ছুটি অনুমোদন করা হয়েছে ('+date+')');
 }
 
 function deleteLeave(id) {
   if (!confirm('এই ছুটির রেকর্ড মুছে ফেলবেন?')) return;
   appData.leaveRecords = (appData.leaveRecords||[]).filter(function(l){return l.id!==id;});
-  saveData(); renderLeaveList(); renderAttendancePanel();
+  saveData(); renderLeaveList(); renderAttendanceMain();
   showToast('🗑️ ছুটি বাতিল করা হয়েছে');
 }
 
@@ -14125,52 +14056,6 @@ function renderLeaveList() {
     }).join('')+'</tbody></table></div>';
 }
 
-function toggleLeaveFormMain() {
-  var b = document.getElementById('leaveFormBodyMain');
-  if (!b) return;
-  b.style.display = b.style.display==='none'||b.style.display==='' ? 'block' : 'none';
-  if (b.style.display==='block') {
-    document.getElementById('lfDateMain').value = todayStr();
-    var sel = document.getElementById('lfStaffMain');
-    if (sel) {
-      sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
-      (appData.staff||[]).filter(function(s){return s.status==='active';}).forEach(function(s){
-        sel.innerHTML += '<option value="'+s.id+'">'+s.name+' — '+(s.desig||'')+'</option>';
-      });
-    }
-  }
-}
-
-function saveLeaveMain() {
-  var staffId = document.getElementById('lfStaffMain')&&document.getElementById('lfStaffMain').value;
-  var date    = document.getElementById('lfDateMain')&&document.getElementById('lfDateMain').value;
-  var type    = document.getElementById('lfTypeMain')&&document.getElementById('lfTypeMain').value;
-  var note    = (document.getElementById('lfNoteMain')&&document.getElementById('lfNoteMain').value)||'';
-  if (!staffId||!date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
-  if (!appData.leaveRecords) appData.leaveRecords = [];
-  var exists = appData.leaveRecords.find(function(l){return String(l.staffId)===String(staffId)&&l.date===date;});
-  if (exists) { showToast('⚠️ এই তারিখে ছুটি আগেই দেওয়া আছে!'); return; }
-  var staff = (appData.staff||[]).find(function(s){return String(s.id)===staffId;});
-  appData.leaveRecords.push({id:Date.now(),staffId:staffId,staffName:staff?staff.name:'—',date:date,type:type,note:note.trim(),by:currentUser?currentUser.name:'অ্যাডমিন'});
-  saveData(); toggleLeaveFormMain(); renderLeaveListMain(); renderAttendanceMain();
-  showToast('✅ '+(staff?staff.name:'কর্মী')+' — ছুটি অনুমোদন করা হয়েছে ('+date+')');
-}
-
-function renderLeaveListMain() {
-  var panel = document.getElementById('leaveListPanelMain');
-  if (!panel) return;
-  var recs = (appData.leaveRecords||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,30);
-  var leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'বিনা বেতনে'};
-  if (!recs.length) { panel.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa">কোনো ছুটির রেকর্ড নেই</div>'; return; }
-  panel.innerHTML = '<div class="table-wrap"><table><thead><tr><th>তারিখ</th><th>কর্মীর নাম</th><th>ছুটির ধরন</th><th>কারণ</th><th></th></tr></thead><tbody>'
-    +recs.map(function(l){
-      return '<tr><td>'+l.date+'</td><td style="font-weight:600">'+(l.staffName||'—')+'</td>'
-        +'<td><span style="background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">'+(leaveTypes[l.type]||l.type)+'</span></td>'
-        +'<td>'+(l.note||'—')+'</td>'
-        +'<td><button class="btn btn-danger btn-sm" onclick="deleteLeave('+l.id+');renderLeaveListMain()">🗑️</button></td></tr>';
-    }).join('')+'</tbody></table></div>';
-}
-
 function initAttendanceStandalonePage() {
   var el = document.getElementById('attendDateMain');
   if (el && !el.value) el.value = todayStr();
@@ -14180,14 +14065,8 @@ function initAttendanceStandalonePage() {
   if (mEl && !mEl.value) mEl.value = String(now.getMonth()+1);
   if (yEl && !yEl.value) yEl.value = String(now.getFullYear());
   renderAttendanceMain();
-  renderLeaveListMain();
-  var sel = document.getElementById('lfStaffMain');
-  if (sel) {
-    sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
-    (appData.staff||[]).filter(function(s){return s.status==='active';}).forEach(function(s){
-      sel.innerHTML += '<option value="'+s.id+'">'+s.name+' — '+(s.desig||'')+'</option>';
-    });
-  }
+  renderLeaveList();
+  renderLeaveQuotaTable();
   initAttendanceDetailSection('adm');
 }
 
@@ -14370,21 +14249,6 @@ function renderAttendanceDetailTable(prefix) {
 
 // ===== ATTENDANCE MODULE =====
 
-function initAttendancePage() {
-  const el = document.getElementById('attendDate');
-  if (el && !el.value) el.value = todayStr();
-  renderAttendancePanel();
-  renderLeaveList();
-  // Leave form staff dropdown আপডেট করো
-  const sel = document.getElementById('lfStaff');
-  if (sel) {
-    sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
-    (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
-      sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
-    });
-  }
-}
-
 // ✅ কর্মীর তালিকা খালি পেলে সাথে সাথে "কোনো কর্মী নেই" না দেখিয়ে — Firebase থেকে ডাটা এখনো
 // সিঙ্ক হয়ে না থাকলে সেটা আলাদাভাবে বলে দেয় (নাহলে অ্যাপ খুলে সাথে সাথে IN/OUT চাপলে ভুলভাবে
 // "কর্মী নেই" দেখাতো, যদিও আসলে স্টাফ ডাটা সার্ভারে ছিল — শুধু লোড হতে একটু সময় লেগেছিল)
@@ -14392,22 +14256,6 @@ function _emptyStaffMsg() {
   return _fbInitialSyncDone
     ? '<div style="text-align:center;padding:20px;color:#aaa">কোনো কর্মী নেই</div>'
     : '<div style="text-align:center;padding:20px;color:#aaa">⏳ ডাটা লোড হচ্ছে, একটু অপেক্ষা করুন...</div>';
-}
-
-function renderAttendancePanel() {
-  var date = (document.getElementById('attendDate')&&document.getElementById('attendDate').value) || todayStr();
-  var panel = document.getElementById('attendancePanel');
-  if (!panel) return;
-  var staff = (appData.staff||[]).filter(function(s){return s.status==='active';});
-  if (!staff.length) { panel.innerHTML = _emptyStaffMsg(); if (!_fbInitialSyncDone) setTimeout(renderAttendancePanel, 1200); return; }
-  function btns(s,isIn,lastOut,d) {
-    var sid=s.id;
-    var inBg=isIn?'#dcfce7':'white', inColor=isIn?'#16a34a':'#666', inBorder=isIn?'#86efac':'#d1d5db';
-    var outBg=(!isIn&&lastOut)?'#fee2e2':'white', outColor=(!isIn&&lastOut)?'#dc2626':'#666', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
-    return '<button onclick="confirmMarkAttendance(this.dataset.sid,this.dataset.type,this.dataset.date,\'renderAttendancePanel\')" data-sid="'+sid+'" data-type="in" data-date="'+d+'" style="background:'+inBg+';color:'+inColor+';border:1.5px solid '+inBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✅ IN</button>'
-      +'<button onclick="confirmMarkAttendance(this.dataset.sid,this.dataset.type,this.dataset.date,\'renderAttendancePanel\')" data-sid="'+sid+'" data-type="out" data-date="'+d+'" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
-  }
-  panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
 }
 
 function renderAttendanceMain() {
@@ -14424,54 +14272,6 @@ function renderAttendanceMain() {
       +'<button onclick="confirmMarkAttendance(this.dataset.sid,this.dataset.type,this.dataset.date,\'renderAttendanceMain\')" data-sid="'+sid+'" data-type="out" data-date="'+d+'" style="background:'+outBg+';color:'+outColor+';border:1.5px solid '+outBorder+';border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🚪 OUT</button>';
   }
   panel.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+staff.map(function(s){return _buildAttendRow(s,date,btns);}).join('')+'</div>';
-}
-
-function toggleLeaveFormMain() {
-  const b = document.getElementById('leaveFormBodyMain');
-  if (!b) return;
-  b.style.display = b.style.display==='none' ? 'block' : 'none';
-  if (b.style.display==='block') {
-    document.getElementById('lfDateMain').value = todayStr();
-    const sel = document.getElementById('lfStaffMain');
-    if (sel) {
-      sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>';
-      (appData.staff||[]).filter(s=>s.status==='active').forEach(s=>{
-        sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.desig||''}</option>`;
-      });
-    }
-  }
-}
-
-function saveLeaveMain() {
-  const staffId = document.getElementById('lfStaffMain')?.value;
-  const date    = document.getElementById('lfDateMain')?.value;
-  const type    = document.getElementById('lfTypeMain')?.value;
-  const note    = document.getElementById('lfNoteMain')?.value.trim()||'';
-  if (!staffId||!date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
-  const exists = (appData.leaveRecords||[]).find(l=>String(l.staffId)===String(staffId)&&l.date===date);
-  if (exists) { showToast('⚠️ এই তারিখে ইতিমধ্যে ছুটি দেওয়া আছে!'); return; }
-  if (!appData.leaveRecords) appData.leaveRecords = [];
-  const staff = (appData.staff||[]).find(s=>String(s.id)===staffId);
-  appData.leaveRecords.push({ id:Date.now(), staffId:parseInt(staffId)||staffId, staffName:staff?.name||'—', date, type, note, by:currentUser?.name||'অ্যাডমিন' });
-  saveData(); toggleLeaveFormMain(); renderLeaveListMain(); renderAttendanceMain();
-  showToast(`✅ ${staff?.name||'কর্মী'} — ছুটি মঞ্জুর (${date})`);
-}
-
-function renderLeaveListMain() {
-  const panel = document.getElementById('leaveListPanelMain');
-  if (!panel) return;
-  const recs = (appData.leaveRecords||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  const leaveTypes = {casual:'CL',sick:'SL',annual:'AL',unpaid:'বিনা বেতনে'};
-  if (!recs.length) { panel.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa">কোনো ছুটির রেকর্ড নেই</div>'; return; }
-  panel.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>তারিখ</th><th>কর্মীর নাম</th><th>ছুটির ধরন</th><th>কারণ</th><th></th></tr></thead>
-    <tbody>${recs.map(l=>`<tr>
-      <td>${l.date}</td><td style="font-weight:600">${l.staffName||'—'}</td>
-      <td><span style="background:#fff7ed;color:#ea580c;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">${leaveTypes[l.type]||l.type}</span></td>
-      <td>${l.note||'—'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteLeave(${l.id});renderLeaveListMain()">🗑️</button></td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
 }
 
 // ===== SHAREHOLDER MODULE =====
@@ -22271,12 +22071,6 @@ ${advChipsHtml}
 }
 
 
-function printAttendanceSheet() {
-  var month = parseInt((document.getElementById('salMonth')||{}).value) || (new Date().getMonth()+1);
-  var year  = parseInt((document.getElementById('salYear')||{}).value)  || new Date().getFullYear();
-  printAttendanceSheetForPeriod(month, year);
-}
-
 function printAttendanceSheetForPeriod(month, year) {
   var months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   var hospName = appData.settings.hospName||'ICON Eye Hospital';
@@ -24841,11 +24635,31 @@ function normalizePhone(p) {
   else if (d.length===10 && d[0]!=='0') d = '0'+d;
   return d;
 }
-// প্রতিটি রোগীর জন্য একটি স্থিতিশীল ডিসপ্লে MRN (রোগীর কী থেকে হ্যাশ করে তৈরি — সেভ করা হয় না, প্রতিবার একই কী থেকে একই আইডি আসবে)
-function _patientMRN(key) {
-  let h=0;
-  for (let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
-  return 'ICON-'+String(h%100000).padStart(5,'0');
+// নাম-ফলব্যাক কী স্বাভাবিক করে — সাধারণ উপাধি (মোঃ, মোহাম্মদ, জনাব...) ও অতিরিক্ত স্পেস বাদ দেয়,
+// যাতে "মোঃ করিম" আর "করিম" ভুলবশত আলাদা রোগী হিসেবে না ভেঙে যায়
+function normalizeName(name) {
+  return (name||'')
+    .trim().toLowerCase()
+    .replace(/^(মোঃ|মো:|মো\.|মোহাম্মদ|মুহাম্মদ|জনাব|মিসেস|মিস|md\.?|mohammad|mohammed)\s+/i,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+// প্রতিটি রোগীর জন্য একটি স্থায়ী, ক্রমিক MRN — প্রথমবার দেখা হলে সিরিয়াল নম্বর দিয়ে বরাদ্দ হয় ও appData.patientMRNs-এ সেভ থাকে
+function assignMRNs(patients) {
+  if (!appData.patientMRNs) appData.patientMRNs = {};
+  let maxNum = 0;
+  Object.values(appData.patientMRNs).forEach(v=>{ const n=parseInt(String(v).split('-')[1])||0; if(n>maxNum) maxNum=n; });
+  let changed = false;
+  patients.forEach(p=>{
+    if (!appData.patientMRNs[p._key]) {
+      maxNum++;
+      appData.patientMRNs[p._key] = 'ICON-'+String(maxNum).padStart(5,'0');
+      changed = true;
+    }
+    p.mrn = appData.patientMRNs[p._key];
+  });
+  if (changed) saveData();
+  return patients;
 }
 // মার্জ-চেইন অনুসরণ করে আসল (প্রাইমারি) কী বের করে — patientMerges এ সোর্স→টার্গেট ম্যাপিং থাকে
 function resolvePatientKey(key) {
@@ -24857,15 +24671,16 @@ function buildPatientList() {
   const map = {};
   const addVisit = (patName,patPhone,patAge,patDoc,date,total,cashPaid,due,isCamp,patGender,patAddress)=>{
     const normPhone = normalizePhone(patPhone);
-    let key = normPhone || (patName||'').trim().toLowerCase();
+    let key = normPhone || normalizeName(patName);
     if (!key) return;
     key = resolvePatientKey(key); // ✅ ম্যানুয়ালি মার্জ করা রোগী থাকলে সরাসরি প্রাইমারি রেকর্ডে যোগ হবে
-    if(!map[key]) map[key]={name:patName,phone:normPhone||patPhone||'',age:patAge||'',doctor:patDoc||'',gender:patGender||'',address:patAddress||'',visits:[],totalBill:0,totalPaid:0,totalDue:0,lastVisit:'',isCampPatient:false,mrn:_patientMRN(key),_ages:[],_hasPhone:!!normPhone};
+    if(!map[key]) map[key]={name:patName,phone:normPhone||patPhone||'',age:patAge||'',doctor:patDoc||'',gender:patGender||'',address:patAddress||'',visits:[],totalBill:0,totalPaid:0,totalDue:0,lastVisit:'',isCampPatient:false,_ages:[],_genders:[],_hasPhone:!!normPhone};
     map[key].visits.push(date);
     map[key].totalBill+=total||0;
     map[key].totalPaid+=cashPaid||0;
     map[key].totalDue+=due||0;
     if (patAge) { const n=parseInt(patAge); if(!isNaN(n)) map[key]._ages.push(n); }
+    if (patGender) map[key]._genders.push(patGender);
     // সর্বশেষ ভিজিটের তারিখেই বয়স/ডাক্তার/লিঙ্গ/ঠিকানা আপডেট হবে
     if(!map[key].lastVisit||date>=map[key].lastVisit){
       map[key].lastVisit=date;
@@ -24881,11 +24696,14 @@ function buildPatientList() {
   (appData.adminBills||[]).forEach(b=>addVisit(b.patName,b.patPhone,b.patAge,b.patDoc,b.date,b.netBill,b.cashPaid,b.due,false,b.patGender,b.patAddress));
   // ✅ ক্যাম্পের রোগীরাও এখন প্যাশেন্ট ডেটাবেজে যুক্ত হবে (আগে বাদ পড়ে যেত)
   (appData.campVisits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,'',v.date,v.netTotal,v.paid,v.due,true));
-  return Object.entries(map).map(([key,p])=>{
-    // ⚠️ ফোন ছাড়া শুধু নামে গ্রুপ হওয়া রোগীর বয়সে বড় গরমিল থাকলে সম্ভাব্য ভিন্ন-রোগী সতর্কতা দেখাবে
+  const list = Object.entries(map).map(([key,p])=>{
+    // ⚠️ ফোন ছাড়া শুধু নামে গ্রুপ হওয়া রোগীর বয়সে বড় গরমিল বা লিঙ্গ-বিরোধ থাকলে সম্ভাব্য ভিন্ন-রোগী সতর্কতা দেখাবে
     const uniqAges=[...new Set(p._ages)];
-    p.possibleDuplicate = !p._hasPhone && uniqAges.length>=2 && (Math.max(...uniqAges)-Math.min(...uniqAges) > 12);
-    delete p._ages; delete p._hasPhone;
+    const uniqGenders=[...new Set(p._genders)];
+    const ageConflict = uniqAges.length>=2 && (Math.max(...uniqAges)-Math.min(...uniqAges) > 12);
+    const genderConflict = uniqGenders.length>=2;
+    p.possibleDuplicate = !p._hasPhone && (ageConflict || genderConflict);
+    delete p._ages; delete p._genders; delete p._hasPhone;
     // ✅ জন্মতারিখ সেভ করা থাকলে সেটা থেকে হিসাব করা বয়স (typed বয়স স্ট্রিং এর চেয়ে বেশি নির্ভরযোগ্য) ব্যবহার হবে
     const profile = (appData.patientProfiles||{})[key];
     if (profile) {
@@ -24897,6 +24715,7 @@ function buildPatientList() {
     p._key = key;
     return p;
   }).sort((a,b)=>b.lastVisit.localeCompare(a.lastVisit));
+  return assignMRNs(list);
 }
 // ডুপ্লিকেট রোগী মার্জ — sourceKey এর সব রেকর্ড targetKey (প্রাইমারি) এর সাথে একত্র হবে।
 // কোনো ভিজিট/বিল ডেটা মোছা বা পরিবর্তন হয় না — শুধু একটা alias সেভ হয়, তাই সম্পূর্ণ রিভার্সিবল (আনমার্জ করা যায়)
@@ -24917,6 +24736,8 @@ function mergePatientInto(sourceKey, targetKey) {
     appData.patientProfiles[finalTarget] = tp;
     delete appData.patientProfiles[sourceKey];
   }
+  // সোর্স-কী এর পুরনো MRN বাতিল — আনমার্জ করলে পরের বার নতুন MRN বরাদ্দ হবে
+  if (appData.patientMRNs) delete appData.patientMRNs[sourceKey];
   saveData();
   showToast('✅ রোগী মার্জ হয়ে গেছে');
 }
@@ -25121,8 +24942,8 @@ function renderPatientDB(filter='') {
   const pageList = list.slice(startIdx, startIdx+PATIENT_PAGE_SIZE);
   const today = todayStr();
   tbody.innerHTML=pageList.map((p,i)=>{
-    const key=(p.phone||p.name.trim().toLowerCase()).replace(/'/g,"\\'");
-    const dOrders = getPatientDeliveryOrders(p.phone||p.name.trim().toLowerCase());
+    const key=p._key.replace(/'/g,"\\'");
+    const dOrders = getPatientDeliveryOrders(p._key);
     const pendingCnt = dOrders.filter(d=>d.status==='pending').length;
     let dlvBadge = '—';
     if (dOrders.length) {
@@ -25130,7 +24951,7 @@ function renderPatientDB(filter='') {
         ? `<span class="badge badge-warning" style="font-size:10px;padding:2px 6px">📦 ${pendingCnt}টি পেন্ডিং</span>`
         : `<span class="badge badge-income" style="font-size:10px;padding:2px 6px">✅ ডেলিভারড</span>`;
     }
-    const appts = getPatientAppointments(p.phone||p.name.trim().toLowerCase());
+    const appts = getPatientAppointments(p._key);
     const nextAppt = appts.filter(a=>a.status==='pending'&&a.date>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0];
     const apptBadge = nextAppt
       ? `<span class="badge ${nextAppt.date===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">📅 ${formatDate(nextAppt.date)}${nextAppt.time?' '+nextAppt.time:''}</span>`
@@ -25242,7 +25063,7 @@ function showPatientDetail(key) {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
         <div>
           <h3 style="margin:0 0 2px;color:var(--primary);font-size:17px">${name}</h3>
-          <p style="margin:0;font-size:11px;color:var(--text-light)">${_patientMRN(key)}</p>
+          <p style="margin:0;font-size:11px;color:var(--text-light)">${(appData.patientMRNs||{})[key]||''}</p>
           <p style="margin:4px 0 0;font-size:13px;color:var(--text-light)">${phone||'—'}${age?' · বয়স '+age:''}${gender?' · '+gender:''}${doctor?' · ডা. '+doctor:''}</p>
           ${address?`<p style="margin:2px 0 0;font-size:12px;color:var(--text-light)">📍 ${address}</p>`:''}
         </div>
