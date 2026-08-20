@@ -4799,13 +4799,35 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <div id="pg-patients" class="page-view">
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🏥 রোগীর ডেটাবেস</div>
-          <input type="text" id="patientSearch" oninput="searchPatients()" placeholder="🔍 নাম বা ফোন দিয়ে খুঁজুন..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;width:220px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="text" id="patientSearch" oninput="searchPatients()" placeholder="🔍 নাম, ফোন বা MRN দিয়ে খুঁজুন..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;width:200px">
+            <select id="patDoctorFilter" onchange="searchPatients()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px"><option value="">সব ডাক্তার</option></select>
+            <select id="patGenderFilter" onchange="searchPatients()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+              <option value="">সব লিঙ্গ</option><option value="পুরুষ">পুরুষ</option><option value="মহিলা">মহিলা</option><option value="শিশু">শিশু</option>
+            </select>
+            <select id="patDueFilter" onchange="searchPatients()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+              <option value="">সব রোগী</option><option value="due">শুধু বাকি আছে</option><option value="clear">বাকি নেই</option>
+            </select>
+            <span style="font-size:12px;color:var(--text-light)">ভিজিট:</span>
+            <input type="date" id="patDateFrom" onchange="searchPatients()" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:12.5px">
+            <span style="font-size:12px;color:var(--text-light)">—</span>
+            <input type="date" id="patDateTo" onchange="searchPatients()" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:12.5px">
+            <button class="btn btn-outline btn-sm" onclick="clearPatientDateFilter()" title="তারিখ ফিল্টার মুছুন">✕</button>
+            <button class="btn btn-outline btn-sm" onclick="exportPatientsCSV()">⬇️ CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="exportPatientsPDF()">🖨️ PDF</button>
+          </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>ডাক্তার</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
+          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>চশমা ডেলিভারি</th><th>পরবর্তী সিরিয়াল</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
           <tbody id="patientDbTable"></tbody>
-        </table></div></div>
+
+        </table></div>
+        <div id="patientDbPagination" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 0"></div>
+        </div>
       </div>
+
+      <!-- মার্জ করা রোগীর তালিকা (আনমার্জ সুবিধাসহ) -->
+      <div id="mergedPatientsPanel" class="panel" style="display:none"></div>
 
       <!-- অপারেশন রোগীর ফলো-আপ তালিকা -->
       <div class="panel">
@@ -4828,6 +4850,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
     </div>
+
 
     <!-- ইনকোয়ারি ও মার্কেটিং -->
     <div id="pg-inquiries" class="page-view">
@@ -7230,7 +7253,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
 let activeDueId = null;
 let activeDueSource = 'visit'; // 'visit' | 'camp'
 let serviceCount = 0;
@@ -7672,7 +7695,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -8524,7 +8547,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -8625,7 +8648,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -9204,7 +9227,7 @@ function showPage(name) {
   if (name === 'memorandum')   { initMemorandumPage(); }
   if (name === 'newbill')      { initNewBillPage(); }
   if (name === 'adminbill')    { initAdminBillPage(); renderDraftBills(); }
-  if (name === 'patients')     { renderPatientDB(); renderCampOps(); }
+  if (name === 'patients')     { renderPatientDB(); renderCampOps(); renderMergedPatientsList(); }
   if (name === 'settings')     { renderCategoryLists(); updateCategorySelects(); closeSettingsSection(); }
   if (name === 'recdeposit')   { renderRecDepositList(); }
   if (name === 'due')          { renderAdminDue(); }
@@ -12782,20 +12805,26 @@ function showCampDetail(id) {
 function renderCampOps() {
   const statusFilter = (document.getElementById('opStatusFilter')||{}).value||'';
   const allOps = [];
+  // অ্যাডমিনের ম্যানুয়াল ক্যাম্প এন্ট্রি ফর্ম থেকে যোগ করা অপারেশন-রোগী
   appData.camps.forEach(c => {
     (c.patients||[]).forEach(p => {
-      if (!statusFilter || p.status===statusFilter)
-        allOps.push({ campId:c.id, campName:c.name, campDate:c.date, patId:p.id, ...p });
+      allOps.push({ _key:`camp:${c.id}:${p.id}`, campName:c.name, campDate:c.date, name:p.name, phone:p.phone, opType:p.opType, status:p.status||'pending' });
     });
   });
-  allOps.sort((a,b)=> a.status==='pending'?-1:1);
+  // ✅ ক্যাম্পেইনারের লাইভ সেশনে যোগ করা অপারেশন-রোগীও এখন এখানে যুক্ত (আগে এটা কোথাও দেখানোই হতো না)
+  (appData.campOpPatients||[]).forEach(p => {
+    allOps.push({ _key:`live:${p.id}`, campName:p.campName, campDate:p.campDate, name:p.name, phone:p.phone, opType:p.opType, status:p.status||'pending' });
+  });
+  const list = statusFilter ? allOps.filter(p=>p.status===statusFilter) : allOps;
+  list.sort((a,b)=> (a.status==='pending'?0:1) - (b.status==='pending'?0:1) || (b.campDate||'').localeCompare(a.campDate||''));
 
   const tbody = document.getElementById('campOpsTable');
-  if (!allOps.length) {
+  if (!list.length) {
     tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
     return;
   }
-  tbody.innerHTML = allOps.map(p=>`<tr>
+  const isAdmin = currentUser.role==='admin';
+  tbody.innerHTML = list.map(p=>`<tr>
     <td style="font-weight:600">${p.campName}</td>
     <td>${formatDate(p.campDate)}</td>
     <td style="font-weight:600">${p.name}</td>
@@ -12804,21 +12833,52 @@ function renderCampOps() {
     <td><span class="badge ${p.status==='done'?'badge-income':p.status==='admitted'?'badge-info':'badge-warning'}">
       ${p.status==='done'?'✅ সম্পন্ন':p.status==='admitted'?'🏥 ভর্তি':'⏳ অপেক্ষমাণ'}
     </span></td>
-    <td>
-      ${p.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="updateOpStatus(${p.campId},'${p.patId}','admitted')">🏥 ভর্তি</button>`:''}
-      ${p.status==='admitted'?`<button class="btn btn-success btn-sm" onclick="updateOpStatus(${p.campId},'${p.patId}','done')">✅ সম্পন্ন</button>`:''}
+    <td style="display:flex;gap:4px;flex-wrap:wrap">
+      ${p.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="updateOpStatus('${p._key}','admitted')">🏥 ভর্তি</button>`:''}
+      ${p.status==='admitted'?`<button class="btn btn-success btn-sm" onclick="updateOpStatus('${p._key}','done')">✅ সম্পন্ন</button>`:''}
+      ${isAdmin&&(p.status==='admitted'||p.status==='done')?`<button class="btn btn-outline btn-sm" onclick="sendOpPatientToOperationSheet('${p._key}')">🏥➡️ অপারেশন শিটে পাঠান</button>`:''}
     </td>
   </tr>`).join('');
 }
 
-function updateOpStatus(campId, patId, status) {
-  const camp = appData.camps.find(c=>c.id===campId);
-  if (!camp) return;
-  const pat = (camp.patients||[]).find(p=>String(p.id)===String(patId));
+// _key দিয়ে camp.patients বা campOpPatients — যেখান থেকেই রোগীটি এসেছে সেখান থেকেই খুঁজে বের করে
+function _findOpPatientByKey(key) {
+  const parts = String(key).split(':');
+  const src = parts[0];
+  if (src === 'camp') {
+    const camp = (appData.camps||[]).find(c=>String(c.id)===String(parts[1]));
+    const pat  = camp && (camp.patients||[]).find(p=>String(p.id)===String(parts[2]));
+    return { src, camp, pat };
+  }
+  const pat = (appData.campOpPatients||[]).find(p=>String(p.id)===String(parts[1]));
+  return { src, pat };
+}
+
+function updateOpStatus(key, status) {
+  const { pat } = _findOpPatientByKey(key);
   if (!pat) return;
   pat.status = status;
   saveData(); renderCampOps(); refreshDashboard();
   showToast(status==='admitted'?'🏥 রোগী ভর্তি হিসেবে চিহ্নিত':'✅ অপারেশন সম্পন্ন হিসেবে চিহ্নিত');
+}
+
+// ফলো-আপ তালিকার রোগীকে সরাসরি "অপারেশন ও সার্জন পেমেন্ট" ফর্মে পাঠায় — নাম/তারিখ/অপারেশনের
+// ধরন প্রি-ফিল হয়ে যায়, অ্যাডমিন শুধু সার্জন ও ফি বসিয়ে সেভ করলেই আয় এন্ট্রি অটো তৈরি হয়ে যাবে
+function sendOpPatientToOperationSheet(key) {
+  const { pat, camp } = _findOpPatientByKey(key);
+  if (!pat) return;
+  showPage('salary');
+  setTimeout(()=>{
+    const f = document.getElementById('opEntryForm');
+    if (f) f.style.display='block';
+    if (typeof populateSurgeonSelect==='function') populateSurgeonSelect();
+    const dateEl=document.getElementById('opDate'); if(dateEl) dateEl.value=(camp?camp.date:pat.campDate)||todayStr();
+    const nameEl=document.getElementById('opPatName'); if(nameEl) nameEl.value=pat.name||'';
+    const typeEl=document.getElementById('opType'); if(typeEl&&pat.opType) typeEl.value=pat.opType;
+    if (typeof calcOpProfit==='function') calcOpProfit();
+    if (f) f.scrollIntoView({behavior:'smooth',block:'center'});
+    showToast('📋 রোগীর তথ্য অপারেশন ফর্মে ভরে দেওয়া হয়েছে — সার্জন ও ফি দিয়ে সম্পন্ন করুন');
+  }, 150);
 }
 
 // ===== গ্লোবাল সার্চ — রোগীর নাম, ফোন, মেমো/ভাউচার নং, পণ্যের নাম, টাকার পরিমাণ দিয়ে পুরো অ্যাপে খোঁজার জন্য =====
@@ -19185,9 +19245,6 @@ function saveCamperOpPatient() {
   const patient = { id: Date.now(), name, age, phone, address, opType, note, status: 'pending', campName: camperSession.name, campDate: camperSession.date, by: currentUser.name };
   if (!appData.campOpPatients) appData.campOpPatients = [];
   appData.campOpPatients.push(patient);
-  // Also add to main operations list
-  if (!appData.operations) appData.operations = [];
-  appData.operations.push({ ...patient, source: 'camp' });
   saveData();
   ['cpOpPatName','cpOpPatAge','cpOpPatPhone','cpOpPatAddress','cpOpPatNote'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   renderCamperOpPatients();
@@ -19206,7 +19263,7 @@ function renderCamperOpPatients() {
     <td>${p.phone}</td>
     <td style="font-size:12px">${p.address||'—'}</td>
     <td><span class="badge badge-warning">${p.opType}</span></td>
-    <td><span class="badge badge-info">${p.status==='pending'?'⏳ অপেক্ষমাণ':p.status}</span></td>
+    <td><span class="badge ${p.status==='done'?'badge-income':p.status==='admitted'?'badge-info':'badge-warning'}">${p.status==='done'?'✅ সম্পন্ন':p.status==='admitted'?'🏥 ভর্তি':'⏳ অপেক্ষমাণ'}</span></td>
   </tr>`).join('');
 }
 
@@ -23603,8 +23660,9 @@ function onRPatPhoneInput() {
   var validFormat = /^01[0-9]{9}$/.test(digitsOnly);
   el.style.borderColor = validFormat ? '' : '#f59e0b';
   if (digitsOnly.length < 11) { hint.style.display='none'; return; }
-  // ডুপ্লিকেট চেক — একই ফোন নম্বরে আগের ভিজিট
-  var matches = (appData.visits||[]).filter(function(v){ return (v.patPhone||'').replace(/\D/g,'')===digitsOnly; }).sort(function(a,b){ return b.id-a.id; });
+  // ডুপ্লিকেট চেক — একই ফোন নম্বরে আগের ভিজিট (normalizePhone দিয়ে +৮৮০/০০৮৮০ প্রিফিক্সও মিলবে)
+  var normVal = normalizePhone(val);
+  var matches = (appData.visits||[]).filter(function(v){ return normalizePhone(v.patPhone)===normVal; }).sort(function(a,b){ return b.id-a.id; });
   if (matches.length) {
     var last = matches[0];
     hint.style.display = 'block';
@@ -24774,40 +24832,554 @@ function rejectDraft(id) {
 }
 
 // ===== PATIENT DATABASE =====
+// ✅ ফোন নম্বর নরমালাইজ করে (স্পেস/ড্যাশ/+৮৮০/০০৮৮০ ভ্যারিয়েশন এক ফরম্যাটে আনে) — যাতে
+// একই রোগীর ফোন ভিন্নভাবে লেখা থাকলেও (যেমন "+8801XXXXXXXXX" বনাম "01XXXXXXXXX") গ্রুপিং মিলে যায়
+function normalizePhone(p) {
+  if (!p) return '';
+  let d = String(p).replace(/\D/g,'');
+  if (d.startsWith('880') && d.length>10) d = '0'+d.slice(3);
+  else if (d.length===10 && d[0]!=='0') d = '0'+d;
+  return d;
+}
+// প্রতিটি রোগীর জন্য একটি স্থিতিশীল ডিসপ্লে MRN (রোগীর কী থেকে হ্যাশ করে তৈরি — সেভ করা হয় না, প্রতিবার একই কী থেকে একই আইডি আসবে)
+function _patientMRN(key) {
+  let h=0;
+  for (let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
+  return 'ICON-'+String(h%100000).padStart(5,'0');
+}
+// মার্জ-চেইন অনুসরণ করে আসল (প্রাইমারি) কী বের করে — patientMerges এ সোর্স→টার্গেট ম্যাপিং থাকে
+function resolvePatientKey(key) {
+  let k=key, seen=new Set();
+  while (appData.patientMerges && appData.patientMerges[k] && !seen.has(k)) { seen.add(k); k=appData.patientMerges[k]; }
+  return k;
+}
 function buildPatientList() {
   const map = {};
-  const addVisit = (patName,patPhone,patAge,patDoc,date,total,cashPaid,due)=>{
-    const key=(patPhone||patName).toLowerCase();
-    if(!map[key]) map[key]={name:patName,phone:patPhone||'',age:patAge||'',doctor:patDoc||'',visits:[],totalBill:0,totalPaid:0,totalDue:0,lastVisit:''};
+  const addVisit = (patName,patPhone,patAge,patDoc,date,total,cashPaid,due,isCamp,patGender,patAddress)=>{
+    const normPhone = normalizePhone(patPhone);
+    let key = normPhone || (patName||'').trim().toLowerCase();
+    if (!key) return;
+    key = resolvePatientKey(key); // ✅ ম্যানুয়ালি মার্জ করা রোগী থাকলে সরাসরি প্রাইমারি রেকর্ডে যোগ হবে
+    if(!map[key]) map[key]={name:patName,phone:normPhone||patPhone||'',age:patAge||'',doctor:patDoc||'',gender:patGender||'',address:patAddress||'',visits:[],totalBill:0,totalPaid:0,totalDue:0,lastVisit:'',isCampPatient:false,mrn:_patientMRN(key),_ages:[],_hasPhone:!!normPhone};
     map[key].visits.push(date);
     map[key].totalBill+=total||0;
     map[key].totalPaid+=cashPaid||0;
     map[key].totalDue+=due||0;
-    if(!map[key].lastVisit||date>map[key].lastVisit) map[key].lastVisit=date;
+    if (patAge) { const n=parseInt(patAge); if(!isNaN(n)) map[key]._ages.push(n); }
+    // সর্বশেষ ভিজিটের তারিখেই বয়স/ডাক্তার/লিঙ্গ/ঠিকানা আপডেট হবে
+    if(!map[key].lastVisit||date>=map[key].lastVisit){
+      map[key].lastVisit=date;
+      if(patName) map[key].name=patName;
+      if(patAge) map[key].age=patAge;
+      if(patDoc) map[key].doctor=patDoc;
+      if(patGender) map[key].gender=patGender;
+      if(patAddress) map[key].address=patAddress;
+    }
+    if(isCamp) map[key].isCampPatient=true;
   };
-  (appData.visits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,v.patDoc,v.date,v.netBill||v.total,v.cashPaid,v.due));
-  (appData.adminBills||[]).forEach(b=>addVisit(b.patName,b.patPhone,b.patAge,b.patDoc,b.date,b.netBill,b.cashPaid,b.due));
-  return Object.values(map).sort((a,b)=>b.lastVisit.localeCompare(a.lastVisit));
+  (appData.visits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,v.patDoc,v.date,v.netBill||v.total,v.cashPaid,v.due,false,v.patGender,v.patAddress));
+  (appData.adminBills||[]).forEach(b=>addVisit(b.patName,b.patPhone,b.patAge,b.patDoc,b.date,b.netBill,b.cashPaid,b.due,false,b.patGender,b.patAddress));
+  // ✅ ক্যাম্পের রোগীরাও এখন প্যাশেন্ট ডেটাবেজে যুক্ত হবে (আগে বাদ পড়ে যেত)
+  (appData.campVisits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,'',v.date,v.netTotal,v.paid,v.due,true));
+  return Object.entries(map).map(([key,p])=>{
+    // ⚠️ ফোন ছাড়া শুধু নামে গ্রুপ হওয়া রোগীর বয়সে বড় গরমিল থাকলে সম্ভাব্য ভিন্ন-রোগী সতর্কতা দেখাবে
+    const uniqAges=[...new Set(p._ages)];
+    p.possibleDuplicate = !p._hasPhone && uniqAges.length>=2 && (Math.max(...uniqAges)-Math.min(...uniqAges) > 12);
+    delete p._ages; delete p._hasPhone;
+    // ✅ জন্মতারিখ সেভ করা থাকলে সেটা থেকে হিসাব করা বয়স (typed বয়স স্ট্রিং এর চেয়ে বেশি নির্ভরযোগ্য) ব্যবহার হবে
+    const profile = (appData.patientProfiles||{})[key];
+    if (profile) {
+      if (profile.dob) { const a=calcAgeFromDOB(profile.dob); if(a!=='') p.age=String(a); }
+      p.hasAllergy = !!(profile.allergies&&profile.allergies.trim());
+      p.hasMedicalNote = !!(profile.medicalNote&&profile.medicalNote.trim());
+      p.rxCount = (profile.prescriptions||[]).length;
+    } else { p.hasAllergy=false; p.hasMedicalNote=false; p.rxCount=0; }
+    p._key = key;
+    return p;
+  }).sort((a,b)=>b.lastVisit.localeCompare(a.lastVisit));
 }
-function renderPatientDB(filter='') {
+// ডুপ্লিকেট রোগী মার্জ — sourceKey এর সব রেকর্ড targetKey (প্রাইমারি) এর সাথে একত্র হবে।
+// কোনো ভিজিট/বিল ডেটা মোছা বা পরিবর্তন হয় না — শুধু একটা alias সেভ হয়, তাই সম্পূর্ণ রিভার্সিবল (আনমার্জ করা যায়)
+function mergePatientInto(sourceKey, targetKey) {
+  if (!sourceKey || !targetKey || sourceKey===targetKey) return;
+  const finalTarget = resolvePatientKey(targetKey);
+  if (finalTarget===sourceKey) { showToast('⚠️ চক্রাকার মার্জ সম্ভব না'); return; }
+  if (!appData.patientMerges) appData.patientMerges={};
+  appData.patientMerges[sourceKey] = finalTarget;
+  // প্রোফাইল ডেটা মার্জ (টার্গেটে ফাঁকা ফিল্ড হলে সোর্স থেকে পূরণ, প্রেসক্রিপশন একত্র)
+  if (appData.patientProfiles && appData.patientProfiles[sourceKey]) {
+    const sp = appData.patientProfiles[sourceKey];
+    const tp = appData.patientProfiles[finalTarget] || {dob:'',allergies:'',medicalNote:'',prescriptions:[]};
+    tp.dob = tp.dob || sp.dob || '';
+    tp.allergies = tp.allergies || sp.allergies || '';
+    tp.medicalNote = tp.medicalNote || sp.medicalNote || '';
+    tp.prescriptions = [...(tp.prescriptions||[]), ...(sp.prescriptions||[])];
+    appData.patientProfiles[finalTarget] = tp;
+    delete appData.patientProfiles[sourceKey];
+  }
+  saveData();
+  showToast('✅ রোগী মার্জ হয়ে গেছে');
+}
+function unmergePatient(sourceKey) {
+  if (!confirm('এই মার্জ বাতিল করবেন? রোগী আবার আলাদা রেকর্ডে ফিরে যাবে।')) return;
+  if (appData.patientMerges) delete appData.patientMerges[sourceKey];
+  saveData();
+  renderPatientDB(document.getElementById('patientSearch')?.value?.toLowerCase().trim()||'');
+  renderMergedPatientsList();
+  showToast('↩️ আনমার্জ করা হয়েছে');
+}
+// মার্জ-পিকার মোডাল — একজন রোগীকে অন্য কারো (প্রাইমারি) সাথে মার্জ করার জন্য সার্চ করে বেছে নেওয়া
+function showMergePicker(sourceKey, sourceName) {
+  const old = document.getElementById('mergePickerModal'); if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.id = 'mergePickerModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:20px;max-width:460px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 style="margin:0;font-size:15px;color:var(--primary)">🔗 "${sourceName}" কে মার্জ করুন</h3>
+        <button onclick="document.getElementById('mergePickerModal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#999;line-height:1">✕</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-light);margin:0 0 10px">এই রোগীর সব ভিজিট/বিল/হিস্ট্রি নিচে থেকে বাছাই করা (মূল/প্রাইমারি) রোগীর সাথে একত্র দেখানো হবে। কোনো তথ্য মোছা হয় না — পরে "মার্জ তালিকা" থেকে আনমার্জও করা যাবে।</p>
+      <input type="text" id="mergeSearchQ" oninput="renderMergeCandidates('${sourceKey}')" placeholder="🔍 মূল রোগী খুঁজুন (নাম/ফোন)..." style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:10px">
+      <div id="mergeCandidatesList" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto"></div>
+    </div>`;
+  document.body.appendChild(modal);
+  renderMergeCandidates(sourceKey);
+}
+function renderMergeCandidates(sourceKey) {
+  const q = (document.getElementById('mergeSearchQ')?.value||'').toLowerCase().trim();
+  const list = document.getElementById('mergeCandidatesList');
+  if (!list) return;
+  const patients = buildPatientList().filter(p=>p._key!==sourceKey);
+  const filtered = q ? patients.filter(p=>p.name.toLowerCase().includes(q)||p.phone.includes(q)) : patients.slice(0,15);
+  if (!filtered.length) { list.innerHTML='<div style="color:#aaa;font-size:12px;text-align:center;padding:10px">কোনো মিল পাওয়া যায়নি</div>'; return; }
+  list.innerHTML = filtered.map(p=>{
+    const tKey = p._key.replace(/'/g,"\\'");
+    const tName = p.name.replace(/'/g,"\\'");
+    return `<div onclick="confirmMerge('${sourceKey}','${tKey}','${tName}')" style="border:1px solid #eee;border-radius:8px;padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:600;font-size:13px">${p.name}</div>
+        <div style="font-size:11px;color:var(--text-light)">${p.phone||'—'} · ${p.visits.length} ভিজিট</div>
+      </div>
+      <span style="font-size:11px;color:var(--primary)">নির্বাচন করুন →</span>
+    </div>`;
+  }).join('');
+}
+function confirmMerge(sourceKey, targetKey, targetName) {
+  if (!confirm(`নিশ্চিত করুন: এই রোগীর সব রেকর্ড "${targetName}"-এর সাথে মার্জ হবে। এটা পরে আনমার্জ করা যাবে।`)) return;
+  mergePatientInto(sourceKey, targetKey);
+  document.getElementById('mergePickerModal')?.remove();
+  document.getElementById('patientDetailModal')?.remove();
+  renderPatientDB(document.getElementById('patientSearch')?.value?.toLowerCase().trim()||'');
+  renderMergedPatientsList();
+  showPatientDetail(resolvePatientKey(targetKey));
+}
+// বর্তমানে মার্জ করা রোগীদের তালিকা — স্বচ্ছতা ও আনমার্জ সুবিধার জন্য
+function renderMergedPatientsList() {
+  const wrap = document.getElementById('mergedPatientsPanel');
+  if (!wrap) return;
+  const merges = appData.patientMerges||{};
+  const keys = Object.keys(merges);
+  if (!keys.length) { wrap.style.display='none'; wrap.innerHTML=''; return; }
+  wrap.style.display='block';
+  const nameFor = key => {
+    const norm = s=>(s||'').trim().toLowerCase();
+    const v = (appData.visits||[]).find(x=>(normalizePhone(x.patPhone)||norm(x.patName))===key)
+      || (appData.campVisits||[]).find(x=>(normalizePhone(x.patPhone)||norm(x.patName))===key)
+      || (appData.adminBills||[]).find(x=>(normalizePhone(x.patPhone)||norm(x.patName))===key);
+    return v ? v.patName : key;
+  };
+  wrap.innerHTML = `
+    <div class="panel-header"><div class="panel-title">🔗 মার্জ করা রোগীর তালিকা</div></div>
+    <div class="panel-body">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${keys.map(k=>{
+          const target = merges[k];
+          return `<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #eee;border-radius:8px;padding:8px 10px;font-size:12.5px">
+            <span><strong>${nameFor(k)}</strong> ➜ <strong>${nameFor(target)}</strong></span>
+            <button class="btn btn-outline btn-sm" onclick="unmergePatient('${k.replace(/'/g,"\\'")}')">↩️ আনমার্জ</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+// জন্মতারিখ থেকে বর্তমান বয়স হিসাব করে
+function calcAgeFromDOB(dob) {
+  if (!dob) return '';
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  let age = now.getFullYear()-d.getFullYear();
+  const m = now.getMonth()-d.getMonth();
+  if (m<0 || (m===0 && now.getDate()<d.getDate())) age--;
+  return age>=0 ? age : '';
+}
+// রোগীর প্রোফাইল (জন্মতারিখ, অ্যালার্জি/মেডিকেল নোট, চোখের পাওয়ার হিস্ট্রি) — ভিজিট থেকে আলাদা, স্থায়ীভাবে সেভ থাকে
+function getPatientProfile(key) {
+  if (!appData.patientProfiles) appData.patientProfiles={};
+  return appData.patientProfiles[key] || {dob:'',allergies:'',medicalNote:'',prescriptions:[]};
+}
+function savePatientProfileBasic(key) {
+  if (!appData.patientProfiles) appData.patientProfiles={};
+  const dob = document.getElementById('ppDob')?.value||'';
+  const allergies = document.getElementById('ppAllergy')?.value.trim()||'';
+  const medicalNote = document.getElementById('ppNote')?.value.trim()||'';
+  const existing = appData.patientProfiles[key] || {prescriptions:[]};
+  appData.patientProfiles[key] = { ...existing, dob, allergies, medicalNote };
+  saveData();
+  showToast('✅ রোগীর মেডিকেল তথ্য সেভ হয়েছে');
+  renderPatientDB(document.getElementById('patientSearch')?.value?.toLowerCase().trim()||'');
+  showPatientDetail(key);
+}
+function addPrescriptionEntry(key) {
+  const get = id => document.getElementById(id)?.value?.trim()||'';
+  const date = get('rxDate')||todayStr();
+  const entry = {
+    date,
+    odSph:get('rxOdSph'), odCyl:get('rxOdCyl'), odAxis:get('rxOdAxis'), odVA:get('rxOdVA'),
+    osSph:get('rxOsSph'), osCyl:get('rxOsCyl'), osAxis:get('rxOsAxis'), osVA:get('rxOsVA'),
+    iopOD:get('rxIopOD'), iopOS:get('rxIopOS'), note:get('rxNote')
+  };
+  const hasAny = ['odSph','odCyl','odAxis','odVA','osSph','osCyl','osAxis','osVA','iopOD','iopOS','note'].some(k=>entry[k]);
+  if (!hasAny) { showToast('⚠️ অন্তত একটি পাওয়ার/IOP ফিল্ড পূরণ করুন'); return; }
+  if (!appData.patientProfiles) appData.patientProfiles={};
+  if (!appData.patientProfiles[key]) appData.patientProfiles[key]={dob:'',allergies:'',medicalNote:'',prescriptions:[]};
+  if (!appData.patientProfiles[key].prescriptions) appData.patientProfiles[key].prescriptions=[];
+  appData.patientProfiles[key].prescriptions.push(entry);
+  saveData();
+  showToast('✅ চোখের পাওয়ার এন্ট্রি সেভ হয়েছে');
+  renderPatientDB(document.getElementById('patientSearch')?.value?.toLowerCase().trim()||'');
+  showPatientDetail(key);
+}
+function deletePrescriptionEntry(key, idx) {
+  if (!confirm('এই এন্ট্রি মুছবেন?')) return;
+  if (appData.patientProfiles && appData.patientProfiles[key] && appData.patientProfiles[key].prescriptions) {
+    appData.patientProfiles[key].prescriptions.splice(idx,1);
+    saveData();
+    showPatientDetail(key);
+  }
+}
+function populatePatDoctorFilter(patients) {
+  const sel = document.getElementById('patDoctorFilter');
+  if (!sel) return;
+  const cur = sel.value;
+  const docs = [...new Set(patients.map(p=>p.doctor).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">সব ডাক্তার</option>' + docs.map(d=>`<option value="${d}">${d}</option>`).join('');
+  sel.value = docs.includes(cur) ? cur : '';
+}
+function clearPatientDateFilter() {
+  const f=document.getElementById('patDateFrom'), t=document.getElementById('patDateTo');
+  if(f) f.value=''; if(t) t.value='';
+  searchPatients();
+}
+// সব ফিল্টার (সার্চ, ডাক্তার, লিঙ্গ, বাকি, তারিখ রেঞ্জ) একসাথে প্রয়োগ করে — রেন্ডার/CSV/PDF তিন জায়গায় একই লজিক ব্যবহারের জন্য
+function getFilteredPatients(filter) {
   const patients = buildPatientList();
+  populatePatDoctorFilter(patients);
+  const docF = document.getElementById('patDoctorFilter')?.value||'';
+  const genderF = document.getElementById('patGenderFilter')?.value||'';
+  const dueF = document.getElementById('patDueFilter')?.value||'';
+  const dateFrom = document.getElementById('patDateFrom')?.value||'';
+  const dateTo = document.getElementById('patDateTo')?.value||'';
+  let list = filter ? patients.filter(p=>p.name.toLowerCase().includes(filter)||p.phone.includes(filter)||p.mrn.toLowerCase().includes(filter)) : patients;
+  if (docF) list = list.filter(p=>p.doctor===docF);
+  if (genderF) list = list.filter(p=>p.gender===genderF);
+  if (dueF==='due') list = list.filter(p=>p.totalDue>0);
+  if (dueF==='clear') list = list.filter(p=>p.totalDue<=0);
+  if (dateFrom || dateTo) {
+    list = list.filter(p => (p.visits||[]).some(d => d && (!dateFrom||d>=dateFrom) && (!dateTo||d<=dateTo)));
+  }
+  return list;
+}
+// রোগীর সাথে সংযুক্ত চশমা ডেলিভারি অর্ডার — ফোন/নাম দিয়ে ম্যাচ করে
+function getPatientDeliveryOrders(key) {
+  const norm = s=>(s||'').trim().toLowerCase();
+  return (appData.deliveryOrders||[]).filter(d => (normalizePhone(d.phone) || norm(d.name)) === key);
+}
+// রোগীর সাথে সংযুক্ত অ্যাপয়েন্টমেন্ট/সিরিয়াল — ফোন/নাম দিয়ে ম্যাচ করে
+function getPatientAppointments(key) {
+  const norm = s=>(s||'').trim().toLowerCase();
+  return (appData.appointments||[]).filter(a => (normalizePhone(a.patPhone) || norm(a.patName)) === key);
+}
+const PATIENT_PAGE_SIZE = 30;
+let _patientDbPage = 1;
+function renderPatientDB(filter='') {
+  const list = getFilteredPatients(filter);
   const tbody = document.getElementById('patientDbTable');
+  const pagEl = document.getElementById('patientDbPagination');
   if(!tbody)return;
-  const list = filter ? patients.filter(p=>p.name.toLowerCase().includes(filter)||p.phone.includes(filter)) : patients;
-  if(!list.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';return;}
-  tbody.innerHTML=list.map((p,i)=>`<tr>
-    <td style="color:var(--text-light)">${i+1}</td>
-    <td style="font-weight:600">${p.name}</td>
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="15" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
+    if(pagEl) pagEl.innerHTML='';
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(list.length/PATIENT_PAGE_SIZE));
+  if (_patientDbPage > totalPages) _patientDbPage = totalPages;
+  if (_patientDbPage < 1) _patientDbPage = 1;
+  const startIdx = (_patientDbPage-1)*PATIENT_PAGE_SIZE;
+  const pageList = list.slice(startIdx, startIdx+PATIENT_PAGE_SIZE);
+  const today = todayStr();
+  tbody.innerHTML=pageList.map((p,i)=>{
+    const key=(p.phone||p.name.trim().toLowerCase()).replace(/'/g,"\\'");
+    const dOrders = getPatientDeliveryOrders(p.phone||p.name.trim().toLowerCase());
+    const pendingCnt = dOrders.filter(d=>d.status==='pending').length;
+    let dlvBadge = '—';
+    if (dOrders.length) {
+      dlvBadge = pendingCnt
+        ? `<span class="badge badge-warning" style="font-size:10px;padding:2px 6px">📦 ${pendingCnt}টি পেন্ডিং</span>`
+        : `<span class="badge badge-income" style="font-size:10px;padding:2px 6px">✅ ডেলিভারড</span>`;
+    }
+    const appts = getPatientAppointments(p.phone||p.name.trim().toLowerCase());
+    const nextAppt = appts.filter(a=>a.status==='pending'&&a.date>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0];
+    const apptBadge = nextAppt
+      ? `<span class="badge ${nextAppt.date===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">📅 ${formatDate(nextAppt.date)}${nextAppt.time?' '+nextAppt.time:''}</span>`
+      : '—';
+    return `<tr onclick="showPatientDetail('${key}')" style="cursor:pointer" title="বিস্তারিত দেখতে ক্লিক করুন">
+    <td style="color:var(--text-light)">${startIdx+i+1}</td>
+    <td style="color:var(--text-light);font-size:11px">${p.mrn}</td>
+    <td style="font-weight:600">${p.name}${p.isCampPatient?' <span class="badge badge-info" style="font-size:9px;padding:1px 5px">🏕️ ক্যাম্প</span>':''}${p.possibleDuplicate?' <span class="badge badge-warning" style="font-size:9px;padding:1px 5px" title="ফোন নম্বর ছাড়া শুধু নামে গ্রুপ হয়েছে এবং বয়সে বড় গরমিল আছে — এটা ভিন্ন দুইজন রোগী হতে পারে">⚠️ যাচাই করুন</span>':''}${p.hasAllergy?' <span class="badge badge-expense" style="font-size:9px;padding:1px 5px" title="রোগীর অ্যালার্জি তথ্য আছে — বিস্তারিততে দেখুন">🚨 অ্যালার্জি</span>':''}</td>
     <td>${p.phone||'—'}</td>
     <td style="color:var(--text-light)">${p.age||'—'}</td>
+    <td style="color:var(--text-light)">${p.gender||'—'}</td>
+    <td style="color:var(--text-light);font-size:12px">${p.address||'—'}</td>
     <td style="color:var(--text-light)">${p.doctor||'—'}</td>
+    <td style="text-align:center">${p.visits.length}</td>
+    <td style="text-align:center">${dlvBadge}</td>
+    <td style="text-align:center">${apptBadge}</td>
     <td>${p.lastVisit?formatDate(p.lastVisit):'—'}</td>
     <td>৳ ${fmt(p.totalBill)}</td>
     <td style="color:var(--success)">৳ ${fmt(p.totalPaid)}</td>
     <td style="color:${p.totalDue>0?'var(--danger)':'var(--success)'}">${p.totalDue>0?'৳ '+fmt(p.totalDue):'✅'}</td>
+  </tr>`;
+  }).join('');
+  if (pagEl) {
+    pagEl.innerHTML = `
+      <button class="btn btn-outline btn-sm" ${_patientDbPage<=1?'disabled':''} onclick="changePatientDbPage(-1)">◀ আগের পাতা</button>
+      <span style="font-size:12.5px;color:var(--text-light)">পাতা ${_patientDbPage} / ${totalPages} (মোট ${list.length} জন)</span>
+      <button class="btn btn-outline btn-sm" ${_patientDbPage>=totalPages?'disabled':''} onclick="changePatientDbPage(1)">পরের পাতা ▶</button>`;
+  }
+}
+function changePatientDbPage(delta) {
+  _patientDbPage += delta;
+  renderPatientDB(document.getElementById('patientSearch')?.value?.toLowerCase().trim()||'');
+}
+function exportPatientsCSV() {
+  const filter=(document.getElementById('patientSearch')?.value||'').toLowerCase().trim();
+  const patients = getFilteredPatients(filter);
+  const header = ['MRN','নাম','ফোন','বয়স','লিঙ্গ','ঠিকানা','ডাক্তার','ভিজিট সংখ্যা','সর্বশেষ ভিজিট','মোট বিল','মোট পরিশোধ','বাকি'];
+  const rows = patients.map(p=>[p.mrn,p.name,p.phone,p.age,p.gender,p.address,p.doctor,p.visits.length,p.lastVisit,p.totalBill,p.totalPaid,p.totalDue]);
+  const csv = [header, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `patients_${todayStr()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('✅ CSV ডাউনলোড হয়ে গেছে');
+}
+function exportPatientsPDF() {
+  const filter=(document.getElementById('patientSearch')?.value||'').toLowerCase().trim();
+  const patients = getFilteredPatients(filter);
+  if (!patients.length) { showToast('⚠️ কোনো রোগী নেই'); return; }
+  const rowsHtml = patients.map((p,i)=>`<tr>
+    <td>${i+1}</td><td>${p.mrn}</td><td>${p.name}</td><td>${p.phone||'—'}</td><td>${p.age||'—'}</td>
+    <td>${p.gender||'—'}</td><td>${p.doctor||'—'}</td><td style="text-align:center">${p.visits.length}</td>
+    <td>${p.lastVisit?formatDate(p.lastVisit):'—'}</td><td>৳ ${fmt(p.totalBill)}</td><td>৳ ${fmt(p.totalPaid)}</td>
+    <td>${p.totalDue>0?'৳ '+fmt(p.totalDue):'—'}</td>
   </tr>`).join('');
+  const html = `
+    <div style="padding:6px">
+      <h2 style="margin:0 0 4px;font-size:18px">🏥 রোগীর ডেটাবেস</h2>
+      <p style="margin:0 0 14px;font-size:12px;color:#666">মোট ${patients.length} জন রোগী — তৈরি: ${formatDate(todayStr())}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="background:#0f4c81;color:white">
+          <th style="padding:6px">#</th><th style="padding:6px">MRN</th><th style="padding:6px">নাম</th><th style="padding:6px">ফোন</th>
+          <th style="padding:6px">বয়স</th><th style="padding:6px">লিঙ্গ</th><th style="padding:6px">ডাক্তার</th><th style="padding:6px">ভিজিট</th>
+          <th style="padding:6px">সর্বশেষ ভিজিট</th><th style="padding:6px">মোট বিল</th><th style="padding:6px">পরিশোধ</th><th style="padding:6px">বাকি</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <style>table td{border:1px solid #ddd;padding:5px}</style>`;
+  openPrintWindow(html, 'রোগীর ডেটাবেস', `patients_${todayStr()}.pdf`);
+}
+
+// রোগীর নাম/ফোন দিয়ে সব উৎস (OPD ভিজিট, অ্যাডমিন বিল, ক্যাম্প ভিজিট) থেকে হিস্ট্রি একত্র করে
+function getPatientHistoryRows(key) {
+  const norm = s=>(s||'').trim().toLowerCase();
+  const matches = (phone,name)=> (normalizePhone(phone) || norm(name)) === key;
+  const rows=[];
+  (appData.visits||[]).forEach(v=>{ if(matches(v.patPhone,v.patName)) rows.push({date:v.date,patName:v.patName,patPhone:v.patPhone,age:v.patAge,doctor:v.patDoc,gender:v.patGender,address:v.patAddress,amount:v.netBill||v.total||0,paid:v.cashPaid||0,due:v.due||0,sourceLabel:'👁️ OPD ভিজিট'}); });
+  (appData.adminBills||[]).forEach(b=>{ if(matches(b.patPhone,b.patName)) rows.push({date:b.date,patName:b.patName,patPhone:b.patPhone,age:b.patAge,doctor:b.patDoc,gender:b.patGender,address:b.patAddress,amount:b.netBill||0,paid:b.cashPaid||0,due:b.due||0,sourceLabel:'🧾 অ্যাডমিন বিল'}); });
+  (appData.campVisits||[]).forEach(v=>{ if(matches(v.patPhone,v.patName)) rows.push({date:v.date,patName:v.patName,patPhone:v.patPhone,age:v.patAge,doctor:'',gender:'',address:'',amount:v.netTotal||0,paid:v.paid||0,due:v.due||0,sourceLabel:'🏕️ '+(v.campName||'ক্যাম্প')}); });
+  return rows;
+}
+
+function showPatientDetail(key) {
+  const rows = getPatientHistoryRows(key);
+  const old = document.getElementById('patientDetailModal'); if (old) old.remove();
+  if (!rows.length) { showToast('⚠️ কোনো তথ্য পাওয়া যায়নি'); return; }
+  const sorted = rows.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const name = sorted[sorted.length-1].patName;
+  const phone = sorted[sorted.length-1].patPhone;
+  let age='', doctor='', gender='', address='';
+  sorted.forEach(r=>{ if(r.age) age=r.age; if(r.doctor) doctor=r.doctor; if(r.gender) gender=r.gender; if(r.address) address=r.address; });
+  const totalBill = rows.reduce((s,r)=>s+(r.amount||0),0);
+  const totalPaid = rows.reduce((s,r)=>s+(r.paid||0),0);
+  const totalDue  = rows.reduce((s,r)=>s+(r.due||0),0);
+  const profile = getPatientProfile(key);
+  if (profile.dob) { const a=calcAgeFromDOB(profile.dob); if(a!=='') age=String(a); }
+  const rx = profile.prescriptions||[];
+  const dOrders = getPatientDeliveryOrders(key);
+  const appts = getPatientAppointments(key);
+
+  const modal = document.createElement('div');
+  modal.id = 'patientDetailModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:22px;max-width:680px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0 0 2px;color:var(--primary);font-size:17px">${name}</h3>
+          <p style="margin:0;font-size:11px;color:var(--text-light)">${_patientMRN(key)}</p>
+          <p style="margin:4px 0 0;font-size:13px;color:var(--text-light)">${phone||'—'}${age?' · বয়স '+age:''}${gender?' · '+gender:''}${doctor?' · ডা. '+doctor:''}</p>
+          ${address?`<p style="margin:2px 0 0;font-size:12px;color:var(--text-light)">📍 ${address}</p>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <button onclick="document.getElementById('patientDetailModal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;line-height:1">✕</button>
+          <button class="btn btn-outline btn-sm" onclick="showMergePicker('${key.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')" title="এই রোগীকে অন্য কোনো রেকর্ডের সাথে মার্জ করুন">🔗 মার্জ</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:var(--text-light)">মোট বিল</div>
+          <div style="font-weight:700">৳ ${fmt(totalBill)}</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:var(--text-light)">মোট পরিশোধ</div>
+          <div style="font-weight:700;color:var(--success)">৳ ${fmt(totalPaid)}</div>
+        </div>
+        <div style="background:${totalDue>0?'#fef2f2':'#f0fdf4'};border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:11px;color:var(--text-light)">বাকি</div>
+          <div style="font-weight:700;color:${totalDue>0?'var(--danger)':'var(--success)'}">${totalDue>0?'৳ '+fmt(totalDue):'✅'}</div>
+        </div>
+      </div>
+
+      <!-- মেডিকেল প্রোফাইল: জন্মতারিখ, অ্যালার্জি, নোট -->
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🩺 মেডিকেল প্রোফাইল</div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:11px;color:var(--text-light)">জন্মতারিখ</label>
+            <input type="date" id="ppDob" value="${profile.dob||''}" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--danger)">🚨 অ্যালার্জি</label>
+            <input type="text" id="ppAllergy" value="${profile.allergies||''}" placeholder="যেমন: পেনিসিলিন, ধুলাবালি..." style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+          </div>
+        </div>
+        <label style="font-size:11px;color:var(--text-light)">মেডিকেল নোট</label>
+        <textarea id="ppNote" rows="2" placeholder="দীর্ঘমেয়াদী রোগ, ওষুধ, বিশেষ সতর্কতা..." style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;resize:vertical">${profile.medicalNote||''}</textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="savePatientProfileBasic('${key}')">💾 প্রোফাইল সেভ করুন</button>
+      </div>
+
+      <!-- চোখের পাওয়ার/প্রেসক্রিপশন হিস্ট্রি -->
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">👁️ চোখের পাওয়ার / প্রেসক্রিপশন হিস্ট্রি</div>
+        ${rx.length?`<div class="table-wrap" style="margin-bottom:10px"><table style="font-size:11px">
+          <thead><tr><th>তারিখ</th><th>OD (Sph/Cyl/Axis/VA)</th><th>OS (Sph/Cyl/Axis/VA)</th><th>IOP (OD/OS)</th><th>নোট</th><th></th></tr></thead>
+          <tbody>
+            ${rx.map((r,idx)=>`<tr>
+              <td>${formatDate(r.date)}</td>
+              <td>${[r.odSph,r.odCyl,r.odAxis,r.odVA].filter(Boolean).join(' / ')||'—'}</td>
+              <td>${[r.osSph,r.osCyl,r.osAxis,r.osVA].filter(Boolean).join(' / ')||'—'}</td>
+              <td>${[r.iopOD,r.iopOS].filter(Boolean).join(' / ')||'—'}</td>
+              <td>${r.note||'—'}</td>
+              <td><button onclick="deletePrescriptionEntry('${key}',${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px" title="মুছুন">🗑️</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>` : `<div style="color:#aaa;font-size:11px;padding:6px 0">কোনো প্রেসক্রিপশন এন্ট্রি নেই</div>`}
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px">
+          <input type="date" id="rxDate" value="${todayStr()}" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOdSph" placeholder="OD Sph" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOdCyl" placeholder="OD Cyl" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOdAxis" placeholder="OD Axis" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOdVA" placeholder="OD VA" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px">
+          <input type="text" id="rxIopOD" placeholder="IOP OD" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOsSph" placeholder="OS Sph" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOsCyl" placeholder="OS Cyl" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOsAxis" placeholder="OS Axis" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxOsVA" placeholder="OS VA" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px">
+          <input type="text" id="rxIopOS" placeholder="IOP OS" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <input type="text" id="rxNote" placeholder="নোট" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
+          <button class="btn btn-primary btn-sm" onclick="addPrescriptionEntry('${key}')">➕ এন্ট্রি যোগ করুন</button>
+        </div>
+      </div>
+
+      <!-- চশমা ডেলিভারি অর্ডার -->
+      ${dOrders.length?`
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">📦 চশমা ডেলিভারি অর্ডার</div>
+        <div class="table-wrap"><table style="font-size:11.5px">
+          <thead><tr><th>অর্ডার তারিখ</th><th>আইটেম</th><th>ডেলিভারি তারিখ</th><th>মোট</th><th>অগ্রিম</th><th>বাকি</th><th>স্ট্যাটাস</th></tr></thead>
+          <tbody>
+            ${dOrders.slice().sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||'')).map(d=>`<tr>
+              <td>${d.orderDate?formatDate(d.orderDate):'—'}</td>
+              <td>${d.item||'—'}</td>
+              <td>${d.deliveryDate?formatDate(d.deliveryDate):'—'}</td>
+              <td>৳ ${fmt(d.total)}</td>
+              <td>৳ ${fmt(d.advance)}</td>
+              <td style="color:${d.due>0?'var(--danger)':'var(--success)'}">${d.due>0?'৳ '+fmt(d.due):'—'}</td>
+              <td><span class="badge ${d.status==='delivered'?'badge-income':'badge-warning'}">${d.status==='delivered'?'✅ ডেলিভারড':'⏳ পেন্ডিং'}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>` : ''}
+
+      <!-- অ্যাপয়েন্টমেন্ট/সিরিয়াল হিস্ট্রি -->
+      ${appts.length?`
+      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">📅 অ্যাপয়েন্টমেন্ট/সিরিয়াল হিস্ট্রি</div>
+        <div class="table-wrap"><table style="font-size:11.5px">
+          <thead><tr><th>তারিখ</th><th>সময়</th><th>ডাক্তার</th><th>নোট</th><th>স্ট্যাটাস</th></tr></thead>
+          <tbody>
+            ${appts.slice().sort((a,b)=>(b.date+((b.time||''))).localeCompare(a.date+((a.time||'')))).map(a=>{
+              const stLabel = a.status==='done'?'✅ সম্পন্ন':a.status==='cancelled'?'❌ বাতিল':'⏳ অপেক্ষমাণ';
+              const stCls = a.status==='done'?'badge-income':a.status==='cancelled'?'badge-expense':'badge-warning';
+              return `<tr>
+              <td>${formatDate(a.date)}</td>
+              <td>${a.time||'—'}</td>
+              <td>${a.doctorName||'—'}</td>
+              <td style="font-size:11px">${a.note||'—'}</td>
+              <td><span class="badge ${stCls}">${stLabel}</span></td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table></div>
+      </div>` : ''}
+
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:6px">মোট ভিজিট/এন্ট্রি: ${rows.length}টি</div>
+      <div class="table-wrap"><table style="font-size:12.5px">
+        <thead><tr><th>তারিখ</th><th>উৎস</th><th>বিল</th><th>পরিশোধ</th><th>বাকি</th></tr></thead>
+        <tbody>
+          ${rows.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr>
+            <td>${formatDate(r.date)}</td>
+            <td style="font-size:11.5px">${r.sourceLabel}</td>
+            <td>৳ ${fmt(r.amount)}</td>
+            <td style="color:var(--success)">৳ ${fmt(r.paid)}</td>
+            <td style="color:${r.due>0?'var(--danger)':'var(--success)'}">${r.due>0?'৳ '+fmt(r.due):'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 function searchPatients() {
+  _patientDbPage = 1;
   const q=(document.getElementById('patientSearch')?.value||'').toLowerCase().trim();
   renderPatientDB(q);
 }
