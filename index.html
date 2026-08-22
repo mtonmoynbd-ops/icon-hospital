@@ -5299,10 +5299,24 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <button class="btn btn-primary btn-sm" onclick="addLensOptRow()">➕ যোগ করুন</button>
         </div>
         <div class="panel-body">
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px">বিলে "চশমা" সিলেক্ট করলে রিসেপশনিস্ট/অ্যাডমিন এই অপশনগুলো (একটি বা একাধিক) চেকবক্স দিয়ে বেছে নিতে পারবেন — যেমন: ব্লু কাট, ফটো সান, সিঙ্গেল ভিশন লেন্স, বাই ফোকাল লেন্স, প্লাস্টিক লেন্স, কাচের লেন্স ইত্যাদি। প্রতিটির নির্দিষ্ট মূল্য বিলের মোট টাকায় স্বয়ংক্রিয়ভাবে যোগ হবে।</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px">বিলে "চশমা" সিলেক্ট করলে রিসেপশনিস্ট/অ্যাডমিন এই অপশনগুলো বেছে নিতে পারবেন। <b>লেন্সের ধরন</b> (সিঙ্গেল ভিশন/বাই ফোকাল) ও <b>লেন্স কোয়ালিটি</b> (প্লাস্টিক/কাচ) — এই দুই গ্রুপে একটাই সিলেক্ট করা যায় এবং <b>এতে কোনো প্রাইস থাকে না</b>, এগুলো শুধু সিলেক্টর। <b>কোটিং</b> (অ্যান্টি-ব্লু লাইট, ফটোক্রোমিক, অ্যান্টি-গ্লেয়ার, ইউভি প্রোটেক্টিভ ইত্যাদি) একসাথে একাধিক সিলেক্ট করা যায় এবং <b>শুধু এখানেই প্রাইস থাকে</b> — প্রতিটি কোটিংয়ের ২টি দাম: একটা প্লাস্টিক কোয়ালিটির জন্য, আরেকটা কাচ কোয়ালিটির জন্য। যেই কোয়ালিটির ফিল্ড খালি রাখবেন, সেই কোয়ালিটি বিলে সিলেক্ট করা থাকলে ওই কোটিং দেখানোই হবে না (অনুপলব্ধ)। বিলে রিসেপশনিস্ট আগে কোয়ালিটি সিলেক্ট করলেই কোটিংগুলোর সঠিক দাম দেখা যাবে। <b>ডিসকাউন্ট এই কোনো অপশনের মূল্যে প্রযোজ্য হবে না</b>, শুধু চশমার ফ্রেমের দামে হবে।</p>
           <div id="lensOptRows"></div>
           <div style="display:flex;justify-content:flex-end;margin-top:10px">
             <button class="btn btn-primary" onclick="saveLensOptions()">💾 অপশন তালিকা সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ একাধিক কোটিং একসাথে থাকলে যোগফলের বদলে আলাদা কম্বো-মূল্য (যেমন: অ্যান্টি-ব্লু লাইট + ফটোক্রোমিক একসাথে হলে বিশেষ মূল্য) -->
+      <div class="panel" data-settings-section="lens-opt">
+        <div class="panel-header">
+          <div class="panel-title">🔗 লেন্স কোটিং কম্বো-মূল্য</div>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px">একাধিক কোটিং একই লেন্সে একসাথে থাকলে আলাদা (সাধারণত কম) মূল্য বসাতে চাইলে এখানে যোগ করুন — উদাহরণ: শুধু অ্যান্টি-ব্লু লাইট ৳৩০০, শুধু ফটোক্রোমিক ৳৩২০, কিন্তু দুটো একসাথে হলে ৳৪৫০। যেই কম্বোর সাথে মিলবে না, সেক্ষেত্রে প্রতিটি কোটিংয়ের আলাদা মূল্য যোগ হবে। এখানেও প্লাস্টিক ও কাচের জন্য ২টি আলাদা কম্বো-মূল্য বসানো যায়, খালি রাখলে সেই কোয়ালিটিতে কম্বোটা প্রযোজ্য হবে না।</p>
+          <div id="lensComboRows"></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:10px">
+            <button class="btn btn-primary" onclick="saveLensCombos()">💾 কম্বো-মূল্য সেভ করুন</button>
           </div>
         </div>
       </div>
@@ -11073,6 +11087,18 @@ function renderBalanceSheet() {
   }
 }
 
+// ✅ "HH:MM" (২৪ ঘণ্টা) টাইমকে "Duty Submit: 06:30 pm" ফরম্যাটে রূপান্তর করে
+function formatDutySubmitTime(t) {
+  if (!t) return 'Duty Submit';
+  const parts = t.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) || 0;
+  if (isNaN(h)) return 'Duty Submit';
+  const ap = h >= 12 ? 'pm' : 'am';
+  let h12 = h % 12; if (h12 === 0) h12 = 12;
+  return `Duty Submit: ${String(h12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`;
+}
+
 // ===== DASHBOARD: সাম্প্রতিক এন্ট্রি (ডে/মান্থ গ্রুপড, এক্সপ্যান্ডেবল) =====
 function renderDashRecentEntries() {
   const tbody = document.getElementById('recentTable');
@@ -11102,17 +11128,29 @@ function renderDashRecentEntries() {
       campId: e.campId||null,
       amt: e.amount, by: e.by||'—', cls:'badge-expense'
     })),
-    ...(appData.bankTx||[]).map(tx=>({
+    // ⚠️ রিসেপশনিস্ট ডিউটি-সাবমিট bankTx (ref:'duty-submit') এখানে বাদ — নিচে recDeposits থেকে
+    // একই জমার জন্য আলাদা "রিসেপ জমা" row ইতিমধ্যে দেখানো হচ্ছে, ডুপ্লিকেট এড়াতে date+amount মিলিয়ে বাদ দেওয়া হয়
+    ...(function(){
+      const recDepKeys = {};
+      (appData.recDeposits||[]).forEach(d=>{ const k=d.date+'_'+d.amount; recDepKeys[k]=(recDepKeys[k]||0)+1; });
+      return (appData.bankTx||[]).filter(tx=>{
+        if (tx.ref==='duty-submit') {
+          const k = tx.date+'_'+tx.amount;
+          if (recDepKeys[k] > 0) { recDepKeys[k]--; return false; }
+        }
+        return true;
+      });
+    })().map(tx=>({
       id: tx.id||('btx_'+tx.date+tx.amount), date:tx.date,
       type: tx.source==='withdrawal' ? 'মুনাফা উত্তোলন' : 'ট্রান্সফার',
       vouchRef: tx.ref||'—', cat: tx.source==='withdrawal' ? (tx.type==='cash_out'?'ক্যাশ':'ব্যাংক') : (bankTxLabels[tx.type]||tx.type),
       ref: tx.note||'—', campId: null,
       amt: tx.amount, by: tx.by||'—', cls: tx.source==='withdrawal' ? 'badge-expense' : 'badge-transfer'
     })),
-    // রিসেপশনিস্ট ক্যাশ জমার row
+    // রিসেপশনিস্ট ক্যাশ জমার row (একমাত্র row — টাইম, মেমো ডিটেইলস সহ)
     ...(appData.recDeposits||[]).map(d=>({
       id: d.id, date:d.date, type:'রিসেপ জমা',
-      vouchRef: d.time||'—', cat:'রিসেপশনিস্ট ক্যাশ জমা',
+      vouchRef: formatDutySubmitTime(d.time), cat:'রিসেপশনিস্ট ক্যাশ জমা',
       ref: `${d.visitCount||0}জন রোগী | মেমো: ${d.memoFrom||''}–${d.memoTo||''}`,
       campId: null,
       amt: d.amount, by: d.by||'—', cls:'badge-deposit'
@@ -17265,30 +17303,63 @@ function renderServiceFeeRows() {
 }
 
 // ===== লেন্স/চশমা কাস্টমাইজেশন অপশন (ADMIN) — বিলে "চশমা" সিলেক্ট করলে চেকবক্স আকারে দেখানো হয় =====
-function addLensOptRow(name='', price=0, type='coating') {
+// ✅ সহজ সমীকরণ: লেন্সের ধরন ও কোয়ালিটিতে কোনো প্রাইস থাকে না, শুধু নাম-ভিত্তিক সিলেক্টর।
+// কোটিং টাইপের রো-তে শুধু ২টা প্রাইস ফিল্ড থাকে — প্লাস্টিক কোয়ালিটির দাম ও কাচ কোয়ালিটির দাম।
+// কোনোটা খালি রাখলে সেই কোয়ালিটিতে এই কোটিং বিলে উপলব্ধ দেখাবে না।
+function addLensOptRow(name='', type='coating', plasticPrice=null, glassPrice=null) {
   const container = document.getElementById('lensOptRows');
   if (!container) return;
-  const div = document.createElement('div');
-  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1.3fr auto;gap:8px;margin-bottom:8px;align-items:center';
-  div.innerHTML = `
-    <input type="text" placeholder="অপশনের নাম (যেমন: ব্লুকাট)" value="${name}" class="lo-name" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-    <input type="number" placeholder="মূল্য (৳)" value="${price||''}" class="lo-price" min="0" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-    <select class="lo-type" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
-      <option value="coating" ${type!=='material'?'selected':''}>কোটিং/ধরন (একাধিক সিলেক্ট)</option>
-      <option value="material" ${type==='material'?'selected':''}>লেন্স কোয়ালিটি (একটাই সিলেক্ট — প্লাস্টিক/কাচ)</option>
-    </select>
-    <button class="btn-icon-del" onclick="this.parentElement.remove()">✕</button>`;
-  container.appendChild(div);
+  const wrap = document.createElement('div');
+  wrap.className = 'lo-row-wrap';
+  wrap.style.cssText = 'margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:#fafafa';
+  const isCoating = type!=='material' && type!=='lenstype';
+  wrap.innerHTML = `
+    <div style="display:grid;grid-template-columns:2fr 1.6fr auto;gap:8px;align-items:center">
+      <input type="text" placeholder="অপশনের নাম (যেমন: অ্যান্টি ব্লু লাইট)" value="${name}" class="lo-name" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+      <select class="lo-type" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px" onchange="_onLensOptTypeChange(this)">
+        <option value="lenstype" ${type==='lenstype'?'selected':''}>লেন্সের ধরন (একটাই সিলেক্ট — সিঙ্গেল ভিশন/বাই ফোকাল, প্রাইস নেই)</option>
+        <option value="coating" ${isCoating?'selected':''}>কোটিং (একাধিক সিলেক্ট করা যায়, প্রাইস আছে)</option>
+        <option value="material" ${type==='material'?'selected':''}>লেন্স কোয়ালিটি (একটাই সিলেক্ট — প্লাস্টিক/কাচ, প্রাইস নেই)</option>
+      </select>
+      <button class="btn-icon-del" onclick="this.closest('.lo-row-wrap').remove();renderLensComboBuilder()">✕</button>
+    </div>
+    <div class="lo-coat-extra" style="${isCoating?'':'display:none'};margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label style="font-size:10.5px;color:var(--text-light)">প্লাস্টিক কোয়ালিটির দাম (৳) — খালি রাখলে প্লাস্টিকে অনুপলব্ধ
+          <input type="number" class="lo-price-plastic" value="${plasticPrice===null||plasticPrice===undefined?'':plasticPrice}" min="0" placeholder="খালি = অনুপলব্ধ" style="width:100%;padding:8px 9px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;margin-top:2px">
+        </label>
+        <label style="font-size:10.5px;color:var(--text-light)">কাচ কোয়ালিটির দাম (৳) — খালি রাখলে কাচে অনুপলব্ধ
+          <input type="number" class="lo-price-glass" value="${glassPrice===null||glassPrice===undefined?'':glassPrice}" min="0" placeholder="খালি = অনুপলব্ধ" style="width:100%;padding:8px 9px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;margin-top:2px">
+        </label>
+      </div>
+    </div>`;
+  container.appendChild(wrap);
+}
+// ✅ টাইপ ড্রপডাউন বদলালে কোটিং প্রাইস ব্লক দেখানো/লুকানো টগল হয়
+function _onLensOptTypeChange(sel) {
+  const wrap = sel.closest('.lo-row-wrap');
+  const isCoating = sel.value!=='material' && sel.value!=='lenstype';
+  const extra = wrap.querySelector('.lo-coat-extra');
+  if (extra) extra.style.display = isCoating ? '' : 'none';
+  renderLensComboBuilder();
 }
 
 function saveLensOptions() {
-  const rows = document.querySelectorAll('#lensOptRows > div');
+  const rows = document.querySelectorAll('#lensOptRows > .lo-row-wrap');
   const opts = [];
   rows.forEach(r => {
     const name = r.querySelector('.lo-name').value.trim();
-    const price = parseFloat(r.querySelector('.lo-price').value)||0;
     const type = r.querySelector('.lo-type').value||'coating';
-    if (name) opts.push({ name, price, type });
+    if (!name) return;
+    if (type==='material' || type==='lenstype') {
+      opts.push({ name, type }); // ✅ ধরন ও কোয়ালিটিতে কোনো প্রাইস সেভ হয় না
+    } else {
+      const pv = r.querySelector('.lo-price-plastic').value;
+      const gv = r.querySelector('.lo-price-glass').value;
+      const plasticPrice = pv===''? null : (parseFloat(pv)||0);
+      const glassPrice = gv===''? null : (parseFloat(gv)||0);
+      opts.push({ name, type:'coating', plasticPrice, glassPrice });
+    }
   });
   appData.settings.lensOptions = opts;
   saveData();
@@ -17299,10 +17370,83 @@ function renderLensOptRows() {
   const container = document.getElementById('lensOptRows');
   if (!container) return;
   container.innerHTML = '';
-  (appData.settings.lensOptions||[]).forEach(o => addLensOptRow(o.name, o.price, o.type));
+  (appData.settings.lensOptions||[]).forEach(o => addLensOptRow(o.name, o.type, o.plasticPrice, o.glassPrice));
   if (!container.children.length) {
-    DEFAULT_LENS_OPTIONS.forEach(o => addLensOptRow(o.name, o.price, o.type));
+    DEFAULT_LENS_OPTIONS.forEach(o => addLensOptRow(o.name, o.type, o.plasticPrice, o.glassPrice));
   }
+  renderLensComboBuilder();
+}
+
+// ===== একাধিক কোটিং একসাথে থাকলে কম্বো-মূল্য (যেমন: অ্যান্টি-ব্লু লাইট + ফটোক্রোমিক একসাথে থাকলে আলাদা মূল্য) =====
+function _currentCoatingNamesFromForm() {
+  const rows = document.querySelectorAll('#lensOptRows > .lo-row-wrap');
+  const names = [];
+  rows.forEach(r=>{
+    const type=r.querySelector('.lo-type').value||'coating';
+    const name=r.querySelector('.lo-name').value.trim();
+    if (name && type!=='material' && type!=='lenstype') names.push(name);
+  });
+  return names;
+}
+function renderLensComboBuilder() {
+  const box = document.getElementById('lensComboRows');
+  if (!box) return; // সেটিংস প্যানেল ওপেন না থাকলে এখনো DOM-এ নাও থাকতে পারে
+  const coatingNames = _currentCoatingNamesFromForm();
+  if (coatingNames.length < 2) {
+    box.innerHTML = '<p style="font-size:12px;color:var(--text-light)">কম্বো-মূল্য বসাতে কমপক্ষে ২টি "কোটিং" ধরনের অপশন উপরে যোগ করুন।</p>';
+    return;
+  }
+  const existing = appData.settings.lensCombos || (appData.settings.lensOptions&&appData.settings.lensOptions.length ? [] : DEFAULT_LENS_COMBOS);
+  box.innerHTML = '';
+  existing.forEach(c => addLensComboRow(c.coatings, c.plasticPrice, c.glassPrice, coatingNames));
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-outline btn-sm';
+  addBtn.textContent = '➕ কম্বো যোগ করুন';
+  addBtn.type = 'button';
+  addBtn.onclick = () => addLensComboRow([], null, null, coatingNames);
+  box.appendChild(addBtn);
+}
+// ✅ কম্বোরও ২টি প্রাইস ফিল্ড — প্লাস্টিক কোয়ালিটি ও কাচ কোয়ালিটি; খালি রাখলে সেই কোয়ালিটিতে কম্বোটা প্রযোজ্য হবে না
+function addLensComboRow(selectedCoatings, plasticPrice, glassPrice, coatingNames) {
+  const box = document.getElementById('lensComboRows');
+  if (!box) return;
+  const btn = box.querySelector('button');
+  const div = document.createElement('div');
+  div.className = 'lens-combo-row';
+  div.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:8px;padding:8px 10px;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px';
+  div.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+      <div style="display:flex;flex-wrap:wrap;gap:5px;flex:1">
+        ${coatingNames.map(nm=>`<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;background:#fff;border:1.2px solid var(--border);border-radius:14px;padding:4px 8px;cursor:pointer">
+          <input type="checkbox" class="combo-coat" value="${nm.replace(/"/g,'&quot;')}" ${selectedCoatings.includes(nm)?'checked':''} style="width:13px;height:13px">${nm}
+        </label>`).join('')}
+      </div>
+      <button class="btn-icon-del" type="button" onclick="this.closest('.lens-combo-row').remove()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <label style="font-size:10.5px;color:var(--text-light)">প্লাস্টিক কোয়ালিটির কম্বো-দাম (৳)
+        <input type="number" class="combo-price-plastic" value="${plasticPrice===null||plasticPrice===undefined?'':plasticPrice}" min="0" placeholder="খালি = অনুপলব্ধ" style="width:100%;padding:8px 9px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;margin-top:2px">
+      </label>
+      <label style="font-size:10.5px;color:var(--text-light)">কাচ কোয়ালিটির কম্বো-দাম (৳)
+        <input type="number" class="combo-price-glass" value="${glassPrice===null||glassPrice===undefined?'':glassPrice}" min="0" placeholder="খালি = অনুপলব্ধ" style="width:100%;padding:8px 9px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;margin-top:2px">
+      </label>
+    </div>`;
+  if (btn) box.insertBefore(div, btn); else box.appendChild(div);
+}
+function saveLensCombos() {
+  const rows = document.querySelectorAll('#lensComboRows .lens-combo-row');
+  const combos = [];
+  rows.forEach(r => {
+    const coatings = Array.from(r.querySelectorAll('.combo-coat:checked')).map(c=>c.value);
+    const pv = r.querySelector('.combo-price-plastic').value;
+    const gv = r.querySelector('.combo-price-glass').value;
+    const plasticPrice = pv===''? null : (parseFloat(pv)||0);
+    const glassPrice = gv===''? null : (parseFloat(gv)||0);
+    if (coatings.length>=2) combos.push({ coatings, plasticPrice, glassPrice });
+  });
+  appData.settings.lensCombos = combos;
+  saveData();
+  showToast(`✅ ${combos.length}টি লেন্স কম্বো-মূল্য সেভ হয়েছে`);
 }
 
 // ===== RECEIPT NUMBER SYSTEM =====
@@ -23208,13 +23352,12 @@ function getServices() {
     return { name:name||type, type, qty, price, subtotal, feeId, glass, sellMin };
   }).filter(s=>s.subtotal>0);
 }
-// ✅ ডিসকাউন্ট শুধু চশমার (ফ্রেম+লেন্স অপশন) দামের উপর প্রযোজ্য — তাও আবার সর্বনিম্ন বিক্রয়মূল্য (sellMin) বাদ দিয়ে।
-// ওষুধ/সার্জিক্যাল/টেস্ট ইত্যাদির দামে কখনো ডিসকাউন্ট প্রযোজ্য হবে না।
+// ✅ ডিসকাউন্ট শুধুই চশমার ফ্রেমের দামের (qty×price) উপর প্রযোজ্য — তাও আবার সর্বনিম্ন বিক্রয়মূল্য (sellMin) বাদ দিয়ে।
+// লেন্স কাস্টমাইজেশনে যেই কোটিং/লেন্স-টাইপ/কোয়ালিটিই সিলেক্ট করা হোক না কেন, তার মূল্যে কখনো ডিসকাউন্ট প্রযোজ্য হবে না
+// (আগে ভুলবশত ফ্রেম+লেন্স অপশন দুটোর সম্মিলিত সাবটোটাল থেকে হিসাব হতো)। ওষুধ/সার্জিক্যাল/টেস্ট এমনিতেই বাদ থাকে।
 function getDiscountableBase(services) {
   const glassItems = (services||[]).filter(s=>s.type==='glass');
-  const glassSubtotal = glassItems.reduce((s,i)=>s+i.subtotal,0);
-  const glassMin = glassItems.reduce((s,i)=>s+(i.sellMin||0)*i.qty,0);
-  return Math.max(0, glassSubtotal-glassMin);
+  return glassItems.reduce((s,i)=>s+Math.max(0, (i.price*i.qty)-((i.sellMin||0)*i.qty)), 0);
 }
 function getDiscountLimit() {
   const s=appData.settings;
@@ -23399,6 +23542,8 @@ function saveBill() {
   // ✅ চশমার কাস্টমাইজেশন বক্সে ডেলিভারি তারিখ দেওয়া থাকলে স্বয়ংক্রিয়ভাবে ডেলিভারি শিডিউলে যোগ হয়ে যায়
   const glassDeliveryCount = (services||[]).filter(s=>s.type==='glass'&&s.glass&&s.glass.deliveryDate).length;
   recordGlassOrders(services, {date, memoNo, patName, patPhone, by:currentUser.name});
+  // ✅ বিলে দেওয়া চোখের পাওয়ার/ADD/PD স্বয়ংক্রিয়ভাবে রোগীর প্রেসক্রিপশন হিস্ট্রিতে রেকর্ড হয়
+  recordGlassPrescriptions(patName, patPhone, date, memoNo, services);
   if (cashPaid > 0) {
     appData.income.push({
       id:Date.now()+1, date,
@@ -25067,6 +25212,29 @@ function deletePrescriptionEntry(key, idx) {
     showPatientDetail(key);
   }
 }
+// ✅ বিলে চশমা সিলেক্ট করার সময় যে পাওয়ার/ADD/PD ফিল্ড পূরণ করা হয়, বিল সেভ হলে সেটাই স্বয়ংক্রিয়ভাবে
+// রোগীর ডাটাবেজের "চোখের পাওয়ার/প্রেসক্রিপশন হিস্ট্রি"-তে অফিসিয়াল টার্ম (OD/OS/SPH/CYL/AXIS/ADD/PD) অনুযায়ী রেকর্ড হয়ে যায়
+function recordGlassPrescriptions(patName, patPhone, date, memoNo, glassItems) {
+  const items = (glassItems||[]).filter(i=>i.glass && (i.glass.rightEye||i.glass.leftEye||i.glass.nearRightEye||i.glass.nearLeftEye||i.glass.pd));
+  if (!items.length) return;
+  const normPhone = normalizePhone(patPhone);
+  let key = normPhone || normalizeName(patName);
+  if (!key) return;
+  key = resolvePatientKey(key);
+  if (!appData.patientProfiles) appData.patientProfiles={};
+  if (!appData.patientProfiles[key]) appData.patientProfiles[key]={dob:'',allergies:'',medicalNote:'',prescriptions:[]};
+  if (!appData.patientProfiles[key].prescriptions) appData.patientProfiles[key].prescriptions=[];
+  items.forEach(item=>{
+    const g = item.glass;
+    appData.patientProfiles[key].prescriptions.push({
+      date, odSph:g.rightEye||'', osSph:g.leftEye||'',
+      odAdd:g.nearRightEye||'', osAdd:g.nearLeftEye||'', pd:g.pd||'',
+      odCyl:'', odAxis:'', odVA:'', osCyl:'', osAxis:'', osVA:'', iopOD:'', iopOS:'',
+      note:`বিল থেকে অটো — চশমা: ${item.name}${memoNo?` (মেমো: ${memoNo})`:''}`,
+      source:'bill', memoNo, frameName:item.name
+    });
+  });
+}
 function populatePatDoctorFilter(patients) {
   const sel = document.getElementById('patDoctorFilter');
   if (!sel) return;
@@ -25241,98 +25409,126 @@ function showPatientDetail(key) {
   const dOrders = getPatientDeliveryOrders(key);
   const appts = getPatientAppointments(key);
 
+  const hasIOP = rx.some(r=>r.iopOD||r.iopOS);
+  const escName = name.replace(/'/g,"\\'");
+  const escKey = key.replace(/'/g,"\\'");
+
   const modal = document.createElement('div');
   modal.id = 'patientDetailModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.62);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
   modal.innerHTML = `
-    <div style="background:white;border-radius:16px;padding:22px;max-width:680px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-        <div>
-          <h3 style="margin:0 0 2px;color:var(--primary);font-size:17px">${name}</h3>
-          <p style="margin:0;font-size:11px;color:var(--text-light)">${(appData.patientMRNs||{})[key]||''}</p>
-          <p style="margin:4px 0 0;font-size:13px;color:var(--text-light)">${phone||'—'}${age?' · বয়স '+age:''}${gender?' · '+gender:''}${doctor?' · ডা. '+doctor:''}</p>
-          ${address?`<p style="margin:2px 0 0;font-size:12px;color:var(--text-light)">📍 ${address}</p>`:''}
+    <style>
+      #patientDetailModal .pdm-card{background:linear-gradient(180deg,#fbfcfe,#f7f9fc);border:1px solid #eef1f6;border-radius:11px;padding:10px 13px;margin-bottom:9px}
+      #patientDetailModal .pdm-card-title{font-weight:800;font-size:11.5px;color:#334155;letter-spacing:.2px;display:flex;align-items:center;gap:5px}
+      #patientDetailModal .pdm-input{padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-family:inherit;font-size:11.5px;box-sizing:border-box;background:#fff;width:100%}
+      #patientDetailModal .pdm-label{font-size:10px;color:#94a3b8;font-weight:600;display:block;margin-bottom:2px}
+      #patientDetailModal table thead th{padding:6px 9px;font-size:9.5px;white-space:nowrap}
+      #patientDetailModal table tbody td{padding:6px 9px;font-size:11px}
+      #patientDetailModal .table-wrap{border:1px solid #eef1f6;border-radius:9px}
+    </style>
+    <div style="background:white;border-radius:16px;padding:0;max-width:900px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 25px 70px rgba(15,23,42,0.35)">
+      <!-- হেডার: নাম, MRN, যোগাযোগ ও আর্থিক সামারি — একসাথে কম্প্যাক্ট স্ট্রিপে, স্ক্রল করলেও স্থির থাকে -->
+      <div style="padding:13px 20px 11px;border-bottom:1px solid #eef1f6;flex-shrink:0;background:linear-gradient(180deg,#fbfdff,#ffffff)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="display:flex;align-items:center;gap:11px;min-width:0">
+            <div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#2563eb,#0f4c81);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;flex-shrink:0;box-shadow:0 5px 12px rgba(15,76,129,0.28)">${(name||'?').charAt(0)}</div>
+            <div style="min-width:0">
+              <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+                <h3 style="margin:0;color:#0f172a;font-size:16px;font-weight:800;letter-spacing:-.2px">${name}</h3>
+                <span style="font-size:10px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #dbeafe;padding:2px 8px;border-radius:20px;letter-spacing:.3px">${(appData.patientMRNs||{})[key]||''}</span>
+              </div>
+              <div style="margin-top:3px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:11px;color:#64748b">
+                ${phone?`<span>📞 ${phone}</span>`:''}
+                ${age?`<span>🎂 ${age}</span>`:''}
+                ${gender?`<span>${gender}</span>`:''}
+                ${doctor?`<span>👨‍⚕️ ডা. ${doctor}</span>`:''}
+                ${address?`<span>📍 ${address}</span>`:''}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
+            <button class="btn btn-outline btn-sm" style="padding:5px 10px;font-size:11px" onclick="showMergePicker('${escKey}','${escName}')" title="এই রোগীকে অন্য কোনো রেকর্ডের সাথে মার্জ করুন">🔗 মার্জ</button>
+            <button onclick="document.getElementById('patientDetailModal').remove()" style="background:#f1f5f9;border:none;width:27px;height:27px;border-radius:8px;font-size:14px;cursor:pointer;color:#64748b;line-height:1">✕</button>
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-          <button onclick="document.getElementById('patientDetailModal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;line-height:1">✕</button>
-          <button class="btn btn-outline btn-sm" onclick="showMergePicker('${key.replace(/'/g,"\\'")}','${name.replace(/'/g,"\\'")}')" title="এই রোগীকে অন্য কোনো রেকর্ডের সাথে মার্জ করুন">🔗 মার্জ</button>
+        <div style="margin-top:9px;padding-top:9px;border-top:1px dashed #eef1f6;display:flex;gap:20px;flex-wrap:wrap;font-size:11.5px">
+          <div style="color:#94a3b8">মোট বিল <b style="color:#1e293b;font-size:12.5px">৳ ${fmt(totalBill)}</b></div>
+          <div style="color:#94a3b8">পরিশোধ <b style="color:var(--success);font-size:12.5px">৳ ${fmt(totalPaid)}</b></div>
+          <div style="color:#94a3b8">বাকি <b style="color:${totalDue>0?'var(--danger)':'var(--success)'};font-size:12.5px">${totalDue>0?'৳ '+fmt(totalDue):'✅ নেই'}</b></div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
-        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:11px;color:var(--text-light)">মোট বিল</div>
-          <div style="font-weight:700">৳ ${fmt(totalBill)}</div>
-        </div>
-        <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:11px;color:var(--text-light)">মোট পরিশোধ</div>
-          <div style="font-weight:700;color:var(--success)">৳ ${fmt(totalPaid)}</div>
-        </div>
-        <div style="background:${totalDue>0?'#fef2f2':'#f0fdf4'};border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:11px;color:var(--text-light)">বাকি</div>
-          <div style="font-weight:700;color:${totalDue>0?'var(--danger)':'var(--success)'}">${totalDue>0?'৳ '+fmt(totalDue):'✅'}</div>
-        </div>
-      </div>
+
+      <!-- স্ক্রলযোগ্য বডি -->
+      <div style="overflow-y:auto;padding:12px 20px 18px;flex:1">
 
       <!-- মেডিকেল প্রোফাইল: জন্মতারিখ, অ্যালার্জি, নোট -->
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">🩺 মেডিকেল প্রোফাইল</div>
-        <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-bottom:8px">
-          <div>
-            <label style="font-size:11px;color:var(--text-light)">জন্মতারিখ</label>
-            <input type="date" id="ppDob" value="${profile.dob||''}" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--danger)">🚨 অ্যালার্জি</label>
-            <input type="text" id="ppAllergy" value="${profile.allergies||''}" placeholder="যেমন: পেনিসিলিন, ধুলাবালি..." style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
-          </div>
+      <div class="pdm-card">
+        <div class="pdm-card-title" style="margin-bottom:7px">🩺 মেডিকেল প্রোফাইল</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:7px;align-items:end">
+          <div><label class="pdm-label">জন্মতারিখ</label><input type="date" id="ppDob" value="${profile.dob||''}" class="pdm-input"></div>
+          <div><label class="pdm-label" style="color:#dc2626">🚨 অ্যালার্জি</label><input type="text" id="ppAllergy" value="${profile.allergies||''}" placeholder="যেমন: পেনিসিলিন..." class="pdm-input"></div>
+          <div><label class="pdm-label">মেডিকেল নোট</label><input type="text" id="ppNote" value="${(profile.medicalNote||'').replace(/"/g,'&quot;')}" placeholder="দীর্ঘমেয়াদী রোগ, বিশেষ সতর্কতা..." class="pdm-input"></div>
+          <button class="btn btn-primary btn-sm" style="padding:6px 12px;font-size:11px;white-space:nowrap" onclick="savePatientProfileBasic('${key}')">💾 সেভ</button>
         </div>
-        <label style="font-size:11px;color:var(--text-light)">মেডিকেল নোট</label>
-        <textarea id="ppNote" rows="2" placeholder="দীর্ঘমেয়াদী রোগ, ওষুধ, বিশেষ সতর্কতা..." style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;resize:vertical">${profile.medicalNote||''}</textarea>
-        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="savePatientProfileBasic('${key}')">💾 প্রোফাইল সেভ করুন</button>
       </div>
 
-      <!-- চোখের পাওয়ার/প্রেসক্রিপশন হিস্ট্রি -->
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">👁️ চোখের পাওয়ার / প্রেসক্রিপশন হিস্ট্রি</div>
-        ${rx.length?`<div class="table-wrap" style="margin-bottom:10px"><table style="font-size:11px">
-          <thead><tr><th>তারিখ</th><th>OD (Sph/Cyl/Axis/VA)</th><th>OS (Sph/Cyl/Axis/VA)</th><th>IOP (OD/OS)</th><th>নোট</th><th></th></tr></thead>
+      <!-- চোখের পাওয়ার/প্রেসক্রিপশন হিস্ট্রি — SPH/CYL/AXIS/ADD/PD/OD/OS/OU অফিসিয়াল টার্ম ব্যবহার করা হয়; বিলে চশমা সিলেক্ট করলে স্বয়ংক্রিয়ভাবে এখানে যোগ হয় (🧾 আইকনে চিহ্নিত) -->
+      <div class="pdm-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+          <div class="pdm-card-title">👁️ চোখের পাওয়ার / প্রেসক্রিপশন হিস্ট্রি <span style="font-weight:400;color:#94a3b8;font-size:9.5px">(OD: ডান · OS: বাম · SPH/CYL/AXIS · ADD · PD)</span></div>
+          <button type="button" id="rxToggleBtn" onclick="toggleManualRxFields()" style="background:#eff6ff;border:1px solid #dbeafe;color:#1d4ed8;font-weight:700;font-size:10.5px;padding:4px 10px;border-radius:7px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">➕ ম্যানুয়াল এন্ট্রি</button>
+        </div>
+        ${rx.length?`<div class="table-wrap"><table style="margin:0;table-layout:fixed;width:100%">
+          <colgroup>
+            <col style="width:13%"><col style="width:15%"><col style="width:15%"><col style="width:11%"><col style="width:8%">${hasIOP?'<col style="width:11%">':''}<col><col style="width:26px">
+          </colgroup>
+          <thead><tr style="background:#f1f5f9">
+            <th style="color:#475569">তারিখ</th><th style="color:#475569" title="OD — ডান চোখ (SPH/CYL/AXIS/VA)">OD</th><th style="color:#475569" title="OS — বাম চোখ (SPH/CYL/AXIS/VA)">OS</th><th style="color:#475569" title="ADD (OD/OS)">ADD</th><th style="color:#475569">PD</th>${hasIOP?'<th style="color:#475569" title="IOP (OD/OS)">IOP</th>':''}<th style="color:#475569">নোট</th><th></th>
+          </tr></thead>
           <tbody>
-            ${rx.map((r,idx)=>`<tr>
-              <td>${formatDate(r.date)}</td>
-              <td>${[r.odSph,r.odCyl,r.odAxis,r.odVA].filter(Boolean).join(' / ')||'—'}</td>
-              <td>${[r.osSph,r.osCyl,r.osAxis,r.osVA].filter(Boolean).join(' / ')||'—'}</td>
-              <td>${[r.iopOD,r.iopOS].filter(Boolean).join(' / ')||'—'}</td>
-              <td>${r.note||'—'}</td>
-              <td><button onclick="deletePrescriptionEntry('${key}',${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px" title="মুছুন">🗑️</button></td>
-            </tr>`).join('')}
+            ${rx.slice().reverse().map((r)=>{ const idx=rx.indexOf(r); return `<tr>
+              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${formatDate(r.date)}${r.source==='bill'?' <span title="বিল থেকে অটো রেকর্ড" style="font-size:9px">🧾</span>':''}</td>
+              <td style="font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${[r.odSph,r.odCyl,r.odAxis,r.odVA].filter(Boolean).join(' / ')}">${[r.odSph,r.odCyl,r.odAxis,r.odVA].filter(Boolean).join('/')||'—'}</td>
+              <td style="font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${[r.osSph,r.osCyl,r.osAxis,r.osVA].filter(Boolean).join(' / ')}">${[r.osSph,r.osCyl,r.osAxis,r.osVA].filter(Boolean).join('/')||'—'}</td>
+              <td style="white-space:nowrap">${[r.odAdd,r.osAdd].filter(Boolean).join('/')||'—'}</td>
+              <td>${r.pd||'—'}</td>
+              ${hasIOP?`<td style="white-space:nowrap">${[r.iopOD,r.iopOS].filter(Boolean).join('/')||'—'}</td>`:''}
+              <td style="color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${(r.note||'').replace(/"/g,'&quot;')}">${r.note||'—'}</td>
+              <td><button onclick="deletePrescriptionEntry('${key}',${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px" title="মুছুন">🗑️</button></td>
+            </tr>`; }).join('')}
           </tbody>
-        </table></div>` : `<div style="color:#aaa;font-size:11px;padding:6px 0">কোনো প্রেসক্রিপশন এন্ট্রি নেই</div>`}
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px">
-          <input type="date" id="rxDate" value="${todayStr()}" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOdSph" placeholder="OD Sph" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOdCyl" placeholder="OD Cyl" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOdAxis" placeholder="OD Axis" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOdVA" placeholder="OD VA" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px">
-          <input type="text" id="rxIopOD" placeholder="IOP OD" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOsSph" placeholder="OS Sph" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOsCyl" placeholder="OS Cyl" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOsAxis" placeholder="OS Axis" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxOsVA" placeholder="OS VA" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px">
-          <input type="text" id="rxIopOS" placeholder="IOP OS" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <input type="text" id="rxNote" placeholder="নোট" style="padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:11px">
-          <button class="btn btn-primary btn-sm" onclick="addPrescriptionEntry('${key}')">➕ এন্ট্রি যোগ করুন</button>
+        </table></div>` : `<div style="color:#aaa;font-size:11px;padding:4px 0">কোনো প্রেসক্রিপশন এন্ট্রি নেই</div>`}
+
+        <!-- ম্যানুয়াল এন্ট্রি ফিল্ড — ডিফল্টে হিডেন, বাটনে ক্লিক করলে কম্প্যাক্ট ডিজাইনে খুলবে -->
+        <div id="rxManualFields" style="display:none;margin-top:9px;padding-top:9px;border-top:1px dashed #e2e8f0">
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:5px">
+            <input type="date" id="rxDate" value="${todayStr()}" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxOdSph" placeholder="OD Sph" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxOdCyl" placeholder="OD Cyl" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxOdAxis" placeholder="OD Axis" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxOdVA" placeholder="OD VA" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxIopOD" placeholder="IOP OD" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:5px">
+            <div></div>
+            <input type="text" id="rxOsSph" placeholder="OS Sph" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxOsCyl" placeholder="OS Cyl" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxOsAxis" placeholder="OS Axis" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxOsVA" placeholder="OS VA" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <input type="text" id="rxIopOS" placeholder="IOP OS" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:5px">
+            <input type="text" id="rxNote" placeholder="নোট" class="pdm-input" style="font-size:10.5px;padding:5px 6px">
+            <button class="btn btn-primary btn-sm" style="padding:6px 12px;font-size:11px" onclick="addPrescriptionEntry('${key}')">➕ যোগ করুন</button>
+          </div>
         </div>
       </div>
 
       <!-- চশমা ডেলিভারি অর্ডার -->
       ${dOrders.length?`
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">📦 চশমা ডেলিভারি অর্ডার</div>
-        <div class="table-wrap"><table style="font-size:11.5px">
+      <div class="pdm-card">
+        <div class="pdm-card-title" style="margin-bottom:7px">📦 চশমা ডেলিভারি অর্ডার</div>
+        <div class="table-wrap"><table>
           <thead><tr><th>অর্ডার তারিখ</th><th>আইটেম</th><th>ডেলিভারি তারিখ</th><th>মোট</th><th>অগ্রিম</th><th>বাকি</th><th>স্ট্যাটাস</th></tr></thead>
           <tbody>
             ${dOrders.slice().sort((a,b)=>(b.orderDate||'').localeCompare(a.orderDate||'')).map(d=>`<tr>
@@ -25350,9 +25546,9 @@ function showPatientDetail(key) {
 
       <!-- অ্যাপয়েন্টমেন্ট/সিরিয়াল হিস্ট্রি -->
       ${appts.length?`
-      <div style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:14px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:8px">📅 অ্যাপয়েন্টমেন্ট/সিরিয়াল হিস্ট্রি</div>
-        <div class="table-wrap"><table style="font-size:11.5px">
+      <div class="pdm-card">
+        <div class="pdm-card-title" style="margin-bottom:7px">📅 অ্যাপয়েন্টমেন্ট/সিরিয়াল হিস্ট্রি</div>
+        <div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>সময়</th><th>ডাক্তার</th><th>নোট</th><th>স্ট্যাটাস</th></tr></thead>
           <tbody>
             ${appts.slice().sort((a,b)=>(b.date+((b.time||''))).localeCompare(a.date+((a.time||'')))).map(a=>{
@@ -25362,28 +25558,40 @@ function showPatientDetail(key) {
               <td>${formatDate(a.date)}</td>
               <td>${a.time||'—'}</td>
               <td>${a.doctorName||'—'}</td>
-              <td style="font-size:11px">${a.note||'—'}</td>
+              <td>${a.note||'—'}</td>
               <td><span class="badge ${stCls}">${stLabel}</span></td>
             </tr>`;}).join('')}
           </tbody>
         </table></div>
       </div>` : ''}
 
-      <div style="font-size:12px;color:var(--text-light);margin-bottom:6px">মোট ভিজিট/এন্ট্রি: ${rows.length}টি</div>
-      <div class="table-wrap"><table style="font-size:12.5px">
-        <thead><tr><th>তারিখ</th><th>উৎস</th><th>বিল</th><th>পরিশোধ</th><th>বাকি</th></tr></thead>
-        <tbody>
-          ${rows.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr>
-            <td>${formatDate(r.date)}</td>
-            <td style="font-size:11.5px">${r.sourceLabel}</td>
-            <td>৳ ${fmt(r.amount)}</td>
-            <td style="color:var(--success)">৳ ${fmt(r.paid)}</td>
-            <td style="color:${r.due>0?'var(--danger)':'var(--success)'}">${r.due>0?'৳ '+fmt(r.due):'—'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table></div>
+      <div class="pdm-card" style="margin-bottom:0">
+        <div class="pdm-card-title" style="margin-bottom:7px">🧾 ভিজিট/এন্ট্রি হিস্ট্রি <span style="font-weight:400;color:#94a3b8;font-size:10px">(মোট ${rows.length}টি)</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>উৎস</th><th>বিল</th><th>পরিশোধ</th><th>বাকি</th></tr></thead>
+          <tbody>
+            ${rows.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr>
+              <td>${formatDate(r.date)}</td>
+              <td>${r.sourceLabel}</td>
+              <td>৳ ${fmt(r.amount)}</td>
+              <td style="color:var(--success)">৳ ${fmt(r.paid)}</td>
+              <td style="color:${r.due>0?'var(--danger)':'var(--success)'}">${r.due>0?'৳ '+fmt(r.due):'—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>
+      </div>
     </div>`;
   document.body.appendChild(modal);
+}
+// ✅ প্রেসক্রিপশন হিস্ট্রি কার্ডে "➕ ম্যানুয়াল এন্ট্রি" বাটনে ক্লিক করলে পাওয়ার এন্ট্রির ফিল্ডগুলো কম্প্যাক্ট ডিজাইনে খোলে/বন্ধ হয়
+function toggleManualRxFields() {
+  const el = document.getElementById('rxManualFields');
+  const btn = document.getElementById('rxToggleBtn');
+  if (!el) return;
+  const opening = el.style.display === 'none';
+  el.style.display = opening ? 'block' : 'none';
+  if (btn) btn.innerHTML = opening ? '✕ বন্ধ করুন' : '➕ ম্যানুয়াল এন্ট্রি';
 }
 function searchPatients() {
   _patientDbPage = 1;
@@ -25937,7 +26145,7 @@ function onStockSel(p,id,type) {
   if(type==='glass') {
     const min=parseFloat(opt.getAttribute('data-min'))||0;
     const max=parseFloat(opt.getAttribute('data-max'))||0;
-    priceEl.value=min; priceEl.min=min; priceEl.readOnly=false; priceEl.style.background='#fff9f0';
+    priceEl.value=max||min; priceEl.min=min; priceEl.readOnly=false; priceEl.style.background='#fff9f0';
     priceEl.onblur=function(){
       const v=parseFloat(this.value)||0;
       if(min&&v<min){showToast(`⚠️ সর্বনিম্ন ৳${fmt(min)}`);this.value=min;}
@@ -26140,24 +26348,28 @@ function addRow(type, p='') {
         <span id="${p}glassOptTotal-${id}" style="font-size:12px;font-weight:800;color:var(--success)"></span>
       </div>
       <div id="${p}glassOptList-${id}" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
-      <div style="display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:6px;align-items:end">
-        <div><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px">ডান চোখ পাওয়ার (R)</label>
-          <input type="text" id="${p}glassRE-${id}" placeholder="যেমন: -2.00" style="padding:6px 8px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;background:#fff"></div>
-        <button type="button" onclick="copySameEyePower('${p}',${id})" title="উভয় চোখে একই পাওয়ার বসান" style="width:28px;height:28px;border-radius:50%;border:1.4px solid #eab676;background:#fff3e0;color:#92400e;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0">⇄</button>
-        <div><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px">বাম চোখ পাওয়ার (L)</label>
-          <input type="text" id="${p}glassLE-${id}" placeholder="যেমন: -1.50" style="padding:6px 8px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;background:#fff"></div>
-        <div><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px">ডেলিভারি তারিখ</label>
-          <input type="date" id="${p}glassDelivery-${id}" oninput="refreshDeliveryInfoBox('${p}')" style="padding:6px 8px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;background:#fff"></div>
+      <div id="${p}glassPowerRow-${id}" style="display:flex;flex-wrap:nowrap;gap:6px;align-items:flex-end;width:100%">
+        <div style="flex:1 1 0;min-width:0"><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">ডান চোখ (OD)</label>
+          <input type="text" id="${p}glassRE-${id}" placeholder="-2.00" style="padding:6px 6px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;min-width:0;box-sizing:border-box;background:#fff"></div>
+        <button type="button" onclick="copySameEyePower('${p}',${id})" title="উভয় চোখে একই পাওয়ার বসান" style="flex:0 0 26px;width:26px;height:26px;border-radius:50%;border:1.4px solid #eab676;background:#fff3e0;color:#92400e;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;margin-bottom:1px">⇄</button>
+        <div style="flex:1 1 0;min-width:0"><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">বাম চোখ (OS)</label>
+          <input type="text" id="${p}glassLE-${id}" placeholder="-1.50" style="padding:6px 6px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;min-width:0;box-sizing:border-box;background:#fff"></div>
+        <div style="flex:1 1 0;min-width:0"><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">PD</label>
+          <input type="text" id="${p}glassPD-${id}" placeholder="62mm" style="padding:6px 6px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;min-width:0;box-sizing:border-box;background:#fff"></div>
       </div>
       <div id="${p}glassBifocalBox-${id}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #eab676">
-        <div style="font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:4px">👓 বাই ফোকাল — লেন্সের নিচের অংশের (নিয়ার/কাছের) পাওয়ার</div>
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:end">
-          <div><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px">ডান চোখ — নিয়ার (R)</label>
-            <input type="text" id="${p}glassRENear-${id}" placeholder="যেমন: +1.50" style="padding:6px 8px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;background:#fff"></div>
-          <button type="button" onclick="copySameNearEyePower('${p}',${id})" title="উভয় চোখে একই নিয়ার পাওয়ার বসান" style="width:28px;height:28px;border-radius:50%;border:1.4px solid #eab676;background:#fff3e0;color:#92400e;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0">⇄</button>
-          <div><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px">বাম চোখ — নিয়ার (L)</label>
-            <input type="text" id="${p}glassLENear-${id}" placeholder="যেমন: +1.50" style="padding:6px 8px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;background:#fff"></div>
+        <div style="font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:4px">👓 বাই ফোকাল — নিয়ার/কাছের পাওয়ার</div>
+        <div style="display:flex;flex-wrap:nowrap;gap:6px;align-items:flex-end;width:100%">
+          <div style="flex:1 1 0;min-width:0"><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">ডান — নিয়ার (ADD)</label>
+            <input type="text" id="${p}glassRENear-${id}" placeholder="+1.50" style="padding:6px 6px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;min-width:0;box-sizing:border-box;background:#fff"></div>
+          <button type="button" onclick="copySameNearEyePower('${p}',${id})" title="উভয় চোখে একই নিয়ার পাওয়ার বসান" style="flex:0 0 26px;width:26px;height:26px;border-radius:50%;border:1.4px solid #eab676;background:#fff3e0;color:#92400e;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;margin-bottom:1px">⇄</button>
+          <div style="flex:1 1 0;min-width:0"><label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">বাম — নিয়ার (ADD)</label>
+            <input type="text" id="${p}glassLENear-${id}" placeholder="+1.50" style="padding:6px 6px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;min-width:0;box-sizing:border-box;background:#fff"></div>
         </div>
+      </div>
+      <div style="margin-top:6px">
+        <label style="font-size:10.5px;color:#92400e;display:block;margin-bottom:2px">ডেলিভারি তারিখ</label>
+        <input type="date" id="${p}glassDelivery-${id}" oninput="refreshDeliveryInfoBox('${p}')" style="padding:6px 8px;border:1.4px solid #e7c98a;border-radius:6px;font-family:inherit;font-size:12.5px;width:100%;background:#fff;max-width:220px">
       </div>
     </div>`;
   } else if(type==='surgical') {
@@ -26195,32 +26407,101 @@ function addRow(type, p='') {
 // ===== চশমা/লেন্স কাস্টমাইজেশন — বিলের রো-তে অপশন চেকবক্স রেন্ডার ও মূল্য হিসাব =====
 // ✅ সেটিংসে অ্যাডমিন এখনো কিছু সেভ না করলেও এই কমন অপশনগুলো বাই ডিফল্ট বিলে সিলেক্ট করা যাবে
 // (সেটিংস → লেন্স/চশমা অপশন থেকে অ্যাডমিন এগুলো এডিট/মূল্য পরিবর্তন করে সেভ করলে সেটাই ব্যবহার হবে)
-// ✅ "type" ফিল্ড দিয়ে আলাদা করা হয়েছে: 'coating' (একাধিক সিলেক্ট করা যায় — চেকবক্স) বনাম
-// 'material' (লেন্সের কোয়ালিটি/উপাদান — প্লাস্টিক বা কাচ, একটাই সিলেক্ট হয় — রেডিও বাটন, কারণ এটা আলাদা লেন্স না, উপাদান মাত্র)
+// ✅ "type" ফিল্ড দিয়ে ৩ ভাগে আলাদা করা হয়েছে:
+//   'lenstype' — লেন্সের ধরন (সিঙ্গেল ভিশন / বাই ফোকাল) — একটাই সিলেক্ট হবে (রেডিও), কারণ একটা চশমা একইসাথে দুটোই হতে পারে না
+//   'coating'  — কোটিং (অ্যান্টি-ব্লু লাইট, ফটোক্রোমিক, অ্যান্টি-গ্লেয়ার, ইউভি প্রোটেক্টিভ ইত্যাদি) — একাধিক সিলেক্ট করা যায় (চেকবক্স)
+//   'material' — লেন্সের কোয়ালিটি/উপাদান (প্লাস্টিক বা কাচ) — একটাই সিলেক্ট হবে (রেডিও), এটা আলাদা লেন্স না, উপাদান মাত্র
+// ✅ সহজ সমীকরণ: লেন্সের ধরন ও কোয়ালিটি — এই দুই গ্রুপে কোনো মূল্য থাকে না, শুধু সিলেক্টর।
+//   মূল্য থাকে কেবল কোটিং-এ, আর প্রতিটি কোটিংয়ের ২টি মূল্য: plasticPrice (প্লাস্টিক কোয়ালিটির জন্য) ও glassPrice (কাচের জন্য)।
+//   কোনোটা খালি/undefined রাখলে সেই কোয়ালিটি সিলেক্ট করা থাকলে ওই কোটিং বিলে দেখানোই হবে না (অনুপলব্ধ)।
 const DEFAULT_LENS_OPTIONS = [
-  { name:'ব্লুকাট', price:0, type:'coating' },
-  { name:'ফটো সান', price:0, type:'coating' },
-  { name:'সিঙ্গেল ভিশন লেন্স', price:0, type:'coating' },
-  { name:'বাই ফোকাল লেন্স', price:0, type:'coating' },
-  { name:'প্লাস্টিক', price:0, type:'material' },
-  { name:'কাচ', price:0, type:'material' }
+  { name:'সিঙ্গেল ভিশন লেন্স', type:'lenstype' },
+  { name:'বাই ফোকাল লেন্স', type:'lenstype' },
+  { name:'অ্যান্টি ব্লু লাইট (Anti-Blue Light)', type:'coating', plasticPrice:300, glassPrice:300 },
+  { name:'ফটোক্রোমিক (Photochromic)', type:'coating', plasticPrice:320, glassPrice:320 },
+  { name:'অ্যান্টি গ্লেয়ার (Anti-Glare)', type:'coating', plasticPrice:0, glassPrice:0 },
+  { name:'ইউভি প্রোটেক্টিভ (UV Protective)', type:'coating', plasticPrice:0, glassPrice:0 },
+  { name:'প্লাস্টিক', type:'material' },
+  { name:'কাচ', type:'material' }
 ];
-function _isBifocalOptName(nm) { return /বাই\s*ফোকাল/.test(nm||''); }
+// ✅ একাধিক কোটিং একসাথে থাকলে যোগফলের বদলে নির্দিষ্ট কম্বো মূল্য প্রযোজ্য হতে পারে
+// (যেমন: শুধু অ্যান্টি-ব্লু লাইট ৳৩০০, শুধু ফটোক্রোমিক ৳৩২০, কিন্তু দুটো একসাথে থাকলে ৳৪৫০)
+// ✅ কম্বোরও ২টি মূল্য: plasticPrice ও glassPrice — খালি রাখলে সেই কোয়ালিটিতে এই কম্বো প্রযোজ্য হবে না (প্রতিটা কোটিংয়ের আলাদা মূল্য যোগ হবে)
+const DEFAULT_LENS_COMBOS = [
+  { coatings:['অ্যান্টি ব্লু লাইট (Anti-Blue Light)','ফটোক্রোমিক (Photochromic)'], plasticPrice:450, glassPrice:450 }
+];
+function _lensOptsActive() {
+  const saved=(appData.settings.lensOptions||[]);
+  return saved.length ? saved : DEFAULT_LENS_OPTIONS;
+}
+function _lensCombosActive() {
+  const saved=(appData.settings.lensCombos||[]);
+  return saved.length ? saved : ((appData.settings.lensOptions||[]).length ? [] : DEFAULT_LENS_COMBOS);
+}
+// ✅ কোটিং/ম্যাটেরিয়ালের নাম দেখে সেটা প্লাস্টিক না কাচ — অ্যাডমিন নাম পরিবর্তন করলেও যেন কাজ করে তাই টেক্সট-প্যাটার্ন মেলানো হয়
+function _materialKeyForName(nm) { return /কাচ|glass/i.test(nm||'') ? 'glass' : 'plastic'; }
+// ✅ বর্তমানে সিলেক্ট করা লেন্স টাইপ (SV/BF) ও ম্যাটেরিয়াল (প্লাস্টিক/কাচ) রিড করে — এখনো কিছু সিলেক্ট না থাকলে null ফেরত দেয়
+function _currentLensCtx(p,id) {
+  const typeChecked = document.querySelector(`input[name="${p}glassType-${id}"]:checked`);
+  const matChecked = document.querySelector(`input[name="${p}glassMat-${id}"]:checked`);
+  const isBifocal = typeChecked ? (typeChecked.getAttribute('data-bifocal')==='1') : null;
+  const matKey = matChecked ? _materialKeyForName(matChecked.getAttribute('data-name')) : null;
+  return { isBifocal, matKey };
+}
+// ✅ একটা কোটিং অপশনের জন্য নির্বাচিত কোয়ালিটি (matKey) অনুযায়ী মূল্য বের করে; ওই কোয়ালিটির ফিল্ড খালি/অনুপস্থিত থাকলে
+// বা কোয়ালিটিই এখনো সিলেক্ট না হয়ে থাকলে null ফেরত দেয় (মানে কোটিংটা এই মুহূর্তে দেখানো যাবে না)
+function _coatingPriceFor(opt, matKey) {
+  if (!matKey) return null;
+  // নতুন সরল স্কিম: plasticPrice/glassPrice
+  if (opt.plasticPrice!==undefined || opt.glassPrice!==undefined) {
+    const val = matKey==='glass' ? opt.glassPrice : opt.plasticPrice;
+    return (val===undefined || val===null || val==='') ? null : (parseFloat(val)||0);
+  }
+  // পুরনো ৪-ঘর ম্যাট্রিক্স ডেটার জন্য ব্যাকওয়ার্ড-কম্প্যাটিবিলিটি
+  if (opt.matrix) {
+    const val = matKey==='glass' ? opt.matrix.svGlass : opt.matrix.svPlastic;
+    return (val===undefined || val===null) ? null : (parseFloat(val)||0);
+  }
+  // সবচেয়ে পুরনো ফ্ল্যাট-প্রাইস ডেটার জন্য ব্যাকওয়ার্ড-কম্প্যাটিবিলিটি
+  return (opt.price!==undefined && opt.price!==null) ? (parseFloat(opt.price)||0) : null;
+}
+// ✅ কম্বোর জন্যও একই রকম মূল্য-লুকআপ, ব্যাকওয়ার্ড-কম্প্যাটিবল
+function _comboPriceFor(combo, matKey) {
+  if (!matKey) return null;
+  if (combo.plasticPrice!==undefined || combo.glassPrice!==undefined) {
+    const val = matKey==='glass' ? combo.glassPrice : combo.plasticPrice;
+    return (val===undefined || val===null || val==='') ? null : (parseFloat(val)||0);
+  }
+  if (combo.matrix) {
+    const val = matKey==='glass' ? combo.matrix.svGlass : combo.matrix.svPlastic;
+    return (val===undefined || val===null) ? null : (parseFloat(val)||0);
+  }
+  return (combo.price!==undefined && combo.price!==null) ? (parseFloat(combo.price)||0) : null;
+}
 function renderGlassOptChecks(p,id) {
   const box=document.getElementById(p+'glassOptList-'+id);
   if(!box) return;
-  const saved=(appData.settings.lensOptions||[]);
-  const opts = saved.length ? saved : DEFAULT_LENS_OPTIONS;
-  const coatings = opts.map((o,i)=>({...o,_i:i})).filter(o=>o.type!=='material');
-  const materials = opts.map((o,i)=>({...o,_i:i})).filter(o=>o.type==='material');
-  let html = coatings.map(o=>`
-    <label style="display:flex;align-items:center;gap:5px;padding:5px 9px;background:#fff;border:1.4px solid #e7c98a;border-radius:20px;font-size:12px;cursor:pointer;user-select:none">
-      <input type="checkbox" id="${p}glassOpt-${id}-${o._i}" data-price="${o.price||0}" data-name="${(o.name||'').replace(/"/g,'&quot;')}" data-bifocal="${_isBifocalOptName(o.name)?'1':'0'}" onchange="updateGlassOptTotal('${p}',${id})" style="width:14px;height:14px;accent-color:#f59e0b;margin:0">
-      ${o.name}${o.price?` <span style="color:#92400e;font-weight:700">৳${fmt(o.price||0)}</span>`:''}
-    </label>`).join('');
+  const opts = _lensOptsActive().map((o,i)=>({...o,_i:i}));
+  const lensTypes = opts.filter(o=>o.type==='lenstype');
+  const coatings  = opts.filter(o=>o.type!=='material'&&o.type!=='lenstype');
+  const materials = opts.filter(o=>o.type==='material');
+  let html='';
+  if (lensTypes.length) {
+    html += `<div style="width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:6px">
+      <span style="font-size:10.5px;color:#92400e;font-weight:700">লেন্সের ধরন: *</span>
+      ${lensTypes.map(o=>`
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;user-select:none">
+          <input type="radio" name="${p}glassType-${id}" id="${p}glassOpt-${id}-${o._i}" data-price="${o.price||0}" data-name="${(o.name||'').replace(/"/g,'&quot;')}" data-bifocal="${_isBifocalOptName(o.name)?'1':'0'}" onchange="updateGlassOptTotal('${p}',${id})" style="width:13px;height:13px;accent-color:#f59e0b">
+          ${o.name}${o.price?` <span style="color:#92400e;font-weight:700">৳${fmt(o.price||0)}</span>`:''}
+        </label>`).join('')}
+      <label id="${p}glassPowerlessRow-${id}" style="display:none;align-items:center;gap:4px;font-size:12px;cursor:pointer;user-select:none;margin-left:6px;padding:3px 8px;background:#fff3e0;border:1.2px solid #eab676;border-radius:12px">
+        <input type="checkbox" id="${p}glassPowerless-${id}" onchange="updateGlassOptTotal('${p}',${id})" style="width:13px;height:13px;accent-color:#f59e0b"> পাওয়ারলেস (কোনো পাওয়ার নেই)
+      </label>
+    </div>`;
+  }
   if (materials.length) {
-    html += `<div style="width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:2px;padding-top:6px;border-top:1px dashed #eab676">
-      <span style="font-size:10.5px;color:#92400e;font-weight:700">লেন্সের কোয়ালিটি:</span>
+    html += `<div style="width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:6px">
+      <span style="font-size:10.5px;color:#92400e;font-weight:700">লেন্সের কোয়ালিটি: *</span>
       ${materials.map(o=>`
         <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;user-select:none">
           <input type="radio" name="${p}glassMat-${id}" id="${p}glassOpt-${id}-${o._i}" data-price="${o.price||0}" data-name="${(o.name||'').replace(/"/g,'&quot;')}" data-bifocal="0" onchange="updateGlassOptTotal('${p}',${id})" style="width:13px;height:13px;accent-color:#f59e0b">
@@ -26228,30 +26509,110 @@ function renderGlassOptChecks(p,id) {
         </label>`).join('')}
     </div>`;
   }
+  html += `<span id="${p}glassCoatHint-${id}" style="display:none;font-size:11.5px;color:#b45309;font-style:italic">↑ কোটিং দেখতে আগে লেন্সের কোয়ালিটি সিলেক্ট করুন</span>`;
+  html += `<div id="${p}glassCoatWrap-${id}" style="display:flex;flex-wrap:wrap;gap:6px">` + coatings.map(o=>`
+    <label id="${p}glassOptLbl-${id}-${o._i}" style="display:flex;align-items:center;gap:5px;padding:5px 9px;background:#fff;border:1.4px solid #e7c98a;border-radius:20px;font-size:12px;cursor:pointer;user-select:none">
+      <input type="checkbox" id="${p}glassOpt-${id}-${o._i}" data-name="${(o.name||'').replace(/"/g,'&quot;')}" data-bifocal="0" onchange="updateGlassOptTotal('${p}',${id})" style="width:14px;height:14px;accent-color:#f59e0b;margin:0">
+      ${o.name} <span id="${p}glassOptTag-${id}-${o._i}" style="color:#92400e;font-weight:700"></span>
+    </label>`).join('') + '</div>';
   box.innerHTML = html;
+  refreshCoatingAvailability(p,id);
+}
+// ✅ লেন্স টাইপ (SV/BF) বা কোয়ালিটি (প্লাস্টিক/কাচ) সিলেক্ট/পরিবর্তন হওয়ার সাথে সাথে প্রতিটি কোটিং চেকবক্সের
+// পাশের মূল্য আপডেট করে, আর যেই উপাদানে কোটিং উপলব্ধ নয় সেটা সম্পূর্ণ লুকিয়ে দেয় (অটো-আনচেক করে)।
+// কোয়ালিটি এখনো সিলেক্ট না করা থাকলে কোনো কোটিং-ই দেখানো হয় না, বরং একটা ইঙ্গিত-টেক্সট দেখানো হয়।
+function refreshCoatingAvailability(p,id) {
+  const opts = _lensOptsActive();
+  const { isBifocal, matKey } = _currentLensCtx(p,id);
+  const hint = document.getElementById(`${p}glassCoatHint-${id}`);
+  const wrap = document.getElementById(`${p}glassCoatWrap-${id}`);
+  if (hint) hint.style.display = matKey ? 'none' : '';
+  if (wrap) wrap.style.display = matKey ? 'flex' : 'none';
+  opts.forEach((o,i)=>{
+    if (o.type==='lenstype' || o.type==='material') return;
+    const input = document.getElementById(`${p}glassOpt-${id}-${i}`);
+    const lbl   = document.getElementById(`${p}glassOptLbl-${id}-${i}`);
+    const tag   = document.getElementById(`${p}glassOptTag-${id}-${i}`);
+    if (!input || !lbl || !tag) return;
+    const price = matKey ? _coatingPriceFor(o, matKey) : null;
+    if (price==null) {
+      if (input.checked) input.checked=false;
+      input.disabled=true;
+      lbl.style.display='none';
+    } else {
+      input.disabled=false;
+      lbl.style.display='';
+      tag.textContent = price ? `৳${fmt(price)}` : '';
+    }
+  });
+  // ✅ পাওয়ারলেস চেকবক্স শুধু সিঙ্গেল ভিশন সিলেক্ট থাকলেই দেখানো হয় (বাই ফোকালে সবসময় পাওয়ার লাগে)
+  const plRow = document.getElementById(`${p}glassPowerlessRow-${id}`);
+  const plChk = document.getElementById(`${p}glassPowerless-${id}`);
+  if (plRow) {
+    const showPowerless = isBifocal===false;
+    plRow.style.display = showPowerless ? 'inline-flex' : 'none';
+    if (!showPowerless && plChk) plChk.checked=false;
+  }
+}
+function _isBifocalOptName(nm) { return /বাই\s*ফোকাল/.test(nm||''); }
+// ✅ কোটিং মূল্য হিসাব — একাধিক কোটিং একসাথে সিলেক্ট থাকলে প্রথমে কম্বো-মূল্য মিলিয়ে দেখা হয়
+// (সিলেক্ট করা কোটিংগুলোর সম্পূর্ণ সেট যদি কোনো কম্বোর সাথে হুবহু মিলে যায় তাহলে সেই কম্বো-মূল্য প্রযোজ্য হবে, নাহলে প্রতিটার আলাদা মূল্য যোগ হবে)
+function _coatingsPrice(selectedCoatingNames, selectedCoatingsSum, matKey) {
+  if (selectedCoatingNames.length < 2) return selectedCoatingsSum;
+  const combos = _lensCombosActive();
+  const sortedSel = [...selectedCoatingNames].sort().join('|');
+  const match = combos.find(c => [...(c.coatings||[])].sort().join('|') === sortedSel);
+  if (!match) return selectedCoatingsSum;
+  const comboPrice = _comboPriceFor(match, matKey);
+  return comboPrice==null ? selectedCoatingsSum : comboPrice;
 }
 function getGlassOptionsTotal(p,id) {
-  const checks=document.querySelectorAll(`[id^="${p}glassOpt-${id}-"]`);
-  let sum=0;
-  checks.forEach(c=>{ if(c.checked) sum+=parseFloat(c.getAttribute('data-price'))||0; });
-  return sum;
+  const checks=Array.from(document.querySelectorAll(`[id^="${p}glassOpt-${id}-"]`)).filter(c=>c.checked);
+  const opts=_lensOptsActive();
+  const { matKey } = _currentLensCtx(p,id);
+  let lensTypePrice=0, materialPrice=0, coatingSum=0;
+  const coatingNames=[];
+  checks.forEach(c=>{
+    const idx=parseInt(c.id.split('-').pop());
+    const o=opts[idx];
+    if (o && o.type==='lenstype') lensTypePrice=parseFloat(c.getAttribute('data-price'))||0;
+    else if (o && o.type==='material') materialPrice=parseFloat(c.getAttribute('data-price'))||0;
+    else if (o) {
+      const price=_coatingPriceFor(o, matKey);
+      if (price!=null) { coatingSum+=price; coatingNames.push(c.getAttribute('data-name')); }
+    }
+  });
+  return lensTypePrice + materialPrice + _coatingsPrice(coatingNames, coatingSum, matKey);
 }
 function getGlassOptionsData(p,id) {
-  const checks=document.querySelectorAll(`[id^="${p}glassOpt-${id}-"]`);
-  const selected=[];
-  checks.forEach(c=>{ if(c.checked) selected.push({name:c.getAttribute('data-name'), price:parseFloat(c.getAttribute('data-price'))||0}); });
-  const isBifocal = Array.from(checks).some(c=>c.checked && c.getAttribute('data-bifocal')==='1');
+  const checks=Array.from(document.querySelectorAll(`[id^="${p}glassOpt-${id}-"]`)).filter(c=>c.checked);
+  const opts=_lensOptsActive();
+  const { matKey } = _currentLensCtx(p,id);
+  let lensType=null, material=null; const coatings=[];
+  checks.forEach(c=>{
+    const idx=parseInt(c.id.split('-').pop());
+    const o=opts[idx];
+    if (o && o.type==='lenstype') { lensType={name:c.getAttribute('data-name'), price:parseFloat(c.getAttribute('data-price'))||0}; }
+    else if (o && o.type==='material') { material={name:c.getAttribute('data-name'), price:parseFloat(c.getAttribute('data-price'))||0}; }
+    else if (o) { const price=_coatingPriceFor(o, matKey); coatings.push({name:c.getAttribute('data-name'), price: price==null?0:price}); }
+  });
+  const isBifocal = checks.some(c=>c.getAttribute('data-bifocal')==='1');
+  const powerlessChk = document.getElementById(p+'glassPowerless-'+id);
+  const isPowerless = !isBifocal && !!(powerlessChk && powerlessChk.checked);
   return {
-    options: selected,
-    rightEye: (document.getElementById(p+'glassRE-'+id)||{}).value||'',
-    leftEye: (document.getElementById(p+'glassLE-'+id)||{}).value||'',
-    // ✅ বাই ফোকাল লেন্সে উপরের অংশে দূরত্বের পাওয়ার (উপরের rightEye/leftEye) আর নিচের অংশে আলাদা নিয়ার/কাছের পাওয়ার থাকে
+    lensType, material, coatings, powerless:isPowerless,
+    options: [...(lensType?[lensType]:[]), ...coatings, ...(material?[material]:[])], // পুরনো কোড/প্রিন্টের সাথে সামঞ্জস্যের জন্য একত্র তালিকা
+    rightEye: isPowerless?'':((document.getElementById(p+'glassRE-'+id)||{}).value||''),
+    leftEye: isPowerless?'':((document.getElementById(p+'glassLE-'+id)||{}).value||''),
+    // ✅ বাই ফোকাল লেন্সে উপরের অংশে দূরত্বের পাওয়ার (উপরের rightEye/leftEye) আর নিচের অংশে আলাদা নিয়ার/কাছের পাওয়ার (ADD) থাকে
     nearRightEye: isBifocal?((document.getElementById(p+'glassRENear-'+id)||{}).value||''):'',
     nearLeftEye: isBifocal?((document.getElementById(p+'glassLENear-'+id)||{}).value||''):'',
+    pd: isPowerless?'':((document.getElementById(p+'glassPD-'+id)||{}).value||''),
     deliveryDate: (document.getElementById(p+'glassDelivery-'+id)||{}).value||''
   };
 }
 function updateGlassOptTotal(p,id) {
+  refreshCoatingAvailability(p,id);
   const sum=getGlassOptionsTotal(p,id);
   const totEl=document.getElementById(p+'glassOptTotal-'+id);
   if(totEl) totEl.textContent = sum>0 ? `+ ৳ ${fmt(sum)} (লেন্স)` : '';
@@ -26259,11 +26620,16 @@ function updateGlassOptTotal(p,id) {
   const price=parseFloat((document.getElementById(p+'sPrice-'+id)||{}).value)||0;
   const subEl=document.getElementById(p+'sSub-'+id);
   if(subEl) subEl.textContent='৳ '+fmt(qty*price+sum);
-  // ✅ বাই ফোকাল সিলেক্ট করা থাকলে নিচের অংশের (নিয়ার) পাওয়ার ফিল্ড দেখাও, নাহলে লুকাও
+  // ✅ বাই ফোকাল সিলেক্ট করা থাকলে নিচের অংশের (নিয়ার/ADD) পাওয়ার ফিল্ড দেখাও, নাহলে লুকাও
   const checks=document.querySelectorAll(`[id^="${p}glassOpt-${id}-"]`);
   const isBifocal = Array.from(checks).some(c=>c.checked && c.getAttribute('data-bifocal')==='1');
   const bfBox=document.getElementById(p+'glassBifocalBox-'+id);
   if (bfBox) bfBox.style.display = isBifocal ? '' : 'none';
+  // ✅ সিঙ্গেল ভিশনে "পাওয়ারলেস" চেক করা থাকলে চোখের পাওয়ার ফিল্ড (OD/OS/PD) লুকিয়ে দাও
+  const powerlessChk = document.getElementById(p+'glassPowerless-'+id);
+  const isPowerless = !isBifocal && !!(powerlessChk && powerlessChk.checked);
+  const powerRow = document.getElementById(p+'glassPowerRow-'+id);
+  if (powerRow) powerRow.style.display = isPowerless ? 'none' : 'flex';
   p===''?updateSummary():nbUpdateSummary();
 }
 // ✅ বেশিরভাগ ক্ষেত্রেই দুই চোখের পাওয়ার সেম হয় — এক ক্লিকে অন্য ফিল্ডে কপি করার বাটন
@@ -26274,7 +26640,7 @@ function copySameEyePower(p,id) {
   if(reEl.value.trim()) { leEl.value=reEl.value; }
   else if(leEl.value.trim()) { reEl.value=leEl.value; }
 }
-// ✅ বাই ফোকালের নিয়ার (নিচের অংশ) পাওয়ারের জন্যও একই বাটন — একই কাজ করে
+// ✅ বাই ফোকালের নিয়ার/ADD (নিচের অংশ) পাওয়ারের জন্যও একই বাটন — একই কাজ করে
 function copySameNearEyePower(p,id) {
   const reEl=document.getElementById(p+'glassRENear-'+id);
   const leEl=document.getElementById(p+'glassLENear-'+id);
@@ -26388,6 +26754,8 @@ function _billSave(p) {
   // ✅ চশমার কাস্টমাইজেশন বক্সে ডেলিভারি তারিখ দেওয়া থাকলে স্বয়ংক্রিয়ভাবে ডেলিভারি শিডিউলে যোগ হয়ে যায়
   const glassDeliveryCount = (items||[]).filter(i=>i.type==='glass'&&i.glass&&i.glass.deliveryDate).length;
   recordGlassOrders(items, {date, memoNo, patName, patPhone, by:byLabel});
+  // ✅ বিলে দেওয়া চোখের পাওয়ার/ADD/PD স্বয়ংক্রিয়ভাবে রোগীর প্রেসক্রিপশন হিস্ট্রিতে রেকর্ড হয়
+  recordGlassPrescriptions(patName, patPhone, date, memoNo, items);
   // ✅ income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না)
   if(cashPaid>0) appData.income.push({id:Date.now()+1,date,category:'রিসেপশন আয়',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:byLabel,visitId:_billVisitId});
 
@@ -26407,12 +26775,11 @@ function _billSave(p) {
 function _discountInfo(p) {
   const items=_getItems(p);
   const total=items.reduce((s,i)=>s+i.subtotal,0);
-  // ✅ ডিসকাউন্ট শুধু চশমার (ফ্রেম+লেন্স অপশন) দামের উপর প্রযোজ্য — তাও আবার সর্বনিম্ন বিক্রয়মূল্য (sellMin) বাদ দিয়ে।
-  // আগে ভুলভাবে (মোট বিল - glassMin) হিসাব হতো, যার ফলে ওষুধ/সার্জিক্যাল আইটেমের দামেও ডিসকাউন্ট প্রযোজ্য হয়ে যেত।
+  // ✅ ডিসকাউন্ট শুধুই চশমার ফ্রেমের দামের (qty×price) উপর প্রযোজ্য — লেন্স কাস্টমাইজেশনের (কোটিং/লেন্স-টাইপ/কোয়ালিটি) মূল্যে কখনো নয়।
+  // আগে ভুলবশত ফ্রেম+লেন্স অপশন দুটোর সম্মিলিত সাবটোটাল থেকে হিসাব হতো, এখন শুধু ফ্রেম-প্রাইস (sellMin বাদে) ব্যবহার হয়।
   const glassItems=items.filter(i=>i.type==='glass');
-  const glassSubtotal=glassItems.reduce((s,i)=>s+i.subtotal,0);
   const glassMin=glassItems.reduce((s,i)=>s+(i.sellMin||0)*i.qty,0);
-  const discountable=Math.max(0, glassSubtotal-glassMin);
+  const discountable=glassItems.reduce((s,i)=>s+Math.max(0,(i.price*i.qty)-((i.sellMin||0)*i.qty)),0);
   const isReturned=p===''&&!!window._returnedDraftId;
   const role=currentUser?.role||'receptionist';
   const maxPct=isReturned?100:role==='admin'?(appData.settings.adminDiscount||30):role==='moderator'?(appData.settings.modDiscount||15):(appData.settings.recDiscount||10);
@@ -26670,8 +27037,10 @@ function buildPieData(type, period) {
   const map = {};
 
   if (type === 'income') {
-    // manual income
-    (appData.income||[]).filter(e=>dateMatch(e.date)).forEach(e=>{
+    // manual income — ⚠️ visitId/campId ট্যাগযুক্ত এন্ট্রি বাদ, কারণ সেগুলো বিল/ক্যাম্প সেভের সময়
+    // অটো তৈরি হওয়া ডুপ্লিকেট (নিচে visits/camps breakdown থেকেই আগে থেকে গণনা হয়ে যায়,
+    // নাহলে একই আয় দুইবার — একবার "অন্যান্য"/মূল ক্যাটাগরিতে, একবার আইটেম-ভিত্তিক ক্যাটাগরিতে — গণনা হয়ে ডাবল দেখাতো)
+    (appData.income||[]).filter(e=>dateMatch(e.date) && !e.visitId && !e.campId).forEach(e=>{
       const k = canonicalCat(e.category);
       map[k] = (map[k]||0) + e.amount;
     });
