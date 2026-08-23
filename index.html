@@ -365,7 +365,10 @@
   .rec-widgets-head h4 { font-size:11.5px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin:0; }
   .rec-amt-toggle-btn { background:white; border:1.5px solid var(--border); border-radius:8px; padding:5px 9px; font-family:'Hind Siliguri',sans-serif; font-size:11.5px; font-weight:700; color:var(--primary); cursor:pointer; white-space:nowrap; transition:all .15s; }
   .rec-amt-toggle-btn:hover { background:#f1f5f9; }
-  .rec-widget-card { position:relative; overflow:hidden; background:linear-gradient(155deg,#ffffff,#f7fafc); border:1px solid rgba(15,76,129,.09); border-radius:14px; padding:13px 15px; margin-bottom:11px; box-shadow:0 3px 12px rgba(15,76,129,.07), 0 1px 3px rgba(0,0,0,.03); transition:transform .15s, box-shadow .15s; }
+  .rec-widget-card { position:relative; overflow:hidden; background:linear-gradient(155deg,#ffffff,#f7fafc); border:1px solid rgba(15,76,129,.09); border-radius:14px; padding:13px 15px; margin-bottom:11px; box-shadow:0 3px 12px rgba(15,76,129,.07), 0 1px 3px rgba(0,0,0,.03); transition:transform .15s, box-shadow .15s; cursor:pointer; }
+  .rec-widgets-detail-overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:#fff; z-index:50; display:flex; flex-direction:column; padding:16px 14px; overflow-y:auto; }
+  .rec-widgets-detail-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .rec-summary-detail-row { padding:9px 10px; border-bottom:1px solid var(--border); font-size:12.5px; }
   .rec-widget-card:hover { transform:translateY(-1.5px); box-shadow:0 6px 18px rgba(15,76,129,.11); }
   .rec-widget-card::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--card-accent, var(--primary)); opacity:.85; }
   .rec-widget-card .rwc-label { font-size:10.5px; color:#8b95a1; font-weight:700; margin-bottom:4px; letter-spacing:.2px; }
@@ -384,8 +387,13 @@
 
   /* ✅ সাম্প্রতিক রোগী চিপ (শুধু চিপ, কোনো লেবেল টেক্সট নেই) + কমিশন-প্রযোজ্য ডাক্তার — প্যানেল-হেডারের একই লাইনে */
   .rn-header-chips { display:flex; align-items:center; flex-wrap:wrap; gap:6px; justify-content:center; flex:1; }
-  .rn-header-commission { min-width:200px; max-width:230px; }
+  .rn-header-commission { min-width:200px; max-width:230px; position:relative; }
   .rn-header-commission select { padding:7px 9px; border:1.5px solid var(--border); border-radius:7px; font-family:'Hind Siliguri',sans-serif; font-size:12px; width:100%; background:white; }
+  /* ✅ ডাক্তার সিলেক্ট করলে/কমিশন টিক দিলে যেন প্যানেল-হেডারের উচ্চতা না বাড়ে — after-duty চেকবক্স ও কমিশন প্রিভিউ
+     এখন সিলেক্ট বক্সের ঠিক নিচে একটা ছোট ভাসমান (floating) প্যানেলে দেখানো হয়, নরমাল ফ্লো-তে জায়গা নেয় না */
+  /* ✅ "ডিউটি পরে" অপশনটা এখন ডাক্তার সিলেক্ট ড্রপডাউনের ভেতরেই একটা আলাদা অপশন হিসেবে থাকে (নিচে দেখুন
+     populateDoctorSelect ফাংশন) — হেডারে এর জন্য কোনো আলাদা চেকবক্স/লাইন/কলাম নেই, তাই হেডারের উচ্চতা
+     সবসময় শুধু সিলেক্ট বক্সের সমান, ডাক্তার/অপশন যাই সিলেক্ট করা হোক না কেন কখনোই বদলায় না। */
   @media(max-width:1050px) { .panel-header { flex-direction:column; align-items:stretch; } .rn-header-chips { justify-content:flex-start; } .rn-header-commission { max-width:none; } }
 
   .rn-row2b { grid-template-columns: 2.1fr 0.65fr 1.3fr 130px; }
@@ -2094,6 +2102,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="nav-item" data-page="camp"><span class="nav-icon">🏕️</span> ক্যাম্প রেকর্ড</div>
       <div class="nav-item" data-page="recdeposit"><span class="nav-icon">🏦</span> রিসেপশন রেকর্ড</div>
       <div class="nav-item" data-page="delivery"><span class="nav-icon">🚚</span> ডেলিভারি শিডিউল</div>
+      <div class="nav-item" data-page="callsheet"><span class="nav-icon">📞</span> আজকের কল লিস্ট</div>
       <div class="nav-item" data-page="due"><span class="nav-icon">⏳</span> বাকি খাতা <span class="nbadge" id="dueNavBadge" style="display:none">!</span></div>
     </div>
     <div class="nav-section">
@@ -2778,6 +2787,27 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
     </div>
 
+    <!-- আজকের কল লিস্ট (অ্যাডমিন) -->
+    <div id="pg-callsheet" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📞 আজকের কল লিস্ট</div>
+        </div>
+        <div class="panel-body">
+          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">🚚 ডেলিভারি (আজ / ওভারডিউ)</div>
+          <div class="table-wrap" style="margin-bottom:18px"><table>
+            <thead><tr><th>নাম</th><th>ফোন</th><th>আইটেম</th><th>ডেলিভারি তারিখ</th><th>বাকি</th><th>কল</th></tr></thead>
+            <tbody id="admCallDeliveryTable"></tbody>
+          </table></div>
+          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">📅 সিরিয়াল রিমাইন্ডার (আজ ও আগামীকাল)</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>তারিখ</th><th>সময়</th><th>নাম</th><th>ফোন</th><th>ডাক্তার</th><th>কল</th></tr></thead>
+            <tbody id="admCallApptTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
     <!-- STOCK -->
     <div id="pg-testfees" class="page-view">
       <div class="panel">
@@ -2838,13 +2868,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="panel-title">🧾 নতুন বিল তৈরি করুন</div>
           <div id="nb_RecentPatients" class="rn-header-chips"></div>
           <div class="rn-header-commission">
-            <select id="nb_DocSelect" onchange="onDocSelectChange('nb_')" title="কমিশন প্রযোজ্য ডাক্তার (ঐচ্ছিক)"><option value="">🩺 কোনো ডাক্তার/কমিশন নেই</option></select>
-            <div class="field" id="nb_DocAfterDutyRow" style="display:none;margin-top:5px">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11.5px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:6px 8px">
-                <input type="checkbox" id="nb_DocAfterDuty" onchange="updateDocCommissionPreview('nb_')"> ডিউটি পরে দেখা হয়েছে
-              </label>
-            </div>
-            <div id="nb_DocCommissionPreview" style="font-size:10.5px;color:var(--text-light);margin-top:3px"></div>
+            <select id="nb_DocSelect" onchange="onDocSelectChange('nb_')" title="কমিশন প্রযোজ্য ডাক্তার (ঐচ্ছিক) — স্যালারিড ডাক্তারের ক্ষেত্রে ড্রপডাউনেই &quot;ওভার টাইম&quot; আলাদা অপশন থাকবে"><option value="">🩺 কোনো ডাক্তার/কমিশন নেই</option></select>
           </div>
         </div>
         <div class="panel-body">
@@ -2865,7 +2889,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <!-- ✅ ২য় সারি: ঠিকানা | রেফারেন্স | বিবরণ/মন্তব্য | মেমো নং -->
           <div class="rn-row rn-row2b">
             <div class="field"><label>ঠিকানা</label><input type="text" id="nb_PatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
-            <div class="field"><label>রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="ডাক্তার/পরিচিত"></div>
+            <div class="field"><label>রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="পরিচিত ব্যক্তির নাম (ঐচ্ছিক)"></div>
             <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="nb_Note" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><input type="text" id="nb_MemoNo" placeholder="Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
@@ -6396,10 +6420,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <aside class="rec-sidebar-nav">
       <div class="rp-nav-list">
         <div class="rp-nav-item active" id="rtab-new" onclick="switchRecTab('new',this)"><span class="nav-icon">🧾</span> নতুন বিল</div>
+        <div class="rp-nav-item" id="rtab-queue" onclick="switchRecTab('queue',this)"><span class="nav-icon">🎫</span> টোকেন/কিউ<span id="recQueueBadge" class="nbadge" style="display:none"></span></div>
         <div class="rp-nav-item" id="rtab-due" onclick="switchRecTab('due',this)"><span class="nav-icon">⏳</span> বাকি তালিকা</div>
         <div class="rp-nav-item" id="rtab-history" onclick="switchRecTab('history',this)"><span class="nav-icon">📋</span> আজকের এন্ট্রি</div>
         <div class="rp-nav-item" id="rtab-search" onclick="switchRecTab('search',this)"><span class="nav-icon">🔎</span> রোগী খুঁজুন</div>
         <div class="rp-nav-item" id="rtab-appointment" onclick="switchRecTab('appointment',this)"><span class="nav-icon">📅</span> সিরিয়াল<span id="recApptBadge" class="nbadge" style="display:none"></span></div>
+        <div class="rp-nav-item" id="rtab-callsheet" onclick="switchRecTab('callsheet',this)"><span class="nav-icon">📞</span> আজকের কল লিস্ট<span id="recCallBadge" class="nbadge" style="display:none"></span></div>
+        <div class="rp-nav-item" id="rtab-recall" onclick="switchRecTab('recall',this)"><span class="nav-icon">🔁</span> রিকল লিস্ট<span id="recRecallBadge" class="nbadge" style="display:none"></span></div>
         <div class="rp-nav-item" id="rtab-directory" onclick="switchRecTab('directory',this)"><span class="nav-icon">📇</span> তথ্য কেন্দ্র</div>
         <div class="rp-nav-item" id="rtab-inquiry" onclick="switchRecTab('inquiry',this)"><span class="nav-icon">📝</span> ইনকোয়ারি</div>
         <div class="rp-nav-item" id="rtab-lookup" onclick="switchRecTab('lookup',this)"><span class="nav-icon">🔍</span> দাম খুঁজুন</div>
@@ -6422,13 +6449,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="panel-title">🧾 নতুন ক্যাশ মেমো / বিল</div>
           <div id="recRecentPatients" class="rn-header-chips"></div>
           <div class="rn-header-commission">
-            <select id="rDocSelect" onchange="onDocSelectChange('r')" title="কমিশন প্রযোজ্য ডাক্তার (ঐচ্ছিক)"><option value="">🩺 কোনো ডাক্তার/কমিশন নেই</option></select>
-            <div class="field" id="rDocAfterDutyRow" style="display:none;margin-top:5px">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11.5px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:6px 8px">
-                <input type="checkbox" id="rDocAfterDuty" onchange="updateDocCommissionPreview('r')"> ডিউটি পরে দেখা হয়েছে
-              </label>
-            </div>
-            <div id="rDocCommissionPreview" style="font-size:10.5px;color:var(--text-light);margin-top:3px"></div>
+            <select id="rDocSelect" onchange="onDocSelectChange('r')" title="আজকের দায়িত্বরত ডাক্তার নির্বাচন করুন — একবার সিলেক্ট করলে সব বিলে থেকে যাবে। স্যালারিড ডাক্তারের ক্ষেত্রে ড্রপডাউনেই &quot;ওভার টাইম&quot; আলাদা অপশন থাকবে"><option value="">🩺 কোনো ডাক্তার/কমিশন নেই</option></select>
           </div>
         </div>
         <div class="panel-body">
@@ -6450,7 +6471,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <!-- ✅ ২য় সারি: ঠিকানা (নামের সমান) | রেফারেন্স (অর্ধেক) | বিবরণ/মন্তব্য | মেমো নং (তারিখের সমান) -->
           <div class="rn-row rn-row2b">
             <div class="field"><label>ঠিকানা</label><input type="text" id="rPatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
-            <div class="field"><label>রেফারেন্স</label><input type="text" id="rPatDoc" placeholder="ডাক্তার/পরিচিত"></div>
+            <div class="field"><label>রেফারেন্স</label><input type="text" id="rPatDoc" placeholder="পরিচিত ব্যক্তির নাম (ঐচ্ছিক)"></div>
             <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="rNote" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><input type="text" id="rMemoNo" placeholder="Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
@@ -6536,6 +6557,84 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <button class="btn btn-success" onclick="saveBill()" style="padding:13px 30px;font-size:15px;font-weight:800;border-radius:10px">✅ সেভ করুন</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- টোকেন/কিউ ব্যবস্থাপনা (ওয়াক-ইন রোগীদের লাইভ সিরিয়াল) -->
+    <div id="rec-queue" class="rec-tab-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🎫 টোকেন/কিউ ব্যবস্থাপনা</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="font-size:13px;color:var(--text-light)">আজ: <strong id="recQueueDateLabel"></strong></div>
+            <select id="tqDocSelect" onchange="onQueueDoctorChange()" title="আজকের দায়িত্বরত ডাক্তার নির্বাচন করুন — একবার সিলেক্ট করলে আজকের সব টোকেনেই প্রযোজ্য হবে (নতুন বিলের ডাক্তার সিলেকশনের সাথেও সিঙ্ক থাকবে)" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px"><option value="">🩺 আজকের ডাক্তার নির্বাচন করুন</option></select>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="form-row three">
+            <div class="field"><label>রোগীর নাম</label><input type="text" id="tqName" placeholder="নাম (ঐচ্ছিক)"></div>
+            <div class="field"><label>ফোন নম্বর</label><input type="text" id="tqPhone" placeholder="০১XXXXXXXXX (ঐচ্ছিক)"></div>
+            <div class="field"><label>ঠিকানা</label><input type="text" id="tqAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা (ঐচ্ছিক)"></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-success" onclick="addTokenQueue()">🎫 নতুন টোকেন দিন</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">⏳ অপেক্ষমান তালিকা</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div id="recQueueDoctorHeader" style="font-size:12.5px;font-weight:700;color:#7c3aed"></div>
+            <div id="recQueueCurrentServing" style="font-size:13px;font-weight:700;color:var(--primary)"></div>
+          </div>
+        </div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>টোকেন#</th><th>নাম</th><th>ফোন</th><th>ঠিকানা</th><th>অপেক্ষার সময়</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+          <tbody id="recQueueTable"></tbody>
+        </table></div></div>
+      </div>
+    </div>
+
+    <!-- আজকের কল লিস্ট (ডেলিভারি রেডি/ওভারডিউ + সিরিয়াল রিমাইন্ডার) -->
+    <div id="rec-callsheet" class="rec-tab-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📞 আজকের কল লিস্ট</div>
+        </div>
+        <div class="panel-body">
+          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">🚚 ডেলিভারি (আজ / ওভারডিউ)</div>
+          <div class="table-wrap" style="margin-bottom:18px"><table>
+            <thead><tr><th>নাম</th><th>ফোন</th><th>আইটেম</th><th>ডেলিভারি তারিখ</th><th>বাকি</th><th>কল</th></tr></thead>
+            <tbody id="recCallDeliveryTable"></tbody>
+          </table></div>
+          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">📅 সিরিয়াল রিমাইন্ডার (আজ ও আগামীকাল)</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>তারিখ</th><th>সময়</th><th>নাম</th><th>ফোন</th><th>ডাক্তার</th><th>কল</th></tr></thead>
+            <tbody id="recCallApptTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- রিকল/রিটেনশন লিস্ট -->
+    <div id="rec-recall" class="rec-tab-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔁 রিকল/রিটেনশন লিস্ট</div>
+          <select id="recallRange" onchange="renderRecRecallList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <option value="180">৬ মাস+ আসেননি</option>
+            <option value="270">৯ মাস+ আসেননি</option>
+            <option value="365" selected>১ বছর+ আসেননি</option>
+          </select>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px">যেসব রোগী দীর্ঘদিন আসেননি, তাদের বার্ষিক চেকআপের জন্য কল করা যেতে পারে।</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>MRN</th><th>নাম</th><th>ফোন</th><th>শেষ ভিজিট</th><th>কতদিন আগে</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="recRecallTable"></tbody>
+          </table></div>
         </div>
       </div>
     </div>
@@ -6709,7 +6808,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </select>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>নাম</th><th>ধরন</th><th>বিশেষত্ব</th><th>মূল কর্মস্থল / পরিচিতি</th><th>কবে/কখন পাওয়া যাবে</th><th>চেম্বার/অবস্থান</th><th>ফোন</th></tr></thead>
+          <thead><tr><th>নাম</th><th>ধরন</th><th>বিশেষত্ব</th><th>মূল কর্মস্থল / পরিচিতি</th><th>কবে/কখন পাওয়া যাবে</th><th>চেম্বার/অবস্থান</th><th>ফোন</th><th>আজ উপস্থিত?</th></tr></thead>
           <tbody id="recDoctorDirTable"></tbody>
         </table></div>
         <p style="font-size:11.5px;color:#94a3b8;margin-top:8px">ℹ️ ডাক্তারের তথ্য "ডাক্তার ব্যবস্থাপনা" পেজ থেকে অ্যাডমিন যোগ/সম্পাদনা করেন।</p>
@@ -6904,6 +7003,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
       <div class="rec-widgets-actions">
         <button type="button" class="rec-widget-action-btn" onclick="openRecAttendancePage()"><span class="rwa-icon">🕐</span> এটেন্ডেন্স</button>
+      </div>
+      <div class="rec-widgets-detail-overlay" id="recDaySummaryDetailOverlay" style="display:none">
+        <div class="rec-widgets-detail-head">
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeDaySummaryDetail()">← ফিরুন</button>
+        </div>
+        <div id="recDaySummaryDetailTitle" style="font-weight:800;font-size:13.5px;margin-bottom:10px"></div>
+        <div id="recDaySummaryDetailList"></div>
       </div>
     </aside>
   </div>
@@ -7224,7 +7330,7 @@ let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
 let activeDueId = null;
 let activeDueSource = 'visit'; // 'visit' | 'camp'
 let serviceCount = 0;
@@ -7666,7 +7772,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -8471,6 +8577,7 @@ function startApp() {
     const el = document.getElementById('rDiscountLimit');
     if (el) el.textContent = `সর্বোচ্চ ${limit}% পর্যন্ত দিতে পারবেন`;
     if (typeof populateDoctorSelect==='function') populateDoctorSelect('rDocSelect');
+    if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor();
     if (typeof initReceptionExtras==='function') initReceptionExtras();
 
   } else if (role === 'owner' || role === 'campaigner') {
@@ -8518,7 +8625,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -8619,7 +8726,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -9153,6 +9260,7 @@ const pageMap = {
   recdeposit:   { title:'🏦 রিসেপশন ক্যাশ জমার রেকর্ড', sub:'রিসেপশনিস্টের দৈনিক ক্যাশ জমার বিস্তারিত' },
   balancesheet: { title:'📊 ব্যালেন্স শিট', sub:'ডে ওয়াইজ ও মান্থ ওয়াইজ ক্যাশ ব্যালেন্স' },
   delivery:     { title:'🚚 ডেলিভারি শিডিউল', sub:'চশমা ও অন্যান্য অর্ডারের ডেলিভারি ট্র্যাকিং' },
+  callsheet:    { title:'📞 আজকের কল লিস্ট', sub:'ডেলিভারি রেডি/ওভারডিউ ও সিরিয়াল রিমাইন্ডার — কল লগ' },
 };
 function showPage(name) {
   if ((name === 'settings'||name==='adminbill') && currentUser.role !== 'admin') return;
@@ -9206,6 +9314,7 @@ function showPage(name) {
   if (name === 'due')          { renderAdminDue(); }
   if (name === 'balancesheet') { renderBalanceSheet(); }
   if (name === 'delivery')     { renderDeliveryTable('all'); }
+  if (name === 'callsheet')    { renderAdminCallSheet(); }
   if (name === 'inquiries')    { initInquiriesPage(); }
   if (currentUser && currentUser.role === 'moderator') renderRoleBottomTabs('mod', name);
   renderQuickAccessBar(name);
@@ -15692,56 +15801,165 @@ function _getBillItemsForCommission(p) {
   if (p==='ab') return (typeof getAdminBillServices==='function') ? getAdminBillServices() : [];
   return [];
 }
-function populateDoctorSelect(selId) {
+// ✅ splitAfterDutyOption=true (ডিফল্ট) হলে — স্যালারিড কমিশন-প্রযোজ্য ডাক্তারের জন্য ড্রপডাউনেই "ডিউটি পরে"
+// আলাদা অপশন যোগ হয় (হেডারে আলাদা কোনো চেকবক্স/লাইন লাগে না, তাই হেডারের উচ্চতা কখনো বদলায় না)। অ্যাডমিন
+// বিল পেজের (ab) মতো জায়গায় যেখানে আলাদা চেকবক্স UI আছে, সেখানে false পাস করে পুরনো (একটাই অপশন) আচরণ রাখা হয়।
+function populateDoctorSelect(selId, splitAfterDutyOption) {
+  if (splitAfterDutyOption === undefined) splitAfterDutyOption = true;
   const sel = document.getElementById(selId); if (!sel) return;
   const prev = sel.value;
   const docs = (appData.doctors||[]).filter(d=>d.status==='active');
-  sel.innerHTML = '<option value="">-- কোনো ডাক্তার/কমিশন নেই --</option>' + docs.map(d=>
-    `<option value="${d.id}">${d.name}${d.category?` (${_DOC_CAT_LABELS[d.category]||d.category})`:''}</option>`
-  ).join('');
+  let html = '<option value="">-- কোনো ডাক্তার/কমিশন নেই --</option>';
+  docs.forEach(d=>{
+    const catLabel = d.category ? ` (${_DOC_CAT_LABELS[d.category]||d.category})` : '';
+    if (splitAfterDutyOption && d.commissionEnabled && d.type==='salaried') {
+      html += `<option value="${d.id}">${d.name}${catLabel}</option>`;
+      html += `<option value="${d.id}:ad">${d.name}${catLabel} — ওভার টাইম 💰</option>`;
+    } else {
+      html += `<option value="${d.id}">${d.name}${catLabel}</option>`;
+    }
+  });
+  sel.innerHTML = html;
   if (prev) sel.value = prev;
+}
+// ✅ "docId" বা "docId:ad" (ডিউটি পরে) ফরম্যাটের সিলেক্ট-ভ্যালু থেকে ডাক্তার আইডি ও after-duty ফ্ল্যাগ আলাদা করে
+function parseDocSelectValue(raw) {
+  if (!raw) return { doctorId:'', afterDuty:false };
+  const parts = String(raw).split(':');
+  return { doctorId: parts[0], afterDuty: parts[1]==='ad' };
+}
+// ✅ কমিশন প্রযোজ্য কিনা তা নির্বিশেষে — বিলের জন্য বর্তমানে নির্বাচিত ডাক্তার (রোগীর রেকর্ডে "কোন ডাক্তার দেখেছেন" রাখতে ব্যবহৃত হয়)
+function getSelectedDoctorForPrefix(p) {
+  const sel = document.getElementById(p+'DocSelect');
+  const { doctorId } = parseDocSelectValue(sel ? sel.value : '');
+  if (!doctorId) return null;
+  return (appData.doctors||[]).find(d=>String(d.id)===String(doctorId)) || null;
 }
 function onDocSelectChange(p) {
   const sel = document.getElementById(p+'DocSelect');
-  const doctorId = sel ? sel.value : '';
-  const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
-  const afterDutyRow = document.getElementById(p+'DocAfterDutyRow');
-  if (afterDutyRow) afterDutyRow.style.display = (doctor && doctor.commissionEnabled && doctor.type==='salaried') ? '' : 'none';
-  if (doctor && doctor.commissionEnabled && doctor.type==='salaried') {
-    const cb = document.getElementById(p+'DocAfterDuty');
-    if (cb) {
-      const suggested = isAfterDutyTimeNow(doctor);
-      cb.checked = suggested;
-      cb.dataset.suggested = suggested ? '1' : '0'; // ✅ পরে ম্যানুয়াল ওভাররাইড ধরার জন্য মূল সময়-ভিত্তিক সাজেশন সংরক্ষণ
+  const hasCheckbox = !!document.getElementById(p+'DocAfterDuty');
+  if (hasCheckbox) {
+    // পুরনো ধরন — আলাদা "ডিউটি পরে" চেকবক্স সহ পেজ (যেমন: অ্যাডমিন বিল পেজ 'ab')
+    const doctorId = sel ? sel.value : '';
+    const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
+    const afterDutyRow = document.getElementById(p+'DocAfterDutyRow');
+    const isSalariedCommission = !!(doctor && doctor.commissionEnabled && doctor.type==='salaried');
+    if (afterDutyRow) afterDutyRow.style.display = isSalariedCommission ? '' : 'none';
+    if (isSalariedCommission) {
+      const cb = document.getElementById(p+'DocAfterDuty');
+      if (cb) {
+        const suggested = isAfterDutyTimeNow(doctor);
+        cb.checked = suggested;
+        cb.dataset.suggested = suggested ? '1' : '0'; // ✅ পরে ম্যানুয়াল ওভাররাইড ধরার জন্য মূল সময়-ভিত্তিক সাজেশন সংরক্ষণ
+      }
     }
+  } else if (sel) {
+    // ✅ নতুন ধরন (রিসেপশন 'r', অ্যাডমিন/মড নতুন বিল 'nb_', টোকেন/কিউ 'tq') — "ডিউটি পরে" অপশনটা ড্রপডাউনেরই
+    // একটা আলাদা অপশন, হেডারে এর জন্য কোনো আলাদা UI নেই। নতুন কোনো ডাক্তার (আলাদা doctorId) সিলেক্ট করা হলে
+    // বর্তমান সময়ের ভিত্তিতে স্বয়ংক্রিয়ভাবে সঠিক অপশনে (সাধারণ/ডিউটি পরে) বসিয়ে দেওয়া হয় — সাজেশন হিসেবে।
+    // একই ডাক্তারের দুই অপশনের মধ্যে ইউজার নিজে ম্যানুয়ালি পাল্টালে (doctorId অপরিবর্তিত) সেটাই থেকে যায়, ওভাররাইড হয় না।
+    const { doctorId } = parseDocSelectValue(sel.value);
+    const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
+    const isNewDoctorPick = sel.dataset.lastDoctorId !== doctorId;
+    if (doctor && doctor.commissionEnabled && doctor.type==='salaried' && isNewDoctorPick) {
+      const suggested = isAfterDutyTimeNow(doctor);
+      const suggestedValue = suggested ? `${doctor.id}:ad` : `${doctor.id}`;
+      sel.value = suggestedValue;
+      sel.dataset.suggestedValue = suggestedValue;
+    } else if (!doctor || !doctor.commissionEnabled || doctor.type!=='salaried') {
+      delete sel.dataset.suggestedValue;
+    }
+    sel.dataset.lastDoctorId = doctorId;
   }
   updateDocCommissionPreview(p);
+  // ✅ নির্বাচিত ডাক্তার সারাদিনের জন্য মনে রাখা হয় (দিনের শুরুতে একবার সিলেক্ট করলে সব বিলেই থেকে যাবে,
+  // ম্যানুয়ালি পাল্টালে তখন থেকে নতুন সিলেকশনই ডিফল্ট হয়ে যাবে)। রিসেপশন (r) ও অ্যাডমিন/মড নতুন বিল (nb_) —
+  // দুই জায়গাতেই একই "আজকের ডাক্তার" শেয়ার হয়, যেকোনো একটায় পাল্টালে অন্যটাতেও পরের বিলে বসবে। শুধু doctorId
+  // অংশটাই সংরক্ষিত হয় (ডিউটি পরে কিনা সেটা প্রতিটি বিলে আলাদাভাবে সময়ের ভিত্তিতে সাজেস্ট হবে)।
+  if (p==='r' || p==='nb_') {
+    const { doctorId } = parseDocSelectValue(sel ? sel.value : '');
+    try { localStorage.setItem('recDefaultDoctorId_'+todayStr(), doctorId||''); } catch(e){}
+  }
 }
-function updateDocCommissionPreview(p) {
-  const previewEl = document.getElementById(p+'DocCommissionPreview');
-  if (!previewEl) return;
+// ✅ পাতা লোড হওয়ার সময় বা নতুন বিল ফর্ম রিসেটের সময় — আজকের জন্য আগে সিলেক্ট করা ডিফল্ট ডাক্তার ফিরিয়ে আনে
+// p: 'r' (রিসেপশন) বা 'nb_' (অ্যাডমিন/মড নতুন বিল) — উভয়েই একই সংরক্ষিত ডিফল্ট ব্যবহার করে
+function restoreRecDefaultDoctor(p) {
+  p = p || 'r';
+  let savedId = '';
+  try { savedId = localStorage.getItem('recDefaultDoctorId_'+todayStr())||''; } catch(e){}
   const sel = document.getElementById(p+'DocSelect');
-  const doctorId = sel ? sel.value : '';
+  if (!sel) return;
+  if (savedId) {
+    sel.value = savedId;
+    // ✅ প্রতিটি নতুন বিলে "ডিউটি পরে" কিনা তা বর্তমান সময়ের ভিত্তিতে ফ্রেশ সাজেস্ট হওয়া উচিত (আগের বিলের
+    // অপশন থেকে ধরে না নিয়ে), তাই lastDoctorId রিসেট করে জোর করে সাজেশন লজিক আবার চালানো হয়
+    delete sel.dataset.lastDoctorId;
+    onDocSelectChange(p);
+  } else {
+    clearDocSelectUI(p);
+  }
+}
+// ✅ কমিশন-প্রিভিউ লাইন: বক্সের নিচে একটা ফিক্সড-উচ্চতার (.rn-doc-preview) স্লট সবসময় বরাদ্দ থাকে (খালি বা ভরা) —
+// তাই ডাক্তার সিলেক্ট করা/না করা, চেকবক্স টিক দেওয়া/না দেওয়া — কোনো অবস্থাতেই হেডারের উচ্চতা এক মিলিও বদলায় না।
+// "কোনো ডাক্তার/কমিশন নেই" অবস্থায় লাইনটা খালি থাকে। স্যালারিড ডাক্তারের চেকবক্স ড্রপ-ডাউনের পাশেই (একই লাইনে)
+// থাকে; টিক দিলে তখনই এই স্লটে কমিশনের হিসাব টেক্সট হিসেবে বসে, টিক তুলে দিলে খালি হয়ে যায়।
+// ✅ 'ab' এর মতো পেজে (আলাদা চেকবক্স UI) — বক্সের নিচে ভিজিবল প্রিভিউ লাইনে দেখায়। 'r'/'nb_'/'tq' এর মতো
+// হেডার-ভিত্তিক পেজে — কোনো ভিজিবল প্রিভিউ এলিমেন্ট নেই (হেডারের উচ্চতা যেন কখনো না বাড়ে), শুধু ড্রপডাউনের
+// হোভার টুলটিপে কমিশনের হিসাব সংক্ষেপে দেখানো হয়।
+function updateDocCommissionPreview(p) {
+  const sel = document.getElementById(p+'DocSelect');
+  const hasCheckbox = !!document.getElementById(p+'DocAfterDuty');
+  const previewEl = document.getElementById(p+'DocCommissionPreview');
+  let doctorId, afterDutyChecked, overridden = false;
+  if (hasCheckbox) {
+    doctorId = sel ? sel.value : '';
+  } else {
+    const parsed = parseDocSelectValue(sel ? sel.value : '');
+    doctorId = parsed.doctorId;
+    afterDutyChecked = parsed.afterDuty;
+  }
   const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
-  if (!doctor) { previewEl.textContent=''; return; }
-  if (!doctor.commissionEnabled) { previewEl.innerHTML = `<span style="color:#94a3b8">এই ডাক্তারের জন্য কমিশন প্রযোজ্য নয়</span>`; return; }
+  if (sel && !sel.dataset.baseTitle) sel.dataset.baseTitle = sel.title || '';
+  if (!doctor || !doctor.commissionEnabled) {
+    if (previewEl) { previewEl.textContent=''; previewEl.title=''; }
+    if (!hasCheckbox && sel) sel.title = sel.dataset.baseTitle || '';
+    return;
+  }
   const items = _getBillItemsForCommission(p);
   const base = getDoctorCommissionBaseAmount(items, doctor);
-  let percent = 0, applies = true, overridden = false;
+  let percent = 0, applies = true;
   if (doctor.type==='salaried') {
-    const cb = document.getElementById(p+'DocAfterDuty');
-    applies = !!(cb && cb.checked);
+    if (hasCheckbox) {
+      const cb = document.getElementById(p+'DocAfterDuty');
+      applies = !!(cb && cb.checked);
+      if (cb && cb.dataset.suggested !== undefined) overridden = (cb.dataset.suggested === '1') !== applies;
+    } else {
+      applies = !!afterDutyChecked;
+      if (sel && sel.dataset.suggestedValue !== undefined) overridden = sel.dataset.suggestedValue !== sel.value;
+    }
     percent = doctor.afterDutyPercent||0;
-    if (cb && cb.dataset.suggested !== undefined) overridden = (cb.dataset.suggested === '1') !== applies;
   } else {
     percent = doctor.commissionPercent||0;
   }
   const amount = applies ? Math.round(base*percent/100) : 0;
-  const dutyRef = doctor.dutyEnd ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px">ডিউটি শেষ: ${doctor.dutyEnd} অনুযায়ী স্বয়ংক্রিয় সাজেশন${overridden?' — <span style="color:#d97706;font-weight:700">⚠️ ম্যানুয়ালি পরিবর্তন করা হয়েছে</span>':''}</div>` : '';
-  if (!applies && doctor.type==='salaried') {
-    previewEl.innerHTML = `<span style="color:#94a3b8">ডিউটির পরে দেখা হয়েছে টিক না দিলে কমিশন প্রযোজ্য হবে না</span>${dutyRef}`;
-  } else {
-    previewEl.innerHTML = `যোগ্য এমাউন্ট: ৳${fmt(base)} × ${percent}% = <strong style="color:var(--success)">৳${fmt(amount)}</strong> কমিশন${dutyRef}`;
+  const tipParts = [];
+  if (doctor.dutyEnd) tipParts.push(`ডিউটি শেষ: ${doctor.dutyEnd} অনুযায়ী স্বয়ংক্রিয় সাজেশন`);
+  if (overridden) tipParts.push('⚠️ ম্যানুয়ালি পরিবর্তন করা হয়েছে');
+  if (previewEl) {
+    if (!applies && doctor.type==='salaried') {
+      previewEl.innerHTML = `<span style="color:#94a3b8">ডিউটির পরে দেখা হয়েছে টিক না দিলে কমিশন প্রযোজ্য হবে না</span>`;
+    } else {
+      previewEl.innerHTML = `যোগ্য এমাউন্ট: ৳${fmt(base)} × ${percent}% = <strong style="color:var(--success)">৳${fmt(amount)}</strong> কমিশন`;
+    }
+  }
+  if (!hasCheckbox && sel) {
+    const base2 = sel.dataset.baseTitle || '';
+    const sep = base2 ? ' — ' : '';
+    if (!applies && doctor.type==='salaried') {
+      sel.title = `${base2}${sep}ℹ️ "ওভার টাইম" অপশন সিলেক্ট না করলে কমিশন প্রযোজ্য হবে না`;
+    } else {
+      sel.title = `${base2}${sep}কমিশন: ৳${fmt(amount)} (${percent}%)${tipParts.length?' — '+tipParts.join(' — '):''}`;
+    }
   }
 }
 function computeDoctorCommissionForSave(p) {
@@ -15787,7 +16005,7 @@ function clearDocSelectUI(p) {
   const sel = document.getElementById(p+'DocSelect'); if (sel) sel.value='';
   const cb = document.getElementById(p+'DocAfterDuty'); if (cb) { cb.checked=false; delete cb.dataset.suggested; }
   const row = document.getElementById(p+'DocAfterDutyRow'); if (row) row.style.display='none';
-  const prev = document.getElementById(p+'DocCommissionPreview'); if (prev) prev.textContent='';
+  const prev = document.getElementById(p+'DocCommissionPreview'); if (prev) { prev.textContent=''; prev.title=''; }
 }
 function calcDoctorMonthlyCommission(doctorId, month, year) {
   const prefix = `${year}-${String(month).padStart(2,'0')}`;
@@ -15917,7 +16135,7 @@ function renderDoctorsPage() {
       }).join('');
     }
   }
-  ['rDocSelect','nb_DocSelect','abDocSelect'].forEach(id=>populateDoctorSelect(id));
+  ['rDocSelect','nb_DocSelect','abDocSelect'].forEach(id=>populateDoctorSelect(id, id!=='abDocSelect'));
   const dpSel = document.getElementById('dpDoctor');
   if (dpSel) {
     const prev = dpSel.value;
@@ -23125,6 +23343,9 @@ function switchRecTab(name, btn) {
   if (name==='delivery') { renderRecDeliveryTable('all'); const gd=document.getElementById('recGlassOrderDate'); if(gd&&!gd.value) gd.value=todayStr(); }
   if (name==='search') { var q=document.getElementById('recSearchQuery'); if(q) q.focus(); renderRecPatientDB(document.getElementById('recPatientDbSearch')?.value?.toLowerCase().trim()||''); }
   if (name==='appointment') renderRecAppointments();
+  if (name==='queue') renderRecTokenQueue();
+  if (name==='callsheet') renderRecCallSheet();
+  if (name==='recall') renderRecRecallList();
   if (name==='directory') { renderRecDoctorDirectory(); renderServiceCatalog(); renderRecCampSchedule(); }
   if (name==='inquiry') renderInquiryLog();
   if (name==='attendance') renderRecAttendancePage();
@@ -23536,6 +23757,9 @@ function saveBill() {
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
   };
+  // ✅ কমিশন প্রযোজ্য না হলেও — নির্বাচিত ডাক্তার রোগীর রেকর্ডে থেকে যায়, যাতে কোন ডাক্তার দেখেছেন তা রেকর্ড থাকে
+  const _selDocR = getSelectedDoctorForPrefix('r');
+  if (_selDocR) { visit.doctorId = _selDocR.id; visit.doctorName = _selDocR.name; }
   if (!checkDoctorCommissionAlarm('r')) return;
   appData.visits.push(visit);
   recordDoctorCommission('r', date, memoNo, visit.id);
@@ -23556,6 +23780,14 @@ function saveBill() {
   saveData();
   logActivity('add', 'বিল (রিসেপশন)', `${memoNo} — ${patName}, নেট: ৳${fmt(netBill)}, পেইড: ৳${fmt(cashPaid)}`);
   showToast(`✅ বিল সেভ! মেমো: ${memoNo}` + (glassDeliveryCount?` — ${glassDeliveryCount}টি চশমা ডেলিভারি শিডিউলে যোগ হয়েছে`:''));
+  // ✅ বিলে অপারেশন আইটেম থাকলে পোস্ট-অপারেটিভ ফলোআপ সিরিয়াল যোগ করার প্রম্পট দেখানো হয়
+  const hasOperationItem = services.some(s => typeof classifyBillItemForCommission==='function' && classifyBillItemForCommission(s)==='operation');
+  if (hasOperationItem) {
+    const docSelEl = document.getElementById('rDocSelect');
+    const opDoctorId = docSelEl ? docSelEl.value : '';
+    const opDoctor = (appData.doctors||[]).find(d=>String(d.id)===String(opDoctorId));
+    showPostOpFollowupPrompt(patName, patPhone, date, opDoctorId, opDoctor?opDoctor.name:'');
+  }
   // returned draft ছিল হলে তা মুছে ফেলি যাতে নোটিফিকেশন আর না দেখায়
   if (window._returnedDraftId) {
     appData.draftBills = (appData.draftBills||[]).filter(d=>d.id!==window._returnedDraftId);
@@ -23595,7 +23827,7 @@ function clearBillForm() {
   const limEl=document.getElementById('rDiscountLimit'); if(limEl) limEl.textContent='';
   refreshDeliveryInfoBox('r');
   window._returnedDraftId=null;
-  clearDocSelectUI('r');
+  restoreRecDefaultDoctor();
   initServiceRows();
   updateSummary();
 }
@@ -23725,16 +23957,68 @@ function renderRecDaySummary() {
   var newDue    = visits.reduce(function(s,v){ return s+(v.due||0); }, 0);
   var dueCollected = (appData.dueHistory||[]).filter(function(h){ return h.date===today && h.type==='collect'; }).reduce(function(s,h){ return s+(h.amount||0); }, 0);
   var hidden = _recAmountsHidden;
-  function card(icon, label, val, color, isMoney) {
-    return '<div class="rec-widget-card" style="--card-accent:'+color+'">'
+  function card(icon, label, val, color, isMoney, type) {
+    return '<div class="rec-widget-card" style="--card-accent:'+color+'" onclick="openDaySummaryDetail(\''+type+'\')">'
       +'<div class="rwc-label">'+icon+' '+label+'</div>'
       +'<div class="rwc-value" style="color:'+color+'">'+((hidden&&isMoney)?'৳ ••••':val)+'</div></div>';
   }
-  bar.innerHTML = card('🧾', 'আজকের বিল', billCount+' টি', 'var(--primary)', false)
-    + card('💰', 'মোট বিক্রি', '৳ '+fmt(totalNet), 'var(--primary)', true)
-    + card('💵', 'নগদ আদায়', '৳ '+fmt(totalCash), 'var(--success)', true)
-    + card('🆕', 'নতুন বাকি', '৳ '+fmt(newDue), '#9b59b6', true)
-    + card('✅', 'বাকি আদায় (আজ)', '৳ '+fmt(dueCollected), 'var(--success)', true);
+  bar.innerHTML = card('🧾', 'আজকের বিল', billCount+' টি', 'var(--primary)', false, 'bills')
+    + card('💰', 'মোট বিক্রি', '৳ '+fmt(totalNet), 'var(--primary)', true, 'sales')
+    + card('💵', 'নগদ আদায়', '৳ '+fmt(totalCash), 'var(--success)', true, 'cash')
+    + card('🆕', 'নতুন বাকি', '৳ '+fmt(newDue), '#9b59b6', true, 'newdue')
+    + card('✅', 'বাকি আদায় (আজ)', '৳ '+fmt(dueCollected), 'var(--success)', true, 'duecollected');
+}
+// ✅ ডান সাইডবারের সারসংক্ষেপ কার্ডে ক্লিক করলে সেই সাইডবার এরিয়া জুড়েই ডিটেইলস লিস্ট দেখায়
+function openDaySummaryDetail(type) {
+  var overlay = document.getElementById('recDaySummaryDetailOverlay');
+  var titleEl = document.getElementById('recDaySummaryDetailTitle');
+  var listEl  = document.getElementById('recDaySummaryDetailList');
+  if (!overlay || !titleEl || !listEl) return;
+  var today  = todayStr();
+  var visits = (appData.visits||[]).filter(function(v){ return v.date===today; }).sort(function(a,b){ return b.id-a.id; });
+  var hidden = _recAmountsHidden;
+  function m(v) { return hidden ? '৳ ••••' : '৳ '+fmt(v); }
+  function row(name, sub, right, rightColor) {
+    return '<div class="rec-summary-detail-row"><div style="font-weight:700">'+(name||'—')+'</div>'
+      + (sub?'<div style="color:var(--text-light);font-size:11.5px;margin-top:1px">'+sub+'</div>':'')
+      + '<div style="margin-top:3px;font-weight:700;color:'+(rightColor||'inherit')+'">'+right+'</div></div>';
+  }
+  var title = '', rows = '', empty = 'কোনো তথ্য নেই';
+  if (type==='bills') {
+    title = '🧾 আজকের বিল ('+visits.length+' টি)';
+    empty = 'আজ এখনো কোনো বিল নেই';
+    rows = visits.map(function(v){ return row(v.patName, 'মেমো: '+(v.memoNo||v.rcptNo||'—')+(v.time?' — '+v.time:''), 'মোট: '+m(v.netBill||0)); }).join('');
+  } else if (type==='sales') {
+    var totalNet = visits.reduce(function(s,v){ return s+(v.netBill||0); }, 0);
+    title = '💰 মোট বিক্রি — '+m(totalNet);
+    empty = 'আজ এখনো কোনো বিক্রি নেই';
+    rows = visits.map(function(v){ return row(v.patName, 'মেমো: '+(v.memoNo||v.rcptNo||'—'), m(v.netBill||0)); }).join('');
+  } else if (type==='cash') {
+    var cashVisits = visits.filter(function(v){ return (v.cashPaid||0)>0; });
+    var totalCash = cashVisits.reduce(function(s,v){ return s+(v.cashPaid||0); }, 0);
+    title = '💵 নগদ আদায় — '+m(totalCash);
+    empty = 'আজ এখনো কোনো নগদ আদায় নেই';
+    rows = cashVisits.map(function(v){ return row(v.patName, 'মেমো: '+(v.memoNo||v.rcptNo||'—'), m(v.cashPaid||0), 'var(--success)'); }).join('');
+  } else if (type==='newdue') {
+    var dueVisits = visits.filter(function(v){ return (v.due||0)>0; });
+    var totalDue = dueVisits.reduce(function(s,v){ return s+(v.due||0); }, 0);
+    title = '🆕 নতুন বাকি — '+m(totalDue);
+    empty = 'আজ কোনো নতুন বাকি নেই';
+    rows = dueVisits.map(function(v){ return row(v.patName, 'ফোন: '+(v.patPhone||'—'), m(v.due||0), '#9b59b6'); }).join('');
+  } else if (type==='duecollected') {
+    var collected = (appData.dueHistory||[]).filter(function(h){ return h.date===today && h.type==='collect'; }).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    var totalCollected = collected.reduce(function(s,h){ return s+(h.amount||0); }, 0);
+    title = '✅ বাকি আদায় (আজ) — '+m(totalCollected);
+    empty = 'আজ কোনো বাকি আদায় হয়নি';
+    rows = collected.map(function(h){ return row(h.patName, 'মেমো: '+(h.memoNo||'—')+' — কে করলেন: '+(h.by||'—'), m(h.amount||0), 'var(--success)'); }).join('');
+  }
+  titleEl.textContent = title;
+  listEl.innerHTML = rows || '<div style="text-align:center;color:#aaa;padding:24px">'+empty+'</div>';
+  overlay.style.display = 'flex';
+}
+function closeDaySummaryDetail() {
+  var overlay = document.getElementById('recDaySummaryDetailOverlay');
+  if (overlay) overlay.style.display = 'none';
 }
 
 // ✅ ডান সাইডবারের নিচে — আজ যারা এখনো "ইন" আছেন (আউট করেননি) তাদের ছোট চিপ, ইন-এর সময়সহ
@@ -24068,6 +24352,297 @@ function renderRecApptBadge() {
   badge.style.display = count>0 ? 'inline-block' : 'none';
 }
 
+// ===== টোকেন/কিউ ব্যবস্থাপনা (ওয়াক-ইন রোগীদের জন্য লাইভ সিরিয়াল) =====
+// ✅ ডাক্তার প্রতি টোকেনে আলাদা করে সিলেক্ট হয় না — সারাদিনের জন্য একবার সিলেক্ট হয় এবং তা "নতুন বিল"-এর
+// আজকের ডিফল্ট ডাক্তারের (recDefaultDoctorId_YYYY-MM-DD) সাথেই শেয়ার হয়, যাতে রিসেপশন ও কিউ পেজ সবসময় সিঙ্কে থাকে।
+function getTodayQueueDoctor() {
+  let savedId = '';
+  try { savedId = localStorage.getItem('recDefaultDoctorId_'+todayStr())||''; } catch(e){}
+  if (!savedId) return null;
+  return (appData.doctors||[]).find(d=>String(d.id)===String(savedId)) || null;
+}
+function onQueueDoctorChange() {
+  const sel = document.getElementById('tqDocSelect');
+  const doctorId = sel ? sel.value : '';
+  try { localStorage.setItem('recDefaultDoctorId_'+todayStr(), doctorId||''); } catch(e){}
+  // ✅ রিসেপশন ও অ্যাডমিন/মড নতুন বিলের ডাক্তার সিলেক্টেও একই সিলেকশন বসিয়ে দিচ্ছি, যাতে সব জায়গায় একই থাকে
+  ['rDocSelect','nb_DocSelect'].forEach(id=>{
+    const s = document.getElementById(id);
+    if (s && s.value !== doctorId) { s.value = doctorId; if (typeof onDocSelectChange==='function') onDocSelectChange(id==='rDocSelect'?'r':'nb_'); }
+  });
+  renderRecTokenQueue();
+}
+function renderRecTokenQueue() {
+  if (!appData.tokenQueue) appData.tokenQueue = [];
+  if (typeof populateDoctorSelect==='function') populateDoctorSelect('tqDocSelect');
+  const todayDoc = getTodayQueueDoctor();
+  const dSel = document.getElementById('tqDocSelect');
+  if (dSel) dSel.value = todayDoc ? String(todayDoc.id) : '';
+  const docHeader = document.getElementById('recQueueDoctorHeader');
+  if (docHeader) docHeader.innerHTML = todayDoc ? `🩺 আজকের ডাক্তার: ${todayDoc.name}` : `<span style="color:#dc2626">⚠️ আজকের ডাক্তার এখনো নির্বাচন করা হয়নি</span>`;
+  const lbl = document.getElementById('recQueueDateLabel'); if (lbl) lbl.textContent = formatDate(todayStr());
+  const today = todayStr();
+  const list = appData.tokenQueue.filter(t=>t.date===today).sort((a,b)=>a.tokenNo-b.tokenNo);
+  const tbody = document.getElementById('recQueueTable');
+  const calledList = list.filter(t=>t.status==='called').sort((a,b)=>(b.calledAt||0)-(a.calledAt||0));
+  const serving = calledList[0];
+  const servingEl = document.getElementById('recQueueCurrentServing');
+  if (servingEl) servingEl.textContent = serving ? `🔔 বর্তমানে: টোকেন #${serving.tokenNo} — ${serving.patName||'নাম নেই'}` : '';
+  const waiting = list.filter(t=>t.status==='waiting');
+  const badge = document.getElementById('recQueueBadge');
+  if (badge) { if (waiting.length){ badge.style.display='inline-flex'; badge.textContent = waiting.length>99?'৯৯+':waiting.length; } else badge.style.display='none'; }
+  if (!tbody) return;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">আজ এখনো কোনো টোকেন নেই</td></tr>'; return; }
+  const statusLabel = { waiting:'⏳ অপেক্ষমান', called:'🔔 ডাকা হয়েছে', suspended:'⏸️ স্থগিত', done:'✅ সম্পন্ন', skipped:'⏭️ বাদ' };
+  const statusCls = { waiting:'badge-warning', called:'badge-info', suspended:'badge-expense', done:'badge-income', skipped:'badge-expense' };
+  tbody.innerHTML = list.map(t=>{
+    const waitMin = Math.max(0, Math.round((Date.now()-(t.createdAt||Date.now()))/60000));
+    return `<tr>
+      <td style="font-weight:800;color:var(--primary)">#${t.tokenNo}</td>
+      <td>${t.patName||'—'}</td>
+      <td>${t.patPhone||'—'}</td>
+      <td>${t.patAddress||'—'}</td>
+      <td>${t.status==='waiting'?waitMin+' মিনিট':'—'}</td>
+      <td><span class="badge ${statusCls[t.status]||''}">${statusLabel[t.status]||t.status}</span></td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        ${t.status==='waiting'?`<button class="btn btn-primary btn-sm" onclick="callTokenQueue(${t.id})">🔔 কল করুন</button>`:''}
+        ${t.status==='called'?`<button class="btn btn-success btn-sm" onclick="completeTokenQueue(${t.id})">✅ সম্পন্ন</button>`:''}
+        ${(t.status==='waiting'||t.status==='called')?`<button class="btn btn-outline btn-sm" onclick="suspendTokenQueue(${t.id})">⏸️ স্থগিত</button>`:''}
+        ${t.status==='suspended'?`<button class="btn btn-primary btn-sm" onclick="reactivateTokenQueue(${t.id})">▶️ পুনরায় সক্রিয়</button>`:''}
+        ${(t.status==='waiting'||t.status==='called'||t.status==='suspended')?`<button class="btn btn-outline btn-sm" onclick="skipTokenQueue(${t.id})">⏭️ বাদ</button>`:''}
+        ${t.status==='done'?`<button class="btn btn-success btn-sm" onclick="tokenQueueToBill(${t.id})">🧾 বিল</button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+function addTokenQueue() {
+  if (!appData.tokenQueue) appData.tokenQueue = [];
+  const name = (document.getElementById('tqName').value||'').trim();
+  const phone = (document.getElementById('tqPhone').value||'').trim();
+  const address = (document.getElementById('tqAddress').value||'').trim();
+  const doctor = getTodayQueueDoctor();
+  const today = todayStr();
+  const tokenNo = appData.tokenQueue.filter(t=>t.date===today).length + 1;
+  appData.tokenQueue.push({ id:Date.now(), tokenNo, date:today, patName:name, patPhone:phone, patAddress:address, doctorId:doctor?doctor.id:'', doctorName:doctor?doctor.name:'', status:'waiting', createdAt:Date.now(), by:currentUser?currentUser.name:'সিস্টেম' });
+  saveData();
+  ['tqName','tqPhone','tqAddress'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  renderRecTokenQueue();
+  showToast(`✅ টোকেন #${tokenNo} দেওয়া হয়েছে`);
+}
+function callTokenQueue(id) {
+  const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
+  t.status='called'; t.calledAt=Date.now();
+  saveData(); renderRecTokenQueue();
+}
+function completeTokenQueue(id) {
+  const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
+  t.status='done'; t.doneAt=Date.now();
+  saveData(); renderRecTokenQueue();
+}
+function skipTokenQueue(id) {
+  const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
+  t.status='skipped';
+  saveData(); renderRecTokenQueue();
+}
+// ✅ রোগি সাময়িকভাবে হাসপাতাল থেকে বের হলে টোকেন "স্থগিত" রাখা যায়, পরে আবার সক্রিয় করা যাবে
+function suspendTokenQueue(id) {
+  const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
+  t.prevStatus = t.status; t.status='suspended'; t.suspendedAt=Date.now();
+  saveData(); renderRecTokenQueue();
+  showToast(`⏸️ টোকেন #${t.tokenNo} স্থগিত করা হয়েছে`);
+}
+function reactivateTokenQueue(id) {
+  const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
+  t.status = (t.prevStatus==='called') ? 'called' : 'waiting';
+  delete t.prevStatus;
+  saveData(); renderRecTokenQueue();
+  showToast(`▶️ টোকেন #${t.tokenNo} পুনরায় সক্রিয় করা হয়েছে`);
+}
+// ✅ সম্পন্ন হওয়া টোকেন থেকে সরাসরি নতুন বিল ফর্মে নাম/ঠিকানা/ফোন/ডাক্তার অটো বসিয়ে দেয়
+function tokenQueueToBill(id) {
+  const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
+  switchRecTab('new', document.getElementById('rtab-new'));
+  const nameEl=document.getElementById('rPatName'); if(nameEl) nameEl.value=t.patName||'';
+  const phoneEl=document.getElementById('rPatPhone'); if(phoneEl) phoneEl.value=t.patPhone||'';
+  const addrEl=document.getElementById('rPatAddress'); if(addrEl) addrEl.value=t.patAddress||'';
+  if (t.doctorId) {
+    const sel=document.getElementById('rDocSelect');
+    if (sel) { sel.value=String(t.doctorId); if (typeof onDocSelectChange==='function') onDocSelectChange('r'); }
+  }
+  showToast(`🧾 টোকেন #${t.tokenNo}-এর তথ্য বিল ফর্মে বসানো হয়েছে`);
+}
+
+// ✅ কল লিস্টে কে/কখন কল করেছে তার রোল লেবেল (বাংলায়) — অ্যাডমিন প্যানেলে দেখানোর জন্য
+function _callSheetRoleLabel(role) {
+  const m = { admin:'অ্যাডমিন', receptionist:'রিসেপশন', moderator:'মডারেটর', owner:'মালিক', campaigner:'ক্যাম্পেইনার' };
+  return m[role] || role || '—';
+}
+// ✅ "কল করা হয়েছে" বাটনে ক্লিক করলে — কখন ও কে (কোন রোল থেকে) কল করেছে তা রেকর্ডে সেভ হয়, যাতে
+// রিসেপশন ও অ্যাডমিন উভয় প্যানেল থেকেই কল করা হলে তার হিসাব রাখা যায়
+function markCallSheetCalled(type, id) {
+  const list = type === 'delivery' ? (appData.deliveryOrders||[]) : (appData.appointments||[]);
+  const rec = list.find(x => x.id === id);
+  if (!rec) return;
+  rec.calledAt = Date.now();
+  rec.calledByName = currentUser ? currentUser.name : '';
+  rec.calledByRole = currentUser ? currentUser.role : '';
+  saveData();
+  if (typeof renderRecCallSheet === 'function') renderRecCallSheet();
+  if (typeof renderAdminCallSheet === 'function') renderAdminCallSheet();
+}
+// ✅ কল বাটন/কল-লগ সেল তৈরি করে — কল করা না হলে "কল করা হয়েছে" বাটন দেখায়, ক্লিক করলে সময় ও রোল রেকর্ড হয়ে যায়
+function _callSheetActionCell(type, rec) {
+  if (rec.calledAt) {
+    const roleLabel = _callSheetRoleLabel(rec.calledByRole);
+    return `<span style="color:var(--success);font-size:12px;font-weight:600">✅ কল করা হয়েছে</span><br>
+      <span style="font-size:11px;color:var(--text-light)">${formatTime(rec.calledAt)} — ${rec.calledByName||''} (${roleLabel})</span>`;
+  }
+  return `<button class="btn btn-outline btn-sm" onclick="markCallSheetCalled('${type}',${rec.id})">📞 কল করা হয়েছে</button>`;
+}
+// ===== আজকের কল লিস্ট (ডেলিভারি রেডি/ওভারডিউ + আগামীকাল/আজকের সিরিয়াল রিমাইন্ডার) =====
+function renderRecCallSheet() {
+  const today = todayStr();
+  const tomorrow = addDaysToDateStr(today, 1);
+  const dTbody = document.getElementById('recCallDeliveryTable');
+  const dList = (appData.deliveryOrders||[]).filter(d=>d.status!=='delivered' && d.deliveryDate && d.deliveryDate<=today).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||''));
+  if (dTbody) {
+    if (!dList.length) dTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">আজ কল করার মতো ডেলিভারি নেই</td></tr>';
+    else dTbody.innerHTML = dList.map(d=>`<tr>
+      <td style="font-weight:600">${d.name||'—'}</td>
+      <td>${d.phone||'—'}</td>
+      <td>${d.item||'—'}</td>
+      <td style="color:${d.deliveryDate<today?'var(--danger)':'#333'}">${formatDate(d.deliveryDate)}${d.deliveryDate<today?' ⚠️ ওভারডিউ':''}</td>
+      <td style="color:${(d.due||0)>0?'var(--danger)':'var(--success)'}">${(d.due||0)>0?'৳ '+fmt(d.due):'—'}</td>
+      <td>${_callSheetActionCell('delivery', d)}</td>
+    </tr>`).join('');
+  }
+  const aTbody = document.getElementById('recCallApptTable');
+  const aList = (appData.appointments||[]).filter(a=>a.status==='pending' && (a.date===today||a.date===tomorrow)).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  if (aTbody) {
+    if (!aList.length) aTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">আজ/আগামীকাল কোনো সিরিয়াল রিমাইন্ডার নেই</td></tr>';
+    else aTbody.innerHTML = aList.map(a=>`<tr>
+      <td>${a.date===today?'📅 আজ':'⏭️ আগামীকাল'} — ${formatDate(a.date)}</td>
+      <td>${a.time||'—'}</td>
+      <td style="font-weight:600">${a.patName||'—'}</td>
+      <td>${a.patPhone||'—'}</td>
+      <td>${a.doctorName||'—'}</td>
+      <td>${_callSheetActionCell('appt', a)}</td>
+    </tr>`).join('');
+  }
+  const badge = document.getElementById('recCallBadge');
+  const totalCount = dList.length + aList.length;
+  if (badge) { if (totalCount){ badge.style.display='inline-flex'; badge.textContent = totalCount>99?'৯৯+':totalCount; } else badge.style.display='none'; }
+}
+// ===== অ্যাডমিন প্যানেলের কল লিস্ট — একই ডেটা, প্রয়োজনে অ্যাডমিনও কল করে সেভ করতে পারবেন =====
+function renderAdminCallSheet() {
+  const today = todayStr();
+  const tomorrow = addDaysToDateStr(today, 1);
+  const dTbody = document.getElementById('admCallDeliveryTable');
+  const dList = (appData.deliveryOrders||[]).filter(d=>d.status!=='delivered' && d.deliveryDate && d.deliveryDate<=today).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||''));
+  if (dTbody) {
+    if (!dList.length) dTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">আজ কল করার মতো ডেলিভারি নেই</td></tr>';
+    else dTbody.innerHTML = dList.map(d=>`<tr>
+      <td style="font-weight:600">${d.name||'—'}</td>
+      <td>${d.phone||'—'}</td>
+      <td>${d.item||'—'}</td>
+      <td style="color:${d.deliveryDate<today?'var(--danger)':'#333'}">${formatDate(d.deliveryDate)}${d.deliveryDate<today?' ⚠️ ওভারডিউ':''}</td>
+      <td style="color:${(d.due||0)>0?'var(--danger)':'var(--success)'}">${(d.due||0)>0?'৳ '+fmt(d.due):'—'}</td>
+      <td>${_callSheetActionCell('delivery', d)}</td>
+    </tr>`).join('');
+  }
+  const aTbody = document.getElementById('admCallApptTable');
+  const aList = (appData.appointments||[]).filter(a=>a.status==='pending' && (a.date===today||a.date===tomorrow)).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  if (aTbody) {
+    if (!aList.length) aTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">আজ/আগামীকাল কোনো সিরিয়াল রিমাইন্ডার নেই</td></tr>';
+    else aTbody.innerHTML = aList.map(a=>`<tr>
+      <td>${a.date===today?'📅 আজ':'⏭️ আগামীকাল'} — ${formatDate(a.date)}</td>
+      <td>${a.time||'—'}</td>
+      <td style="font-weight:600">${a.patName||'—'}</td>
+      <td>${a.patPhone||'—'}</td>
+      <td>${a.doctorName||'—'}</td>
+      <td>${_callSheetActionCell('appt', a)}</td>
+    </tr>`).join('');
+  }
+}
+
+// ===== রিকল/রিটেনশন লিস্ট — দীর্ঘদিন না আসা রোগীদের বার্ষিক চেকআপ রিমাইন্ডার =====
+function renderRecRecallList() {
+  const rangeSel = document.getElementById('recallRange');
+  const minDays = parseInt((rangeSel||{}).value)||365;
+  const today = todayStr();
+  const patients = buildPatientList();
+  const list = patients.filter(p=>p.lastVisit).map(p=>({ ...p, diffDays: daysBetweenDateStrs(p.lastVisit, today) }))
+    .filter(p=>p.diffDays>=minDays && p.diffDays<730)
+    .sort((a,b)=>b.diffDays-a.diffDays);
+  const tbody = document.getElementById('recRecallTable');
+  const badge = document.getElementById('recRecallBadge');
+  if (badge) { if (list.length){ badge.style.display='inline-flex'; badge.textContent = list.length>99?'৯৯+':list.length; } else badge.style.display='none'; }
+  if (!tbody) return;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">এই মুহূর্তে রিকল লিস্টে কেউ নেই</td></tr>'; return; }
+  tbody.innerHTML = list.map(p=>{
+    const key = p._key.replace(/'/g,"\\'");
+    return `<tr>
+      <td style="color:var(--text-light);font-size:11px">${p.mrn||'—'}</td>
+      <td style="font-weight:600;cursor:pointer" onclick="showPatientDetail('${key}')" title="বিস্তারিত দেখুন">${p.name}</td>
+      <td>${p.phone||'—'}</td>
+      <td>${formatDate(p.lastVisit)}</td>
+      <td style="color:#b45309;font-weight:600">${p.diffDays} দিন আগে</td>
+      <td>${p.phone?`<a href="tel:${p.phone}" class="btn btn-outline btn-sm">📞 কল</a>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== পোস্ট-অপারেটিভ ফলোআপ রিমাইন্ডার — বিলে অপারেশন আইটেম থাকলে ফলোআপ সিরিয়াল সাজেস্ট করে =====
+function showPostOpFollowupPrompt(patName, patPhone, billDate, doctorId, doctorName) {
+  const old = document.getElementById('postOpFollowupModal'); if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.id = 'postOpFollowupModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  const opts = [
+    { key:'d1', days:1, label:'১ দিন পর' },
+    { key:'d7', days:7, label:'১ সপ্তাহ পর' },
+    { key:'d30', days:30, label:'১ মাস পর' }
+  ];
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:22px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <h3 style="margin:0 0 6px;color:var(--primary);font-size:16px">🔁 পোস্ট-অপারেটিভ ফলোআপ</h3>
+      <p style="margin:0 0 14px;font-size:12.5px;color:var(--text-light)">"${patName}" এর বিলে অপারেশন আইটেম পাওয়া গেছে। ফলোআপ সিরিয়াল যোগ করবেন?</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        ${opts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px">
+          <input type="checkbox" id="popup_${o.key}" checked> ${o.label} (${formatDate(addDaysToDateStr(billDate,o.days))})
+        </label>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="document.getElementById('postOpFollowupModal').remove()">না, থাক</button>
+        <button class="btn btn-success" onclick="confirmPostOpFollowup('${patName.replace(/'/g,"\\'")}','${(patPhone||'').replace(/'/g,"\\'")}','${billDate}','${doctorId||''}','${(doctorName||'').replace(/'/g,"\\'")}')">✅ যোগ করুন</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+function confirmPostOpFollowup(patName, patPhone, billDate, doctorId, doctorName) {
+  const opts = [
+    { key:'d1', days:1, label:'পোস্ট-অপারেটিভ ফলোআপ (১ দিন)' },
+    { key:'d7', days:7, label:'পোস্ট-অপারেটিভ ফলোআপ (১ সপ্তাহ)' },
+    { key:'d30', days:30, label:'পোস্ট-অপারেটিভ ফলোআপ (১ মাস)' }
+  ];
+  if (!appData.appointments) appData.appointments = [];
+  let added = 0;
+  opts.forEach(o=>{
+    const cb = document.getElementById('popup_'+o.key);
+    if (cb && cb.checked) {
+      appData.appointments.push({ id:Date.now()+Math.floor(Math.random()*1000), patName, patPhone, doctorId:doctorId||'', doctorName:doctorName||'', date: addDaysToDateStr(billDate,o.days), time:'', note:o.label, status:'pending', by:currentUser?currentUser.name:'সিস্টেম', ts:Date.now() });
+      added++;
+    }
+  });
+  if (added) {
+    saveData();
+    showToast(`✅ ${added}টি ফলোআপ সিরিয়াল যোগ হয়েছে`);
+    if (typeof renderRecApptBadge==='function') renderRecApptBadge();
+    if (typeof renderRecCallSheet==='function') renderRecCallSheet();
+  }
+  const m = document.getElementById('postOpFollowupModal'); if (m) m.remove();
+}
+
 // ===== তথ্য কেন্দ্র: ডাক্তার ডিরেক্টরি, রেফারেল হাসপাতাল, ক্যাম্প শিডিউল =====
 var _DOC_CAT_LABELS = { duty:'ডিউটি ডাক্তার', specialist:'স্পেশালিস্ট', surgeon:'সার্জন', other:'অন্যান্য' };
 
@@ -24078,8 +24653,10 @@ function renderRecDoctorDirectory() {
   var docs = (appData.doctors||[]).filter(function(d){ return d.status==='active'; });
   if (catFilter) docs = docs.filter(function(d){ return (d.category||'duty')===catFilter; });
   docs = docs.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','bn'); });
-  if (!docs.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">কোনো ডাক্তারের তথ্য নেই</td></tr>'; return; }
+  if (!docs.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো ডাক্তারের তথ্য নেই</td></tr>'; return; }
+  var today = todayStr();
   tbody.innerHTML = docs.map(function(d){
+    var present = d.presentDate === today;
     return '<tr>'
       +'<td style="font-weight:600">'+d.name+'</td>'
       +'<td>'+(_DOC_CAT_LABELS[d.category||'duty']||'—')+'</td>'
@@ -24088,8 +24665,17 @@ function renderRecDoctorDirectory() {
       +'<td>'+(d.availability || (d.dutyStart&&d.dutyEnd ? (d.dutyStart+' – '+d.dutyEnd) : '—'))+'</td>'
       +'<td>'+(d.chamber||'হাসপাতালে')+'</td>'
       +'<td>'+(d.phone||'—')+'</td>'
+      +'<td><button class="btn btn-sm '+(present?'btn-success':'btn-outline')+'" onclick="toggleDoctorPresentToday('+d.id+')">'+(present?'✅ আজ আছেন':'⭘ নেই')+'</button></td>'
       +'</tr>';
   }).join('');
+}
+function toggleDoctorPresentToday(id) {
+  var d = (appData.doctors||[]).find(function(x){ return String(x.id)===String(id); });
+  if (!d) return;
+  var today = todayStr();
+  d.presentDate = (d.presentDate===today) ? '' : today;
+  saveData();
+  renderRecDoctorDirectory();
 }
 
 // ===== তথ্য কেন্দ্র: সার্ভিস, অপারেশন ও চিকিৎসা তালিকা (এড/রিমুভ করা যায়) =====
@@ -24356,6 +24942,9 @@ function initReceptionExtras() {
   if (typeof cleanupOldInquiries==='function') cleanupOldInquiries();
   if (typeof renderInquiryLog==='function') renderInquiryLog();
   if (typeof renderRecPresentStaffChips==='function') renderRecPresentStaffChips();
+  if (typeof renderRecTokenQueue==='function') renderRecTokenQueue();
+  if (typeof renderRecCallSheet==='function') renderRecCallSheet();
+  if (typeof renderRecRecallList==='function') renderRecRecallList();
 }
 
 // ===== রিসেপশন প্যানেল: আজকের এন্ট্রি (ভিজিট) সম্পূর্ণ মুছে ফেলা =====
@@ -24607,6 +25196,18 @@ function closeSidebar() {
 
 // ===== HELPERS =====
 function todayStr() { return new Date().toISOString().split('T')[0]; }
+// ✅ তারিখ যোগ/বিয়োগের নিরাপদ (টাইমজোন-সেফ) হেল্পার — YYYY-MM-DD স্ট্রিং নিয়ে কাজ করে
+function addDaysToDateStr(dateStr, days) {
+  const [y,m,d] = (dateStr||todayStr()).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, (m||1)-1, d||1));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().split('T')[0];
+}
+function daysBetweenDateStrs(d1, d2) {
+  const [y1,m1,dd1] = (d1||todayStr()).split('-').map(Number);
+  const [y2,m2,dd2] = (d2||todayStr()).split('-').map(Number);
+  return Math.floor((Date.UTC(y2,(m2||1)-1,dd2||1) - Date.UTC(y1,(m1||1)-1,dd1||1))/86400000);
+}
 function formatDate(d) {
   if (!d) return '—';
   const [y,m,day]=d.split('-');
@@ -24632,7 +25233,7 @@ function initAdminBillPage() {
   if (!adminBillRowCount) addAdminBillRow();
   renderDraftBills();
   renderAdminBillHistory();
-  if (typeof populateDoctorSelect==='function') populateDoctorSelect('abDocSelect');
+  if (typeof populateDoctorSelect==='function') populateDoctorSelect('abDocSelect', false);
 }
 function addAdminBillRow() {
   adminBillRowCount++;
@@ -26017,6 +26618,7 @@ function initNewBillPage() {
   window._adminDraftId=null;
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   if (typeof populateDoctorSelect==='function') populateDoctorSelect('nb_DocSelect');
+  if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor('nb_');
   if (typeof renderNbRecentPatients==='function') renderNbRecentPatients();
 }
 
@@ -26040,7 +26642,8 @@ function nbClearForm() {
   if(document.getElementById('nb_MemoNo')) document.getElementById('nb_MemoNo').value=generateNextMemoNo();
   if(document.getElementById('nb_DiscountRow')) document.getElementById('nb_DiscountRow').style.display='none';
   window._adminDraftId=null;
-  clearDocSelectUI('nb_');
+  // ✅ ডাক্তার সিলেকশন ক্লিয়ার করা হয় না — আজকের ডিফল্ট ডাক্তার (থাকলে) পরের বিলেও থেকে যাবে
+  if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor('nb_'); else clearDocSelectUI('nb_');
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   refreshDeliveryInfoBox('nb_');
   document.getElementById('nb_serviceRows').innerHTML='';
@@ -26747,9 +27350,13 @@ function _billSave(p) {
   const patAddress=(document.getElementById(p+'PatAddress')||{}).value?.trim()||'';
   const patDoc=(document.getElementById(p+'PatDoc')||{}).value?.trim()||'';
 
-  appData.visits.push({id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
+  const _newVisit = {id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
-    by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved});
+    by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved};
+  // ✅ কমিশন প্রযোজ্য না হলেও — নির্বাচিত ডাক্তার রোগীর রেকর্ডে থেকে যায়, যাতে কোন ডাক্তার দেখেছেন তা রেকর্ড থাকে
+  const _selDocNb = getSelectedDoctorForPrefix(p);
+  if (_selDocNb) { _newVisit.doctorId = _selDocNb.id; _newVisit.doctorName = _selDocNb.name; }
+  appData.visits.push(_newVisit);
   if (nb) recordDoctorCommission('nb_', date, memoNo, null);
   // ✅ চশমার কাস্টমাইজেশন বক্সে ডেলিভারি তারিখ দেওয়া থাকলে স্বয়ংক্রিয়ভাবে ডেলিভারি শিডিউলে যোগ হয়ে যায়
   const glassDeliveryCount = (items||[]).filter(i=>i.type==='glass'&&i.glass&&i.glass.deliveryDate).length;
