@@ -154,6 +154,26 @@
   .today-badge input[type="date"] { position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer; border:none; background:transparent; }
   .today-badge.date-changed { border-color:var(--accent); color:var(--accent); background:#eff6ff; }
   .today-badge.date-changed .today-badge-label { color:var(--accent); font-weight:700; }
+
+  /* ===== APP-ওয়াইড ডেট পিকার স্টাইল (এক জায়গায় — সব পেজের ফিল্টার/ফর্ম ডেট ইনপুটে প্রযোজ্য) =====
+     ব্রাউজারের ডিফল্ট ক্যালেন্ডার আইকনকে থিম কালারে টিন্ট করা হলো, ও ফোকাস/হোভারে সুন্দর গ্লো/বর্ডার
+     ইফেক্ট যোগ করা হলো। যেহেতু নেটিভ ক্যালেন্ডার পপ-আপ নিজে CSS দিয়ে কাস্টমাইজ করা যায় না
+     (ব্রাউজার-রেন্ডারড), তাই accent-color/color-scheme দিয়ে যতটা সম্ভব থিমের সাথে মানানসই করা হলো। */
+  input[type="date"] {
+    cursor:pointer;
+    color-scheme:light;
+    accent-color:var(--primary);
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  input[type="date"]:hover { border-color:var(--accent); }
+  input[type="date"]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,180,216,0.15); }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor:pointer; opacity:0.7; border-radius:5px; padding:3px; margin-right:-2px;
+    filter:invert(23%) sepia(46%) saturate(1531%) hue-rotate(178deg) brightness(93%) contrast(93%); /* var(--primary) টিন্ট */
+    transition:opacity .15s, background .15s, transform .15s;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity:1; background:rgba(15,76,129,0.1); transform:scale(1.08); }
+  .today-badge input[type="date"]::-webkit-calendar-picker-indicator { opacity:0; } /* ব্যাজে আইকন লুকানো — লেবেলের 📅 ইমোজিই আইকন হিসেবে কাজ করে */
   .date-preset-pills { flex-shrink:0; display:flex; gap:3px; background:#f1f5f9; border-radius:20px; padding:3px; }
   .date-pill { border:none; background:transparent; padding:7px 13px; border-radius:16px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--text-light); cursor:pointer; transition:background .15s ease,color .15s ease; white-space:nowrap; }
   .date-pill:hover { background:rgba(0,0,0,0.06); }
@@ -167,6 +187,13 @@
   .notif-bell-item { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:8px 8px; border-radius:10px; cursor:pointer; font-size:12.5px; line-height:1.4; transition:background .15s; }
   .notif-bell-item:hover { background:#f1f5f9; }
   .notif-bell-item .nb-dot { flex-shrink:0; width:7px; height:7px; border-radius:50%; margin-top:5px; }
+  /* ✅ নোটিফিকেশন থেকে ক্লিক করে কোনো পেজে গেলে সেই নির্দিষ্ট রো-টা সাময়িকভাবে হাইলাইট হবে */
+  @keyframes notifRowHighlight {
+    0%   { background:#fef9c3; }
+    70%  { background:#fef9c3; }
+    100% { background:transparent; }
+  }
+  tr.notif-row-highlight { animation: notifRowHighlight 2.5s ease-out; }
   .notif-bell-empty { text-align:center; color:#aaa; font-size:12px; padding:24px 0; }
 
   /* STATS — premium */
@@ -531,8 +558,12 @@
   .stat-spark svg { display:block; width:100%; height:100%; overflow:visible; }
   #dashModalSpark svg { display:block; width:100%; height:100%; overflow:visible; }
   /* ✅ এক্সেলের মতো কলাম রিসাইজ হ্যান্ডেল */
-  .col-resize-handle { position:absolute; top:0; right:0; width:6px; height:100%; cursor:col-resize; user-select:none; z-index:5; }
+  .col-resize-handle { position:absolute; top:0; right:0; width:6px; height:100%; cursor:col-resize; user-select:none; z-index:5; touch-action:none; }
   .col-resize-handle:hover, .col-resize-handle.active { background:rgba(15,76,129,0.25); }
+  @media (pointer: coarse) {
+    /* টাচ ডিভাইসে আঙুল দিয়ে ধরা সহজ করতে হ্যান্ডেলের হিট-এরিয়া চওড়া করা হলো */
+    .col-resize-handle { width:16px; margin-right:-8px; }
+  }
 
   /* সাম্প্রতিক এন্ট্রি টেবিলে হোভার করলে ডিলিট আইকন */
   .dash-grp-row td { position:relative; }
@@ -2398,7 +2429,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>ভাউচার/মেমো</th><th>ধরন</th><th>খাত</th><th>রেফ/রোগী/ক্যাম্প</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th>ভাউচার/মেমো/Receipt</th><th>ধরন</th><th>খাত</th><th>রেফ/রোগী/ক্যাম্প</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th></tr></thead>
           <tbody id="recentTable"></tbody>
         </table></div></div>
       </div>
@@ -2471,7 +2502,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>মেমো নং</th><th>খাত</th><th>রোগী/রেফ</th><th>বিবরণ</th><th>পরিমাণ</th><th>সোর্স</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th>মেমো/Receipt নং</th><th>খাত</th><th>রোগী/রেফ</th><th>বিবরণ</th><th>পরিমাণ</th><th>সোর্স</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="incomeTable"></tbody>
         </table></div></div>
       </div>
@@ -2906,6 +2937,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                 <option value="">--</option>
                 <option value="পুরুষ">পুরুষ</option>
                 <option value="নারী">নারী</option>
+                <option value="শিশু">শিশু</option>
               </select>
             </div>
             <div class="field"><label>তারিখ *</label><input type="date" id="nb_BillDate"></div>
@@ -4780,7 +4812,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <input type="text" id="patientSearch" oninput="searchPatients()" placeholder="🔍 নাম, ফোন বা MRN দিয়ে খুঁজুন..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;width:200px">
             <select id="patDoctorFilter" onchange="searchPatients()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px"><option value="">সব ডাক্তার</option></select>
             <select id="patGenderFilter" onchange="searchPatients()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
-              <option value="">সব লিঙ্গ</option><option value="পুরুষ">পুরুষ</option><option value="মহিলা">মহিলা</option><option value="শিশু">শিশু</option>
+              <option value="">সব লিঙ্গ</option><option value="পুরুষ">পুরুষ</option><option value="নারী">নারী</option><option value="শিশু">শিশু</option>
             </select>
             <select id="patDueFilter" onchange="searchPatients()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
               <option value="">সব রোগী</option><option value="due">শুধু বাকি আছে</option><option value="clear">বাকি নেই</option>
@@ -6487,6 +6519,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                 <option value="">--</option>
                 <option value="পুরুষ">পুরুষ</option>
                 <option value="নারী">নারী</option>
+                <option value="শিশু">শিশু</option>
               </select>
             </div>
             <div class="field"><label>তারিখ *</label><input type="date" id="rBillDate"></div>
@@ -9581,6 +9614,32 @@ function makeTableResizable(tbodyId) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
+    // ✅ মোবাইল/টাচ ডিভাইসে (আঙুল দিয়ে টানা) কলাম রিসাইজ কাজ করার জন্য টাচ ইভেন্টও যোগ করা হলো —
+    // আগে শুধু mouse ইভেন্ট থাকায় টাচস্ক্রিনে হ্যান্ডেল টানলে কাজ করত না
+    handle.addEventListener('touchstart', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      const touch = e.touches[0];
+      const startX = touch.pageX;
+      const startWidth = th.offsetWidth;
+      handle.classList.add('active');
+      function onTouchMove(e2) {
+        const t = e2.touches[0];
+        const newWidth = Math.max(40, startWidth + (t.pageX - startX));
+        th.style.width = newWidth + 'px';
+        e2.preventDefault();
+      }
+      function onTouchEnd() {
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchcancel', onTouchEnd);
+        handle.classList.remove('active');
+        saved[idx] = th.offsetWidth;
+        try { localStorage.setItem(storageKey, JSON.stringify(saved)); } catch(e) {}
+      }
+      document.addEventListener('touchmove', onTouchMove, { passive:false });
+      document.addEventListener('touchend', onTouchEnd);
+      document.addEventListener('touchcancel', onTouchEnd);
+    }, { passive:false });
   });
 }
 
@@ -10171,7 +10230,7 @@ function renderIncomeTable() {
     items.forEach(e => {
       html += `<tr class="inc-grp-row" data-grp="${gid}" id="inc-row-${e.id}">
         <td>${formatDate(e.date)}</td>
-        <td style="color:var(--accent);font-weight:600;font-size:12px">${e.memo||'—'}</td>
+        <td style="color:var(--accent);font-weight:600;font-size:12px">${formatVoucherRefDisplay(e.memo)||'—'}</td>
         <td>${e.category}${e.subCategory?`<div style="color:var(--text-light);font-size:11px">${e.subCategory}</div>`:''}</td>
         <td style="color:var(--text-light)">${e.ref||'—'}</td>
         <td style="color:var(--text-light)">${e.note||'—'}</td>
@@ -10635,7 +10694,7 @@ function renderIssuedChecks() {
     if (d<=7) return `<span class="badge" style="background:#fef3c7;color:#92400e">⚠️ আর ${d} দিন বাকি</span>`;
     return `<span class="badge badge-info">⏳ পেন্ডিং (${d} দিন বাকি)</span>`;
   };
-  tbody.innerHTML = list.map(c => `<tr>
+  tbody.innerHTML = list.map(c => `<tr id="check-row-${c.id}">
     <td>${sourceBadge(c)}</td>
     <td style="font-weight:600;color:var(--warning)">${c.voucher||'—'}</td>
     <td style="font-weight:700;color:var(--primary)">${c.checkNo}</td>
@@ -10659,9 +10718,9 @@ function getCheckReminders() {
   list.forEach(c=>{
     const d=daysBetween(c.dueDate);
     if (d<0) {
-      reminders.push({type:'overdue', text:`চেক নং ${c.checkNo} (${c.payee}, ৳ ${fmt(c.amount)}) এর তারিখ ${formatDate(c.dueDate)} পেরিয়ে গেছে — ব্যাংক কর্মকর্তার কাছে জেনে নিন চেকটি ভাঙ্গানো হয়েছে কিনা, তারপর "চেক বই" পেজে গিয়ে স্ট্যাটাস আপডেট করুন।`});
+      reminders.push({id:c.id, type:'overdue', text:`চেক নং ${c.checkNo} (${c.payee}, ৳ ${fmt(c.amount)}) এর তারিখ ${formatDate(c.dueDate)} পেরিয়ে গেছে — ব্যাংক কর্মকর্তার কাছে জেনে নিন চেকটি ভাঙ্গানো হয়েছে কিনা, তারপর "চেক বই" পেজে গিয়ে স্ট্যাটাস আপডেট করুন।`});
     } else if (d<=7) {
-      reminders.push({type:'upcoming', text:`চেক নং ${c.checkNo} (${c.payee}, ৳ ${fmt(c.amount)}) এর তারিখ ${formatDate(c.dueDate)} — আর ${d} দিন বাকি। ব্যাংক ব্যালেন্স যাচাই করুন যাতে চেকটি বাউন্স না করে।`});
+      reminders.push({id:c.id, type:'upcoming', text:`চেক নং ${c.checkNo} (${c.payee}, ৳ ${fmt(c.amount)}) এর তারিখ ${formatDate(c.dueDate)} — আর ${d} দিন বাকি। ব্যাংক ব্যালেন্স যাচাই করুন যাতে চেকটি বাউন্স না করে।`});
     }
   });
   return reminders;
@@ -11235,6 +11294,15 @@ function formatDutySubmitTime(t) {
   return `Duty Submit: ${String(h12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`;
 }
 
+// ✅ ভাউচার/মেমো/রিসিট কলামে কাঁচা সংখ্যা (শুধু ডিজিট, যেমন 7, 33) দেখানো হলে সেটা আসলে
+// রিসিট নাম্বার — মেমো নং "Memo-" ও ভাউচার নং "VN" প্রিফিক্স দিয়ে দেখায়, তাই স্পষ্টতার জন্য
+// রিসিট নাম্বারও "রিসিট-" প্রিফিক্স দিয়ে দেখানো হয়
+function formatVoucherRefDisplay(val) {
+  if (val === undefined || val === null || val === '' || val === '—') return val;
+  const s = String(val).trim();
+  if (/^\d+$/.test(s)) return 'Receipt-' + s;
+  return s;
+}
 // ===== DASHBOARD: সাম্প্রতিক এন্ট্রি (ডে/মান্থ গ্রুপড, এক্সপ্যান্ডেবল) =====
 function renderDashRecentEntries() {
   const tbody = document.getElementById('recentTable');
@@ -11383,7 +11451,7 @@ function renderDashRecentEntries() {
       const amtColor = e.cls==='badge-expense'?'var(--danger)':e.cls==='badge-transfer'?'#1e40af':e.cls==='badge-deposit'?'#7c3aed':e.cls==='badge-cheque'?'#9a3412':e.cls==='badge-waive'?'#d97706':'var(--success)';
       html += `<tr class="dash-grp-row" data-grp="${gid}" style="">
         <td style="white-space:nowrap">${formatDate(e.date)}</td>
-        <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${e.vouchRef}</td>
+        <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${formatVoucherRefDisplay(e.vouchRef)}</td>
         <td><span class="badge ${e.cls}">${e.type}</span></td>
         <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
         <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
@@ -11418,7 +11486,7 @@ function renderDashRecentEntries() {
         const amtColor = e.cls==='badge-expense'?'var(--danger)':'var(--success)';
         html += `<tr class="dash-grp-row" data-grp="${gid} ${cgid}" style="background:#f0faf0">
           <td style="white-space:nowrap;padding-left:36px">${formatDate(e.date)}</td>
-          <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${e.vouchRef}</td>
+          <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${formatVoucherRefDisplay(e.vouchRef)}</td>
           <td><span class="badge ${e.cls}">${e.type}</span></td>
           <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
           <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
@@ -11699,7 +11767,7 @@ function renderAdminDue() {
   const visits=appData.visits.filter(v=>v.due>0).sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('dueTable');
   if (!visits.length) tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">কোনো বাকি নেই ✅</td></tr>';
-  else tbody.innerHTML=visits.map(v=>`<tr>
+  else tbody.innerHTML=visits.map(v=>`<tr id="due-row-${v.id}">
     <td>${formatDate(v.date)}</td>
     <td style="color:var(--accent);font-weight:600">${v.memoNo||v.rcptNo||'—'}</td>
     <td style="font-weight:600">${v.patName}</td>
@@ -13090,6 +13158,14 @@ function onSearchScopeChange() {
 // সঠিক রোগীর সাথে মেলানোর জন্য (মার্জ করা রোগীও resolvePatientKey দিয়ে ঠিকমতো প্রাইমারি রেকর্ডে মিলবে)
 function computePatientKeyFor(phone, name) {
   return resolvePatientKey(normalizePhone(phone) || normalizeName(name));
+}
+// ✅ বাংলাদেশি ফোন নম্বরকে WhatsApp লিংকের জন্য আন্তর্জাতিক ফরম্যাটে (880...) রূপান্তর করে
+function waNumber(phone) {
+  let d = (phone||'').replace(/[^0-9]/g,'');
+  if (!d) return '';
+  if (d.startsWith('880')) return d;
+  if (d.startsWith('0')) return '880'+d.slice(1);
+  return '880'+d;
 }
 function showDashSearchResults() {
   const q = (document.getElementById('dashSearch').value||'').toLowerCase().trim();
@@ -19995,7 +20071,7 @@ function renderDemandList() {
   const priorityLabel = { urgent:'<span class="badge badge-expense">🔴 জরুরি</span>', normal:'<span class="badge badge-info">সাধারণ</span>', low:'<span class="badge badge-income">🟢 কম</span>' };
   const statusLabel   = { pending:'<span class="badge badge-warning">⏳ অপেক্ষমাণ</span>', approved:'<span class="badge badge-income">✅ অনুমোদিত</span>', rejected:'<span class="badge badge-expense">❌ প্রত্যাখ্যাত</span>', partial:'<span class="badge badge-info">🔄 আংশিক</span>' };
 
-  tbody.innerHTML = list.map(d=>`<tr>
+  tbody.innerHTML = list.map(d=>`<tr id="demand-row-${d.id}">
     <td>${formatDate(d.date)}</td>
     <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.title}</td>
     <td><span class="badge badge-info">${d.cat}</span></td>
@@ -20027,15 +20103,41 @@ function getNotifData() {
   const checkReminders = (currentUser && currentUser.role==='admin' && typeof getCheckReminders==='function') ? getCheckReminders() : [];
   return { pendingDemands, dueVisits, checkReminders };
 }
+// ✅ বেলে ক্লিক করে একবার নোটিফিকেশন প্যানেল খুললে সেগুলোকে "দেখা হয়ে গেছে" হিসেবে মনে রাখা হয়
+// (লোকালস্টোরেজে, ইউজারভিত্তিক) — তারপর ব্যাজে আর সংখ্যা দেখাবে না, যতক্ষণ না নতুন কোনো
+// পেন্ডিং ডিমান্ড/বাকি/চেক রিমাইন্ডার যোগ হয় (যেগুলো আগে দেখা তালিকায় ছিল না)
+function _notifSeenKey() {
+  return 'hms_notif_seen_' + ((currentUser && currentUser.username) || 'anon');
+}
+function _notifIdList({ pendingDemands, dueVisits, checkReminders }) {
+  return [
+    ...pendingDemands.map(d => 'd' + d.id),
+    ...dueVisits.map(v => 'v' + v.id + '_' + v.due),
+    ...checkReminders.map(r => 'c' + (r.id!==undefined ? r.id : r.text) + '_' + r.type)
+  ];
+}
+function _getNotifSeenSet() {
+  try { return new Set(JSON.parse(localStorage.getItem(_notifSeenKey())) || []); }
+  catch(e) { return new Set(); }
+}
+// ✅ প্যানেলের কোনো আইটেমে ক্লিক করলে শুধু সেটাই "দেখা হয়ে গেছে" হিসেবে সেভ হয় (id সেটে যোগ হয়) —
+// পুরো তালিকা একসাথে সিন হয় না, শুধু যেটায় ক্লিক করা হলো সেটাই ব্যাজ ও প্যানেল-লিস্ট থেকে বাদ যায়
+function _addNotifSeen(id) {
+  const seen = _getNotifSeenSet();
+  seen.add(id);
+  try { localStorage.setItem(_notifSeenKey(), JSON.stringify([...seen])); } catch(e) {}
+}
 function updateNotifBell() {
   const wrap = document.getElementById('notifBellWrap');
   if (!wrap) return;
   if (!currentUser || !['admin','moderator'].includes(currentUser.role)) { wrap.style.display='none'; return; }
   wrap.style.display = '';
-  const { pendingDemands, dueVisits, checkReminders } = getNotifData();
-  const count = pendingDemands.length + dueVisits.length + checkReminders.length;
+  const notifData = getNotifData();
+  const ids = _notifIdList(notifData);
+  const seen = _getNotifSeenSet();
+  const unseenCount = ids.filter(id => !seen.has(id)).length;
   const badge = document.getElementById('notifBellBadge');
-  if (badge) { badge.textContent = count>99?'৯৯+':count; badge.style.display = count>0?'flex':'none'; }
+  if (badge) { badge.textContent = unseenCount>99?'৯৯+':unseenCount; badge.style.display = unseenCount>0?'flex':'none'; }
   const panel = document.getElementById('notifBellPanel');
   if (panel && panel.style.display !== 'none') renderNotifBellPanel();
 }
@@ -20052,20 +20154,47 @@ document.addEventListener('click', (e) => {
   const panel = document.getElementById('notifBellPanel');
   if (panel && panel.style.display !== 'none' && wrap && !wrap.contains(e.target)) panel.style.display = 'none';
 });
-function notifBellGo(page) {
-  document.getElementById('notifBellPanel').style.display = 'none';
+// ✅ app-ওয়াইড ফিক্স: <input type="date"> এ ক্লিক করলে ব্রাউজার ডিফল্টে শুধু ডান পাশের ছোট্ট
+// (অদৃশ্য/ভিজিবল) ক্যালেন্ডার আইকনের একদম উপরে ক্লিক করলেই ক্যালেন্ডার পপ-আপ খোলে — বাকি অংশে
+// ক্লিক করলে শুধু কার্সর বসে, পপ-আপ খোলে না। তাই পুরো ইনপুটের যেকোনো জায়গায় ক্লিক করলেই যাতে
+// ক্যালেন্ডার খোলে, সেজন্য showPicker() ব্যবহার করে পুরো অ্যাপের সব ডেট ইনপুটে একই আচরণ বসানো হলো।
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('input[type="date"]');
+  if (el && !el.disabled && !el.readOnly && typeof el.showPicker === 'function') {
+    try { el.showPicker(); } catch(err) { /* কিছু ব্রাউজারে সাপোর্ট নেই — স্বাভাবিক ক্লিক আচরণেই কাজ চলবে */ }
+  }
+});
+function notifBellGo(notifKey, page, rowId) {
+  _addNotifSeen(notifKey);
+  updateNotifBell();
+  const panel = document.getElementById('notifBellPanel');
+  if (panel) panel.style.display = 'none';
   showPage(page);
+  if (rowId) {
+    setTimeout(() => {
+      const row = document.getElementById(rowId);
+      if (row) {
+        row.scrollIntoView({behavior:'smooth', block:'center'});
+        row.classList.add('notif-row-highlight');
+        setTimeout(() => row.classList.remove('notif-row-highlight'), 2600);
+      }
+    }, 350);
+  }
 }
 function renderNotifBellPanel() {
   const panel = document.getElementById('notifBellPanel');
   if (!panel) return;
-  const { pendingDemands, dueVisits, checkReminders } = getNotifData();
+  const seen = _getNotifSeenSet();
+  const { pendingDemands: pd0, dueVisits: dv0, checkReminders: cr0 } = getNotifData();
+  const pendingDemands = pd0.filter(d => !seen.has('d'+d.id));
+  const dueVisits = dv0.filter(v => !seen.has('v'+v.id+'_'+v.due));
+  const checkReminders = cr0.filter(r => !seen.has('c'+(r.id!==undefined?r.id:r.text)+'_'+r.type));
   let html = '';
 
   if (pendingDemands.length) {
     html += `<div class="notif-bell-section-title">📝 পেন্ডিং ডিমান্ড নোট (${pendingDemands.length})</div>`;
     pendingDemands.slice(0,5).forEach(d => {
-      html += `<div class="notif-bell-item" onclick="notifBellGo('demand')">
+      html += `<div class="notif-bell-item" onclick="notifBellGo('d${d.id}','demand','demand-row-${d.id}')">
         <span class="nb-dot" style="background:#f59e0b"></span>
         <span style="flex:1"><strong>${d.title||'ডিমান্ড'}</strong><br><span style="color:var(--text-light);font-size:11px">${d.by||''} — ${formatDate(d.date)}</span></span>
       </div>`;
@@ -20076,7 +20205,7 @@ function renderNotifBellPanel() {
     const totalDue = dueVisits.reduce((s,v)=>s+v.due,0);
     html += `<div class="notif-bell-section-title">💳 বাকি পরিশোধ (${dueVisits.length} জন, ৳ ${fmt(totalDue)})</div>`;
     dueVisits.slice(0,5).forEach(v => {
-      html += `<div class="notif-bell-item" onclick="notifBellGo('due')">
+      html += `<div class="notif-bell-item" onclick="notifBellGo('v${v.id}_${v.due}','due','due-row-${v.id}')">
         <span class="nb-dot" style="background:#9b59b6"></span>
         <span style="flex:1"><strong>${v.patName||'—'}</strong><br><span style="color:var(--text-light);font-size:11px">বাকি ৳ ${fmt(v.due)} — ${formatDate(v.date)}</span></span>
       </div>`;
@@ -20086,7 +20215,8 @@ function renderNotifBellPanel() {
   if (checkReminders.length) {
     html += `<div class="notif-bell-section-title">📒 চেক রিমাইন্ডার (${checkReminders.length})</div>`;
     checkReminders.slice(0,5).forEach(r => {
-      html += `<div class="notif-bell-item" onclick="notifBellGo('checkbook')">
+      const key = (r.id!==undefined?r.id:r.text)+'_'+r.type;
+      html += `<div class="notif-bell-item" onclick="notifBellGo('c${key}','checkbook','check-row-${r.id}')">
         <span class="nb-dot" style="background:${r.type==='overdue'?'#e74c3c':'#3498db'}"></span>
         <span style="flex:1">${r.text}</span>
       </div>`;
@@ -25896,6 +26026,13 @@ function buildPatientList() {
       p.hasAllergy = !!(profile.allergies&&profile.allergies.trim());
       p.hasMedicalNote = !!(profile.medicalNote&&profile.medicalNote.trim());
       p.rxCount = (profile.prescriptions||[]).length;
+      // ✅ প্রোফাইল থেকে সংশোধিত (override) নাম/ফোন/ঠিকানা/ডাক্তার/বয়স থাকলে এখানেই প্রয়োগ হয় — এতে তালিকা, ফিল্টার
+      // (যেমন ডাক্তার ফিল্টার), CSV/PDF এক্সপোর্ট ও প্রোফাইল মোডাল সবখানে একই সংশোধিত তথ্য দেখাবে (একবারই প্রয়োগ, একই জায়গায়)
+      if (profile.nameOverride) p.name = profile.nameOverride;
+      if (profile.phoneOverride) p.phone = profile.phoneOverride;
+      if (profile.addressOverride) p.address = profile.addressOverride;
+      if (profile.doctorOverride) p.doctor = profile.doctorOverride;
+      if (!profile.dob && profile.ageOverride) p.age = profile.ageOverride;
     } else { p.hasAllergy=false; p.hasMedicalNote=false; p.rxCount=0; }
     p._key = key;
     return p;
@@ -26024,7 +26161,7 @@ function calcAgeFromDOB(dob) {
 // রোগীর প্রোফাইল (জন্মতারিখ, অ্যালার্জি/মেডিকেল নোট, চোখের পাওয়ার হিস্ট্রি) — ভিজিট থেকে আলাদা, স্থায়ীভাবে সেভ থাকে
 function getPatientProfile(key) {
   if (!appData.patientProfiles) appData.patientProfiles={};
-  return appData.patientProfiles[key] || {dob:'',allergies:'',medicalNote:'',prescriptions:[]};
+  return appData.patientProfiles[key] || {dob:'',allergies:'',medicalNote:'',prescriptions:[],nameOverride:'',phoneOverride:'',addressOverride:'',doctorOverride:'',ageOverride:''};
 }
 function savePatientProfileBasic(key) {
   if (!appData.patientProfiles) appData.patientProfiles={};
@@ -26089,11 +26226,15 @@ function recordGlassPrescriptions(patName, patPhone, date, memoNo, glassItems) {
     });
   });
 }
+// ✅ ডাক্তার ফিল্টারের অপশন — শুধু রোগীর "সর্বশেষ ভিজিট"-এর ডাক্তার নয়, appData.doctors (রেজিস্টার্ড সব ডাক্তার)
+// থেকেও যোগ করা হয়, যাতে এখনো কোনো রোগী না দেখা ডাক্তার বা ভিন্ন ভিজিটে দেখা ডাক্তারও ফিল্টারে বাদ না পড়ে
 function populatePatDoctorFilter(patients) {
   const sel = document.getElementById('patDoctorFilter');
   if (!sel) return;
   const cur = sel.value;
-  const docs = [...new Set(patients.map(p=>p.doctor).filter(Boolean))].sort();
+  const fromPatients = patients.map(p=>p.doctor).filter(Boolean);
+  const fromRegistry = (appData.doctors||[]).map(d=>d.name).filter(Boolean);
+  const docs = [...new Set([...fromRegistry, ...fromPatients])].sort();
   sel.innerHTML = '<option value="">সব ডাক্তার</option>' + docs.map(d=>`<option value="${d}">${d}</option>`).join('');
   sel.value = docs.includes(cur) ? cur : '';
 }
@@ -26249,38 +26390,184 @@ function getPatientHistoryRows(key) {
 function closePatientDetailModal() {
   const m=document.getElementById('patientDetailModal'); if (m) m.remove();
 }
+// ✅ প্রোফাইল মোডালের হেডারে নাম/ফোন/ঠিকানা/ডাক্তার সংশোধনের ভিউ↔এডিট মোড টগল করে
+function togglePatientEditMode(edit) {
+  const v = document.getElementById('pdmViewHeader');
+  const e = document.getElementById('pdmEditHeader');
+  if (!v||!e) return;
+  v.style.display = edit ? 'none' : 'flex';
+  e.style.display = edit ? 'block' : 'none';
+  if (edit) { const nameEl=document.getElementById('pdmEditName'); if (nameEl) nameEl.focus(); }
+}
+// ✅ রোগীর নাম/ফোন/ঠিকানা/ডাক্তার/বয়স সংশোধন — মূল বিল/ভিজিট রেকর্ড অপরিবর্তিত রেখে শুধু প্রদর্শিত তথ্য
+// (patientProfiles[key]-এ override হিসেবে) সংরক্ষণ করা হয়, তাই সম্পূর্ণ রিভার্সিবল ও ঐতিহাসিক সঠিকতা নষ্ট হয় না
+function savePatientOverrides(key) {
+  const nameV = (document.getElementById('pdmEditName')?.value||'').trim();
+  const phoneV = (document.getElementById('pdmEditPhone')?.value||'').trim();
+  const addrV = (document.getElementById('pdmEditAddress')?.value||'').trim();
+  const docV = (document.getElementById('pdmEditDoctor')?.value||'').trim();
+  const ageEl = document.getElementById('pdmEditAge');
+  if (!nameV) { showToast('⚠️ নাম দিতে হবে'); return; }
+  if (!appData.patientProfiles) appData.patientProfiles={};
+  const existing = appData.patientProfiles[key] || {dob:'',allergies:'',medicalNote:'',prescriptions:[]};
+  appData.patientProfiles[key] = {
+    ...existing,
+    nameOverride: nameV, phoneOverride: phoneV, addressOverride: addrV, doctorOverride: docV,
+    ageOverride: ageEl ? (ageEl.value||'').trim() : (existing.ageOverride||'')
+  };
+  saveData();
+  logActivity('edit', 'রোগীর তথ্য সংশোধন', `${nameV} — নাম/ফোন/ঠিকানা/ডাক্তার তথ্য হালনাগাদ করা হয়েছে`);
+  showToast('✅ তথ্য সংরক্ষণ করা হয়েছে');
+  renderPatientDB(document.getElementById('patientSearch')?.value?.toLowerCase().trim()||'');
+  showPatientDetail(key);
+}
+// ✅ একজন রোগীর সব উৎসের (OPD ভিজিট, অ্যাডমিন বিল, ক্যাম্প, চশমা ডেলিভারি) বকেয়া বাকি এন্ট্রি খুঁজে বের করে
+function scanPatientDueItems(key) {
+  const items = [];
+  (appData.visits||[]).forEach(v=>{ if((v.due||0)>0 && computePatientKeyFor(v.patPhone,v.patName)===key) items.push({type:'visit', id:v.id, label:'👁️ OPD ভিজিট', date:v.date, memo:v.memoNo||v.rcptNo||'—', due:v.due}); });
+  (appData.adminBills||[]).forEach(b=>{ if((b.due||0)>0 && computePatientKeyFor(b.patPhone,b.patName)===key) items.push({type:'adminBill', id:b.id, label:'🧾 অ্যাডমিন বিল', date:b.date, memo:b.memoNo||'—', due:b.due}); });
+  (appData.campVisits||[]).forEach(v=>{ if((v.due||0)>0 && computePatientKeyFor(v.patPhone,v.patName)===key) items.push({type:'camp', id:v.id, label:'🏕️ '+(v.campName||'ক্যাম্প'), date:v.date, memo:v.receiptNo||'—', due:v.due}); });
+  (appData.deliveryOrders||[]).forEach(d=>{ if((d.due||0)>0 && computePatientKeyFor(d.phone,d.name)===key) items.push({type:'delivery', id:d.id, label:'📦 '+(d.item||'চশমা ডেলিভারি'), date:d.orderDate, memo:d.item||'—', due:d.due}); });
+  return items;
+}
+// ✅ একজন রোগীর সব উৎসের বকেয়া বাকি একসাথে দেখিয়ে সরাসরি আদায় করার সুবিধা — আলাদা আলাদা পেজে গিয়ে খোঁজার দরকার নেই
+function openPatientDueCollector(key, patName) {
+  const items = scanPatientDueItems(key);
+  if (!items.length) { showToast('✅ কোনো বাকি পাওয়া যায়নি'); return; }
+  renderPatientDueCollector(key, patName, items);
+}
+function renderPatientDueCollector(key, patName, items) {
+  const old = document.getElementById('patientDueCollectorModal'); if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.id = 'patientDueCollectorModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.62);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px';
+  const totalDue = items.reduce((s,it)=>s+it.due,0);
+  modal.innerHTML = `<div style="background:white;border-radius:14px;padding:0;max-width:480px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 25px 70px rgba(15,23,42,0.35)">
+    <div style="padding:14px 18px;border-bottom:1px solid #eef1f6;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:800;font-size:14px;color:#0f172a">💳 বাকি আদায় — ${patName}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px">মোট বকেয়া: <b style="color:var(--danger)">৳ ${fmt(totalDue)}</b> · ${items.length}টি এন্ট্রি</div>
+      </div>
+      <button onclick="document.getElementById('patientDueCollectorModal').remove()" style="background:#f1f5f9;border:none;width:27px;height:27px;border-radius:8px;font-size:14px;cursor:pointer;color:#64748b">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:12px 18px;flex:1;display:flex;flex-direction:column;gap:8px">
+      ${items.map((it,i)=>`<div style="border:1px solid #eef1f6;border-radius:10px;padding:9px 11px;display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        <div style="flex:1;min-width:130px">
+          <div style="font-size:12px;font-weight:700;color:#1e293b">${it.label}</div>
+          <div style="font-size:10.5px;color:#94a3b8">${formatDate(it.date)} · ${it.memo} · বাকি: <b style="color:var(--danger)">৳ ${fmt(it.due)}</b></div>
+        </div>
+        <input id="pdcAmt-${i}" type="number" value="${it.due}" style="width:90px;flex:0 0 90px;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-family:inherit;font-size:11.5px;box-sizing:border-box" />
+        <button class="btn btn-primary btn-sm" style="padding:6px 12px;font-size:11px" onclick="collectPatientDueItem('${key.replace(/'/g,"\\'")}','${patName.replace(/'/g,"\\'")}',${i})">✅ আদায়</button>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  modal._items = items;
+  document.body.appendChild(modal);
+  window.__pdcItems = items;
+}
+function collectPatientDueItem(key, patName, i) {
+  const items = window.__pdcItems||[];
+  const it = items[i]; if (!it) return;
+  const amtEl = document.getElementById('pdcAmt-'+i);
+  const amt = parseFloat(amtEl?.value);
+  if (isNaN(amt)||amt<=0) { showToast('⚠️ সঠিক পরিমাণ দিন'); return; }
+  if (!appData.income) appData.income=[];
+  if (it.type==='visit') {
+    const v = (appData.visits||[]).find(x=>x.id===it.id); if (!v) return;
+    v.cashPaid=(v.cashPaid||0)+amt; v.due=Math.max(0,(v.due||0)-amt);
+    appData.income.push({id:Date.now(),date:todayStr(),category:'বাকি আদায়',amount:amt,memo:v.memoNo||v.rcptNo,ref:v.patName,note:`মেমো: ${v.memoNo||v.rcptNo||'—'} — ${v.patName} থেকে বাকি আদায়`,by:currentUser.name,visitId:v.id});
+    pushDueHistory({id:Date.now()+Math.random(),ts:Date.now(),date:todayStr(),visitId:v.id,patName:v.patName,memoNo:v.memoNo||v.rcptNo||'',type:'collect',amount:amt,remainingDue:v.due,note:'',by:currentUser.name});
+  } else if (it.type==='adminBill') {
+    const b = (appData.adminBills||[]).find(x=>x.id===it.id); if (!b) return;
+    b.cashPaid=(b.cashPaid||0)+amt; b.due=Math.max(0,(b.due||0)-amt);
+    appData.income.push({id:Date.now(),date:todayStr(),category:'বাকি আদায়',amount:amt,memo:b.memoNo,ref:b.patName,note:`মেমো: ${b.memoNo||'—'} — ${b.patName} থেকে বাকি আদায় (অ্যাডমিন বিল)`,by:currentUser.name,adminBillId:b.id});
+    pushDueHistory({id:Date.now()+Math.random(),ts:Date.now(),date:todayStr(),visitId:b.id,patName:b.patName,memoNo:b.memoNo||'',type:'collect',amount:amt,remainingDue:b.due,note:'',by:currentUser.name});
+  } else if (it.type==='camp') {
+    const v = (appData.campVisits||[]).find(x=>x.id===it.id); if (!v) return;
+    v.paid=(v.paid||0)+amt; v.due=Math.max(0,(v.due||0)-amt);
+    appData.income.push({id:Date.now(),date:todayStr(),category:'বাকি আদায়',amount:amt,memo:v.receiptNo,ref:v.patName,note:`ক্যাম্প: ${v.campName} — ${v.patName} থেকে বাকি আদায়`,by:currentUser.name,campVisitId:v.id});
+    pushDueHistory({id:Date.now()+Math.random(),ts:Date.now(),date:todayStr(),visitId:v.id,patName:`${v.patName} (${v.campName})`,memoNo:v.receiptNo||'',type:'collect',amount:amt,remainingDue:v.due,note:'',by:currentUser.name});
+    const campRec = (appData.camps||[]).find(c => c.name===v.campName && c.date===v.date);
+    if (campRec) {
+      const p = (campRec.patients||[]).find(p => p.receipt === v.receiptNo);
+      if (p) { p.paid=(p.paid||0)+amt; p.due=Math.max(0,(p.due||0)-amt); }
+      campRec.totalIncome=(campRec.totalIncome||0)+amt; campRec.totalDue=Math.max(0,(campRec.totalDue||0)-amt);
+    }
+  } else if (it.type==='delivery') {
+    const d = (appData.deliveryOrders||[]).find(x=>x.id===it.id); if (!d) return;
+    appData.income.push({id:Date.now(),date:todayStr(),category:'চশমা বিক্রি',amount:amt,ref:d.name,note:`ডেলিভারি বাকি আদায় — ${d.item}`,by:currentUser.name});
+    d.due=Math.max(0,(d.due||0)-amt); d.advance=(d.advance||0)+amt;
+  }
+  logActivity('edit','বাকি আদায়', `${patName} — ${it.label}, আদায়: ৳${fmt(amt)}`);
+  saveData();
+  showToast(`✅ ৳ ${fmt(amt)} আদায় করা হয়েছে`);
+  refreshDashboard();
+  if (typeof renderAdminDue==='function') renderAdminDue();
+  if (typeof renderDeliveryTable==='function') renderDeliveryTable(_dlvFilter);
+  if (typeof renderCampDueList==='function') renderCampDueList();
+  // ✅ বাকি এন্ট্রি এখনও থাকলে তালিকা রিফ্রেশ করে দেখানো হয় (সরাসরি ডেটা রি-স্ক্যান করে, তাই সবসময় সঠিক), না থাকলে মোডাল বন্ধ হয়ে যায়
+  const stillDue = scanPatientDueItems(key);
+  if (!stillDue.length) { document.getElementById('patientDueCollectorModal')?.remove(); }
+  else { renderPatientDueCollector(key, patName, stillDue); }
+}
 function showPatientDetail(key) {
   const rows = getPatientHistoryRows(key);
   const old = document.getElementById('patientDetailModal'); if (old) old.remove();
   if (!rows.length) { showToast('⚠️ কোনো তথ্য পাওয়া যায়নি'); return; }
   const sorted = rows.slice().sort((a,b)=>a.date.localeCompare(b.date));
-  const name = sorted[sorted.length-1].patName;
-  const phone = sorted[sorted.length-1].patPhone;
+  let name = sorted[sorted.length-1].patName;
+  let phone = sorted[sorted.length-1].patPhone;
   let age='', doctor='', gender='', address='';
   sorted.forEach(r=>{ if(r.age) age=r.age; if(r.doctor) doctor=r.doctor; if(r.gender) gender=r.gender; if(r.address) address=r.address; });
   const totalBill = rows.reduce((s,r)=>s+(r.amount||0),0);
   const totalPaid = rows.reduce((s,r)=>s+(r.paid||0),0);
   const totalDue  = rows.reduce((s,r)=>s+(r.due||0),0);
   const profile = getPatientProfile(key);
-  if (profile.dob) { const a=calcAgeFromDOB(profile.dob); if(a!=='') age=String(a); }
+  // ✅ একবারই buildPatientList() কল করা হয় — এটাই এখন সিঙ্গেল সোর্স অফ ট্রুথ (override + DOB-বয়স গণনা সহ),
+  // তাই তালিকা পেজ, ডাক্তার ফিল্টার, CSV/PDF এক্সপোর্ট আর এই মোডাল — সবখানে ঠিক একই সংশোধিত তথ্য দেখাবে
+  const pInfo = buildPatientList().find(p=>p._key===key) || {};
+  if (pInfo.name) name = pInfo.name;
+  if (pInfo.phone) phone = pInfo.phone;
+  if (pInfo.address) address = pInfo.address;
+  if (pInfo.doctor) doctor = pInfo.doctor;
+  if (pInfo.age) age = pInfo.age;
   const rx = profile.prescriptions||[];
   const dOrders = getPatientDeliveryOrders(key);
   const appts = getPatientAppointments(key);
+  const possibleDuplicate = !!pInfo.possibleDuplicate;
+  const isCampPatient = !!pInfo.isCampPatient || rows.some(r=>r.srcType==='camp');
+  const lastVisitDate = pInfo.lastVisit || sorted[sorted.length-1].date;
+  // ✅ সর্বশেষ ভিজিট কতদিন আগে হয়েছে তার বাংলা টেক্সট — স্বয়ংক্রিয়ভাবে হিসাব হয়
+  const lastVisitAgoText = (()=>{
+    const d=new Date(lastVisitDate); if(isNaN(d.getTime())) return '';
+    const now=new Date();
+    const diffDays=Math.floor((new Date(now.getFullYear(),now.getMonth(),now.getDate()) - new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000);
+    if (diffDays<=0) return 'আজ';
+    if (diffDays===1) return 'গতকাল';
+    if (diffDays<7) return `${diffDays} দিন আগে`;
+    if (diffDays<30) return `${Math.floor(diffDays/7)} সপ্তাহ আগে`;
+    if (diffDays<365) return `${Math.floor(diffDays/30)} মাস আগে`;
+    return `${Math.floor(diffDays/365)} বছর আগে`;
+  })();
 
   const hasIOP = rx.some(r=>r.iopOD||r.iopOS);
   const escName = name.replace(/'/g,"\\'");
   const escKey = key.replace(/'/g,"\\'");
-  // ✅ নীল বক্সে নামের ইনিশিয়াল না দেখিয়ে লিঙ্গ অনুযায়ী মার্স/ভেনাস-স্টাইল SVG আইকন ও রঙ দেখানো হয় (ইমোজির বদলে
-  // পরিষ্কার, প্রফেশনাল আউটলাইন আইকন) — এক নজরে পুরুষ/নারী/শিশু বোঝা যায়। ডেটায় "নারী" ও "মহিলা" দুটোই থাকতে পারে
-  // (বিভিন্ন ফর্মে ঐতিহাসিকভাবে দুই মান ব্যবহৃত হয়েছে) — তাই দুটোই ম্যাচ করানো হয়।
+  // ✅ নীল বক্সে নামের ইনিশিয়াল না দেখিয়ে লিঙ্গ অনুযায়ী SVG আইকন ও রঙ দেখানো হয় (ইমোজির বদলে পরিষ্কার, প্রফেশনাল
+  // আউটলাইন আইকন) — এক নজরে পুরুষ/নারী/শিশু বোঝা যায়। ডেটায় "নারী" ও "মহিলা" দুটোই থাকতে পারে (বিভিন্ন ফর্মে
+  // ঐতিহাসিকভাবে দুই মান ব্যবহৃত হয়েছে) — তাই দুটোই ম্যাচ করানো হয়।
   const ICON_MALE = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="14" r="6"></circle><line x1="14.5" y1="9.5" x2="20" y2="4"></line><polyline points="14 4 20 4 20 10"></polyline></svg>`;
   const ICON_FEMALE = `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"></circle><line x1="12" y1="15" x2="12" y2="21"></line><line x1="9" y1="18" x2="15" y2="18"></line></svg>`;
   const ICON_CHILD = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M6 21v-2a6 6 0 0 1 12 0v2"></path></svg>`;
   const ICON_UNKNOWN = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M5 20c0-4 3-7 7-7s7 3 7 7"></path></svg>`;
   let genderIcon=ICON_UNKNOWN, genderBg='linear-gradient(135deg,#64748b,#475569)';
-  if (gender==='পুরুষ') { genderIcon=ICON_MALE; genderBg='linear-gradient(135deg,#2563eb,#0f4c81)'; }
-  else if (gender==='নারী' || gender==='মহিলা') { genderIcon=ICON_FEMALE; genderBg='linear-gradient(135deg,#ec4899,#be185d)'; }
-  else if (gender==='শিশু') { genderIcon=ICON_CHILD; genderBg='linear-gradient(135deg,#f59e0b,#d97706)'; }
+  // ✅ পুরো মোডালে লিঙ্গ অনুযায়ী খুবই হালকা আভা — পুরুষ: নীলচে, নারী: গোলাপি, শিশু: কমলা, অজানা: ধূসর।
+  // এটা একটা পূর্ণ অস্বচ্ছ (opaque) হালকা রঙ — গ্রেডিয়েন্ট/rgba-blend না, তাই মোডাল আগের মতোই "সাদা"ই থাকে,
+  // কোথাও স্বচ্ছ/ট্রান্সপারেন্ট দেখাবে না, শুধু একটা মিহি রঙের ছোঁয়া থাকবে
+  let genderTint='#f8fafc';
+  if (gender==='পুরুষ') { genderIcon=ICON_MALE; genderBg='linear-gradient(135deg,#2563eb,#0f4c81)'; genderTint='#f4f8ff'; }
+  else if (gender==='নারী' || gender==='মহিলা') { genderIcon=ICON_FEMALE; genderBg='linear-gradient(135deg,#ec4899,#be185d)'; genderTint='#fef6fa'; }
+  else if (gender==='শিশু') { genderIcon=ICON_CHILD; genderBg='linear-gradient(135deg,#f59e0b,#d97706)'; genderTint='#fffbf2'; }
 
   const modal = document.createElement('div');
   modal.id = 'patientDetailModal';
@@ -26299,10 +26586,10 @@ function showPatientDetail(key) {
       #patientDetailModal .pdm-clickable-row{cursor:pointer;transition:background .12s}
       #patientDetailModal .pdm-clickable-row:hover{background:#f0f9ff}
     </style>
-    <div style="background:white;border-radius:16px;padding:0;max-width:900px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 25px 70px rgba(15,23,42,0.35)">
+    <div style="background:${genderTint};border-radius:16px;padding:0;max-width:900px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 25px 70px rgba(15,23,42,0.35)">
       <!-- হেডার: নাম, MRN, যোগাযোগ ও আর্থিক সামারি — একসাথে কম্প্যাক্ট স্ট্রিপে, স্ক্রল করলেও স্থির থাকে -->
-      <div style="padding:13px 20px 11px;border-bottom:1px solid #eef1f6;flex-shrink:0;background:linear-gradient(180deg,#fbfdff,#ffffff)">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div style="padding:13px 20px 11px;border-bottom:1px solid #eef1f6;flex-shrink:0">
+        <div id="pdmViewHeader" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
           <div style="display:flex;align-items:center;gap:11px;min-width:0">
             <div style="width:38px;height:38px;border-radius:11px;background:${genderBg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px;flex-shrink:0;box-shadow:0 5px 12px rgba(15,76,129,0.28)" title="${gender||'লিঙ্গ অজানা'}">${genderIcon}</div>
             <div style="min-width:0">
@@ -26310,38 +26597,81 @@ function showPatientDetail(key) {
                 <h3 style="margin:0;color:#0f172a;font-size:16px;font-weight:800;letter-spacing:-.2px">${name}</h3>
                 ${age?`<span style="font-size:11.5px;font-weight:700;color:#475569;white-space:nowrap"><span style="color:#aab1bd;font-weight:600;font-size:9.5px">(Age)</span> ${age}</span>`:''}
                 <span style="font-size:10px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #dbeafe;padding:2px 8px;border-radius:20px;letter-spacing:.3px">${(appData.patientMRNs||{})[key]||''}</span>
+                ${isCampPatient?`<span style="font-size:10px;font-weight:700;color:#0e7490;background:#ecfeff;border:1px solid #cffafe;padding:2px 7px;border-radius:20px">🏕️ ক্যাম্প রোগী</span>`:''}
               </div>
-              <div style="margin-top:3px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:11px;color:#64748b">
+              ${possibleDuplicate ? `<div style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="font-size:10.5px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;padding:2.5px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:4px" title="ফোন নম্বর ছাড়া শুধু নামে গ্রুপ হয়েছে, বয়স/লিঙ্গে গরমিল আছে — ভিন্ন দুইজন রোগী একসাথে মিশে যায়নি তো যাচাই করুন">⚠️ সম্ভাব্য ডুপ্লিকেট — যাচাই করুন</span>
+              </div>`:''}
+              <div style="margin-top:4px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:11px;color:#64748b">
                 ${address?`<span>📍 ${address}</span>`:''}
                 ${phone?`<span>📞 ${phone}</span>`:''}
-                ${doctor?`<span>👨‍⚕️ ডা. ${doctor}</span>`:''}
               </div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
-            <button class="btn btn-outline btn-sm" style="padding:5px 10px;font-size:11px" onclick="showMergePicker('${escKey}','${escName}')" title="এই রোগীকে অন্য কোনো রেকর্ডের সাথে মার্জ করুন">🔗 মার্জ</button>
-            <button onclick="document.getElementById('patientDetailModal').remove()" style="background:#f1f5f9;border:none;width:27px;height:27px;border-radius:8px;font-size:14px;cursor:pointer;color:#64748b;line-height:1">✕</button>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:7px">
+              ${phone?`<a href="https://wa.me/${waNumber(phone)}" target="_blank" style="background:#f0fdf4;border:1px solid #bbf7d0;width:27px;height:27px;border-radius:8px;font-size:13px;cursor:pointer;color:#16a34a;line-height:1;display:flex;align-items:center;justify-content:center;text-decoration:none" title="WhatsApp মেসেজ পাঠান">💬</a>`:''}
+              <button onclick="togglePatientEditMode(true)" style="background:#eff6ff;border:1px solid #dbeafe;width:27px;height:27px;border-radius:8px;font-size:12.5px;cursor:pointer;color:#1d4ed8;line-height:1" title="নাম/ফোন/ঠিকানা/ডাক্তার সংশোধন করুন">✏️</button>
+              <button class="btn btn-outline btn-sm" style="padding:5px 10px;font-size:11px" onclick="showMergePicker('${escKey}','${escName}')" title="এই রোগীকে অন্য কোনো রেকর্ডের সাথে মার্জ করুন">🔗 মার্জ</button>
+              <button onclick="document.getElementById('patientDetailModal').remove()" style="background:#f1f5f9;border:none;width:27px;height:27px;border-radius:8px;font-size:14px;cursor:pointer;color:#64748b;line-height:1">✕</button>
+            </div>
+            <div style="text-align:right;font-size:10.5px;color:#94a3b8;white-space:nowrap">
+              🗓️ সর্বশেষ ভিজিট: <b style="color:#475569">${formatDate(lastVisitDate)}</b>${lastVisitAgoText?` <span style="color:#0f4c81;font-weight:700">(${lastVisitAgoText})</span>`:''}${doctor?` · 👨‍⚕️ ডা. ${doctor}`:''}
+            </div>
           </div>
         </div>
-        <div class="pdm-summary-row" style="margin-top:9px;padding:9px 6px 6px;border-top:1px dashed #eef1f6;display:flex;gap:20px;flex-wrap:wrap;font-size:11.5px" onclick="closePatientDetailModal();goToIncomeForPatient('${escKey}','${escName}')" title="আয়ের পেজে গিয়ে এই রোগীর সব এন্ট্রি হাইলাইট করে দেখতে ক্লিক করুন">
-          <div style="color:#94a3b8">মোট বিল <b style="color:#1e293b;font-size:12.5px">৳ ${fmt(totalBill)}</b></div>
-          <div style="color:#94a3b8">পরিশোধ <b style="color:var(--success);font-size:12.5px">৳ ${fmt(totalPaid)}</b></div>
-          <div style="color:#94a3b8">বাকি <b style="color:${totalDue>0?'var(--danger)':'var(--success)'};font-size:12.5px">${totalDue>0?'৳ '+fmt(totalDue):'✅ নেই'}</b></div>
-          <div style="margin-left:auto;color:#94a3b8;font-size:10px;align-self:center">💰 আয়ে দেখতে ক্লিক করুন ▸</div>
+        <!-- ✏️ সম্পাদনা ফর্ম — ✏️ আইকনে ক্লিক করলে এটি দেখা যাবে, ওপরের ভিউ হেডার লুকিয়ে যাবে -->
+        <div id="pdmEditHeader" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div><label class="pdm-label">নাম *</label><input id="pdmEditName" class="pdm-input" value="${name.replace(/"/g,'&quot;')}"></div>
+            <div><label class="pdm-label">মোবাইল</label><input id="pdmEditPhone" class="pdm-input" value="${(phone||'').replace(/"/g,'&quot;')}"></div>
+            <div><label class="pdm-label">ঠিকানা</label><input id="pdmEditAddress" class="pdm-input" value="${(address||'').replace(/"/g,'&quot;')}"></div>
+            <div><label class="pdm-label">ডাক্তার</label><input id="pdmEditDoctor" class="pdm-input" value="${(doctor||'').replace(/"/g,'&quot;')}"></div>
+            ${!profile.dob?`<div><label class="pdm-label">বয়স</label><input id="pdmEditAge" class="pdm-input" value="${(age||'').replace(/"/g,'&quot;')}"></div>`:`<div><label class="pdm-label">বয়স</label><input class="pdm-input" value="${age} (জন্মতারিখ থেকে গণনা)" disabled style="color:#94a3b8;background:#f8fafc"></div>`}
+          </div>
+          <div style="display:flex;gap:7px;justify-content:flex-end">
+            <button class="btn btn-outline btn-sm" onclick="togglePatientEditMode(false)">বাতিল</button>
+            <button class="btn btn-primary btn-sm" onclick="savePatientOverrides('${escKey}')">✅ সংরক্ষণ করুন</button>
+          </div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:5px">ℹ️ এটি শুধু প্রদর্শিত তথ্য সংশোধন করে — মূল বিল/ভিজিট রেকর্ড অপরিবর্তিত থাকে</div>
+        </div>
+        <div class="pdm-summary-row" style="margin-top:9px;padding:9px 6px 6px;border-top:1px dashed #eef1f6;display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:11.5px">
+          <div style="cursor:pointer;display:flex;gap:20px;flex-wrap:wrap" onclick="closePatientDetailModal();goToIncomeForPatient('${escKey}','${escName}')" title="আয়ের পেজে গিয়ে এই রোগীর সব এন্ট্রি হাইলাইট করে দেখতে ক্লিক করুন">
+            <div style="color:#94a3b8">মোট বিল <b style="color:#1e293b;font-size:12.5px">৳ ${fmt(totalBill)}</b></div>
+            <div style="color:#94a3b8">পরিশোধ <b style="color:var(--success);font-size:12.5px">৳ ${fmt(totalPaid)}</b></div>
+            <div style="color:#94a3b8">বাকি <b style="color:${totalDue>0?'var(--danger)':'var(--success)'};font-size:12.5px">${totalDue>0?'৳ '+fmt(totalDue):'✅ নেই'}</b></div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+            ${totalDue>0?`<button class="btn btn-sm" style="padding:5px 10px;font-size:11px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca" onclick="event.stopPropagation();closePatientDetailModal();openPatientDueCollector('${escKey}','${escName}')" title="সরাসরি বাকি আদায় করুন">💳 বাকি আদায় করুন</button>`:''}
+            <span style="color:#94a3b8;font-size:10px">💰 আয়ে দেখতে ক্লিক করুন ▸</span>
+          </div>
         </div>
       </div>
 
       <!-- স্ক্রলযোগ্য বডি -->
       <div style="overflow-y:auto;padding:12px 20px 18px;flex:1">
 
-      <!-- মেডিকেল প্রোফাইল: জন্মতারিখ, অ্যালার্জি, নোট -->
+      <!-- মেডিকেল প্রোফাইল: জন্মতারিখ, অ্যালার্জি, নোট — চোখের পাওয়ার/প্রেসক্রিপশন হিস্ট্রি সেকশনের মতোই ভিউ/এডিট টগল প্যাটার্ন:
+           তথ্য থাকলে ডিফল্টে রিড-ওনলি ভিউ দেখাবে, "ম্যানুয়াল এন্ট্রি"/"সম্পাদনা" বাটনে ক্লিক করলে এডিট ফিল্ড খুলবে -->
       <div class="pdm-card">
-        <div class="pdm-card-title" style="margin-bottom:7px">🩺 মেডিকেল প্রোফাইল</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:7px;align-items:end">
-          <div><label class="pdm-label">জন্মতারিখ</label><input type="date" id="ppDob" value="${profile.dob||''}" class="pdm-input"></div>
-          <div><label class="pdm-label" style="color:#dc2626">🚨 অ্যালার্জি</label><input type="text" id="ppAllergy" value="${profile.allergies||''}" placeholder="যেমন: পেনিসিলিন..." class="pdm-input"></div>
-          <div><label class="pdm-label">মেডিকেল নোট</label><input type="text" id="ppNote" value="${(profile.medicalNote||'').replace(/"/g,'&quot;')}" placeholder="দীর্ঘমেয়াদী রোগ, বিশেষ সতর্কতা..." class="pdm-input"></div>
-          <button class="btn btn-primary btn-sm" style="padding:6px 12px;font-size:11px;white-space:nowrap" onclick="savePatientProfileBasic('${key}')">💾 সেভ</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;flex-wrap:wrap;gap:6px">
+          <div class="pdm-card-title">🩺 মেডিকেল প্রোফাইল${(profile.allergies&&profile.allergies.trim())?` <span style="font-size:9.5px;font-weight:700;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:1.5px 7px;border-radius:20px;vertical-align:middle">🚨 অ্যালার্জি আছে</span>`:''}</div>
+          <button type="button" id="ppToggleBtn" data-label="${(profile.dob||profile.allergies||profile.medicalNote)?'✏️ সম্পাদনা':'➕ ম্যানুয়াল এন্ট্রি'}" onclick="toggleManualPPFields()" style="background:#eff6ff;border:1px solid #dbeafe;color:#1d4ed8;font-weight:700;font-size:10.5px;padding:4px 10px;border-radius:7px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">${(profile.dob||profile.allergies||profile.medicalNote)?'✏️ সম্পাদনা':'➕ ম্যানুয়াল এন্ট্রি'}</button>
+        </div>
+        <div id="ppViewFields">
+          ${(profile.dob||profile.allergies||profile.medicalNote) ? `<div style="display:flex;flex-wrap:wrap;gap:16px;font-size:11.5px">
+            <div><span style="color:#94a3b8">জন্মতারিখ:</span> <b style="color:#1e293b">${profile.dob?formatDate(profile.dob):'—'}</b></div>
+            <div><span style="color:#94a3b8">অ্যালার্জি:</span> ${(profile.allergies&&profile.allergies.trim())?`<span style="font-weight:700;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:1.5px 8px;border-radius:20px">🚨 ${profile.allergies.trim()}</span>`:'<b style="color:#1e293b">নেই</b>'}</div>
+            <div><span style="color:#94a3b8">মেডিকেল নোট:</span> <b style="color:#1e293b">${profile.medicalNote?profile.medicalNote:'—'}</b></div>
+          </div>` : `<div style="color:#aaa;font-size:11px;padding:4px 0">কোনো মেডিকেল প্রোফাইল তথ্য নেই</div>`}
+        </div>
+        <div id="ppManualFields" style="display:none;margin-top:9px;padding-top:9px;border-top:1px dashed #e2e8f0">
+          <div style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:7px;align-items:end">
+            <div><label class="pdm-label">জন্মতারিখ</label><input type="date" id="ppDob" value="${profile.dob||''}" class="pdm-input"></div>
+            <div><label class="pdm-label" style="color:#dc2626">🚨 অ্যালার্জি</label><input type="text" id="ppAllergy" value="${profile.allergies||''}" placeholder="যেমন: পেনিসিলিন..." class="pdm-input"></div>
+            <div><label class="pdm-label">মেডিকেল নোট</label><input type="text" id="ppNote" value="${(profile.medicalNote||'').replace(/"/g,'&quot;')}" placeholder="দীর্ঘমেয়াদী রোগ, বিশেষ সতর্কতা..." class="pdm-input"></div>
+            <button class="btn btn-primary btn-sm" style="padding:6px 12px;font-size:11px;white-space:nowrap" onclick="savePatientProfileBasic('${key}')">💾 সেভ</button>
+          </div>
         </div>
       </div>
 
@@ -26465,6 +26795,16 @@ function showPatientDetail(key) {
   document.body.appendChild(modal);
 }
 // ✅ প্রেসক্রিপশন হিস্ট্রি কার্ডে "➕ ম্যানুয়াল এন্ট্রি" বাটনে ক্লিক করলে পাওয়ার এন্ট্রির ফিল্ডগুলো কম্প্যাক্ট ডিজাইনে খোলে/বন্ধ হয়
+// ✅ মেডিকেল প্রোফাইল কার্ডে "➕ ম্যানুয়াল এন্ট্রি"/"✏️ সম্পাদনা" বাটনে ক্লিক করলে জন্মতারিখ/অ্যালার্জি/নোট এন্ট্রি ফিল্ড খোলে/বন্ধ হয়
+// (চোখের পাওয়ার/প্রেসক্রিপশন হিস্ট্রি সেকশনের toggleManualRxFields()-এর মতোই প্যাটার্ন — ডিফল্টে রিড-ওনলি ভিউ, বাটনে ক্লিক করলে ফর্ম)
+function toggleManualPPFields() {
+  const el = document.getElementById('ppManualFields');
+  const btn = document.getElementById('ppToggleBtn');
+  if (!el) return;
+  const opening = el.style.display === 'none';
+  el.style.display = opening ? 'block' : 'none';
+  if (btn) btn.innerHTML = opening ? '✕ বন্ধ করুন' : (btn.dataset.label||'➕ ম্যানুয়াল এন্ট্রি');
+}
 function toggleManualRxFields() {
   const el = document.getElementById('rxManualFields');
   const btn = document.getElementById('rxToggleBtn');
