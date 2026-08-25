@@ -6958,7 +6958,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <input type="text" id="recPatientDbSearch" oninput="searchRecPatients()" placeholder="🔍 নাম, ফোন বা MRN দিয়ে খুঁজুন..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;width:220px">
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
+          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>চশমা ডেলিভারি</th><th>পরবর্তী সিরিয়াল</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
           <tbody id="recPatientDbTable"></tbody>
         </table></div>
         <div id="recPatientDbPagination" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 0"></div>
@@ -11994,9 +11994,10 @@ function renderAdminDue() {
     <td>৳ ${fmt(v.total)}</td>
     <td style="color:var(--success);font-weight:600">৳ ${fmt(v.cashPaid)}</td>
     <td style="color:#9b59b6;font-weight:700">৳ ${fmt(v.due)}</td>
-    <td style="display:flex;gap:4px">
+    <td style="display:flex;gap:4px;flex-wrap:wrap">
       <button class="btn btn-purple btn-sm" onclick="openDueModal(${v.id})">💳 আদায়</button>
       <button class="btn btn-outline btn-sm" onclick="openDueWaiveModal(${v.id})">🤲 মওকুফ</button>
+      <button class="btn btn-outline btn-sm" onclick="openDueHistoryModal(${v.id})" title="পূর্বের আদায়/মওকুফ হিস্ট্রি">🕘 হিস্ট্রি</button>
     </td>
   </tr>`).join('');
   renderDueHistory();
@@ -27157,7 +27158,7 @@ function renderRecPatientDB(filter='') {
   const pagEl = document.getElementById('recPatientDbPagination');
   if(!tbody) return;
   if(!list.length){
-    tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
+    tbody.innerHTML='<tr><td colspan="15" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
     if(pagEl) pagEl.innerHTML='';
     return;
   }
@@ -27166,8 +27167,25 @@ function renderRecPatientDB(filter='') {
   if (_recPatientDbPage < 1) _recPatientDbPage = 1;
   const startIdx = (_recPatientDbPage-1)*PATIENT_PAGE_SIZE;
   const pageList = list.slice(startIdx, startIdx+PATIENT_PAGE_SIZE);
+  const today = todayStr();
   tbody.innerHTML = pageList.map((p,i)=>{
     const key=p._key.replace(/'/g,"\\'");
+    const dOrders = getPatientDeliveryOrders(p._key);
+    const pendingCnt = dOrders.filter(d=>d.status==='pending').length;
+    let dlvBadge = '—';
+    if (dOrders.length) {
+      dlvBadge = pendingCnt
+        ? `<span class="badge badge-warning" style="font-size:10px;padding:2px 6px">📦 ${pendingCnt}টি পেন্ডিং</span>`
+        : `<span class="badge badge-income" style="font-size:10px;padding:2px 6px">✅ ডেলিভারড</span>`;
+    }
+    const appts = getPatientAppointments(p._key);
+    const nextAppt = appts.filter(a=>a.status==='pending'&&a.date>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0];
+    let nextSerialBadge = '—';
+    if (p.nextSerialDate) {
+      nextSerialBadge = `<span class="badge ${p.nextSerialDate===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">🔁 ${formatDate(p.nextSerialDate)}</span>`;
+    } else if (nextAppt) {
+      nextSerialBadge = `<span class="badge ${nextAppt.date===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">📅 ${formatDate(nextAppt.date)}${nextAppt.time?' '+nextAppt.time:''}</span>`;
+    }
     return `<tr onclick="showPatientDetail('${key}')" style="cursor:pointer" title="বিস্তারিত দেখতে ক্লিক করুন">
     <td style="color:var(--text-light)">${startIdx+i+1}</td>
     <td style="color:var(--text-light);font-size:11px">${p.mrn}</td>
@@ -27178,6 +27196,8 @@ function renderRecPatientDB(filter='') {
     <td style="color:var(--text-light);font-size:12px">${p.address||'—'}</td>
     <td style="color:var(--text-light)">${p.doctor||'—'}</td>
     <td style="text-align:center">${p.visits.length}</td>
+    <td style="text-align:center">${dlvBadge}</td>
+    <td style="text-align:center">${nextSerialBadge}</td>
     <td>${p.lastVisit?formatDate(p.lastVisit):'—'}</td>
     <td>৳ ${fmt(p.totalBill)}</td>
     <td style="color:var(--success)">৳ ${fmt(p.totalPaid)}</td>
