@@ -446,9 +446,14 @@
      সবসময় শুধু সিলেক্ট বক্সের সমান, ডাক্তার/অপশন যাই সিলেক্ট করা হোক না কেন কখনোই বদলায় না। */
   @media(max-width:1050px) { .panel-header { flex-direction:column; align-items:stretch; } .rn-header-chips { justify-content:flex-start; } .rn-header-commission { max-width:none; } }
 
-  .rn-row2b { grid-template-columns: 2.1fr 0.65fr 0.65fr 118px 130px; }
+  .rn-row2b { grid-template-columns: 2.1fr 0.65fr 1.3fr 130px; }
   .rn-row2b textarea { font-size:13px; padding:8px 10px; resize:none; height:38px; }
   @media(max-width:1050px) { .rn-row2b { grid-template-columns: 1fr 1fr; } }
+  /* ✅ "বিবরণ/মন্তব্য" ঘরটাকে হাফ-হাফ করে ভাগ — বামে বিবরণ, ডানে "পরবর্তী সিরিয়াল" ডেট পিকার */
+  .rn-note-split { display:flex; gap:6px; }
+  .rn-note-split > div { flex:1; min-width:0; }
+  .rn-note-split label { font-size:11px; }
+  .rn-note-split input[type="date"] { width:100%; box-sizing:border-box; padding:8px 8px; border:1.5px solid var(--border); border-radius:6px; font-family:inherit; font-size:12.5px; height:38px; }
 
   /* ✅ ৩য় সারি: বামে পণ্য-সার্ভিস (পুরো কলাম), ডানে ডিসকাউন্ট → মোবাইল ব্যাংকিং+নগদ প্রদান → মোট বিল */
   .rn-2col { display:grid; grid-template-columns: 1.1fr 1fr; gap:20px; align-items:start; margin-bottom:12px; }
@@ -2879,7 +2884,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <thead><tr><th>নাম</th><th>ফোন</th><th>আইটেম</th><th>প্রস্তুত</th><th>ডেলিভারি তারিখ</th><th>বাকি</th><th>কল</th></tr></thead>
             <tbody id="admCallDeliveryTable"></tbody>
           </table></div>
-          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">📅 সিরিয়াল রিমাইন্ডার (আজ ও আগামীকাল)</div>
+          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">📅 সিরিয়াল রিমাইন্ডার (আজ/আগামীকাল ও আসন্ন পরবর্তী সিরিয়াল — ৭ দিন আগে থেকে)</div>
           <div class="table-wrap"><table>
             <thead><tr><th>তারিখ</th><th>সময়</th><th>নাম</th><th>ফোন</th><th>ডাক্তার</th><th>কল</th></tr></thead>
             <tbody id="admCallApptTable"></tbody>
@@ -2967,12 +2972,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field"><label>তারিখ *</label><input type="date" id="nb_BillDate"></div>
           </div>
 
-          <!-- ✅ ২য় সারি: ঠিকানা | রেফারেন্স | বিবরণ/মন্তব্য | পরবর্তী সিরিয়াল | মেমো নং -->
+          <!-- ✅ ২য় সারি: ঠিকানা | রেফারেন্স | বিবরণ/মন্তব্য | মেমো নং -->
           <div class="rn-row rn-row2b">
             <div class="field"><label>ঠিকানা</label><input type="text" id="nb_PatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
             <div class="field"><label>রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="পরিচিত ব্যক্তির নাম (ঐচ্ছিক)"></div>
-            <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="nb_Note" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
-            <div class="field"><label>পরবর্তী সিরিয়াল</label><input type="date" id="nb_NextSerial" title="রোগীর পরবর্তী সিরিয়ালের তারিখ (ঐচ্ছিক)"></div>
+            <div class="field rn-note-split">
+              <div><label>বিবরণ / মন্তব্য</label><textarea id="nb_Note" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
+              <div><label>পরবর্তী সিরিয়াল</label><input type="date" id="nb_NextSerial" title="পরবর্তী ভিজিট/সিরিয়ালের তারিখ (ঐচ্ছিক) — রোগীর ডেটাবেসে ও কল লিস্টের রিমাইন্ডারে দেখাবে"></div>
+            </div>
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><input type="text" id="nb_MemoNo" placeholder="Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
 
@@ -3866,12 +3873,21 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="stat-card income"><div class="stat-icon">💵</div><div class="stat-label">ক্যাশ ব্যালেন্স</div><div class="stat-value income" id="cashBalance">৳ ০</div><div class="stat-change">হাতে নগদ</div></div>
         <div class="stat-card" style="border-left-color:#3498db"><div class="stat-icon">🏦</div><div class="stat-label">ব্যাংক ব্যালেন্স</div><div class="stat-value" id="bankBalance" style="color:#3498db">৳ ০</div><div class="stat-change" id="bankName">ব্যাংক একাউন্ট</div><div class="stat-change" id="bankFundNote" style="font-size:11px;color:#94a3b8"></div></div>
         <div class="stat-card profit"><div class="stat-icon">💰</div><div class="stat-label">মোট ব্যালেন্স</div><div class="stat-value profit" id="totalBalance">৳ ০</div><div class="stat-change">ক্যাশ + ব্যাংক</div></div>
+        <div class="stat-card" style="border-left-color:#d63384;cursor:pointer" onclick="showPage('settings');openSettingsSection('mfs-accounts')" title="মোবাইল ব্যাংকিং একাউন্ট পেজে যান — একাউন্ট-ভিত্তিক ব্যালেন্স ও ট্রান্সফারের বিস্তারিত দেখতে ক্লিক করুন">
+          <div class="stat-icon">📱</div><div class="stat-label">মোবাইল ব্যাংকিং ব্যালেন্স</div>
+          <div class="stat-value" id="bankPgMfsBalance" style="color:#d63384">৳ ০</div>
+          <div class="stat-change" id="bankPgMfsAccCount">০টি একাউন্ট</div>
+          <div class="stat-change" style="font-size:11px;color:#94a3b8">▸ বিস্তারিত/ট্রান্সফার করতে ক্লিক করুন</div>
+        </div>
       </div>
 
       <!-- ট্রান্সফার ফর্ম -->
       <div class="panel">
         <div class="panel-header"><div class="panel-title">🔄 ট্রান্সফার / এন্ট্রি</div></div>
         <div class="panel-body">
+          <div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:8px 12px;font-size:12px;color:#9d174d;margin-bottom:12px">
+            ℹ️ মোবাইল ব্যাংকিং (বিকাশ/নগদ/রকেট) একাউন্ট থেকে/এ ট্রান্সফারের জন্য <a href="javascript:void(0)" onclick="showPage('settings');openSettingsSection('mfs-accounts')" style="color:#be185d;font-weight:700;text-decoration:underline">📱 মোবাইল ব্যাংকিং একাউন্ট পেজে</a> গিয়ে সংশ্লিষ্ট একাউন্টের পাশে "🔁 ট্রান্সফার" বাটনে ক্লিক করুন — এই ফর্মটি শুধু সরাসরি ক্যাশ/ব্যাংকের জন্য।
+          </div>
           <div class="form-row-amt">
             <div class="field-stack">
               <div class="field"><label>ধরন *</label>
@@ -4852,7 +4868,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>চশমা ডেলিভারি</th><th>পরবর্তী সিরিয়াল</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
+          <thead><tr><th>#</th><th style="cursor:pointer;user-select:none" onclick="sortPatientDbBy('mrn')" title="MRN অনুযায়ী সর্ট করুন">MRN <span id="pdbSortArrowMrn" style="opacity:.3">⇅</span></th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>চশমা ডেলিভারি</th><th style="cursor:pointer;user-select:none" onclick="sortPatientDbBy('nextSerial')" title="পরবর্তী সিরিয়াল অনুযায়ী সর্ট করুন">পরবর্তী সিরিয়াল <span id="pdbSortArrowNextSerial" style="opacity:.3">⇅</span></th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
           <tbody id="patientDbTable"></tbody>
 
         </table></div>
@@ -6551,12 +6567,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
           <div id="rPatPhoneHint" style="display:none;margin:-4px 0 10px"></div>
 
-          <!-- ✅ ২য় সারি: ঠিকানা (নামের সমান) | রেফারেন্স (অর্ধেক) | বিবরণ/মন্তব্য | পরবর্তী সিরিয়াল | মেমো নং (তারিখের সমান) -->
+          <!-- ✅ ২য় সারি: ঠিকানা (নামের সমান) | রেফারেন্স (অর্ধেক) | বিবরণ/মন্তব্য | মেমো নং (তারিখের সমান) -->
           <div class="rn-row rn-row2b">
             <div class="field"><label>ঠিকানা</label><input type="text" id="rPatAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা"></div>
             <div class="field"><label>রেফারেন্স</label><input type="text" id="rPatDoc" placeholder="পরিচিত ব্যক্তির নাম (ঐচ্ছিক)"></div>
-            <div class="field"><label>বিবরণ / মন্তব্য</label><textarea id="rNote" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
-            <div class="field"><label>পরবর্তী সিরিয়াল</label><input type="date" id="rNextSerial" title="রোগীর পরবর্তী সিরিয়ালের তারিখ (ঐচ্ছিক)"></div>
+            <div class="field rn-note-split">
+              <div><label>বিবরণ / মন্তব্য</label><textarea id="rNote" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
+              <div><label>পরবর্তী সিরিয়াল</label><input type="date" id="rNextSerial" title="পরবর্তী ভিজিট/সিরিয়ালের তারিখ (ঐচ্ছিক) — রোগীর ডেটাবেসে ও কল লিস্টের রিমাইন্ডারে দেখাবে"></div>
+            </div>
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><input type="text" id="rMemoNo" placeholder="Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
 
@@ -6693,7 +6711,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <thead><tr><th>নাম</th><th>ফোন</th><th>আইটেম</th><th>প্রস্তুত</th><th>ডেলিভারি তারিখ</th><th>বাকি</th><th>কল</th></tr></thead>
             <tbody id="recCallDeliveryTable"></tbody>
           </table></div>
-          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">📅 সিরিয়াল রিমাইন্ডার (আজ ও আগামীকাল)</div>
+          <div style="font-weight:700;font-size:13px;color:#2c5d8a;margin-bottom:8px">📅 সিরিয়াল রিমাইন্ডার (আজ/আগামীকাল ও আসন্ন পরবর্তী সিরিয়াল — ৭ দিন আগে থেকে)</div>
           <div class="table-wrap"><table>
             <thead><tr><th>তারিখ</th><th>সময়</th><th>নাম</th><th>ফোন</th><th>ডাক্তার</th><th>কল</th></tr></thead>
             <tbody id="recCallApptTable"></tbody>
@@ -9419,6 +9437,8 @@ function renderDashBalanceTable() {
   const ce = document.getElementById('cashBalance'); if(ce) ce.textContent = '৳ ' + fmt(cash);
   const be = document.getElementById('bankBalance'); if(be) be.textContent = '৳ ' + fmt(bank);
   const te = document.getElementById('totalBalance'); if(te) te.textContent = '৳ ' + fmt(cash + bank);
+  const mfsBalEl2 = document.getElementById('bankPgMfsBalance'); if(mfsBalEl2 && typeof calcTotalMfsBalance==='function') mfsBalEl2.textContent = '৳ ' + fmt(calcTotalMfsBalance());
+  const mfsCntEl2 = document.getElementById('bankPgMfsAccCount'); if(mfsCntEl2) mfsCntEl2.textContent = `${(appData.mfsAccounts||[]).length}টি একাউন্ট`;
   const fundReserve = (typeof calcTotalFundReserve==='function') ? calcTotalFundReserve() : 0;
   const noteText = fundReserve > 0 ? `(এর মধ্যে ফান্ড সংরক্ষিত: ৳${fmt(fundReserve)} | প্রকৃত ব্যালেন্স: ৳${fmt(bank - fundReserve)})` : '';
   ['bankFundNote','dashBankFundNote'].forEach(id=>{
@@ -13417,7 +13437,16 @@ function goToIncomeForPatient(patKey, patName) {
   const dEl=document.getElementById('incFilterDate'); if (dEl) dEl.value='';
   const mEl=document.getElementById('incFilterMonth'); if (mEl) mEl.style.display='none';
   renderIncomeTable();
-  const matches = (appData.income||[]).filter(e => e.ref && computePatientKeyFor('', e.ref)===patKey);
+  // ✅ আগে শুধু income.ref (নামের টেক্সট) দিয়ে key মেলানো হতো — কিন্তু ফোন নম্বর থাকা রোগীর আসল key ফোন-ভিত্তিক হওয়ায়
+  // নাম-ভিত্তিক key এর সাথে মিলতো না, ফলে ভুলভাবে "কোনো আয় এন্ট্রি পাওয়া যায়নি" দেখাতো। তাই এখন আগে visitId দিয়ে
+  // (visits/admin-bill এর সাথে লিংক করা, সবচেয়ে নির্ভরযোগ্য) মেলানো হয়, আর visitId না থাকা এন্ট্রির জন্য (যেমন ডেলিভারি
+  // বাকি আদায়) আগের নাম-ভিত্তিক ফলব্যাক থেকে যায়
+  const visitIds = new Set();
+  (appData.visits||[]).forEach(v=>{ if (computePatientKeyFor(v.patPhone,v.patName)===patKey) visitIds.add(v.id); });
+  const matches = (appData.income||[]).filter(e =>
+    (e.visitId!=null && visitIds.has(e.visitId)) ||
+    (e.ref && computePatientKeyFor('', e.ref)===patKey)
+  );
   if (!matches.length) { showToast(`⚠️ "${patName}"-এর কোনো আয় এন্ট্রি পাওয়া যায়নি`); return; }
   matches.forEach(e=>{
     const gid=(e.date||'').replace(/[^a-zA-Z0-9]/g,'_');
@@ -13991,6 +14020,9 @@ function updateBankBalances() {
   const bankEl=document.getElementById('bankBalance'); if(bankEl) bankEl.textContent='৳ '+fmt(bank);
   const totEl=document.getElementById('totalBalance'); if(totEl) totEl.textContent='৳ '+fmt(cash+bank);
   const bnEl=document.getElementById('bankName'); if(bnEl) bnEl.textContent=appData.settings.bankName||'ব্যাংক একাউন্ট';
+  // ব্যাংক/ক্যাশ পেজে মোবাইল ব্যাংকিং (সব একাউন্ট মিলিয়ে) মোট ব্যালেন্স
+  const mfsBalEl=document.getElementById('bankPgMfsBalance'); if(mfsBalEl && typeof calcTotalMfsBalance==='function') mfsBalEl.textContent='৳ '+fmt(calcTotalMfsBalance());
+  const mfsCntEl=document.getElementById('bankPgMfsAccCount'); if(mfsCntEl) mfsCntEl.textContent=`${(appData.mfsAccounts||[]).length}টি একাউন্ট`;
   // Dashboard এও আপডেট করো
   ['dashCashBalance','ownerDashCashBalance'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent='৳ '+fmt(cash);
@@ -24110,19 +24142,6 @@ function recordGlassOrders(services, ctx) {
   });
 }
 
-// ✅ নতুন বিলের "পরবর্তী সিরিয়াল" ডেট পিকারে তারিখ দেওয়া থাকলে বিল সেভের সময় স্বয়ংক্রিয়ভাবে
-// appData.appointments-এ একটি সিরিয়াল/অ্যাপয়েন্টমেন্ট এন্ট্রি তৈরি হয় — এতে রোগীর ডাটাবেজ তালিকা,
-// প্রোফাইল মোডাল ও "আজকের কল লিস্ট"-এর সিরিয়াল রিমাইন্ডার প্যানেল একই ডেটা থেকে স্বয়ংক্রিয়ভাবে হালনাগাদ হয়
-function createSerialFromBill(dateVal, patName, patPhone, doctorName, memoNo) {
-  if (!dateVal || !patName) return;
-  if (!appData.appointments) appData.appointments = [];
-  appData.appointments.push({
-    id: Date.now()+Math.floor(Math.random()*1000),
-    patName, patPhone: patPhone||'', doctorId:'', doctorName: doctorName||'',
-    date: dateVal, time:'', note: `বিল থেকে সিরিয়াল${memoNo?` (মেমো: ${memoNo})`:''}`,
-    status:'pending', by: currentUser?currentUser.name:'সিস্টেম', ts: Date.now()
-  });
-}
 function saveBill() {
   const patName   = document.getElementById('rPatName').value.trim();
   const patPhone  = document.getElementById('rPatPhone').value.trim();
@@ -24132,6 +24151,7 @@ function saveBill() {
   const patDoc    = document.getElementById('rPatDoc').value.trim();
   const date      = document.getElementById('rBillDate').value;
   const note      = document.getElementById('rNote').value.trim();
+  const nextSerialDate = (document.getElementById('rNextSerial')||{}).value||'';
   const services  = getServices();
   const discAmt   = parseFloat(document.getElementById('rDiscountAmt').value)||0;
   const cashPaid  = parseFloat(document.getElementById('rCashPaid').value)||0;
@@ -24151,6 +24171,7 @@ function saveBill() {
   const visit   = {
     id:Date.now(), date, patName, patPhone, patAge, patGender, patAddress, patDoc,
     services, total, discAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
+    nextSerialDate: nextSerialDate||undefined,
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
   };
@@ -24210,7 +24231,7 @@ function toggleDeliveryDate(p) {
   if (checked) { const d=document.getElementById(p+'DeliveryDate'); if(d&&!d.value) d.value=todayStr(); }
 }
 function clearBillForm() {
-  ['rPatName','rPatPhone','rPatAge','rPatAddress','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt','rMfsPaid'].forEach(id=>{
+  ['rPatName','rPatPhone','rPatAge','rPatAddress','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt','rMfsPaid','rNextSerial'].forEach(id=>{
     const el=document.getElementById(id); if(el){ el.value=''; el.readOnly=false; el.style.background=''; }
   });
   const mfsAccEl=document.getElementById('rMfsAccount'); if(mfsAccEl) mfsAccEl.value='';
@@ -24878,7 +24899,7 @@ function _callSheetRoleLabel(role) {
 // ✅ "কল করা হয়েছে" বাটনে ক্লিক করলে — কখন ও কে (কোন রোল থেকে) কল করেছে তা রেকর্ডে সেভ হয়, যাতে
 // রিসেপশন ও অ্যাডমিন উভয় প্যানেল থেকেই কল করা হলে তার হিসাব রাখা যায়
 function markCallSheetCalled(type, id) {
-  const list = type === 'delivery' ? (appData.deliveryOrders||[]) : (appData.appointments||[]);
+  const list = type === 'delivery' ? (appData.deliveryOrders||[]) : (type === 'nextSerial' ? (appData.visits||[]) : (appData.appointments||[]));
   const rec = list.find(x => x.id === id);
   if (!rec) return;
   rec.calledAt = Date.now();
@@ -24912,9 +24933,46 @@ function _callSheetReadyCell(d) {
     ? '<span style="color:var(--success);font-weight:600;font-size:12px">✅ প্রস্তুত</span>'
     : '<span style="color:#c7ccd1">—</span>';
 }
-function renderRecCallSheet() {
+// ✅ "পরবর্তী সিরিয়াল" রিমাইন্ডার — নতুন বিল ফর্মে দেওয়া তারিখ, সেই তারিখের ৭ দিন আগে থেকে (এবং তারিখ
+// পার না হওয়া পর্যন্ত) কল লিস্টের সিরিয়াল রিমাইন্ডার প্যানেলে দেখাবে — পুরনো অ্যাপয়েন্টমেন্ট রিমাইন্ডারের
+// (শুধু আজ/আগামীকাল) থেকে আলাদা, বেশি আগে থেকে জানানোর জন্য বিস্তৃত উইন্ডো
+function _callSheetNextSerialList() {
+  const today = todayStr();
+  const windowEnd = addDaysToDateStr(today, 7);
+  return (appData.visits||[])
+    .filter(v => v.nextSerialDate && v.nextSerialDate>=today && v.nextSerialDate<=windowEnd)
+    .sort((a,b) => a.nextSerialDate.localeCompare(b.nextSerialDate));
+}
+// ✅ আজ/আগামীকালের অ্যাপয়েন্টমেন্ট + ৭ দিনের মধ্যে থাকা "পরবর্তী সিরিয়াল" (বিল থেকে দেওয়া) — দুটোই
+// একসাথে একই সিরিয়াল রিমাইন্ডার প্যানেলে দেখানোর জন্য একত্র করা হয়
+function _callSheetSerialReminders() {
   const today = todayStr();
   const tomorrow = addDaysToDateStr(today, 1);
+  const appts = (appData.appointments||[]).filter(a=>a.status==='pending' && (a.date===today||a.date===tomorrow))
+    .map(a => ({ kind:'appt', date:a.date, time:a.time||'', patName:a.patName, patPhone:a.patPhone, doctor:a.doctorName, rec:a }));
+  const serials = _callSheetNextSerialList()
+    .map(v => ({ kind:'nextSerial', date:v.nextSerialDate, time:'', patName:v.patName, patPhone:v.patPhone, doctor:v.patDoc||v.doctorName||'', rec:v }));
+  return [...appts, ...serials].sort((a,b)=> a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''));
+}
+function _callSheetSerialDateLabel(dateStr) {
+  const today = todayStr(), tomorrow = addDaysToDateStr(today,1);
+  if (dateStr===today) return '📅 আজ';
+  if (dateStr===tomorrow) return '⏭️ আগামীকাল';
+  const days = daysBetween(dateStr);
+  return `🔁 ${days} দিন পর`;
+}
+function _callSheetSerialRowsHtml(list) {
+  return list.map(r=>`<tr>
+    <td>${_callSheetSerialDateLabel(r.date)} — ${formatDate(r.date)}</td>
+    <td>${r.time||'—'}</td>
+    <td style="font-weight:600">${r.patName||'—'}</td>
+    <td>${r.patPhone||'—'}</td>
+    <td>${r.doctor||'—'}</td>
+    <td>${_callSheetActionCell(r.kind==='nextSerial'?'nextSerial':'appt', r.rec)}</td>
+  </tr>`).join('');
+}
+function renderRecCallSheet() {
+  const today = todayStr();
   const dTbody = document.getElementById('recCallDeliveryTable');
   const dList = _callSheetDeliveryList();
   if (dTbody) {
@@ -24930,17 +24988,10 @@ function renderRecCallSheet() {
     </tr>`).join('');
   }
   const aTbody = document.getElementById('recCallApptTable');
-  const aList = (appData.appointments||[]).filter(a=>a.status==='pending' && (a.date===today||a.date===tomorrow)).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  const aList = _callSheetSerialReminders();
   if (aTbody) {
     if (!aList.length) aTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">আজ/আগামীকাল কোনো সিরিয়াল রিমাইন্ডার নেই</td></tr>';
-    else aTbody.innerHTML = aList.map(a=>`<tr>
-      <td>${a.date===today?'📅 আজ':'⏭️ আগামীকাল'} — ${formatDate(a.date)}</td>
-      <td>${a.time||'—'}</td>
-      <td style="font-weight:600">${a.patName||'—'}</td>
-      <td>${a.patPhone||'—'}</td>
-      <td>${a.doctorName||'—'}</td>
-      <td>${_callSheetActionCell('appt', a)}</td>
-    </tr>`).join('');
+    else aTbody.innerHTML = _callSheetSerialRowsHtml(aList);
   }
   const badge = document.getElementById('recCallBadge');
   const totalCount = dList.length + aList.length;
@@ -24949,7 +25000,6 @@ function renderRecCallSheet() {
 // ===== অ্যাডমিন প্যানেলের কল লিস্ট — একই ডেটা, প্রয়োজনে অ্যাডমিনও কল করে সেভ করতে পারবেন =====
 function renderAdminCallSheet() {
   const today = todayStr();
-  const tomorrow = addDaysToDateStr(today, 1);
   const dTbody = document.getElementById('admCallDeliveryTable');
   const dList = _callSheetDeliveryList();
   if (dTbody) {
@@ -24965,17 +25015,10 @@ function renderAdminCallSheet() {
     </tr>`).join('');
   }
   const aTbody = document.getElementById('admCallApptTable');
-  const aList = (appData.appointments||[]).filter(a=>a.status==='pending' && (a.date===today||a.date===tomorrow)).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  const aList = _callSheetSerialReminders();
   if (aTbody) {
     if (!aList.length) aTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">আজ/আগামীকাল কোনো সিরিয়াল রিমাইন্ডার নেই</td></tr>';
-    else aTbody.innerHTML = aList.map(a=>`<tr>
-      <td>${a.date===today?'📅 আজ':'⏭️ আগামীকাল'} — ${formatDate(a.date)}</td>
-      <td>${a.time||'—'}</td>
-      <td style="font-weight:600">${a.patName||'—'}</td>
-      <td>${a.patPhone||'—'}</td>
-      <td>${a.doctorName||'—'}</td>
-      <td>${_callSheetActionCell('appt', a)}</td>
-    </tr>`).join('');
+    else aTbody.innerHTML = _callSheetSerialRowsHtml(aList);
   }
   const badge = document.getElementById('admCallBadge');
   const totalCount = dList.length + aList.length;
@@ -24983,10 +25026,8 @@ function renderAdminCallSheet() {
 }
 // ✅ শুধু ব্যাজ কাউন্ট রিফ্রেশ করে (পেজ না খুলেই) — অ্যাডমিন লগইনের সময় দেখানোর জন্য
 function renderAdminCallBadge() {
-  const today = todayStr();
-  const tomorrow = addDaysToDateStr(today, 1);
   const dCount = _callSheetDeliveryList().length;
-  const aCount = (appData.appointments||[]).filter(a=>a.status==='pending' && (a.date===today||a.date===tomorrow)).length;
+  const aCount = _callSheetSerialReminders().length;
   const badge = document.getElementById('admCallBadge');
   const totalCount2 = dCount + aCount;
   if (badge) { if (totalCount2){ badge.style.display='inline-flex'; badge.textContent = totalCount2>99?'৯৯+':totalCount2; } else badge.style.display='none'; }
@@ -26026,16 +26067,19 @@ function resolvePatientKey(key) {
 }
 function buildPatientList() {
   const map = {};
-  const addVisit = (patName,patPhone,patAge,patDoc,date,total,cashPaid,due,isCamp,patGender,patAddress)=>{
+  const today = todayStr();
+  const addVisit = (patName,patPhone,patAge,patDoc,date,total,cashPaid,due,isCamp,patGender,patAddress,nextSerialDate)=>{
     const normPhone = normalizePhone(patPhone);
     let key = normPhone || normalizeName(patName);
     if (!key) return;
     key = resolvePatientKey(key); // ✅ ম্যানুয়ালি মার্জ করা রোগী থাকলে সরাসরি প্রাইমারি রেকর্ডে যোগ হবে
-    if(!map[key]) map[key]={name:patName,phone:normPhone||patPhone||'',age:patAge||'',doctor:patDoc||'',gender:patGender||'',address:patAddress||'',visits:[],totalBill:0,totalPaid:0,totalDue:0,lastVisit:'',firstVisit:'',isCampPatient:false,_ages:[],_genders:[],_hasPhone:!!normPhone};
+    if(!map[key]) map[key]={name:patName,phone:normPhone||patPhone||'',age:patAge||'',doctor:patDoc||'',gender:patGender||'',address:patAddress||'',visits:[],totalBill:0,totalPaid:0,totalDue:0,lastVisit:'',firstVisit:'',isCampPatient:false,_ages:[],_genders:[],_hasPhone:!!normPhone,_nextSerials:[]};
     map[key].visits.push(date);
     map[key].totalBill+=total||0;
     map[key].totalPaid+=cashPaid||0;
     map[key].totalDue+=due||0;
+    // ✅ "পরবর্তী সিরিয়াল" — বিল সেভের সময় দেওয়া তারিখ, আজ বা তার পরের হলেই প্রাসঙ্গিক (পুরনো তারিখ বাদ)
+    if (nextSerialDate && nextSerialDate>=today) map[key]._nextSerials.push(nextSerialDate);
     if (patAge) { const n=parseInt(patAge); if(!isNaN(n)) map[key]._ages.push(n); }
     if (patGender) map[key]._genders.push(patGender);
     // সর্বশেষ ভিজিটের তারিখেই বয়স/ডাক্তার/লিঙ্গ/ঠিকানা আপডেট হবে
@@ -26051,8 +26095,9 @@ function buildPatientList() {
     if(!map[key].firstVisit||date<map[key].firstVisit){ map[key].firstVisit=date; }
     if(isCamp) map[key].isCampPatient=true;
   };
-  (appData.visits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,v.patDoc,v.date,v.netBill||v.total,v.cashPaid,v.due,false,v.patGender,v.patAddress));
-  (appData.adminBills||[]).forEach(b=>addVisit(b.patName,b.patPhone,b.patAge,b.patDoc,b.date,b.netBill,b.cashPaid,b.due,false,b.patGender,b.patAddress));
+  // ✅ ডাক্তার হিসেবে আগে vDocSelect থেকে সিলেক্ট করা প্রকৃত ডাক্তার (doctorName) দেখানো হবে — patDoc আসলে "রেফারেন্স" (পরিচিত ব্যক্তির নাম) ফিল্ড, ডাক্তার না; শুধু doctorName না থাকলেই patDoc ফলব্যাক হিসেবে ব্যবহৃত হবে
+  (appData.visits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,v.doctorName||v.patDoc,v.date,v.netBill||v.total,v.cashPaid,v.due,false,v.patGender,v.patAddress,v.nextSerialDate));
+  (appData.adminBills||[]).forEach(b=>addVisit(b.patName,b.patPhone,b.patAge,b.patDoc,b.date,b.netBill,b.cashPaid,b.due,false,b.patGender,b.patAddress,b.nextSerialDate));
   // ✅ ক্যাম্পের রোগীরাও এখন প্যাশেন্ট ডেটাবেজে যুক্ত হবে (আগে বাদ পড়ে যেত)
   (appData.campVisits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,'',v.date,v.netTotal,v.paid,v.due,true));
   const list = Object.entries(map).map(([key,p])=>{
@@ -26063,6 +26108,9 @@ function buildPatientList() {
     const genderConflict = uniqGenders.length>=2;
     p.possibleDuplicate = !p._hasPhone && (ageConflict || genderConflict);
     delete p._ages; delete p._genders; delete p._hasPhone;
+    // ✅ একাধিক বিলে "পরবর্তী সিরিয়াল" দেওয়া থাকলে সবচেয়ে কাছেরটা (সবচেয়ে আগের আসন্ন তারিখ) দেখানো হয়
+    p.nextSerialDate = p._nextSerials.length ? p._nextSerials.sort()[0] : '';
+    delete p._nextSerials;
     // ✅ জন্মতারিখ সেভ করা থাকলে সেটা থেকে হিসাব করা বয়স (typed বয়স স্ট্রিং এর চেয়ে বেশি নির্ভরযোগ্য) ব্যবহার হবে
     const profile = (appData.patientProfiles||{})[key];
     if (profile) {
@@ -26318,8 +26366,46 @@ function getPatientAppointments(key) {
 }
 const PATIENT_PAGE_SIZE = 30;
 let _patientDbPage = 1;
+// ✅ MRN ও "পরবর্তী সিরিয়াল" কলামের হেডারে ক্লিক করে অ্যাসেন্ডিং/ডিসেন্ডিং সর্ট করা যায় — ডিফল্ট অবস্থায়
+// (কোনো কলামে ক্লিক না করলে) buildPatientList()-এর স্বাভাবিক ক্রম অনুযায়ী "সর্বশেষ ভিজিট প্রথমে" দেখাবে
+let _patientDbSortCol = null;   // null | 'mrn' | 'nextSerial'
+let _patientDbSortDir = 'asc';
+function sortPatientDbBy(col) {
+  if (_patientDbSortCol === col) {
+    _patientDbSortDir = _patientDbSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _patientDbSortCol = col; _patientDbSortDir = 'asc';
+  }
+  _patientDbPage = 1;
+  renderPatientDB(document.getElementById('patientSearch')?.value?.toLowerCase().trim()||'');
+}
+function _patientDbSortArrow(col) {
+  if (_patientDbSortCol !== col) return '<span style="opacity:.3">⇅</span>';
+  return _patientDbSortDir === 'asc' ? '▲' : '▼';
+}
+function _applyPatientDbSort(list) {
+  if (!_patientDbSortCol) return list;
+  const dir = _patientDbSortDir === 'asc' ? 1 : -1;
+  const sorted = list.slice();
+  if (_patientDbSortCol === 'mrn') {
+    sorted.sort((a,b) => {
+      const na = parseInt(String(a.mrn||'').split('-')[1]) || 0;
+      const nb = parseInt(String(b.mrn||'').split('-')[1]) || 0;
+      return (na-nb) * dir;
+    });
+  } else if (_patientDbSortCol === 'nextSerial') {
+    // যাদের "পরবর্তী সিরিয়াল" তারিখ নেই তারা সবসময় সবার নিচে থাকবে (সর্ট দিক যেটাই হোক)
+    sorted.sort((a,b) => {
+      if (!a.nextSerialDate && !b.nextSerialDate) return 0;
+      if (!a.nextSerialDate) return 1;
+      if (!b.nextSerialDate) return -1;
+      return a.nextSerialDate.localeCompare(b.nextSerialDate) * dir;
+    });
+  }
+  return sorted;
+}
 function renderPatientDB(filter='') {
-  const list = getFilteredPatients(filter);
+  const list = _applyPatientDbSort(getFilteredPatients(filter));
   const tbody = document.getElementById('patientDbTable');
   const pagEl = document.getElementById('patientDbPagination');
   if(!tbody)return;
@@ -26346,9 +26432,13 @@ function renderPatientDB(filter='') {
     }
     const appts = getPatientAppointments(p._key);
     const nextAppt = appts.filter(a=>a.status==='pending'&&a.date>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0];
-    const apptBadge = nextAppt
-      ? `<span class="badge ${nextAppt.date===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">📅 ${formatDate(nextAppt.date)}${nextAppt.time?' '+nextAppt.time:''}</span>`
-      : '—';
+    // ✅ বিল থেকে দেওয়া "পরবর্তী সিরিয়াল" তারিখ থাকলে সেটাই প্রাধান্য পাবে, না থাকলে পুরনো অ্যাপয়েন্টমেন্ট-বেজড তারিখ দেখাবে
+    let nextSerialBadge = '—';
+    if (p.nextSerialDate) {
+      nextSerialBadge = `<span class="badge ${p.nextSerialDate===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">🔁 ${formatDate(p.nextSerialDate)}</span>`;
+    } else if (nextAppt) {
+      nextSerialBadge = `<span class="badge ${nextAppt.date===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">📅 ${formatDate(nextAppt.date)}${nextAppt.time?' '+nextAppt.time:''}</span>`;
+    }
     return `<tr onclick="showPatientDetail('${key}')" style="cursor:pointer" title="বিস্তারিত দেখতে ক্লিক করুন">
     <td style="color:var(--text-light)">${startIdx+i+1}</td>
     <td style="color:var(--text-light);font-size:11px">${p.mrn}</td>
@@ -26360,13 +26450,17 @@ function renderPatientDB(filter='') {
     <td style="color:var(--text-light)">${p.doctor||'—'}</td>
     <td style="text-align:center">${p.visits.length}</td>
     <td style="text-align:center">${dlvBadge}</td>
-    <td style="text-align:center">${apptBadge}</td>
+    <td style="text-align:center">${nextSerialBadge}</td>
     <td>${p.lastVisit?formatDate(p.lastVisit):'—'}</td>
     <td>৳ ${fmt(p.totalBill)}</td>
     <td style="color:var(--success)">৳ ${fmt(p.totalPaid)}</td>
     <td style="color:${p.totalDue>0?'var(--danger)':'var(--success)'}">${p.totalDue>0?'৳ '+fmt(p.totalDue):'✅'}</td>
   </tr>`;
   }).join('');
+  const mrnArrowEl = document.getElementById('pdbSortArrowMrn');
+  if (mrnArrowEl) mrnArrowEl.textContent = _patientDbSortCol==='mrn' ? (_patientDbSortDir==='asc'?'▲':'▼') : '⇅';
+  const nsArrowEl = document.getElementById('pdbSortArrowNextSerial');
+  if (nsArrowEl) nsArrowEl.textContent = _patientDbSortCol==='nextSerial' ? (_patientDbSortDir==='asc'?'▲':'▼') : '⇅';
   if (pagEl) {
     pagEl.innerHTML = `
       <button class="btn btn-outline btn-sm" ${_patientDbPage<=1?'disabled':''} onclick="changePatientDbPage(-1)">◀ আগের পাতা</button>
@@ -26660,7 +26754,7 @@ function showPatientDetail(key) {
               <button onclick="document.getElementById('patientDetailModal').remove()" style="background:#f1f5f9;border:none;width:27px;height:27px;border-radius:8px;font-size:14px;cursor:pointer;color:#64748b;line-height:1">✕</button>
             </div>
             <div style="text-align:right;font-size:10.5px;color:#94a3b8;white-space:nowrap">
-              🗓️ সর্বশেষ ভিজিট: <b style="color:#475569">${formatDate(lastVisitDate)}</b>${lastVisitAgoText?` <span style="color:#0f4c81;font-weight:700">(${lastVisitAgoText})</span>`:''}${doctor?` · 👨‍⚕️ ডা. ${doctor}`:''}
+              🗓️ সর্বশেষ ভিজিট: <b style="color:#475569">${formatDate(lastVisitDate)}</b>${lastVisitAgoText?` <span style="color:#0f4c81;font-weight:700">(${lastVisitAgoText})</span>`:''}${pInfo.nextSerialDate?` · 🔁 পরবর্তী সিরিয়াল: <b style="color:#0f4c81">${formatDate(pInfo.nextSerialDate)}</b>`:''}${doctor?` · 👨‍⚕️ ডা. ${doctor}`:''}
             </div>
           </div>
         </div>
@@ -26679,8 +26773,8 @@ function showPatientDetail(key) {
           </div>
           <div style="font-size:10px;color:#94a3b8;margin-top:5px">ℹ️ এটি শুধু প্রদর্শিত তথ্য সংশোধন করে — মূল বিল/ভিজিট রেকর্ড অপরিবর্তিত থাকে</div>
         </div>
-        <div class="pdm-summary-row" style="margin-top:9px;padding:9px 6px 6px;border-top:1px dashed #eef1f6;display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:11.5px">
-          <div style="cursor:pointer;display:flex;gap:20px;flex-wrap:wrap" onclick="closePatientDetailModal();goToIncomeForPatient('${escKey}','${escName}')" title="আয়ের পেজে গিয়ে এই রোগীর সব এন্ট্রি হাইলাইট করে দেখতে ক্লিক করুন">
+        <div class="pdm-summary-row" style="cursor:pointer;margin-top:9px;padding:9px 6px 6px;border-top:1px dashed #eef1f6;display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:11.5px" onclick="closePatientDetailModal();goToIncomeForPatient('${escKey}','${escName}')" title="আয়ের পেজে গিয়ে এই রোগীর সব এন্ট্রি হাইলাইট করে দেখতে ক্লিক করুন">
+          <div style="display:flex;gap:20px;flex-wrap:wrap">
             <div style="color:#94a3b8">মোট বিল <b style="color:#1e293b;font-size:12.5px">৳ ${fmt(totalBill)}</b></div>
             <div style="color:#94a3b8">পরিশোধ <b style="color:var(--success);font-size:12.5px">৳ ${fmt(totalPaid)}</b></div>
             <div style="color:#94a3b8">বাকি <b style="color:${totalDue>0?'var(--danger)':'var(--success)'};font-size:12.5px">${totalDue>0?'৳ '+fmt(totalDue):'✅ নেই'}</b></div>
@@ -27295,7 +27389,7 @@ function nbClearDisc() {
 }
 
 function nbClearForm() {
-  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatAddress','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt','nb_MfsPaid'].forEach(id=>{
+  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatAddress','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt','nb_MfsPaid','nb_NextSerial'].forEach(id=>{
     const el=document.getElementById(id);if(el){el.value='';el.readOnly=false;el.style.background='';}
   });
   const genderEl=document.getElementById('nb_PatGender'); if(genderEl) genderEl.value='';
@@ -27975,6 +28069,7 @@ function _billSave(p) {
   const date=(document.getElementById(nb?'nb_BillDate':'rBillDate')||{}).value;
   if(!date){showToast('⚠️ তারিখ দিন!');return;}
   const note=(document.getElementById(p+'Note')||{}).value?.trim()||'';
+  const nextSerialDate=(document.getElementById(p+'NextSerial')||{}).value||'';
   const discAmt=parseFloat((document.getElementById(nb?'nb_DiscountAmt':'rDiscountAmt')||{}).value)||0;
   const cashPaid=parseFloat((document.getElementById(nb?'nb_CashPaid':'rCashPaid')||{}).value)||0;
   let mfsPaid=parseFloat((document.getElementById(nb?'nb_MfsPaid':'rMfsPaid')||{}).value)||0;
@@ -28014,6 +28109,7 @@ function _billSave(p) {
   const patDoc=(document.getElementById(p+'PatDoc')||{}).value?.trim()||'';
 
   const _newVisit = {id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
+    nextSerialDate: nextSerialDate||undefined,
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved};
   // ✅ কমিশন প্রযোজ্য না হলেও — নির্বাচিত ডাক্তার রোগীর রেকর্ডে থেকে যায়, যাতে কোন ডাক্তার দেখেছেন তা রেকর্ড থাকে
@@ -31232,13 +31328,31 @@ function calcCashBankFlowForPrefix(prefix) {
   });
   return { cashIn, cashOut, bankIn, bankOut };
 }
+// ✅ নির্দিষ্ট মাসের জন্য মোবাইল ব্যাংকিং (সব একাউন্ট মিলিয়ে) ইন/আউট — calcMfsAccountBalance()-এর সাথে সামঞ্জস্যপূর্ণ লজিক
+function calcMfsFlowForPrefix(prefix) {
+  let mfsIn=0, mfsOut=0;
+  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId&&e.mfsAccountId).forEach(e=>{
+    mfsIn += (e.mfsPaid!=null ? e.mfsPaid : (e.payMode==='mfs'?e.amount:0)) || 0;
+  });
+  (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)&&v.mfsAccountId).forEach(v=>{ mfsIn += (v.mfsPaid||0); });
+  (appData.expense||[]).filter(e=>e.payMode==='mfs'&&expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).forEach(e=>{ mfsOut += (e.amount||0); });
+  (appData.bankTx||[]).filter(tx=>tx.date&&tx.date.startsWith(prefix)).forEach(tx=>{
+    if(tx.type==='mfs_in') mfsIn+=tx.amount;
+    else if(tx.type==='mfs_out') mfsOut+=tx.amount;
+    else if(tx.type==='cash_to_mfs'||tx.type==='bank_to_mfs') mfsIn+=tx.amount;
+    else if(tx.type==='mfs_to_cash'||tx.type==='mfs_to_bank') mfsOut+=tx.amount;
+  });
+  return { mfsIn, mfsOut };
+}
 function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
   const wrap = document.getElementById('dashCashFlowPnLPanel');
   if (!wrap) return;
 
-  // --- Cash Flow: এই মাসের ক্যাশ ও ব্যাংক ইন/আউট — আলাদাভাবে ---
+  // --- Cash Flow: এই মাসের ক্যাশ, ব্যাংক ও মোবাইল ব্যাংকিং ইন/আউট — আলাদাভাবে ---
   const { cashIn, cashOut, bankIn, bankOut } = calcCashBankFlowForPrefix(prefix);
   const { cash: liveCash, bank: liveBank } = calcCashBankBalance();
+  const { mfsIn, mfsOut } = (typeof calcMfsFlowForPrefix==='function') ? calcMfsFlowForPrefix(prefix) : {mfsIn:0,mfsOut:0};
+  const liveMfs = (typeof calcTotalMfsBalance==='function') ? calcTotalMfsBalance() : 0;
 
   const pnl = calcProfitLossForPrefix(prefix);
   const netProfit = pnl.grossProfit - mExp - totalMonthlyFixed;
@@ -31268,6 +31382,7 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
       + summaryCol('ব্যাংক ব্যালেন্স', '৳ '+fmt(liveBank), '#3498db', true, 'rgba(52,152,219,0.06)')
       + summaryCol('ক্যাশ ইন/আউট', '৳ '+fmt(cashIn)+' / ৳ '+fmt(cashOut), '#16a34a', true, 'rgba(22,163,74,0.06)')
       + summaryCol('ব্যাংক ইন/আউট', '৳ '+fmt(bankIn)+' / ৳ '+fmt(bankOut), '#3498db', true, 'rgba(52,152,219,0.06)')
+      + summaryCol('মোবাইল ব্যাংকিং ইন/আউট', '৳ '+fmt(mfsIn)+' / ৳ '+fmt(mfsOut), '#d63384', true, 'rgba(214,51,132,0.06)')
       + summaryCol('নিট মুনাফা/লোকসান', (netProfit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(netProfit)), netProfit>=0?'#8e44ad':'#dc2626', false, 'rgba(142,68,173,0.06)');
   }
 
@@ -31280,8 +31395,11 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
           ${row('ক্যাশ আউট (নগদে পরিশোধিত ব্যয়)', cashOut, 'var(--danger)')}
           ${row('ব্যাংক ইন', bankIn, 'var(--success)')}
           ${row('ব্যাংক আউট (চেক/ব্যাংকে পরিশোধিত ব্যয়)', bankOut, 'var(--danger)')}
+          ${row('মোবাইল ব্যাংকিং ইন (বিকাশ/নগদ/রকেট)', mfsIn, 'var(--success)')}
+          ${row('মোবাইল ব্যাংকিং আউট', mfsOut, 'var(--danger)')}
           ${row('বর্তমান ক্যাশ ব্যালেন্স', liveCash, 'var(--primary)', true)}
           ${row('বর্তমান ব্যাংক ব্যালেন্স', liveBank, 'var(--primary)')}
+          ${row('বর্তমান মোবাইল ব্যাংকিং ব্যালেন্স (সব একাউন্ট)', liveMfs, '#d63384')}
         </div>
       </div>
       <div class="panel" style="margin:0">
@@ -31295,7 +31413,7 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
         </div>
       </div>
     </div>
-    <div style="font-size:11px;color:#94a3b8;padding:8px 4px 0">* এই মুহূর্তে সব আয়ই "ক্যাশ ইন" হিসেবে গণনা হয় (সরাসরি ব্যাংকে আয় জমার আলাদা ব্যবস্থা এখনো নেই)। "ব্যাংক ইন" শুধু ক্যাশ→ব্যাংক ট্রান্সফার বা ম্যানুয়াল ব্যাংক-অ্যাডজাস্টমেন্ট থেকে আসে।</div>`;
+    <div style="font-size:11px;color:#94a3b8;padding:8px 4px 0">* বিলে/আয় এন্ট্রিতে পেমেন্ট মাধ্যম হিসেবে ক্যাশ, ব্যাংক বা মোবাইল ব্যাংকিং (বিকাশ/নগদ/রকেট) নির্বাচন করা থাকলে সেই অনুযায়ী উপরের ইন/আউট আলাদাভাবে গণনা হয় — একই টাকা দুইবার গণনা হয় না। মোবাইল ব্যাংকিং একাউন্ট ⇄ ক্যাশ/ব্যাংক ট্রান্সফার করতে সেটিংস → 📱 মোবাইল ব্যাংকিং একাউন্ট পেজে যান।</div>`;
   // ✅ প্যানেলটা এক্সপ্যান্ডেড থাকলে (ইউজার আগেই খুলেছিল) নতুন কন্টেন্টের উচ্চতা অনুযায়ী max-height আপডেট করা হয়
   if (_cfPnlExpanded) wrap.style.maxHeight = wrap.scrollHeight + 'px';
 }
