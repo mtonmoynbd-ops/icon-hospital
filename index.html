@@ -8837,6 +8837,41 @@ const debouncedRealtimeOwnerRebuild = debounce(() => {
     openRoleFeature(getPreferredRoleFeature(currentUser.role));
   }
 }, 500);
+// ✅ রিসেপশনিস্ট প্যানেল — ট্যাব অনুযায়ী কোন লিস্ট/ব্যাজ রিয়েল-টাইমে নিরাপদে রিফ্রেশ করা যায় (সক্রিয় "নতুন বিল"
+// ফর্ম বাদে, যাতে রিসেপশনিস্ট টাইপ করার সময় ফর্মের ডাটা হারিয়ে না যায়)
+const RECEPTIONIST_SAFE_TAB_REFRESH = {
+  due:         () => { if (typeof renderRecDue==='function') renderRecDue(); },
+  history:     () => { if (typeof renderRecHistory==='function') renderRecHistory(); },
+  delivery:    () => { if (typeof renderRecDeliveryTable==='function') renderRecDeliveryTable('all'); },
+  search:      () => { if (typeof renderRecPatientDB==='function') renderRecPatientDB((document.getElementById('recPatientDbSearch')||{}).value?.toLowerCase().trim()||''); },
+  appointment: () => { if (typeof renderRecAppointments==='function') renderRecAppointments(); },
+  queue:       () => { if (typeof renderRecTokenQueue==='function') renderRecTokenQueue(); },
+  callsheet:   () => { if (typeof renderRecCallSheet==='function') renderRecCallSheet(); },
+  recall:      () => { if (typeof renderRecRecallList==='function') renderRecRecallList(); },
+  directory:   () => {
+    if (typeof renderRecDoctorDirectory==='function') renderRecDoctorDirectory();
+    if (typeof renderServiceCatalog==='function') renderServiceCatalog();
+    if (typeof renderRecCampSchedule==='function') renderRecCampSchedule();
+  },
+  inquiry:     () => { if (typeof renderInquiryLog==='function') renderInquiryLog(); },
+  attendance:  () => { if (typeof renderRecAttendancePage==='function') renderRecAttendancePage(); },
+  lookup:      () => { if (typeof renderPriceCatalog==='function') renderPriceCatalog(); },
+};
+const debouncedRealtimeReceptionistRefresh = debounce(() => {
+  if (!currentUser || currentUser.role !== 'receptionist') return;
+  // ✅ এগুলো সবসময় নিরাপদ (শুধু ব্যাজ/সামারি/নোটিফিকেশন, কোনো ফর্ম-ইনপুট টাচ করে না) — তাই ট্যাব যাই খোলা থাকুক, রিফ্রেশ হবে
+  if (typeof renderRecDaySummary==='function') renderRecDaySummary();
+  if (typeof renderRecRecentPatients==='function') renderRecRecentPatients();
+  if (typeof renderRecDeliveryBadge==='function') renderRecDeliveryBadge();
+  if (typeof renderRecApptBadge==='function') renderRecApptBadge();
+  if (typeof updateRecNotifBell==='function') updateRecNotifBell();
+  // ✅ বর্তমানে খোলা ট্যাবের তালিকা/টেবিলও রিফ্রেশ হবে ("নতুন বিল" ফর্ম-ট্যাব বাদে)
+  const activeTabEl = document.querySelector('#recPage .rec-tab-view.active');
+  const activeTab = activeTabEl ? activeTabEl.id.replace(/^rec-/, '') : '';
+  if (activeTab && activeTab !== 'new' && RECEPTIONIST_SAFE_TAB_REFRESH[activeTab]) {
+    try { RECEPTIONIST_SAFE_TAB_REFRESH[activeTab](); } catch(e) { console.warn('[HMS] রিসেপশন রিয়েল-টাইম রিফ্রেশ ব্যর্থ:', e); }
+  }
+}, 500);
 function startFirebaseSync() {
   if (!window._fbDb || !window._fbRef || !window._fbOnValue) { setTimeout(startFirebaseSync, 500); return; }
   const dataRef = window._fbRef(window._fbDb, window._fbDBREF);
@@ -8916,6 +8951,10 @@ function startFirebaseSync() {
         // ইত্যাদি) সেগুলো ইচ্ছাকৃতভাবে বাদ রাখা হয়েছে, যাতে অন্য কারো এন্ট্রির কারণে এই ইউজারের টাইপ করা ডাটা মুছে না যায়
         if (anyModuleApplied && currentActivePage && REALTIME_SAFE_PAGE_REFRESH[currentActivePage]) {
           try { REALTIME_SAFE_PAGE_REFRESH[currentActivePage](); } catch(e) { console.warn('[HMS] রিয়েল-টাইম পেজ রিফ্রেশ ব্যর্থ:', e); }
+        }
+        // ✅ রিসেপশনিস্ট প্যানেল (ব্যাজ/সামারি/নোটিফিকেশন + বর্তমান ট্যাবের তালিকা) রিয়েল-টাইমে ডিবাউন্স করে রিফ্রেশ
+        if (currentUser.role === 'receptionist') {
+          debouncedRealtimeReceptionistRefresh();
         }
         // ফিচার অ্যাক্সেস রিয়েলটাইম আপডেট
         if (currentUser.role === 'moderator') {
