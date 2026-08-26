@@ -127,18 +127,17 @@
   .login-foot{margin-top:16px;text-align:center;font-size:10.5px;color:var(--text-light);letter-spacing:.3px;}
 
   @media (max-width:980px){
-    #loginPage{align-items:stretch;overflow-y:auto;}
-    .login-shell{grid-template-columns:1fr;max-width:100%;gap:0;padding:0;min-height:100vh;}
+    #loginPage{align-items:center;justify-content:center;overflow-y:auto;padding:22px 14px;}
+    .login-shell{grid-template-columns:1fr;max-width:440px;gap:0;padding:0;margin:auto;min-height:0;}
     .login-hero{display:none;}
-    .login-card{width:100%;max-width:100%;min-height:100vh;margin:0;border-radius:0;padding:36px 28px 32px;background:#fff;box-shadow:none;display:flex;flex-direction:column;justify-content:center;}
-    .login-card::before{display:none;}
-    .login-logo{margin-bottom:28px;}
-    .login-logo img{height:82px;}
-    .login-welcome{margin-bottom:26px;}
+    .login-card{width:100%;max-width:420px;min-height:0;margin:0 auto;border-radius:24px;padding:32px 24px 26px;}
+    .login-logo{margin-bottom:22px;}
+    .login-logo img{height:72px;}
+    .login-welcome{margin-bottom:20px;}
     .login-welcome strong{font-size:19px;}
     .login-welcome span{font-size:13px;}
     .btn-login{border-radius:14px;}
-    .login-foot{font-size:11px;margin-top:22px;}
+    .login-foot{font-size:11px;margin-top:18px;}
   }
 
   /* MAIN APP */
@@ -2243,7 +2242,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 </script>
 
 <!-- MAIN APP (admin + moderator) -->
-<div id="appPage" style="display: block;">
+<div id="appPage" style="display: none;">
   <div id="modTopBar" style="display:none;background:#ffffff;padding:8px 20px;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0;">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="" id="modLogoImg" class="role-mobile-logo" alt="ICON Eye Hospital" style="height:36px;object-fit:contain;">
@@ -6958,7 +6957,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <input type="text" id="recPatientDbSearch" oninput="searchRecPatients()" placeholder="🔍 নাম, ফোন বা MRN দিয়ে খুঁজুন..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;width:220px">
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>চশমা ডেলিভারি</th><th>পরবর্তী সিরিয়াল</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
+          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
           <tbody id="recPatientDbTable"></tbody>
         </table></div>
         <div id="recPatientDbPagination" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 0"></div>
@@ -11994,10 +11993,9 @@ function renderAdminDue() {
     <td>৳ ${fmt(v.total)}</td>
     <td style="color:var(--success);font-weight:600">৳ ${fmt(v.cashPaid)}</td>
     <td style="color:#9b59b6;font-weight:700">৳ ${fmt(v.due)}</td>
-    <td style="display:flex;gap:4px;flex-wrap:wrap">
+    <td style="display:flex;gap:4px">
       <button class="btn btn-purple btn-sm" onclick="openDueModal(${v.id})">💳 আদায়</button>
       <button class="btn btn-outline btn-sm" onclick="openDueWaiveModal(${v.id})">🤲 মওকুফ</button>
-      <button class="btn btn-outline btn-sm" onclick="openDueHistoryModal(${v.id})" title="পূর্বের আদায়/মওকুফ হিস্ট্রি">🕘 হিস্ট্রি</button>
     </td>
   </tr>`).join('');
   renderDueHistory();
@@ -27158,7 +27156,7 @@ function renderRecPatientDB(filter='') {
   const pagEl = document.getElementById('recPatientDbPagination');
   if(!tbody) return;
   if(!list.length){
-    tbody.innerHTML='<tr><td colspan="15" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
+    tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
     if(pagEl) pagEl.innerHTML='';
     return;
   }
@@ -27167,25 +27165,8 @@ function renderRecPatientDB(filter='') {
   if (_recPatientDbPage < 1) _recPatientDbPage = 1;
   const startIdx = (_recPatientDbPage-1)*PATIENT_PAGE_SIZE;
   const pageList = list.slice(startIdx, startIdx+PATIENT_PAGE_SIZE);
-  const today = todayStr();
   tbody.innerHTML = pageList.map((p,i)=>{
     const key=p._key.replace(/'/g,"\\'");
-    const dOrders = getPatientDeliveryOrders(p._key);
-    const pendingCnt = dOrders.filter(d=>d.status==='pending').length;
-    let dlvBadge = '—';
-    if (dOrders.length) {
-      dlvBadge = pendingCnt
-        ? `<span class="badge badge-warning" style="font-size:10px;padding:2px 6px">📦 ${pendingCnt}টি পেন্ডিং</span>`
-        : `<span class="badge badge-income" style="font-size:10px;padding:2px 6px">✅ ডেলিভারড</span>`;
-    }
-    const appts = getPatientAppointments(p._key);
-    const nextAppt = appts.filter(a=>a.status==='pending'&&a.date>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0];
-    let nextSerialBadge = '—';
-    if (p.nextSerialDate) {
-      nextSerialBadge = `<span class="badge ${p.nextSerialDate===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">🔁 ${formatDate(p.nextSerialDate)}</span>`;
-    } else if (nextAppt) {
-      nextSerialBadge = `<span class="badge ${nextAppt.date===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">📅 ${formatDate(nextAppt.date)}${nextAppt.time?' '+nextAppt.time:''}</span>`;
-    }
     return `<tr onclick="showPatientDetail('${key}')" style="cursor:pointer" title="বিস্তারিত দেখতে ক্লিক করুন">
     <td style="color:var(--text-light)">${startIdx+i+1}</td>
     <td style="color:var(--text-light);font-size:11px">${p.mrn}</td>
@@ -27196,8 +27177,6 @@ function renderRecPatientDB(filter='') {
     <td style="color:var(--text-light);font-size:12px">${p.address||'—'}</td>
     <td style="color:var(--text-light)">${p.doctor||'—'}</td>
     <td style="text-align:center">${p.visits.length}</td>
-    <td style="text-align:center">${dlvBadge}</td>
-    <td style="text-align:center">${nextSerialBadge}</td>
     <td>${p.lastVisit?formatDate(p.lastVisit):'—'}</td>
     <td>৳ ${fmt(p.totalBill)}</td>
     <td style="color:var(--success)">৳ ${fmt(p.totalPaid)}</td>
