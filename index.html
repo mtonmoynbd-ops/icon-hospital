@@ -127,17 +127,18 @@
   .login-foot{margin-top:16px;text-align:center;font-size:10.5px;color:var(--text-light);letter-spacing:.3px;}
 
   @media (max-width:980px){
-    #loginPage{align-items:center;justify-content:center;overflow-y:auto;padding:22px 14px;}
-    .login-shell{grid-template-columns:1fr;max-width:440px;gap:0;padding:0;margin:auto;min-height:0;}
+    #loginPage{align-items:stretch;overflow-y:auto;}
+    .login-shell{grid-template-columns:1fr;max-width:100%;gap:0;padding:0;min-height:100vh;}
     .login-hero{display:none;}
-    .login-card{width:100%;max-width:420px;min-height:0;margin:0 auto;border-radius:24px;padding:32px 24px 26px;}
-    .login-logo{margin-bottom:22px;}
-    .login-logo img{height:72px;}
-    .login-welcome{margin-bottom:20px;}
+    .login-card{width:100%;max-width:100%;min-height:100vh;margin:0;border-radius:0;padding:36px 28px 32px;background:#fff;box-shadow:none;display:flex;flex-direction:column;justify-content:center;}
+    .login-card::before{display:none;}
+    .login-logo{margin-bottom:28px;}
+    .login-logo img{height:82px;}
+    .login-welcome{margin-bottom:26px;}
     .login-welcome strong{font-size:19px;}
     .login-welcome span{font-size:13px;}
     .btn-login{border-radius:14px;}
-    .login-foot{font-size:11px;margin-top:18px;}
+    .login-foot{font-size:11px;margin-top:22px;}
   }
 
   /* MAIN APP */
@@ -2242,7 +2243,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 </script>
 
 <!-- MAIN APP (admin + moderator) -->
-<div id="appPage" style="display: none;">
+<div id="appPage" style="display: block;">
   <div id="modTopBar" style="display:none;background:#ffffff;padding:8px 20px;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.12);border-bottom:1px solid #e2e8f0;">
     <div style="display:flex;align-items:center;gap:12px">
       <img src="" id="modLogoImg" class="role-mobile-logo" alt="ICON Eye Hospital" style="height:36px;object-fit:contain;">
@@ -2272,6 +2273,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="nav-item" data-page="recdeposit"><span class="nav-icon">🏦</span> রিসেপশন রেকর্ড</div>
       <div class="nav-item" data-page="delivery"><span class="nav-icon">🚚</span> ডেলিভারি শিডিউল</div>
       <div class="nav-item" data-page="callsheet"><span class="nav-icon">📞</span> আজকের কল লিস্ট <span class="nbadge" id="admCallBadge" style="display:none">!</span></div>
+      <div class="nav-item" data-page="appointment"><span class="nav-icon">📅</span> সিরিয়াল <span class="nbadge" id="admApptBadge" style="display:none">!</span></div>
+      <div class="nav-item" data-page="queue"><span class="nav-icon">🎫</span> টোকেন/কিউ <span class="nbadge" id="admQueueBadge" style="display:none">!</span></div>
+      <div class="nav-item" data-page="recall"><span class="nav-icon">🔁</span> রিকল লিস্ট <span class="nbadge" id="admRecallBadge" style="display:none">!</span></div>
+      <div class="nav-item" data-page="directory"><span class="nav-icon">📇</span> তথ্য কেন্দ্র</div>
       <div class="nav-item" data-page="due"><span class="nav-icon">⏳</span> বাকি খাতা <span class="nbadge" id="dueNavBadge" style="display:none">!</span></div>
     </div>
     <div class="nav-section">
@@ -3000,6 +3005,181 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <tbody id="admCallApptTable"></tbody>
           </table></div>
         </div>
+      </div>
+    </div>
+
+    <!-- সিরিয়াল / অ্যাপয়েন্টমেন্ট (অ্যাডমিন — রিসেপশনের মতোই, রোগির ডাটাবেসের "পরবর্তী সিরিয়াল"-সহ) -->
+    <div id="pg-appointment" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📅 সিরিয়াল / অ্যাপয়েন্টমেন্ট</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleAdmApptForm()">➕ নতুন সিরিয়াল</button>
+        </div>
+        <div class="panel-body" id="admApptFormArea" style="display:none">
+          <div class="form-row three">
+            <div class="field"><label>রোগীর নাম *</label><input type="text" id="admaptName" placeholder="পূর্ণ নাম"></div>
+            <div class="field"><label>ফোন নম্বর</label><input type="text" id="admaptPhone" placeholder="০১XXXXXXXXX"></div>
+            <div class="field"><label>ডাক্তার</label>
+              <select id="admaptDoctor"><option value="">-- ডাক্তার বেছে নিন (ঐচ্ছিক) --</option></select>
+            </div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>তারিখ *</label><input type="date" id="admaptDate"></div>
+            <div class="field"><label>সময়</label><input type="time" id="admaptTime"></div>
+            <div class="field"><label>নোট</label><input type="text" id="admaptNote" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="toggleAdmApptForm()">বাতিল</button>
+            <button class="btn btn-success" onclick="saveAppointment('admapt')">✅ সিরিয়াল রাখুন</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <select id="admaptFilter" onchange="renderAdminAppointments()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="upcoming">আসন্ন সিরিয়াল</option>
+              <option value="today">শুধু আজকের</option>
+              <option value="all">সব</option>
+            </select>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>তারিখ</th><th>সময়</th><th>রোগীর নাম</th><th>ফোন</th><th>ডাক্তার</th><th>নোট</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="admApptTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- টোকেন/কিউ ব্যবস্থাপনা (অ্যাডমিন — রোগি সরাসরি রুমে এলে অ্যাডমিন নিজেই টোকেন দিতে/ম্যানেজ করতে পারবেন) -->
+    <div id="pg-queue" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🎫 টোকেন/কিউ ব্যবস্থাপনা</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="font-size:13px;color:var(--text-light)">আজ: <strong id="admQueueDateLabel"></strong></div>
+            <select id="admtqDocSelect" onchange="onQueueDoctorChange('admtq')" title="আজকের দায়িত্বরত ডাক্তার নির্বাচন করুন" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px"><option value="">🩺 আজকের ডাক্তার নির্বাচন করুন</option></select>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="form-row three">
+            <div class="field"><label>রোগীর নাম</label><input type="text" id="admtqName" placeholder="নাম (ঐচ্ছিক)"></div>
+            <div class="field"><label>ফোন নম্বর</label><input type="text" id="admtqPhone" placeholder="০১XXXXXXXXX (ঐচ্ছিক)"></div>
+            <div class="field"><label>ঠিকানা</label><input type="text" id="admtqAddress" placeholder="গ্রাম/এলাকা, উপজেলা, জেলা (ঐচ্ছিক)"></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-success" onclick="addTokenQueue('admtq')">🎫 নতুন টোকেন দিন</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">⏳ অপেক্ষমান তালিকা</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div id="admQueueDoctorHeader" style="font-size:12.5px;font-weight:700;color:#7c3aed"></div>
+            <div id="admQueueCurrentServing" style="font-size:13px;font-weight:700;color:var(--primary)"></div>
+          </div>
+        </div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>টোকেন#</th><th>নাম</th><th>ফোন</th><th>ঠিকানা</th><th>অপেক্ষার সময়</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+          <tbody id="admQueueTable"></tbody>
+        </table></div></div>
+      </div>
+    </div>
+
+    <!-- রিকল/রিটেনশন লিস্ট (অ্যাডমিন) -->
+    <div id="pg-recall" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔁 রিকল/রিটেনশন লিস্ট</div>
+          <select id="admRecallRange" onchange="renderAdminRecallList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <option value="180">৬ মাস+ আসেননি</option>
+            <option value="270">৯ মাস+ আসেননি</option>
+            <option value="365" selected>১ বছর+ আসেননি</option>
+          </select>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px">যেসব রোগী দীর্ঘদিন আসেননি, তাদের বার্ষিক চেকআপের জন্য কল করা যেতে পারে।</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>MRN</th><th>নাম</th><th>ফোন</th><th>শেষ ভিজিট</th><th>কতদিন আগে</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="admRecallTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- তথ্য কেন্দ্র: ডাক্তার ডিরেক্টরি, সার্ভিস/অপারেশন তালিকা, ক্যাম্প শিডিউল (অ্যাডমিন) -->
+    <div id="pg-directory" class="page-view">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🩺 ডাক্তার ডিরেক্টরি</div>
+          <select id="admdirDocCat" onchange="renderRecDoctorDirectory()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <option value="">সব ধরন</option>
+            <option value="duty">ডিউটি ডাক্তার</option>
+            <option value="specialist">স্পেশালিস্ট</option>
+            <option value="surgeon">সার্জন</option>
+            <option value="other">অন্যান্য</option>
+          </select>
+        </div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>নাম</th><th>ধরন</th><th>বিশেষত্ব</th><th>মূল কর্মস্থল / পরিচিতি</th><th>কবে/কখন পাওয়া যাবে</th><th>চেম্বার/অবস্থান</th><th>ফোন</th><th>আজ উপস্থিত?</th></tr></thead>
+          <tbody id="admDoctorDirTable"></tbody>
+        </table></div>
+        <p style="font-size:11.5px;color:#94a3b8;margin-top:8px">ℹ️ ডাক্তারের তথ্য "ডাক্তার ব্যবস্থাপনা" পেজ থেকে যোগ/সম্পাদনা করা যায়।</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🩺 সার্ভিস, অপারেশন ও চিকিৎসা তালিকা</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleServiceForm('adm')">➕ নতুন যোগ করুন</button>
+        </div>
+        <div class="panel-body" id="admsvcFormArea" style="display:none">
+          <input type="hidden" id="admsvcEditId" value="">
+          <div class="form-row three">
+            <div class="field"><label>নাম *</label><input type="text" id="admsvcName" placeholder="যেমন: ছানি অপারেশন (Phaco)"></div>
+            <div class="field"><label>ধরন *</label>
+              <select id="admsvcCategory">
+                <option value="operation">অপারেশন</option>
+                <option value="test">টেস্ট / পরীক্ষা</option>
+                <option value="service">সার্ভিস</option>
+                <option value="consultation">পরামর্শ</option>
+                <option value="treatment">চিকিৎসা</option>
+              </select>
+            </div>
+            <div class="field"><label>স্ট্যাটাস</label>
+              <select id="admsvcStatus"><option value="active">✅ সম্ভব (এখন করা হয়)</option><option value="inactive">⏸️ সাময়িক বন্ধ</option></select>
+            </div>
+          </div>
+          <div class="field"><label>নোট <span style="font-size:11px;color:var(--text-light)">(ঐচ্ছিক)</span></label><input type="text" id="admsvcNote" placeholder="ঐচ্ছিক"></div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="toggleServiceForm('adm')">বাতিল</button>
+            <button class="btn btn-success" onclick="saveServiceCatalogItem('adm')">✅ সেভ করুন</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0">
+          <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            <input type="text" id="admsvcSearchQuery" placeholder="🔍 নাম দিয়ে খুঁজুন..." oninput="renderServiceCatalog()" style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <select id="admsvcFilterCat" onchange="renderServiceCatalog()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব ধরন</option>
+              <option value="operation">অপারেশন</option>
+              <option value="test">টেস্ট / পরীক্ষা</option>
+              <option value="service">সার্ভিস</option>
+              <option value="consultation">পরামর্শ</option>
+              <option value="treatment">চিকিৎসা</option>
+            </select>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>নাম</th><th>ধরন</th><th>স্ট্যাটাস</th><th>নোট</th><th>অ্যাকশন</th></tr></thead>
+            <tbody id="admsvcCatalogTable"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">⛺ আসন্ন ক্যাম্প শিডিউল</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>স্ট্যাটাস</th></tr></thead>
+          <tbody id="admCampScheduleTable"></tbody>
+        </table></div></div>
       </div>
     </div>
 
@@ -6957,7 +7137,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <input type="text" id="recPatientDbSearch" oninput="searchRecPatients()" placeholder="🔍 নাম, ফোন বা MRN দিয়ে খুঁজুন..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;width:220px">
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
+          <thead><tr><th>#</th><th>MRN</th><th>রোগীর নাম</th><th>ফোন</th><th>বয়স</th><th>লিঙ্গ</th><th>ঠিকানা</th><th>ডাক্তার</th><th>ভিজিট সংখ্যা</th><th>চশমা ডেলিভারি</th><th>পরবর্তী সিরিয়াল</th><th>সর্বশেষ ভিজিট</th><th>মোট বিল</th><th>মোট পরিশোধ</th><th>বাকি</th></tr></thead>
           <tbody id="recPatientDbTable"></tbody>
         </table></div>
         <div id="recPatientDbPagination" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 0"></div>
@@ -8830,6 +9010,7 @@ function startApp() {
     renderQuickAccessBar(currentActivePage || 'dashboard');
     applyDashCardOrder();
     if (typeof renderAdminCallBadge==='function') renderAdminCallBadge();
+    if (typeof renderAdminApptBadge==='function') renderAdminApptBadge();
   }
 }
 
@@ -9537,6 +9718,10 @@ const pageMap = {
   balancesheet: { title:'📊 ব্যালেন্স শিট', sub:'ডে ওয়াইজ ও মান্থ ওয়াইজ ক্যাশ ব্যালেন্স' },
   delivery:     { title:'🚚 ডেলিভারি শিডিউল', sub:'চশমা ও অন্যান্য অর্ডারের ডেলিভারি ট্র্যাকিং' },
   callsheet:    { title:'📞 আজকের কল লিস্ট', sub:'ডেলিভারি রেডি/ওভারডিউ ও সিরিয়াল রিমাইন্ডার — কল লগ' },
+  appointment:  { title:'📅 সিরিয়াল / অ্যাপয়েন্টমেন্ট', sub:'রোগীর সিরিয়াল বুকিং ও পরবর্তী ভিজিট রিমাইন্ডার' },
+  queue:        { title:'🎫 টোকেন/কিউ ব্যবস্থাপনা', sub:'ওয়াক-ইন রোগীদের লাইভ সিরিয়াল/টোকেন' },
+  recall:       { title:'🔁 রিকল/রিটেনশন লিস্ট', sub:'দীর্ঘদিন না আসা রোগীদের বার্ষিক চেকআপ রিমাইন্ডার' },
+  directory:    { title:'📇 তথ্য কেন্দ্র', sub:'ডাক্তার ডিরেক্টরি, সার্ভিস/অপারেশন তালিকা ও ক্যাম্প শিডিউল' },
 };
 function showPage(name) {
   if ((name === 'settings'||name==='adminbill') && currentUser.role !== 'admin') return;
@@ -9591,6 +9776,10 @@ function showPage(name) {
   if (name === 'balancesheet') { renderBalanceSheet(); }
   if (name === 'delivery')     { renderDeliveryTable('all'); }
   if (name === 'callsheet')    { renderAdminCallSheet(); }
+  if (name === 'appointment')  { renderAdminAppointments(); }
+  if (name === 'queue')        { renderTokenQueue(); }
+  if (name === 'recall')       { renderAdminRecallList(); }
+  if (name === 'directory')    { renderRecDoctorDirectory(); renderServiceCatalog(); renderRecCampSchedule(); }
   if (name === 'inquiries')    { initInquiriesPage(); }
   if (currentUser && currentUser.role === 'moderator') renderRoleBottomTabs('mod', name);
   renderQuickAccessBar(name);
@@ -11993,9 +12182,10 @@ function renderAdminDue() {
     <td>৳ ${fmt(v.total)}</td>
     <td style="color:var(--success);font-weight:600">৳ ${fmt(v.cashPaid)}</td>
     <td style="color:#9b59b6;font-weight:700">৳ ${fmt(v.due)}</td>
-    <td style="display:flex;gap:4px">
+    <td style="display:flex;gap:4px;flex-wrap:wrap">
       <button class="btn btn-purple btn-sm" onclick="openDueModal(${v.id})">💳 আদায়</button>
       <button class="btn btn-outline btn-sm" onclick="openDueWaiveModal(${v.id})">🤲 মওকুফ</button>
+      <button class="btn btn-outline btn-sm" onclick="openDueHistoryModal(${v.id})" title="পূর্বের আদায়/মওকুফ হিস্ট্রি">🕘 হিস্ট্রি</button>
     </td>
   </tr>`).join('');
   renderDueHistory();
@@ -24948,14 +25138,25 @@ function renderInquiryLogAdmin() {
 }
 
 // ✅ সিরিয়াল ট্যাবে ব্যাজ — আজকের অপেক্ষমাণ সিরিয়াল সংখ্যা
-function renderRecApptBadge() {
-  var badge = document.getElementById('recApptBadge');
+// ✅ সিরিয়াল/অ্যাপয়েন্টমেন্ট পেজ রিসেপশন ও অ্যাডমিন উভয় প্যানেলেই আছে — একই ডেটার উপর কাজ করে,
+// শুধু DOM এলিমেন্ট আইডি আলাদা (rapt.../admapt...) — এই ম্যাপ দিয়ে prefix অনুযায়ী সঠিক এলিমেন্ট বাছাই হয়
+var _APPT_IDS = {
+  rapt:   { formArea:'recApptFormArea', name:'raptName', phone:'raptPhone', doctor:'raptDoctor', date:'raptDate', time:'raptTime', note:'raptNote', filter:'raptFilter', table:'recApptTable', badge:'recApptBadge' },
+  admapt: { formArea:'admApptFormArea', name:'admaptName', phone:'admaptPhone', doctor:'admaptDoctor', date:'admaptDate', time:'admaptTime', note:'admaptNote', filter:'admaptFilter', table:'admApptTable', badge:'admApptBadge' }
+};
+function renderApptBadge(prefix) {
+  var ids = _APPT_IDS[prefix||'rapt']; if (!ids) return;
+  var badge = document.getElementById(ids.badge);
   if (!badge) return;
   var today = todayStr();
-  var count = (appData.appointments||[]).filter(function(a){ return a.date===today && a.status==='pending'; }).length;
+  var apptCount = (appData.appointments||[]).filter(function(a){ return a.date===today && a.status==='pending'; }).length;
+  var serialCount = (appData.visits||[]).concat(appData.adminBills||[]).filter(function(v){ return v.nextSerialDate===today && !v.calledAt; }).length;
+  var count = apptCount + serialCount;
   badge.textContent = count>99?'৯৯+':count;
   badge.style.display = count>0 ? 'inline-block' : 'none';
 }
+function renderRecApptBadge() { renderApptBadge('rapt'); }
+function renderAdminApptBadge() { renderApptBadge('admapt'); }
 
 // ===== টোকেন/কিউ ব্যবস্থাপনা (ওয়াক-ইন রোগীদের জন্য লাইভ সিরিয়াল) =====
 // ✅ ডাক্তার প্রতি টোকেনে আলাদা করে সিলেক্ট হয় না — সারাদিনের জন্য একবার সিলেক্ট হয় এবং তা "নতুন বিল"-এর
@@ -24966,8 +25167,15 @@ function getTodayQueueDoctor() {
   if (!savedId) return null;
   return (appData.doctors||[]).find(d=>String(d.id)===String(savedId)) || null;
 }
-function onQueueDoctorChange() {
-  const sel = document.getElementById('tqDocSelect');
+// ✅ টোকেন/কিউ পেজ রিসেপশন ও অ্যাডমিন উভয় প্যানেলেই আছে — একই appData.tokenQueue-এর উপর কাজ করে,
+// রেন্ডার করার সময় দুই প্যানেলের এলিমেন্টই (যেটা DOM-এ থাকে) একসাথে আপডেট হয়ে যায়
+var _QUEUE_ID_SETS = [
+  { docSelect:'tqDocSelect', dateLabel:'recQueueDateLabel', docHeader:'recQueueDoctorHeader', serving:'recQueueCurrentServing', table:'recQueueTable', badge:'recQueueBadge' },
+  { docSelect:'admtqDocSelect', dateLabel:'admQueueDateLabel', docHeader:'admQueueDoctorHeader', serving:'admQueueCurrentServing', table:'admQueueTable', badge:'admQueueBadge' }
+];
+function onQueueDoctorChange(prefix) {
+  prefix = prefix || 'tq';
+  const sel = document.getElementById(prefix+'DocSelect');
   const doctorId = sel ? sel.value : '';
   try { localStorage.setItem('recDefaultDoctorId_'+todayStr(), doctorId||''); } catch(e){}
   // ✅ রিসেপশন ও অ্যাডমিন/মড নতুন বিলের ডাক্তার সিলেক্টেও একই সিলেকশন বসিয়ে দিচ্ছি, যাতে সব জায়গায় একই থাকে
@@ -24975,32 +25183,19 @@ function onQueueDoctorChange() {
     const s = document.getElementById(id);
     if (s && s.value !== doctorId) { s.value = doctorId; if (typeof onDocSelectChange==='function') onDocSelectChange(id==='rDocSelect'?'r':'nb_'); }
   });
-  renderRecTokenQueue();
+  renderTokenQueue();
 }
-function renderRecTokenQueue() {
+function renderTokenQueue() {
   if (!appData.tokenQueue) appData.tokenQueue = [];
-  if (typeof populateDoctorSelect==='function') populateDoctorSelect('tqDocSelect');
   const todayDoc = getTodayQueueDoctor();
-  const dSel = document.getElementById('tqDocSelect');
-  if (dSel) dSel.value = todayDoc ? String(todayDoc.id) : '';
-  const docHeader = document.getElementById('recQueueDoctorHeader');
-  if (docHeader) docHeader.innerHTML = todayDoc ? `🩺 আজকের ডাক্তার: ${todayDoc.name}` : `<span style="color:#dc2626">⚠️ আজকের ডাক্তার এখনো নির্বাচন করা হয়নি</span>`;
-  const lbl = document.getElementById('recQueueDateLabel'); if (lbl) lbl.textContent = formatDate(todayStr());
   const today = todayStr();
   const list = appData.tokenQueue.filter(t=>t.date===today).sort((a,b)=>a.tokenNo-b.tokenNo);
-  const tbody = document.getElementById('recQueueTable');
   const calledList = list.filter(t=>t.status==='called').sort((a,b)=>(b.calledAt||0)-(a.calledAt||0));
   const serving = calledList[0];
-  const servingEl = document.getElementById('recQueueCurrentServing');
-  if (servingEl) servingEl.textContent = serving ? `🔔 বর্তমানে: টোকেন #${serving.tokenNo} — ${serving.patName||'নাম নেই'}` : '';
   const waiting = list.filter(t=>t.status==='waiting');
-  const badge = document.getElementById('recQueueBadge');
-  if (badge) { if (waiting.length){ badge.style.display='inline-flex'; badge.textContent = waiting.length>99?'৯৯+':waiting.length; } else badge.style.display='none'; }
-  if (!tbody) return;
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">আজ এখনো কোনো টোকেন নেই</td></tr>'; return; }
   const statusLabel = { waiting:'⏳ অপেক্ষমান', called:'🔔 ডাকা হয়েছে', suspended:'⏸️ স্থগিত', done:'✅ সম্পন্ন', skipped:'⏭️ বাদ' };
   const statusCls = { waiting:'badge-warning', called:'badge-info', suspended:'badge-expense', done:'badge-income', skipped:'badge-expense' };
-  tbody.innerHTML = list.map(t=>{
+  const rowsHtml = !list.length ? '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">আজ এখনো কোনো টোকেন নেই</td></tr>' : list.map(t=>{
     const waitMin = Math.max(0, Math.round((Date.now()-(t.createdAt||Date.now()))/60000));
     return `<tr>
       <td style="font-weight:800;color:var(--primary)">#${t.tokenNo}</td>
@@ -25019,60 +25214,88 @@ function renderRecTokenQueue() {
       </td>
     </tr>`;
   }).join('');
+  _QUEUE_ID_SETS.forEach(ids=>{
+    if (typeof populateDoctorSelect==='function') populateDoctorSelect(ids.docSelect);
+    const dSel = document.getElementById(ids.docSelect);
+    if (dSel) dSel.value = todayDoc ? String(todayDoc.id) : '';
+    const docHeader = document.getElementById(ids.docHeader);
+    if (docHeader) docHeader.innerHTML = todayDoc ? `🩺 আজকের ডাক্তার: ${todayDoc.name}` : `<span style="color:#dc2626">⚠️ আজকের ডাক্তার এখনো নির্বাচন করা হয়নি</span>`;
+    const lbl = document.getElementById(ids.dateLabel); if (lbl) lbl.textContent = formatDate(today);
+    const servingEl = document.getElementById(ids.serving);
+    if (servingEl) servingEl.textContent = serving ? `🔔 বর্তমানে: টোকেন #${serving.tokenNo} — ${serving.patName||'নাম নেই'}` : '';
+    const badge = document.getElementById(ids.badge);
+    if (badge) { if (waiting.length){ badge.style.display='inline-flex'; badge.textContent = waiting.length>99?'৯৯+':waiting.length; } else badge.style.display='none'; }
+    const tbody = document.getElementById(ids.table);
+    if (tbody) tbody.innerHTML = rowsHtml;
+  });
 }
-function addTokenQueue() {
+function renderRecTokenQueue() { renderTokenQueue(); }
+function addTokenQueue(prefix) {
+  prefix = prefix || 'tq';
   if (!appData.tokenQueue) appData.tokenQueue = [];
-  const name = (document.getElementById('tqName').value||'').trim();
-  const phone = (document.getElementById('tqPhone').value||'').trim();
-  const address = (document.getElementById('tqAddress').value||'').trim();
+  const name = (document.getElementById(prefix+'Name').value||'').trim();
+  const phone = (document.getElementById(prefix+'Phone').value||'').trim();
+  const address = (document.getElementById(prefix+'Address').value||'').trim();
   const doctor = getTodayQueueDoctor();
   const today = todayStr();
   const tokenNo = appData.tokenQueue.filter(t=>t.date===today).length + 1;
   appData.tokenQueue.push({ id:Date.now(), tokenNo, date:today, patName:name, patPhone:phone, patAddress:address, doctorId:doctor?doctor.id:'', doctorName:doctor?doctor.name:'', status:'waiting', createdAt:Date.now(), by:currentUser?currentUser.name:'সিস্টেম' });
   saveData();
-  ['tqName','tqPhone','tqAddress'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  renderRecTokenQueue();
+  ['Name','Phone','Address'].forEach(suf=>{ const el=document.getElementById(prefix+suf); if(el) el.value=''; });
+  renderTokenQueue();
   showToast(`✅ টোকেন #${tokenNo} দেওয়া হয়েছে`);
 }
 function callTokenQueue(id) {
   const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
   t.status='called'; t.calledAt=Date.now();
-  saveData(); renderRecTokenQueue();
+  saveData(); renderTokenQueue();
 }
 function completeTokenQueue(id) {
   const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
   t.status='done'; t.doneAt=Date.now();
-  saveData(); renderRecTokenQueue();
+  saveData(); renderTokenQueue();
 }
 function skipTokenQueue(id) {
   const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
   t.status='skipped';
-  saveData(); renderRecTokenQueue();
+  saveData(); renderTokenQueue();
 }
 // ✅ রোগি সাময়িকভাবে হাসপাতাল থেকে বের হলে টোকেন "স্থগিত" রাখা যায়, পরে আবার সক্রিয় করা যাবে
 function suspendTokenQueue(id) {
   const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
   t.prevStatus = t.status; t.status='suspended'; t.suspendedAt=Date.now();
-  saveData(); renderRecTokenQueue();
+  saveData(); renderTokenQueue();
   showToast(`⏸️ টোকেন #${t.tokenNo} স্থগিত করা হয়েছে`);
 }
 function reactivateTokenQueue(id) {
   const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
   t.status = (t.prevStatus==='called') ? 'called' : 'waiting';
   delete t.prevStatus;
-  saveData(); renderRecTokenQueue();
+  saveData(); renderTokenQueue();
   showToast(`▶️ টোকেন #${t.tokenNo} পুনরায় সক্রিয় করা হয়েছে`);
 }
-// ✅ সম্পন্ন হওয়া টোকেন থেকে সরাসরি নতুন বিল ফর্মে নাম/ঠিকানা/ফোন/ডাক্তার অটো বসিয়ে দেয়
+// ✅ সম্পন্ন হওয়া টোকেন থেকে সরাসরি নতুন বিল ফর্মে (রিসেপশনের নিজের ফর্ম অথবা অ্যাডমিনের "নতুন বিল" পেজ,
+// লগইন করা রোলের উপর ভিত্তি করে) নাম/ঠিকানা/ফোন/ডাক্তার অটো বসিয়ে দেয়
 function tokenQueueToBill(id) {
   const t = (appData.tokenQueue||[]).find(x=>x.id===id); if (!t) return;
-  switchRecTab('new', document.getElementById('rtab-new'));
-  const nameEl=document.getElementById('rPatName'); if(nameEl) nameEl.value=t.patName||'';
-  const phoneEl=document.getElementById('rPatPhone'); if(phoneEl) phoneEl.value=t.patPhone||'';
-  const addrEl=document.getElementById('rPatAddress'); if(addrEl) addrEl.value=t.patAddress||'';
-  if (t.doctorId) {
-    const sel=document.getElementById('rDocSelect');
-    if (sel) { sel.value=String(t.doctorId); if (typeof onDocSelectChange==='function') onDocSelectChange('r'); }
+  if (currentUser && currentUser.role === 'receptionist') {
+    switchRecTab('new', document.getElementById('rtab-new'));
+    const nameEl=document.getElementById('rPatName'); if(nameEl) nameEl.value=t.patName||'';
+    const phoneEl=document.getElementById('rPatPhone'); if(phoneEl) phoneEl.value=t.patPhone||'';
+    const addrEl=document.getElementById('rPatAddress'); if(addrEl) addrEl.value=t.patAddress||'';
+    if (t.doctorId) {
+      const sel=document.getElementById('rDocSelect');
+      if (sel) { sel.value=String(t.doctorId); if (typeof onDocSelectChange==='function') onDocSelectChange('r'); }
+    }
+  } else {
+    if (typeof showPage==='function') showPage('newbill');
+    const nameEl=document.getElementById('nb_PatName'); if(nameEl) nameEl.value=t.patName||'';
+    const phoneEl=document.getElementById('nb_PatPhone'); if(phoneEl) phoneEl.value=t.patPhone||'';
+    const addrEl=document.getElementById('nb_PatAddress'); if(addrEl) addrEl.value=t.patAddress||'';
+    if (t.doctorId) {
+      const sel=document.getElementById('nb_DocSelect');
+      if (sel) { sel.value=String(t.doctorId); if (typeof onDocSelectChange==='function') onDocSelectChange('nb_'); }
+    }
   }
   showToast(`🧾 টোকেন #${t.tokenNo}-এর তথ্য বিল ফর্মে বসানো হয়েছে`);
 }
@@ -25094,6 +25317,8 @@ function markCallSheetCalled(type, id) {
   saveData();
   if (typeof renderRecCallSheet === 'function') renderRecCallSheet();
   if (typeof renderAdminCallSheet === 'function') renderAdminCallSheet();
+  if (typeof renderRecAppointments === 'function') renderRecAppointments();
+  if (typeof renderAdminAppointments === 'function') renderAdminAppointments();
 }
 // ✅ কল বাটন/কল-লগ সেল তৈরি করে — কল করা না হলে "কল করা হয়েছে" বাটন দেখায়, ক্লিক করলে সময় ও রোল রেকর্ড হয়ে যায়
 function _callSheetActionCell(type, rec) {
@@ -25220,20 +25445,21 @@ function renderAdminCallBadge() {
 }
 
 // ===== রিকল/রিটেনশন লিস্ট — দীর্ঘদিন না আসা রোগীদের বার্ষিক চেকআপ রিমাইন্ডার =====
-function renderRecRecallList() {
-  const rangeSel = document.getElementById('recallRange');
+// ✅ রিসেপশন ও অ্যাডমিন উভয় প্যানেলেই এই পেজ আছে — একই তালিকার উপর কাজ করে, রেন্ডার হওয়ার সময় দুই
+// প্যানেলের এলিমেন্টই (যেটা DOM-এ থাকে) একসাথে আপডেট হয়
+var _RECALL_ID_SETS = [
+  { range:'recallRange', table:'recRecallTable', badge:'recRecallBadge' },
+  { range:'admRecallRange', table:'admRecallTable', badge:'admRecallBadge' }
+];
+function renderRecallList() {
+  const rangeSel = document.getElementById(_RECALL_ID_SETS[0].range) || document.getElementById(_RECALL_ID_SETS[1].range);
   const minDays = parseInt((rangeSel||{}).value)||365;
   const today = todayStr();
   const patients = buildPatientList();
   const list = patients.filter(p=>p.lastVisit).map(p=>({ ...p, diffDays: daysBetweenDateStrs(p.lastVisit, today) }))
     .filter(p=>p.diffDays>=minDays && p.diffDays<730)
     .sort((a,b)=>b.diffDays-a.diffDays);
-  const tbody = document.getElementById('recRecallTable');
-  const badge = document.getElementById('recRecallBadge');
-  if (badge) { if (list.length){ badge.style.display='inline-flex'; badge.textContent = list.length>99?'৯৯+':list.length; } else badge.style.display='none'; }
-  if (!tbody) return;
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">এই মুহূর্তে রিকল লিস্টে কেউ নেই</td></tr>'; return; }
-  tbody.innerHTML = list.map(p=>{
+  const rowsHtml = !list.length ? '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">এই মুহূর্তে রিকল লিস্টে কেউ নেই</td></tr>' : list.map(p=>{
     const key = p._key.replace(/'/g,"\\'");
     return `<tr>
       <td style="color:var(--text-light);font-size:11px">${p.mrn||'—'}</td>
@@ -25244,7 +25470,17 @@ function renderRecRecallList() {
       <td>${p.phone?`<a href="tel:${p.phone}" class="btn btn-outline btn-sm">📞 কল</a>`:'—'}</td>
     </tr>`;
   }).join('');
+  _RECALL_ID_SETS.forEach(ids=>{
+    const sel = document.getElementById(ids.range);
+    if (sel && rangeSel && sel!==rangeSel) sel.value = rangeSel.value;
+    const badge = document.getElementById(ids.badge);
+    if (badge) { if (list.length){ badge.style.display='inline-flex'; badge.textContent = list.length>99?'৯৯+':list.length; } else badge.style.display='none'; }
+    const tbody = document.getElementById(ids.table);
+    if (tbody) tbody.innerHTML = rowsHtml;
+  });
 }
+function renderRecRecallList() { renderRecallList(); }
+function renderAdminRecallList() { renderRecallList(); }
 
 // ===== পোস্ট-অপারেটিভ ফলোআপ রিমাইন্ডার — বিলে অপারেশন আইটেম থাকলে ফলোআপ সিরিয়াল সাজেস্ট করে =====
 function showPostOpFollowupPrompt(patName, patPhone, billDate, doctorId, doctorName) {
@@ -25298,30 +25534,37 @@ function confirmPostOpFollowup(patName, patPhone, billDate, doctorId, doctorName
 }
 
 // ===== তথ্য কেন্দ্র: ডাক্তার ডিরেক্টরি, রেফারেল হাসপাতাল, ক্যাম্প শিডিউল =====
+// ✅ রিসেপশন ও অ্যাডমিন উভয় প্যানেলেই এই পেজ আছে — রেন্ডার করার সময় দুই প্যানেলের এলিমেন্টই (যেটা
+// DOM-এ থাকে) নিজের ফিল্টার অনুযায়ী আলাদাভাবে আপডেট হয়
 var _DOC_CAT_LABELS = { duty:'ডিউটি ডাক্তার', specialist:'স্পেশালিস্ট', surgeon:'সার্জন', other:'অন্যান্য' };
-
+var _DOCDIR_ID_SETS = [
+  { catFilter:'rdirDocCat', table:'recDoctorDirTable' },
+  { catFilter:'admdirDocCat', table:'admDoctorDirTable' }
+];
 function renderRecDoctorDirectory() {
-  var tbody = document.getElementById('recDoctorDirTable');
-  if (!tbody) return;
-  var catFilter = (document.getElementById('rdirDocCat')||{}).value||'';
-  var docs = (appData.doctors||[]).filter(function(d){ return d.status==='active'; });
-  if (catFilter) docs = docs.filter(function(d){ return (d.category||'duty')===catFilter; });
-  docs = docs.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','bn'); });
-  if (!docs.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো ডাক্তারের তথ্য নেই</td></tr>'; return; }
   var today = todayStr();
-  tbody.innerHTML = docs.map(function(d){
-    var present = d.presentDate === today;
-    return '<tr>'
-      +'<td style="font-weight:600">'+d.name+'</td>'
-      +'<td>'+(_DOC_CAT_LABELS[d.category||'duty']||'—')+'</td>'
-      +'<td>'+(d.specialty||'—')+'</td>'
-      +'<td style="font-weight:700;color:var(--primary)">'+(d.affiliation||'—')+'</td>'
-      +'<td>'+(d.availability || (d.dutyStart&&d.dutyEnd ? (d.dutyStart+' – '+d.dutyEnd) : '—'))+'</td>'
-      +'<td>'+(d.chamber||'হাসপাতালে')+'</td>'
-      +'<td>'+(d.phone||'—')+'</td>'
-      +'<td><button class="btn btn-sm '+(present?'btn-success':'btn-outline')+'" onclick="toggleDoctorPresentToday('+d.id+')">'+(present?'✅ আজ আছেন':'⭘ নেই')+'</button></td>'
-      +'</tr>';
-  }).join('');
+  _DOCDIR_ID_SETS.forEach(function(ids){
+    var tbody = document.getElementById(ids.table);
+    if (!tbody) return;
+    var catFilter = (document.getElementById(ids.catFilter)||{}).value||'';
+    var docs = (appData.doctors||[]).filter(function(d){ return d.status==='active'; });
+    if (catFilter) docs = docs.filter(function(d){ return (d.category||'duty')===catFilter; });
+    docs = docs.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','bn'); });
+    if (!docs.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো ডাক্তারের তথ্য নেই</td></tr>'; return; }
+    tbody.innerHTML = docs.map(function(d){
+      var present = d.presentDate === today;
+      return '<tr>'
+        +'<td style="font-weight:600">'+d.name+'</td>'
+        +'<td>'+(_DOC_CAT_LABELS[d.category||'duty']||'—')+'</td>'
+        +'<td>'+(d.specialty||'—')+'</td>'
+        +'<td style="font-weight:700;color:var(--primary)">'+(d.affiliation||'—')+'</td>'
+        +'<td>'+(d.availability || (d.dutyStart&&d.dutyEnd ? (d.dutyStart+' – '+d.dutyEnd) : '—'))+'</td>'
+        +'<td>'+(d.chamber||'হাসপাতালে')+'</td>'
+        +'<td>'+(d.phone||'—')+'</td>'
+        +'<td><button class="btn btn-sm '+(present?'btn-success':'btn-outline')+'" onclick="toggleDoctorPresentToday('+d.id+')">'+(present?'✅ আজ আছেন':'⭘ নেই')+'</button></td>'
+        +'</tr>';
+    }).join('');
+  });
 }
 function toggleDoctorPresentToday(id) {
   var d = (appData.doctors||[]).find(function(x){ return String(x.id)===String(id); });
@@ -25333,25 +25576,32 @@ function toggleDoctorPresentToday(id) {
 }
 
 // ===== তথ্য কেন্দ্র: সার্ভিস, অপারেশন ও চিকিৎসা তালিকা (এড/রিমুভ করা যায়) =====
+// ✅ রিসেপশন ও অ্যাডমিন উভয় প্যানেলেই এই ফর্ম/তালিকা আছে — key ('rec'/'adm') দিয়ে সঠিক ফর্ম-এলিমেন্ট বাছাই হয়
 var _SVC_CAT_LABELS = { operation:'অপারেশন', test:'টেস্ট / পরীক্ষা', service:'সার্ভিস', consultation:'পরামর্শ', treatment:'চিকিৎসা' };
-
-function toggleServiceForm() {
-  var b = document.getElementById('svcFormArea');
+var _SVC_IDS = {
+  rec: { formArea:'svcFormArea', editId:'svcEditId', name:'svcName', category:'svcCategory', status:'svcStatus', note:'svcNote', search:'svcSearchQuery', filterCat:'svcFilterCat', table:'svcCatalogTable' },
+  adm: { formArea:'admsvcFormArea', editId:'admsvcEditId', name:'admsvcName', category:'admsvcCategory', status:'admsvcStatus', note:'admsvcNote', search:'admsvcSearchQuery', filterCat:'admsvcFilterCat', table:'admsvcCatalogTable' }
+};
+function toggleServiceForm(key) {
+  var ids = _SVC_IDS[key||'rec']; if (!ids) return;
+  var b = document.getElementById(ids.formArea);
   if (!b) return;
   b.style.display = (b.style.display==='none'||b.style.display==='') ? 'block' : 'none';
-  if (b.style.display==='none') clearServiceForm();
+  if (b.style.display==='none') clearServiceForm(key);
 }
-function clearServiceForm() {
-  ['svcEditId','svcName','svcNote'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-  var cat=document.getElementById('svcCategory'); if(cat) cat.value='operation';
-  var st=document.getElementById('svcStatus'); if(st) st.value='active';
+function clearServiceForm(key) {
+  var ids = _SVC_IDS[key||'rec']; if (!ids) return;
+  [ids.editId, ids.name, ids.note].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var cat=document.getElementById(ids.category); if(cat) cat.value='operation';
+  var st=document.getElementById(ids.status); if(st) st.value='active';
 }
-function saveServiceCatalogItem() {
-  var editId = (document.getElementById('svcEditId')||{}).value||'';
-  var name = (document.getElementById('svcName').value||'').trim();
-  var category = (document.getElementById('svcCategory')||{}).value||'service';
-  var status = (document.getElementById('svcStatus')||{}).value||'active';
-  var note = (document.getElementById('svcNote').value||'').trim();
+function saveServiceCatalogItem(key) {
+  var ids = _SVC_IDS[key||'rec']; if (!ids) return;
+  var editId = (document.getElementById(ids.editId)||{}).value||'';
+  var name = (document.getElementById(ids.name).value||'').trim();
+  var category = (document.getElementById(ids.category)||{}).value||'service';
+  var status = (document.getElementById(ids.status)||{}).value||'active';
+  var note = (document.getElementById(ids.note).value||'').trim();
   if (!name) { showToast('⚠️ নাম দিন!'); return; }
   if (!appData.serviceCatalog) appData.serviceCatalog = [];
   if (editId) {
@@ -25361,20 +25611,21 @@ function saveServiceCatalogItem() {
     appData.serviceCatalog.push({ id: Date.now(), name, category, status, note, by: currentUser?currentUser.name:'সিস্টেম', ts: Date.now() });
   }
   saveData();
-  clearServiceForm();
-  toggleServiceForm();
+  clearServiceForm(key);
+  toggleServiceForm(key);
   renderServiceCatalog();
   showToast('✅ সেভ হয়েছে');
 }
-function editServiceCatalogItem(id) {
+function editServiceCatalogItem(id, key) {
+  var ids = _SVC_IDS[key||'rec']; if (!ids) return;
   var it = (appData.serviceCatalog||[]).find(function(x){ return x.id===id; });
   if (!it) return;
-  var b = document.getElementById('svcFormArea'); if (b) b.style.display='block';
-  document.getElementById('svcEditId').value = it.id;
-  document.getElementById('svcName').value = it.name||'';
-  document.getElementById('svcCategory').value = it.category||'service';
-  document.getElementById('svcStatus').value = it.status||'active';
-  document.getElementById('svcNote').value = it.note||'';
+  var b = document.getElementById(ids.formArea); if (b) b.style.display='block';
+  document.getElementById(ids.editId).value = it.id;
+  document.getElementById(ids.name).value = it.name||'';
+  document.getElementById(ids.category).value = it.category||'service';
+  document.getElementById(ids.status).value = it.status||'active';
+  document.getElementById(ids.note).value = it.note||'';
 }
 function setServiceCatalogStatus(id, status) {
   var it = (appData.serviceCatalog||[]).find(function(x){ return x.id===id; });
@@ -25392,41 +25643,43 @@ function deleteServiceCatalogItem(id) {
   showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 function renderServiceCatalog() {
-  var tbody = document.getElementById('svcCatalogTable');
-  if (!tbody) return;
-  var q = ((document.getElementById('svcSearchQuery')||{}).value||'').trim().toLowerCase();
-  var catFilter = (document.getElementById('svcFilterCat')||{}).value||'';
-  var list = (appData.serviceCatalog||[]).slice();
-  if (q) list = list.filter(function(x){ return (x.name||'').toLowerCase().includes(q); });
-  if (catFilter) list = list.filter(function(x){ return x.category===catFilter; });
-  list.sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','bn'); });
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">কোনো তথ্য পাওয়া যায়নি</td></tr>'; return; }
-  tbody.innerHTML = list.map(function(x){
-    var statusBadge = x.status==='active'
-      ? '<span class="badge badge-success">✅ সম্ভব</span>'
-      : '<span class="badge badge-danger">⏸️ সাময়িক বন্ধ</span>';
-    return '<tr>'
-      +'<td style="font-weight:600">'+x.name+'</td>'
-      +'<td>'+(_SVC_CAT_LABELS[x.category]||x.category)+'</td>'
-      +'<td>'+statusBadge+'</td>'
-      +'<td style="font-size:12px">'+(x.note||'—')+'</td>'
-      +'<td style="white-space:nowrap">'
-      + (x.status==='active' ? '<button class="btn btn-outline btn-sm" onclick="setServiceCatalogStatus('+x.id+',\'inactive\')" title="সাময়িক বন্ধ করুন">⏸️</button>' : '<button class="btn btn-success btn-sm" onclick="setServiceCatalogStatus('+x.id+',\'active\')" title="আবার সক্রিয় করুন">✅</button>')
-      +'<button class="btn btn-outline btn-sm" onclick="editServiceCatalogItem('+x.id+')" title="সম্পাদনা">✏️</button>'
-      +'<button class="btn btn-danger btn-sm" onclick="deleteServiceCatalogItem('+x.id+')" title="মুছুন">🗑️</button>'
-      +'</td></tr>';
-  }).join('');
+  Object.keys(_SVC_IDS).forEach(function(key){
+    var ids = _SVC_IDS[key];
+    var tbody = document.getElementById(ids.table);
+    if (!tbody) return;
+    var q = ((document.getElementById(ids.search)||{}).value||'').trim().toLowerCase();
+    var catFilter = (document.getElementById(ids.filterCat)||{}).value||'';
+    var list = (appData.serviceCatalog||[]).slice();
+    if (q) list = list.filter(function(x){ return (x.name||'').toLowerCase().includes(q); });
+    if (catFilter) list = list.filter(function(x){ return x.category===catFilter; });
+    list.sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','bn'); });
+    if (!list.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">কোনো তথ্য পাওয়া যায়নি</td></tr>'; return; }
+    tbody.innerHTML = list.map(function(x){
+      var statusBadge = x.status==='active'
+        ? '<span class="badge badge-success">✅ সম্ভব</span>'
+        : '<span class="badge badge-danger">⏸️ সাময়িক বন্ধ</span>';
+      return '<tr>'
+        +'<td style="font-weight:600">'+x.name+'</td>'
+        +'<td>'+(_SVC_CAT_LABELS[x.category]||x.category)+'</td>'
+        +'<td>'+statusBadge+'</td>'
+        +'<td style="font-size:12px">'+(x.note||'—')+'</td>'
+        +'<td style="white-space:nowrap">'
+        + (x.status==='active' ? '<button class="btn btn-outline btn-sm" onclick="setServiceCatalogStatus('+x.id+',\'inactive\')" title="সাময়িক বন্ধ করুন">⏸️</button>' : '<button class="btn btn-success btn-sm" onclick="setServiceCatalogStatus('+x.id+',\'active\')" title="আবার সক্রিয় করুন">✅</button>')
+        +'<button class="btn btn-outline btn-sm" onclick="editServiceCatalogItem('+x.id+',\''+key+'\')" title="সম্পাদনা">✏️</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteServiceCatalogItem('+x.id+')" title="মুছুন">🗑️</button>'
+        +'</td></tr>';
+    }).join('');
+  });
 }
 
-// ✅ আসন্ন ক্যাম্প শিডিউল — যা অ্যাডমিন/ক্যাম্পেইনার আগে থেকে তৈরি করে রাখে (appData.campSchedules), এখানে শুধু দেখানো হয়
+// ✅ আসন্ন ক্যাম্প শিডিউল — যা অ্যাডমিন/ক্যাম্পেইনার আগে থেকে তৈরি করে রাখে (appData.campSchedules), এখানে
+// রিসেপশন ও অ্যাডমিন উভয় প্যানেলেই শুধু দেখানো হয়
+var _CAMPSCHED_TABLE_IDS = ['recCampScheduleTable','admCampScheduleTable'];
 function renderRecCampSchedule() {
-  var tbody = document.getElementById('recCampScheduleTable');
-  if (!tbody) return;
   var today = todayStr();
   var list = (appData.campSchedules||[]).filter(function(s){ return s.date>=today && s.status!=='closed'; }).sort(function(a,b){ return a.date.localeCompare(b.date); });
-  if (!list.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">কোনো আসন্ন ক্যাম্প নেই</td></tr>'; return; }
   var statusLabels = { scheduled:'নির্ধারিত', active:'সক্রিয়', closed:'সম্পন্ন' };
-  tbody.innerHTML = list.map(function(s){
+  var rowsHtml = !list.length ? '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">কোনো আসন্ন ক্যাম্প নেই</td></tr>' : list.map(function(s){
     return '<tr>'
       +'<td>'+formatDate(s.date)+(s.date===today?' <span style="color:var(--primary);font-weight:700">(আজ)</span>':'')+'</td>'
       +'<td style="font-weight:600">'+s.name+'</td>'
@@ -25435,30 +25688,35 @@ function renderRecCampSchedule() {
       +'<td>'+(statusLabels[s.status]||s.status)+'</td>'
       +'</tr>';
   }).join('');
+  _CAMPSCHED_TABLE_IDS.forEach(function(id){ var tbody=document.getElementById(id); if(tbody) tbody.innerHTML=rowsHtml; });
 }
 
 
 // ===== অ্যাপয়েন্টমেন্ট / সিরিয়াল =====
-function toggleRecApptForm() {
-  var b = document.getElementById('recApptFormArea');
+function toggleApptForm(prefix) {
+  var ids = _APPT_IDS[prefix||'rapt']; if (!ids) return;
+  var b = document.getElementById(ids.formArea);
   if (!b) return;
   b.style.display = (b.style.display==='none'||b.style.display==='') ? 'block' : 'none';
   if (b.style.display==='block') {
-    var d=document.getElementById('raptDate'); if(d && !d.value) d.value=todayStr();
-    var sel=document.getElementById('raptDoctor');
+    var d=document.getElementById(ids.date); if(d && !d.value) d.value=todayStr();
+    var sel=document.getElementById(ids.doctor);
     if (sel) {
       sel.innerHTML = '<option value="">-- ডাক্তার বেছে নিন (ঐচ্ছিক) --</option>' + (appData.doctors||[]).filter(function(x){return x.status==='active';}).map(function(x){ return '<option value="'+x.id+'">'+x.name+'</option>'; }).join('');
     }
   }
 }
-function saveAppointment() {
-  var name = (document.getElementById('raptName').value||'').trim();
-  var phone = (document.getElementById('raptPhone').value||'').trim();
-  var doctorId = (document.getElementById('raptDoctor')||{}).value||'';
+function toggleRecApptForm() { toggleApptForm('rapt'); }
+function toggleAdmApptForm() { toggleApptForm('admapt'); }
+function saveAppointment(prefix) {
+  var ids = _APPT_IDS[prefix||'rapt']; if (!ids) return;
+  var name = (document.getElementById(ids.name).value||'').trim();
+  var phone = (document.getElementById(ids.phone).value||'').trim();
+  var doctorId = (document.getElementById(ids.doctor)||{}).value||'';
   var doctor = (appData.doctors||[]).find(function(d){ return String(d.id)===String(doctorId); });
-  var date = document.getElementById('raptDate').value;
-  var time = (document.getElementById('raptTime')||{}).value||'';
-  var note = (document.getElementById('raptNote').value||'').trim();
+  var date = document.getElementById(ids.date).value;
+  var time = (document.getElementById(ids.time)||{}).value||'';
+  var note = (document.getElementById(ids.note).value||'').trim();
   if (!name) { showToast('⚠️ রোগীর নাম দিন!'); return; }
   if (!date) { showToast('⚠️ তারিখ দিন!'); return; }
   if (!appData.appointments) appData.appointments = [];
@@ -25469,57 +25727,83 @@ function saveAppointment() {
     by: currentUser?currentUser.name:'সিস্টেম', ts: Date.now()
   });
   saveData();
-  ['raptName','raptPhone','raptTime','raptNote'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-  var sel=document.getElementById('raptDoctor'); if(sel) sel.value='';
-  toggleRecApptForm();
-  renderRecAppointments();
+  [ids.name, ids.phone, ids.time, ids.note].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var sel=document.getElementById(ids.doctor); if(sel) sel.value='';
+  toggleApptForm(prefix);
+  renderRecAppointments(); renderAdminAppointments();
   updateRecNotifBell();
-  if (typeof renderRecApptBadge==='function') renderRecApptBadge();
-  showToast('✅ সিরিয়াল রাখা হয়েছে');
+  renderRecApptBadge(); renderAdminApptBadge();
+  showToast('✅ সিরিয়াল রাখা হয়েছে — এন্ট্রি দিয়েছেন: '+(currentUser?currentUser.name:'সিস্টেম'));
 }
-function renderRecAppointments() {
-  var tbody = document.getElementById('recApptTable');
+// ✅ ম্যানুয়ালি রাখা সিরিয়াল (appData.appointments) এবং বিল ফর্মে দেওয়া "পরবর্তী সিরিয়াল" (রোগীর
+// ডাটাবেসে থাকা visits/adminBills-এর nextSerialDate) — দুটোই একত্র করে এই পেজে দেখানো হয়, যাতে
+// রোগীর ডাটাবেস থেকে সেট করা পরবর্তী সিরিয়ালও এখানে দেখা যায়। রিসেপশন ও অ্যাডমিন — উভয় প্যানেলই এই
+// একই ফাংশন ব্যবহার করে, শুধু prefix দিয়ে সঠিক টেবিল/ফিল্টার এলিমেন্ট বেছে নেয়
+function _recAllSerialEntries() {
+  var appts = (appData.appointments||[]).map(function(a){
+    return { kind:'appt', id:a.id, date:a.date, time:a.time||'', patName:a.patName, patPhone:a.patPhone,
+      doctorName:a.doctorName||'', note:a.note||'', status:a.status, rec:a };
+  });
+  var serials = (appData.visits||[]).concat(appData.adminBills||[])
+    .filter(function(v){ return !!v.nextSerialDate; })
+    .map(function(v){
+      return { kind:'nextSerial', id:v.id, date:v.nextSerialDate, time:'', patName:v.patName, patPhone:v.patPhone,
+        doctorName:v.patDoc||v.doctorName||'', note:'রোগীর ডাটাবেস (বিল থেকে নির্ধারিত)',
+        status: v.calledAt?'done':'pending', rec:v };
+    });
+  return appts.concat(serials);
+}
+function renderApptTable(prefix) {
+  var ids = _APPT_IDS[prefix||'rapt']; if (!ids) return;
+  var tbody = document.getElementById(ids.table);
   if (!tbody) return;
-  var filter = (document.getElementById('raptFilter')||{}).value||'upcoming';
+  var filter = (document.getElementById(ids.filter)||{}).value||'upcoming';
   var today = todayStr();
-  var list = (appData.appointments||[]).slice();
+  var list = _recAllSerialEntries();
   if (filter==='today') list = list.filter(function(a){ return a.date===today; });
-  else if (filter==='upcoming') list = list.filter(function(a){ return a.date>=today && a.status==='pending'; });
+  else if (filter==='upcoming') list = list.filter(function(a){ return a.date>=today && a.status!=='cancelled'; });
   list.sort(function(a,b){ return (a.date+((a.time||'99:99'))).localeCompare(b.date+((b.time||'99:99'))); });
   if (!list.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">কোনো সিরিয়াল নেই</td></tr>'; return; }
   var statusLabels = {pending:'⏳ অপেক্ষমাণ', done:'✅ সম্পন্ন', cancelled:'❌ বাতিল'};
   tbody.innerHTML = list.map(function(a){
+    var actionCell;
+    if (a.kind==='nextSerial') {
+      actionCell = _callSheetActionCell('nextSerial', a.rec);
+    } else {
+      actionCell = (a.status==='pending' ? '<button class="btn btn-success btn-sm" onclick="setAppointmentStatus('+a.id+',\'done\')" title="সম্পন্ন">✅</button><button class="btn btn-outline btn-sm" onclick="setAppointmentStatus('+a.id+',\'cancelled\')" title="বাতিল">❌</button>' : '')
+        +'<button class="btn btn-danger btn-sm" onclick="deleteAppointment('+a.id+')" title="মুছুন">🗑️</button>';
+    }
+    var byLabel = (a.kind==='appt' && a.rec && a.rec.by) ? ' <span style="font-size:10px;color:#94a3b8">('+a.rec.by+')</span>' : '';
     return '<tr>'
       +'<td>'+formatDate(a.date)+(a.date===today?' <span style="color:var(--primary);font-weight:700">(আজ)</span>':'')+'</td>'
       +'<td>'+(a.time||'—')+'</td>'
-      +'<td style="font-weight:600">'+a.patName+'</td>'
+      +'<td style="font-weight:600">'+a.patName+(a.kind==='nextSerial'?' <span class="badge badge-info" style="font-size:9px;padding:1px 5px">🔁</span>':'')+byLabel+'</td>'
       +'<td style="color:var(--text-light)">'+(a.patPhone||'—')+'</td>'
       +'<td>'+(a.doctorName||'—')+'</td>'
       +'<td style="font-size:12px">'+(a.note||'—')+'</td>'
       +'<td>'+(statusLabels[a.status]||a.status)+'</td>'
-      +'<td style="white-space:nowrap">'
-      + (a.status==='pending' ? '<button class="btn btn-success btn-sm" onclick="setAppointmentStatus('+a.id+',\'done\')" title="সম্পন্ন">✅</button><button class="btn btn-outline btn-sm" onclick="setAppointmentStatus('+a.id+',\'cancelled\')" title="বাতিল">❌</button>' : '')
-      +'<button class="btn btn-danger btn-sm" onclick="deleteAppointment('+a.id+')" title="মুছুন">🗑️</button>'
-      +'</td></tr>';
+      +'<td style="white-space:nowrap">'+actionCell+'</td></tr>';
   }).join('');
 }
+function renderRecAppointments() { renderApptTable('rapt'); }
+function renderAdminAppointments() { renderApptTable('admapt'); }
 function setAppointmentStatus(id, status) {
   var a = (appData.appointments||[]).find(function(x){ return x.id===id; });
   if (!a) return;
   a.status = status;
   saveData();
-  renderRecAppointments();
+  renderRecAppointments(); renderAdminAppointments();
   updateRecNotifBell();
-  if (typeof renderRecApptBadge==='function') renderRecApptBadge();
+  renderRecApptBadge(); renderAdminApptBadge();
   showToast(status==='done' ? '✅ সিরিয়াল সম্পন্ন হিসেবে চিহ্নিত হলো' : '❌ সিরিয়াল বাতিল করা হলো');
 }
 function deleteAppointment(id) {
   if (!confirm('এই সিরিয়ালটি মুছে ফেলবেন?')) return;
   appData.appointments = (appData.appointments||[]).filter(function(a){ return a.id!==id; });
   saveData();
-  renderRecAppointments();
+  renderRecAppointments(); renderAdminAppointments();
   updateRecNotifBell();
-  if (typeof renderRecApptBadge==='function') renderRecApptBadge();
+  renderRecApptBadge(); renderAdminApptBadge();
   showToast('🗑️ সিরিয়াল মুছে ফেলা হয়েছে');
 }
 
@@ -27156,7 +27440,7 @@ function renderRecPatientDB(filter='') {
   const pagEl = document.getElementById('recPatientDbPagination');
   if(!tbody) return;
   if(!list.length){
-    tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
+    tbody.innerHTML='<tr><td colspan="15" style="text-align:center;color:#aaa;padding:30px">কোনো রোগী নেই</td></tr>';
     if(pagEl) pagEl.innerHTML='';
     return;
   }
@@ -27165,8 +27449,25 @@ function renderRecPatientDB(filter='') {
   if (_recPatientDbPage < 1) _recPatientDbPage = 1;
   const startIdx = (_recPatientDbPage-1)*PATIENT_PAGE_SIZE;
   const pageList = list.slice(startIdx, startIdx+PATIENT_PAGE_SIZE);
+  const today = todayStr();
   tbody.innerHTML = pageList.map((p,i)=>{
     const key=p._key.replace(/'/g,"\\'");
+    const dOrders = getPatientDeliveryOrders(p._key);
+    const pendingCnt = dOrders.filter(d=>d.status==='pending').length;
+    let dlvBadge = '—';
+    if (dOrders.length) {
+      dlvBadge = pendingCnt
+        ? `<span class="badge badge-warning" style="font-size:10px;padding:2px 6px">📦 ${pendingCnt}টি পেন্ডিং</span>`
+        : `<span class="badge badge-income" style="font-size:10px;padding:2px 6px">✅ ডেলিভারড</span>`;
+    }
+    const appts = getPatientAppointments(p._key);
+    const nextAppt = appts.filter(a=>a.status==='pending'&&a.date>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0];
+    let nextSerialBadge = '—';
+    if (p.nextSerialDate) {
+      nextSerialBadge = `<span class="badge ${p.nextSerialDate===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">🔁 ${formatDate(p.nextSerialDate)}</span>`;
+    } else if (nextAppt) {
+      nextSerialBadge = `<span class="badge ${nextAppt.date===today?'badge-warning':'badge-info'}" style="font-size:10px;padding:2px 6px">📅 ${formatDate(nextAppt.date)}${nextAppt.time?' '+nextAppt.time:''}</span>`;
+    }
     return `<tr onclick="showPatientDetail('${key}')" style="cursor:pointer" title="বিস্তারিত দেখতে ক্লিক করুন">
     <td style="color:var(--text-light)">${startIdx+i+1}</td>
     <td style="color:var(--text-light);font-size:11px">${p.mrn}</td>
@@ -27177,6 +27478,8 @@ function renderRecPatientDB(filter='') {
     <td style="color:var(--text-light);font-size:12px">${p.address||'—'}</td>
     <td style="color:var(--text-light)">${p.doctor||'—'}</td>
     <td style="text-align:center">${p.visits.length}</td>
+    <td style="text-align:center">${dlvBadge}</td>
+    <td style="text-align:center">${nextSerialBadge}</td>
     <td>${p.lastVisit?formatDate(p.lastVisit):'—'}</td>
     <td>৳ ${fmt(p.totalBill)}</td>
     <td style="color:var(--success)">৳ ${fmt(p.totalPaid)}</td>
