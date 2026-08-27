@@ -11797,6 +11797,14 @@ function formatVoucherRefDisplay(val) {
   if (/^\d+$/.test(s)) return 'Receipt-' + s;
   return s;
 }
+// ✅ owner প্যানেলের মোবাইল-ফ্রেন্ডলি কমপ্যাক্ট ফরম্যাট: "Memo-0001" -> "M: 0001", কাঁচা সংখ্যা (রিসিট) -> "R: 33"
+function formatMemoReceiptCompact(val) {
+  if (val === undefined || val === null || val === '' || val === '—') return '—';
+  const s = String(val).trim();
+  if (/^\d+$/.test(s)) return 'R: ' + s;
+  const cleaned = s.replace(/^Memo-?/i, '').trim();
+  return 'M: ' + (cleaned || s);
+}
 // ===== DASHBOARD: সাম্প্রতিক এন্ট্রি (ডে/মান্থ গ্রুপড, এক্সপ্যান্ডেবল) =====
 function renderDashRecentEntries() {
   const tbody = document.getElementById('recentTable');
@@ -15939,7 +15947,7 @@ function renderOwnerShareholderTable() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
         <div><span style="color:#888">শেয়ার:</span> <strong>${sh.shares} টি (${pct}%)</strong></div>
         <div><span style="color:#888">যোগদান:</span> <strong>${sh.joinDate?formatDate(sh.joinDate):'—'}</strong></div>
-        <div style="grid-column:1/-1;background:#f0fdf4;border-radius:6px;padding:6px 8px;margin-top:2px"><span style="color:#065f46">চলতি ব্যালেন্স:</span> <strong style="color:var(--success);font-size:14px">৳ ${fmt((sh.balance||0).toFixed(2))}</strong></div>
+        <div style="grid-column:1/-1;background:#f0fdf4;border-radius:6px;padding:6px 8px;margin-top:2px"><span style="color:#166534">চলতি ব্যালেন্স:</span> <strong style="color:#166534;font-size:14px">৳ ${fmt((sh.balance||0).toFixed(2))}</strong></div>
       </div>
     </div>`;
   }).join('');
@@ -16009,7 +16017,7 @@ function renderOwnerShareholderWithdrawalHistory() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
       <div><span style="color:#888">তারিখ:</span> <strong>${formatDate(w.date)}</strong></div>
       <div><span style="color:#888">মাধ্যম:</span> <strong>${w.method==='cheque'?`🏦 চেক${w.chequeNo?' #'+w.chequeNo:''}`:'💵 ক্যাশ'}</strong></div>
-      <div style="grid-column:1/-1"><span style="color:#888">পরিমাণ:</span> <strong style="color:var(--success);font-size:14px">৳ ${fmt(w.amount.toFixed(2))}</strong></div>
+      <div style="grid-column:1/-1"><span style="color:#888">পরিমাণ:</span> <strong style="color:#166534;font-size:14px">৳ ${fmt(w.amount.toFixed(2))}</strong></div>
     </div>
   </div>`).join('');
 }
@@ -18016,7 +18024,7 @@ function renderOwnerMyShareInfo() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
       <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">আমার শেয়ার</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${myShare.shares} টি</div></div>
       <div style="padding:10px;background:#f0f4ff;border-radius:8px"><span style="color:#666">শেয়ার %</span><div style="font-weight:700;color:#0f4c81;font-size:18px">${pct}%</div></div>
-      <div style="padding:10px;background:#d1fae5;border-radius:8px;grid-column:span 2"><span style="color:#065f46">বর্তমান বকেয়া ব্যালেন্স</span><div style="font-weight:700;color:#065f46;font-size:18px">৳ ${fmt(myBal.toFixed(0))}</div></div>
+      <div style="padding:10px;background:#d1fae5;border-radius:8px;grid-column:span 2"><span style="color:#166534">বর্তমান বকেয়া ব্যালেন্স</span><div style="font-weight:700;color:#166534;font-size:18px">৳ ${fmt(myBal.toFixed(0))}</div></div>
       ${lastBreakdown?`<div style="padding:10px;background:#fef9c3;border-radius:8px;grid-column:span 2"><span style="color:#854d0e">শেষ মাস ক্লোজ (${lastMc.label||''})</span><div style="font-weight:700;color:#854d0e;font-size:18px">৳ ${fmt(lastBreakdown.amount.toFixed(0))}</div></div>`:''}
     </div>`;
 }
@@ -18114,10 +18122,10 @@ function initOwnerPage() {
   const ms = document.getElementById('ownerMonthlySummary');
   if (ms) ms.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;font-size:13px">
-      <div style="padding:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px"><span style="color:#666">মোট আয়</span><div style="font-weight:800;color:#0a6b35">৳ ${fmt(mInc)}</div></div>
-      <div style="padding:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px"><span style="color:#666">মোট ব্যয়</span><div style="font-weight:800;color:#e74c3c">৳ ${fmt(mExp)}</div></div>
+      <div style="padding:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px"><span style="color:#666">মোট আয়</span><div style="font-weight:800;color:#166534">৳ ${fmt(mInc)}</div></div>
+      <div style="padding:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px"><span style="color:#666">মোট ব্যয়</span><div style="font-weight:800;color:#991b1b">৳ ${fmt(mExp)}</div></div>
       <div style="padding:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px"><span style="color:#666">ফিক্সড খরচ</span><div style="font-weight:800;color:#f39c12">৳ ${fmt(fixed+salCost)}</div></div>
-      <div style="padding:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px"><span style="color:#666">নেট লাভ/লস</span><div style="font-weight:800;color:${mProfit>=0?'#0a6b35':'#e74c3c'}">${mProfit>=0?'':'- '}৳ ${fmt(Math.abs(mProfit))}</div></div>
+      <div style="padding:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px"><span style="color:#666">নেট লাভ/লস</span><div style="font-weight:800;color:${mProfit>=0?'#166534':'#991b1b'}">${mProfit>=0?'':'- '}৳ ${fmt(Math.abs(mProfit))}</div></div>
     </div>`;
 
   // Recent entries
@@ -18775,8 +18783,8 @@ function buildReadOnlyHTML(feature, role) {
     return `${monthHeader('💰 আয় তালিকা'+badge)}
       ${isOwnerMonthly?`<div style="font-size:12.5px;color:#166534;font-weight:700;margin-bottom:8px">এই মাসের মোট আয়: ৳ ${fmt2(monthTotal)} &nbsp;|&nbsp; এন্ট্রি: ${rows.length}টি</div>`:''}
       <div style="overflow-x:auto"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
-        ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.description||'—'}</td><td style="${tdStyle};font-weight:700;color:#166534">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">মেমো/রিসিট</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle};color:var(--accent);font-weight:600;font-size:12px">${formatMemoReceiptCompact(e.memo)}</td><td style="${tdStyle};font-weight:700;color:#166534">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'expense') {
@@ -18786,8 +18794,8 @@ function buildReadOnlyHTML(feature, role) {
     return `${monthHeader('💸 ব্যয় তালিকা'+badge)}
       ${isOwnerMonthly?`<div style="font-size:12.5px;color:#991b1b;font-weight:700;margin-bottom:8px">এই মাসের মোট ব্যয়: ৳ ${fmt2(monthTotal)} &nbsp;|&nbsp; এন্ট্রি: ${rows.length}টি</div>`:''}
       <div style="overflow-x:auto"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
-        ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.description||'—'}</td><td style="${tdStyle};font-weight:700;color:#991b1b">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">ভাউচার নং</th><th style="${thStyle}">পরিমাণ</th></tr>
+        ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle};color:var(--accent);font-weight:600;font-size:12px">${e.voucher||'—'}</td><td style="${tdStyle};font-weight:700;color:#991b1b">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'camp') {
@@ -18802,7 +18810,7 @@ function buildReadOnlyHTML(feature, role) {
           <td style="${tdStyle}">${formatDate(c.date)}</td>
           <td style="${tdStyle};font-weight:600">${c.name||'—'}</td>
           <td style="${tdStyle};text-align:center">${c.totalPatients||0}</td>
-          <td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(c.totalIncome)}</td>
+          <td style="${tdStyle};font-weight:700;color:${isOwnerMonthly?'#166534':'#2ecc71'}">৳ ${fmt2(c.totalIncome)}</td>
           <td style="${tdStyle};text-align:center;color:#0f4c81">👁️</td>
         </tr>`).join('') : `<tr><td colspan="5" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
@@ -18812,7 +18820,7 @@ function buildReadOnlyHTML(feature, role) {
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📋 বাকি তালিকা ${badge}</div>
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">মোট</th><th style="${thStyle}">বাকি</th></tr>
-        ${rows.length ? rows.map(v=>`<tr><td style="${tdStyle}">${formatDate(v.date)}</td><td style="${tdStyle}">${v.patientName||'—'}</td><td style="${tdStyle}">৳ ${fmt2(v.total)}</td><td style="${tdStyle};font-weight:700;color:#e74c3c">৳ ${fmt2(v.due)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো বাকি নেই</td></tr>`}
+        ${rows.length ? rows.map(v=>`<tr><td style="${tdStyle}">${formatDate(v.date)}</td><td style="${tdStyle}">${v.patientName||'—'}</td><td style="${tdStyle}">৳ ${fmt2(v.total)}</td><td style="${tdStyle};font-weight:700;color:${isOwnerMonthly?'#991b1b':'#e74c3c'}">৳ ${fmt2(v.due)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো বাকি নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'campdue') {
@@ -18836,11 +18844,11 @@ function buildReadOnlyHTML(feature, role) {
           <td style="padding:5px 8px;color:#888">${v.patPhone||'—'}</td>
           <td style="padding:5px 8px;text-align:center">${v.receiptNo?'#'+v.receiptNo:'—'}</td>
           <td style="padding:5px 8px;text-align:right">৳${fmt2(v.netTotal||v.total||0)}</td>
-          <td style="padding:5px 8px;text-align:right;color:#e74c3c;font-weight:700">৳${fmt2(v.due)}</td>
+          <td style="padding:5px 8px;text-align:right;color:${isOwnerMonthly?'#991b1b':'#e74c3c'};font-weight:700">৳${fmt2(v.due)}</td>
           <td style="padding:5px 8px;text-align:right"><button class="btn btn-purple btn-sm" style="font-size:11px;padding:4px 8px" onclick="openCampDueModal(${v.id})">💳 আদায়</button></td>
         </tr>`).join('');
       return `<div style="margin-bottom:10px;border:1.5px solid #fde8e8;border-radius:10px;overflow:hidden">
-        <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f8;border:none;font-family:inherit;font-size:13px;font-weight:700;color:#e74c3c;cursor:pointer">
+        <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f8;border:none;font-family:inherit;font-size:13px;font-weight:700;color:${isOwnerMonthly?'#991b1b':'#e74c3c'};cursor:pointer">
           <span>🏕️ ${g.campName} <span style="font-weight:400;color:#999;font-size:11px">— ${formatDate(g.date)}</span></span>
           <span style="display:flex;align-items:center;gap:8px"><span style="font-size:12px">৳${fmt2(totalDue)}</span><span class="camp-toggle-arrow">▼</span></span>
         </button>
@@ -18874,11 +18882,11 @@ function buildReadOnlyHTML(feature, role) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px">
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:3px">মোট মূলধন (ক্রয়মূল্য)</div>
-          <div style="font-size:15px;font-weight:800;color:var(--danger)">৳ ${fmt2(totalCapital)}</div>
+          <div style="font-size:15px;font-weight:800;color:${isOwnerMonthly?'#991b1b':'var(--danger)'}">৳ ${fmt2(totalCapital)}</div>
         </div>
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:3px">মোট বিক্রয়মূল্য (সর্বনিম্ন)</div>
-          <div style="font-size:15px;font-weight:800;color:var(--success)">৳ ${fmt2(totalSellVal)}</div>
+          <div style="font-size:15px;font-weight:800;color:${isOwnerMonthly?'#166534':'var(--success)'}">৳ ${fmt2(totalSellVal)}</div>
         </div>
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:3px">সম্ভাব্য নিট লাভ</div>
@@ -18919,8 +18927,9 @@ function buildReadOnlyHTML(feature, role) {
         rejected: 'background:#fee2e2;color:#991b1b',
         partial:  'background:#dbeafe;color:#1e40af'
       };
-      const rows = (appData.demands||[]).slice().sort((a,b)=>b.id-a.id).slice(0,50);
-      return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📝 ডিমান্ড নোট (সব)</div>
+      let rows = (appData.demands||[]).slice().sort((a,b)=>b.id-a.id);
+      rows = rows.filter(d=>(d.date||'').startsWith(curMonth));
+      return `${monthHeader('📝 ডিমান্ড নোট (সব)')}
         ${rows.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">
           ${rows.map(d=>{
             const badgeStyle = statusBadgeStyle[d.status] || 'background:#f1f5f9;color:#475569';
@@ -19032,9 +19041,9 @@ function buildReadOnlyHTML(feature, role) {
       const statusColor=lv?'#ea580c':isIn?'#16a34a':'#94a3b8';
       const statusText=lv?'ছুটি':isIn?'কর্মরত':'অনুপস্থিত';
       let timeInfo='<div style="font-size:11px;color:#aaa">রেকর্ড নেই</div>';
-      if(lastIn) timeInfo='<div style="font-size:11px;color:#16a34a">ইন: '+formatTime(lastIn.ts)+(lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):' | কর্মরত')+'</div>';
+      if(lastIn) timeInfo='<div style="font-size:11px;color:'+(isOwnerMonthly?'#166534':'#16a34a')+'">ইন: '+formatTime(lastIn.ts)+(lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):' | কর্মরত')+'</div>';
       if(lv) timeInfo='<div style="font-size:11px;color:#ea580c">🗓️ ছুটিতে</div>';
-      const hoursInfo=mins>0?'<div style="font-size:11px;color:#059669">⏱ '+hrs+'ঘ '+mn+'মি</div>':'';
+      const hoursInfo=mins>0?'<div style="font-size:11px;color:'+(isOwnerMonthly?'#166534':'#059669')+'">⏱ '+hrs+'ঘ '+mn+'মি</div>':'';
       return '<div style="display:flex;align-items:center;gap:10px;background:'+bg+';border:1.5px solid '+border+';border-radius:10px;padding:10px 12px">'
         +'<div style="flex:1"><div style="font-weight:700">'+s.name+'</div><div style="font-size:11px;color:#888">'+(s.desig||'')+'</div>'
         +timeInfo+hoursInfo+'</div>'
@@ -19070,7 +19079,7 @@ function buildReadOnlyHTML(feature, role) {
     const { cash, bank } = (typeof calcCashBankBalance==='function') ? calcCashBankBalance() : {cash:0,bank:0};
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏦 ব্যাংক/ক্যাশ লেনদেন ${badge}</div>
       <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <div style="background:#d1fae5;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;text-align:center"><div style="font-size:11px;color:#065f46">ক্যাশ ব্যালেন্স</div><div style="font-size:18px;font-weight:800;color:#059669">৳ ${fmt2(cash)}</div></div>
+        <div style="background:#d1fae5;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;text-align:center"><div style="font-size:11px;color:#065f46">ক্যাশ ব্যালেন্স</div><div style="font-size:18px;font-weight:800;color:${isOwnerMonthly?'#166534':'#059669'}">৳ ${fmt2(cash)}</div></div>
         <div style="background:#dbeafe;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;text-align:center"><div style="font-size:11px;color:#1e40af">ব্যাংক ব্যালেন্স</div><div style="font-size:18px;font-weight:800;color:#1d4ed8">৳ ${fmt2(bank)}</div></div>
       </div>
       <div style="overflow-x:auto"><table style="${tableStyle}">
@@ -19099,11 +19108,11 @@ function buildReadOnlyHTML(feature, role) {
           return `<div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden">
             <div style="background:#f8fafc;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
               <div><strong style="color:var(--primary)">${b.name}</strong> <span style="font-size:11px;color:#888">(চেক নং ${b.start}–${b.end})</span></div>
-              <div style="font-size:12px;color:#666">পরবর্তী চেক: <strong style="color:var(--success)">${next}</strong> &nbsp;|&nbsp; বাকি: ${rem}টি &nbsp;|&nbsp; মোট খরচ: <strong style="color:#e74c3c">৳ ${fmt2(totalSpent)}</strong></div>
+              <div style="font-size:12px;color:#666">পরবর্তী চেক: <strong style="color:${isOwnerMonthly?'#166534':'var(--success)'}">${next}</strong> &nbsp;|&nbsp; বাকি: ${rem}টি &nbsp;|&nbsp; মোট খরচ: <strong style="color:${isOwnerMonthly?'#991b1b':'#e74c3c'}">৳ ${fmt2(totalSpent)}</strong></div>
             </div>
             <div style="overflow-x:auto"><table style="${tableStyle}">
               <tr><th style="${thStyle}">চেক নং</th><th style="${thStyle}">তারিখ</th><th style="${thStyle}">খাত</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
-              ${used.length ? used.slice().sort((a,b2)=>(parseInt(a.checkNo)||0)-(parseInt(b2.checkNo)||0)).map(e=>`<tr><td style="${tdStyle};font-weight:700;color:#0f4c81">${e.checkNo}</td><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.note||'—'}</td><td style="${tdStyle};font-weight:700;color:#e74c3c">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#aaa">এই চেক বই থেকে এখনো কোনো লেনদেন হয়নি</td></tr>`}
+              ${used.length ? used.slice().sort((a,b2)=>(parseInt(a.checkNo)||0)-(parseInt(b2.checkNo)||0)).map(e=>`<tr><td style="${tdStyle};font-weight:700;color:#0f4c81">${e.checkNo}</td><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.note||'—'}</td><td style="${tdStyle};font-weight:700;color:${isOwnerMonthly?'#991b1b':'#e74c3c'}">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="5" style="padding:14px;text-align:center;color:#aaa">এই চেক বই থেকে এখনো কোনো লেনদেন হয়নি</td></tr>`}
             </table></div>
           </div>`;
         }).join('')}
@@ -19131,8 +19140,8 @@ function buildReadOnlyHTML(feature, role) {
           <td style="${tdStyle};font-weight:600">${formatDate(r.date)}</td>
           <td style="${tdStyle}">৳ ${fmt2(r.openingCash)}</td>
           <td style="${tdStyle}">৳ ${fmt2(r.openingBank)}</td>
-          <td style="${tdStyle};color:#2ecc71">৳ ${fmt2(r.income)}</td>
-          <td style="${tdStyle};color:#e74c3c">৳ ${fmt2(r.expense)}</td>
+          <td style="${tdStyle};color:${isOwnerMonthly?'#166534':'#2ecc71'}">৳ ${fmt2(r.income)}</td>
+          <td style="${tdStyle};color:${isOwnerMonthly?'#991b1b':'#e74c3c'}">৳ ${fmt2(r.expense)}</td>
           <td style="${tdStyle};font-weight:700">৳ ${fmt2(r.closingCash)}</td>
           <td style="${tdStyle};font-weight:700">৳ ${fmt2(r.closingBank)}</td>
         </tr>`).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">কোনো তথ্য নেই</td></tr>`}
@@ -19146,7 +19155,7 @@ function buildReadOnlyHTML(feature, role) {
       ${isOwnerMonthly?`<div style="font-size:12.5px;color:#0369a1;font-weight:700;margin-bottom:8px">এই মাসের মোট জমা: ৳ ${fmt2(monthTotal)} &nbsp;|&nbsp; এন্ট্রি: ${rows.length}টি</div>`:''}
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">সময়</th><th style="${thStyle}">জমা দিয়েছেন</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">মেমো রেঞ্জ</th><th style="${thStyle}">পরিমাণ</th></tr>
-        ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle}">${d.time||'—'}</td><td style="${tdStyle}">${d.by||'—'}</td><td style="${tdStyle};text-align:center">${d.visitCount||0}জন</td><td style="${tdStyle}">${d.memoFrom||''}–${d.memoTo||''}</td><td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(d.amount)}</td></tr>`).join('') : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
+        ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle}">${d.time||'—'}</td><td style="${tdStyle}">${d.by||'—'}</td><td style="${tdStyle};text-align:center">${d.visitCount||0}জন</td><td style="${tdStyle}">${d.memoFrom||''}–${d.memoTo||''}</td><td style="${tdStyle};font-weight:700;color:${isOwnerMonthly?'#166534':'#2ecc71'}">৳ ${fmt2(d.amount)}</td></tr>`).join('') : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'delivery') {
@@ -19174,8 +19183,8 @@ function buildReadOnlyHTML(feature, role) {
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:4px;font-size:15px">🗓️ আজকের এন্ট্রি — ${formatDate(today)}</div>
       <div style="font-size:12px;color:#888;margin-bottom:12px">সাম্প্রতিক এন্ট্রি থেকে শুধু আজকের রেকর্ডগুলো সংক্ষেপে দেখানো হচ্ছে</div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-        <div style="background:#d1fae5;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#065f46">মোট জমা</div><div style="font-size:15px;font-weight:800;color:#059669">৳ ${fmt2(totalIn)}</div></div>
-        <div style="background:#fee2e2;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#991b1b">মোট খরচ/উত্তোলন</div><div style="font-size:15px;font-weight:800;color:#dc2626">৳ ${fmt2(totalOut)}</div></div>
+        <div style="background:#d1fae5;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#065f46">মোট জমা</div><div style="font-size:15px;font-weight:800;color:${isOwnerMonthly?'#166534':'#059669'}">৳ ${fmt2(totalIn)}</div></div>
+        <div style="background:#fee2e2;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#991b1b">মোট খরচ/উত্তোলন</div><div style="font-size:15px;font-weight:800;color:${isOwnerMonthly?'#991b1b':'#dc2626'}">৳ ${fmt2(totalOut)}</div></div>
         <div style="background:#f1f5f9;border-radius:8px;padding:8px 14px;flex:1;min-width:120px;text-align:center"><div style="font-size:10.5px;color:#475569">মোট এন্ট্রি</div><div style="font-size:15px;font-weight:800;color:#334155">${rows.length} টি</div></div>
       </div>
       ${rows.length ? `<div style="display:flex;flex-direction:column;gap:7px">${rows.map(r=>`
@@ -19212,17 +19221,17 @@ function buildReadOnlyHTML(feature, role) {
       ${funds.length ? `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">${funds.map(f=>`
         <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div style="font-weight:700;font-size:13.5px;color:#1e293b">${esc(f.name)}${f.active?'':' <span style="color:var(--danger);font-size:11px">(নিষ্ক্রিয়)</span>'}</div>
+            <div style="font-weight:700;font-size:13.5px;color:#1e293b">${esc(f.name)}${f.active?'':' <span style="color:'+(isOwnerMonthly?'#991b1b':'var(--danger)')+';font-size:11px">(নিষ্ক্রিয়)</span>'}</div>
             <div style="font-size:11.5px;color:#888">${f.active?'বরাদ্দ '+f.percent+'%':'সক্রিয় নেই'}</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
-            <div style="grid-column:1/-1;background:#f0fdf4;border-radius:6px;padding:6px 8px"><span style="color:#065f46">অবশিষ্ট ব্যালেন্স:</span> <strong style="color:var(--success);font-size:14px">৳ ${fmt2(f.balance)}</strong></div>
+            <div style="grid-column:1/-1;background:#f0fdf4;border-radius:6px;padding:6px 8px"><span style="color:#065f46">অবশিষ্ট ব্যালেন্স:</span> <strong style="color:${isOwnerMonthly?'#166534':'var(--success)'};font-size:14px">৳ ${fmt2(f.balance)}</strong></div>
             <div><span style="color:#888">মোট জমা:</span> <strong>৳ ${fmt2(f.total)}</strong></div>
-            <div><span style="color:#888">মোট খরচ:</span> <strong style="color:var(--danger)">৳ ${fmt2(f.spent)}</strong></div>
+            <div><span style="color:#888">মোট খরচ:</span> <strong style="color:${isOwnerMonthly?'#991b1b':'var(--danger)'}">৳ ${fmt2(f.spent)}</strong></div>
           </div>
         </div>`).join('')}</div>
         <div style="background:#f0f4f8;border-radius:8px;padding:12px 14px;font-size:12.5px;font-weight:700;margin-bottom:18px;line-height:1.9">
-          মোট অবশিষ্ট: <span style="color:var(--success)">৳ ${fmt2(grandBalance)}</span><br>
+          মোট অবশিষ্ট: <span style="color:${isOwnerMonthly?'#166534':'var(--success)'}">৳ ${fmt2(grandBalance)}</span><br>
           মোট জমা: ৳ ${fmt2(grandTotal)} &nbsp;|&nbsp; মোট খরচ: ৳ ${fmt2(grandSpent)}
         </div>` : `<div style="text-align:center;color:#aaa;padding:20px;margin-bottom:16px">এখনো কোনো ফান্ড খাত সেট করা হয়নি অথবা কোনো মাস ক্লোজ হয়নি।</div>`}
       <div style="font-weight:700;color:var(--primary);margin-bottom:10px;font-size:14px">🧾 ফান্ড খরচের ইতিহাস</div>
@@ -19238,7 +19247,7 @@ function buildReadOnlyHTML(feature, role) {
           <div style="font-size:11.5px;color:#666;margin-bottom:4px">${esc(e.note||'—')}</div>
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:#94a3b8">
             <span>${formatDate(e.date)} • ${esc(e.voucher||'—')} • ${esc(e.by||'—')}</span>
-            <span style="font-weight:800;color:var(--danger);font-size:13.5px">৳ ${fmt2(e.amount)}</span>
+            <span style="font-weight:800;color:${isOwnerMonthly?'#991b1b':'var(--danger)'};font-size:13.5px">৳ ${fmt2(e.amount)}</span>
           </div>
         </div>`;
       }).join('')}</div>` : `<div style="text-align:center;color:#aaa;padding:16px;margin-bottom:16px">এখনো কোনো ফান্ড খরচ হয়নি</div>`}
@@ -19268,10 +19277,10 @@ function buildReadOnlyHTML(feature, role) {
             <div style="display:flex;flex-direction:column;gap:8px">
               ${rows.map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fafbfc;border-radius:8px;padding:9px 12px">
                 <div style="min-width:0;flex:1">
-                  <div style="font-weight:700;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.name)}${t.status==='inactive'?' <span style="color:var(--danger);font-size:10.5px;font-weight:600">(নিষ্ক্রিয়)</span>':''}</div>
+                  <div style="font-weight:700;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.name)}${t.status==='inactive'?' <span style="color:'+(isOwnerMonthly?'#991b1b':'var(--danger)')+';font-size:10.5px;font-weight:600">(নিষ্ক্রিয়)</span>':''}</div>
                   ${t.note?`<div style="font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.note)}</div>`:''}
                 </div>
-                <div style="font-weight:800;font-size:14px;color:var(--success);white-space:nowrap;flex-shrink:0">৳ ${fmt2(t.fee)}</div>
+                <div style="font-weight:800;font-size:14px;color:${isOwnerMonthly?'#166534':'var(--success)'};white-space:nowrap;flex-shrink:0">৳ ${fmt2(t.fee)}</div>
               </div>`).join('')}
             </div>
           </div>
@@ -31759,37 +31768,40 @@ function getDashPieDetailRows(catLabel, type, period){
     // getVisitItemBreakdown()-এর লজিকের সাথে হুবহু মিলিয়ে বানানো, যেন পাই চার্টের
     // প্রতিটি স্লাইসের বিস্তারিত এন্ট্রি লিস্ট এখানে দেখা যায়
     (appData.visits||[]).filter(v=>inPeriod(v.date)).forEach(v=>{
+      const vPatLabel = (v.patName||'রোগী') + (v.memoNo?` (${v.memoNo})`:'');
       if(v.visitFee>0 && catLabel==='OPD/পরামর্শ'){
-        rows.push({sub:'ভিজিট ফি',label:(v.patientName||'রোগী')+' — ভিজিট ফি',amount:v.visitFee,date:v.date});
+        rows.push({sub:'ভিজিট ফি',label:vPatLabel+' — ভিজিট ফি',amount:v.visitFee,date:v.date});
       }
       (v.items||[]).forEach(it=>{
         const k=canonicalCat(it.type||it.name||'');
         const amt=it.total||(it.price*it.qty)||0;
         const subName=it.name||it.type||'আইটেম';
-        if(k===catLabel && amt) rows.push({sub:subName,label:(v.patientName?v.patientName+' — ':'')+subName,amount:amt,date:v.date});
+        if(k===catLabel && amt) rows.push({sub:subName,label:vPatLabel+' — '+subName,amount:amt,date:v.date});
       });
       if(!(v.items&&v.items.length) && v.cashPaid>0 && catLabel==='OPD/পরামর্শ'){
         const amt=v.cashPaid-(v.visitFee||0);
-        if(amt) rows.push({sub:'ভিজিট (অন্যান্য পেমেন্ট)',label:v.patientName||'রোগী',amount:amt,date:v.date});
+        if(amt) rows.push({sub:'ভিজিট (অন্যান্য পেমেন্ট)',label:vPatLabel,amount:amt,date:v.date});
       }
     });
 
     // ক্যাম্প — ক্যাম্পের ভিতরের ভিজিট আইটেম/ফি, আর ডিটেইল না থাকলে লামসাম ফলব্যাক
     (appData.camps||[]).filter(c=>inPeriod(c.date)).forEach(c=>{
       const cVisits=c.visits||c.campVisits||[];
+      const cName=c.name||c.campName||'ক্যাম্প';
+      const cReceipt=c.receipt||(c.receiptStart!=null?(c.receiptEnd&&c.receiptEnd!==c.receiptStart?`${c.receiptStart}-${c.receiptEnd}`:c.receiptStart):'');
       cVisits.forEach(v=>{
         (v.items||[]).forEach(it=>{
           const k=canonicalCat(it.type||it.name||'');
           const amt=it.total||(it.price*it.qty)||0;
           const subName=it.name||it.type||'আইটেম';
-          if(k===catLabel && amt) rows.push({sub:subName,label:(c.campName?c.campName+' — ':'')+subName,amount:amt,date:c.date});
+          if(k===catLabel && amt) rows.push({sub:subName,label:cName+' — '+subName,amount:amt,date:c.date});
         });
         if(v.visitFee>0 && catLabel==='OPD/পরামর্শ'){
-          rows.push({sub:'ভিজিট ফি (ক্যাম্প)',label:(c.campName||'ক্যাম্প')+' — ভিজিট ফি',amount:v.visitFee,date:c.date});
+          rows.push({sub:'ভিজিট ফি (ক্যাম্প)',label:cName+' — ভিজিট ফি',amount:v.visitFee,date:c.date});
         }
       });
       if(c.totalIncome>0 && !cVisits.length && catLabel==='ক্যাম্প (লামসাম)'){
-        rows.push({sub:'লামসাম আয়',label:c.campName||'ক্যাম্প',amount:c.totalIncome,date:c.date});
+        rows.push({sub:'লামসাম আয়',label:cName+(cReceipt?` (Receipt ${cReceipt})`:''),amount:c.totalIncome,date:c.date});
       }
     });
   } else {
