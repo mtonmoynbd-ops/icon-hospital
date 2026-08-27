@@ -2666,6 +2666,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <option value="day">ডে ওয়াইজ</option>
               <option value="month">মান্থ ওয়াইজ</option>
             </select>
+            <select id="incGroupBy" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="date">তারিখ অনুযায়ী</option>
+              <option value="category">খাত অনুযায়ী</option>
+            </select>
+            <select id="incFilterCat" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব খাত</option>
+            </select>
             <input type="date" id="incFilterDate" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
             <input type="month" id="incFilterMonth" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;display:none">
           </div>
@@ -7751,6 +7758,14 @@ function canAccess(role, feature) {
 
 let currentUser = null;
 let currentOwnerActiveFeature = 'dashboard';
+// ✅ owner প্যানেলে আয়/ব্যয়/ব্যালেন্স শিট/ক্যাম্প/রিসেপশন রেকর্ড — এই ৫টা রিড-অনলি পেজ ডিফল্টে চলতি মাস দেখায়,
+// হেডারের মান্থ পিকার দিয়ে যেকোনো আগের মাস বেছে নেয়া যায়
+let ownerReadOnlyMonth = todayStr().substring(0,7);
+function changeOwnerReadOnlyMonth(val) {
+  if (!val) return;
+  ownerReadOnlyMonth = val;
+  renderOwnerReadOnlySection(currentOwnerActiveFeature);
+}
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
 let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
@@ -9781,12 +9796,18 @@ function showPage(name) {
   const info = pageMap[name] || { title:name, sub:'' };
   document.getElementById('pageTitle').textContent = info.title;
   document.getElementById('pageSub').textContent = info.sub;
-  if (name === 'income')  { renderIncomeTable(); document.getElementById('incDate').value = todayStr(); updateIncMemo();
+  if (name === 'income')  {
+    const ivm=document.getElementById('incViewMode'), ifm=document.getElementById('incFilterMonth'), ifd=document.getElementById('incFilterDate');
+    if (ivm && ifm && ifd && !ifm.value && !ifd.value) { ivm.value='month'; ifm.value=todayStr().substring(0,7); ifd.style.display='none'; ifm.style.display=''; }
+    renderIncomeTable(); document.getElementById('incDate').value = todayStr(); updateIncMemo();
     const ifb=document.getElementById('incFormBody'); if(ifb) ifb.style.display='none';
     const ifi=document.getElementById('incFormIcon'); if(ifi) ifi.textContent='▶';
     makeTableResizable('incomeTable');
   }
-  if (name === 'expense') { renderExpenseTable(); clearExpenseForm();
+  if (name === 'expense') {
+    const evm=document.getElementById('expViewMode'), efm=document.getElementById('expFilterMonth'), efd=document.getElementById('expFilterDate');
+    if (evm && efm && efd && !efm.value && !efd.value) { evm.value='month'; efm.value=todayStr().substring(0,7); efd.style.display='none'; efm.style.display=''; }
+    renderExpenseTable(); clearExpenseForm();
     const efb=document.getElementById('expFormBody'); if(efb) efb.style.display='none';
     const efi=document.getElementById('expFormIcon'); if(efi) efi.textContent='▶';
     makeTableResizable('expenseTable');
@@ -10651,31 +10672,43 @@ function renderIncomeTable() {
   const fd=document.getElementById('incFilterDate').value;
   const fm=document.getElementById('incFilterMonth')?document.getElementById('incFilterMonth').value:'';
   const vm=document.getElementById('incViewMode')?document.getElementById('incViewMode').value:'day';
+  const groupBy=document.getElementById('incGroupBy')?document.getElementById('incGroupBy').value:'date';
+  const filterCat=document.getElementById('incFilterCat')?document.getElementById('incFilterCat').value:'';
   let data = [...appData.income];
   if (vm==='day' && fd) data=data.filter(e=>e.date===fd);
   else if (vm==='month' && fm) data=data.filter(e=>e.date&&e.date.startsWith(fm));
+  if (filterCat) data=data.filter(e=>e.category===filterCat);
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('incomeTable');
   if (!data.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
 
-  // Group by day or month
+  // গ্রুপিং কী নির্ধারণ (তারিখ/খাত অনুযায়ী)
+  const getKey = e => {
+    if (groupBy==='category') return e.category||'অজানা';
+    const k = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
+    return k;
+  };
+  const getGroupLabel = key => {
+    if (groupBy==='category') return key;
+    return vm==='month' ? (()=>{const[y,m]=key.split('-');return`${m}/${y}`;})() : formatDate(key);
+  };
+  const groupColor = groupBy==='category' ? '#7c3aed' : '#166534';
+  const groupBg    = groupBy==='category' ? '#faf5ff' : '#f0fdf4';
+  const groupBorder= groupBy==='category' ? '#e9d5ff' : '#bbf7d0';
+
   const groups = {};
-  data.forEach(e => {
-    const key = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
-    if (!groups[key]) groups[key]=[];
-    groups[key].push(e);
-  });
+  data.forEach(e => { const k=getKey(e); if(!groups[k])groups[k]=[]; groups[k].push(e); });
   const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
 
   let html='';
   sortedKeys.forEach(key => {
     const items = groups[key];
     const total = items.reduce((s,e)=>s+e.amount,0);
-    const label = vm==='month' ? (() => { const [y,m]=key.split('-'); return `${m}/${y}`; })() : formatDate(key);
+    const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
-    html += `<tr style="background:#f0fdf4;cursor:pointer;border-top:2px solid #bbf7d0" data-hdr-gid="inc_${gid}" data-open="1" onclick="toggleIncGroup('${gid}')">
-      <td colspan="6" style="color:#166534;font-weight:700;padding:7px 12px;font-size:12.5px">
-        📅 ${label} &nbsp;—&nbsp; মোট আয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+    html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" data-hdr-gid="inc_${gid}" data-open="1" onclick="toggleIncGroup('${gid}')">
+      <td colspan="6" style="color:${groupColor};font-weight:700;padding:7px 12px;font-size:12.5px">
+        ${groupBy==='category'?'📂':'📅'} ${label} &nbsp;—&nbsp; মোট আয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
       <td style="color:#64748b;text-align:right;padding:7px 12px" colspan="3"><span id="incGrpIcon-${gid}">▼</span></td>
     </tr>`;
@@ -10694,6 +10727,12 @@ function renderIncomeTable() {
     });
   });
   tbody.innerHTML=html;
+}
+// incFilterCat সিলেক্ট পপুলেট
+function populateIncFilterCat() {
+  const sel=document.getElementById('incFilterCat'); if(!sel) return;
+  const incCats=getIncCats();
+  sel.innerHTML='<option value="">সব খাত</option>'+incCats.map(c=>`<option value="${c}">${c}</option>`).join('');
 }
 function toggleIncGroup(gid) {
   const rows=document.querySelectorAll('.inc-grp-row[data-grp="'+gid+'"]');
@@ -13843,6 +13882,8 @@ function goToIncomeForPatient(patKey, patName) {
   const vmEl=document.getElementById('incViewMode'); if (vmEl) vmEl.value='day';
   const dEl=document.getElementById('incFilterDate'); if (dEl) dEl.value='';
   const mEl=document.getElementById('incFilterMonth'); if (mEl) mEl.style.display='none';
+  const catEl=document.getElementById('incFilterCat'); if (catEl) catEl.value='';
+  const gbEl=document.getElementById('incGroupBy'); if (gbEl) gbEl.value='date';
   renderIncomeTable();
   // ✅ আগে শুধু income.ref (নামের টেক্সট) দিয়ে key মেলানো হতো — কিন্তু ফোন নম্বর থাকা রোগীর আসল key ফোন-ভিত্তিক হওয়ায়
   // নাম-ভিত্তিক key এর সাথে মিলতো না, ফলে ভুলভাবে "কোনো আয় এন্ট্রি পাওয়া যায়নি" দেখাতো। তাই এখন আগে visitId দিয়ে
@@ -13867,6 +13908,8 @@ function goToIncomeRow(id, date) {
   const vmEl=document.getElementById('incViewMode'); if (vmEl) vmEl.value='day';
   const dEl=document.getElementById('incFilterDate'); if (dEl) { dEl.value=date; dEl.style.display=''; }
   const mEl=document.getElementById('incFilterMonth'); if (mEl) mEl.style.display='none';
+  const catEl=document.getElementById('incFilterCat'); if (catEl) catEl.value='';
+  const gbEl=document.getElementById('incGroupBy'); if (gbEl) gbEl.value='date';
   renderIncomeTable();
   const gid=(date||'').replace(/[^a-zA-Z0-9]/g,'_');
   const rows=document.querySelectorAll('.inc-grp-row[data-grp="'+gid+'"]');
@@ -18712,27 +18755,43 @@ function buildReadOnlyHTML(feature, role) {
   const tableStyle = 'width:100%;border-collapse:collapse;font-size:13px';
   const thStyle = 'padding:8px 10px;background:#f8fafc;color:#0f4c81;font-weight:700;text-align:left;border-bottom:2px solid #e2e8f0';
   const tdStyle = 'padding:8px 10px;border-bottom:1px solid #f0f0f0';
+  // ✅ owner রোলে আয়/ব্যয়/ব্যালেন্স শিট/ক্যাম্প/রিসেপশন রেকর্ড ডিফল্টে চলতি মাস দেখাবে, হেডারে মান্থ পিকার থাকবে
+  const isOwnerMonthly = role === 'owner';
+  const curMonth = ownerReadOnlyMonth;
+  const monthHeader = (title) => isOwnerMonthly
+    ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+         <div style="font-weight:700;color:var(--primary);font-size:15px">${title}</div>
+         <input type="month" value="${curMonth}" onchange="changeOwnerReadOnlyMonth(this.value)" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+       </div>`
+    : `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">${title}</div>`;
 
   if (feature === 'income') {
-    const rows = (appData.income||[]).slice().sort((a,b)=>b.id-a.id).slice(0,50);
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">💰 আয় তালিকা ${badge}</div>
+    let rows = (appData.income||[]).slice().sort((a,b)=>b.id-a.id);
+    rows = isOwnerMonthly ? rows.filter(e=>(e.date||'').startsWith(curMonth)) : rows.slice(0,50);
+    const monthTotal = isOwnerMonthly ? rows.reduce((s,e)=>s+(e.amount||0),0) : 0;
+    return `${monthHeader('💰 আয় তালিকা'+badge)}
+      ${isOwnerMonthly?`<div style="font-size:12.5px;color:#166534;font-weight:700;margin-bottom:8px">এই মাসের মোট আয়: ৳ ${fmt2(monthTotal)} &nbsp;|&nbsp; এন্ট্রি: ${rows.length}টি</div>`:''}
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
         ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.description||'—'}</td><td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'expense') {
-    const rows = (appData.expense||[]).slice().sort((a,b)=>b.id-a.id).slice(0,50);
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">💸 ব্যয় তালিকা ${badge}</div>
+    let rows = (appData.expense||[]).slice().sort((a,b)=>b.id-a.id);
+    rows = isOwnerMonthly ? rows.filter(e=>(e.date||'').startsWith(curMonth)) : rows.slice(0,50);
+    const monthTotal = isOwnerMonthly ? rows.reduce((s,e)=>s+(e.amount||0),0) : 0;
+    return `${monthHeader('💸 ব্যয় তালিকা'+badge)}
+      ${isOwnerMonthly?`<div style="font-size:12.5px;color:#991b1b;font-weight:700;margin-bottom:8px">এই মাসের মোট ব্যয়: ৳ ${fmt2(monthTotal)} &nbsp;|&nbsp; এন্ট্রি: ${rows.length}টি</div>`:''}
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">ক্যাটাগরি</th><th style="${thStyle}">বিবরণ</th><th style="${thStyle}">পরিমাণ</th></tr>
         ${rows.length ? rows.map(e=>`<tr><td style="${tdStyle}">${formatDate(e.date)}</td><td style="${tdStyle}">${e.category||'—'}</td><td style="${tdStyle}">${e.description||'—'}</td><td style="${tdStyle};font-weight:700;color:#e74c3c">৳ ${fmt2(e.amount)}</td></tr>`).join('') : `<tr><td colspan="4" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'camp') {
-    const rows = (appData.camps||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
+    let rows = (appData.camps||[]).slice().sort((a,b)=>b.id-a.id);
+    rows = isOwnerMonthly ? rows.filter(c=>(c.date||'').startsWith(curMonth)) : rows.slice(0,30);
     const trStyle = 'cursor:pointer;transition:background 0.15s';
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:4px;font-size:15px">🏕️ ক্যাম্প তালিকা ${badge}</div>
+    return `${monthHeader('🏕️ ক্যাম্প তালিকা'+badge)}
       <div style="font-size:12px;color:#888;margin-bottom:10px">👆 যেকোনো ক্যাম্পে ট্যাপ করুন বিস্তারিত দেখতে</div>
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">আয়</th><th style="${thStyle}"></th></tr>
@@ -19053,14 +19112,16 @@ function buildReadOnlyHTML(feature, role) {
     const initCash = parseFloat((appData.settings||{}).cashBalance)||0;
     const initBank = parseFloat((appData.settings||{}).bankBalance)||0;
     let runningCash = initCash, runningBank = initBank;
-    const rows = allDates.map(d => {
+    const allRows = allDates.map(d => {
       const inc = getDayIncome(d), exp = getDayExpense(d), bankNet = getDayNetBank(d);
       const openingCash = runningCash, openingBank = runningBank;
       runningCash = openingCash + getDayNetCash(d);
       runningBank = openingBank + bankNet;
       return { date:d, openingCash, openingBank, income:inc, expense:exp, closingCash:runningCash, closingBank:runningBank };
-    }).reverse().slice(0,30);
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">⚖️ ব্যালেন্স শিট ${badge}</div>
+    });
+    let rows = allRows.slice().reverse();
+    rows = isOwnerMonthly ? rows.filter(r=>(r.date||'').startsWith(curMonth)) : rows.slice(0,30);
+    return `${monthHeader('⚖️ ব্যালেন্স শিট'+badge)}
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">প্রারম্ভিক ক্যাশ</th><th style="${thStyle}">প্রারম্ভিক ব্যাংক</th><th style="${thStyle}">আয়</th><th style="${thStyle}">ব্যয়</th><th style="${thStyle}">সমাপনি ক্যাশ</th><th style="${thStyle}">সমাপনি ব্যাংক</th></tr>
         ${rows.length ? rows.map(r=>`<tr>
@@ -19075,8 +19136,11 @@ function buildReadOnlyHTML(feature, role) {
       </table></div>`;
   }
   if (feature === 'recdeposit') {
-    const rows = (appData.recDeposits||[]).slice().sort((a,b)=>b.id-a.id).slice(0,30);
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🧰 রিসেপশন রেকর্ড (ক্যাশ জমা) ${badge}</div>
+    let rows = (appData.recDeposits||[]).slice().sort((a,b)=>b.id-a.id);
+    rows = isOwnerMonthly ? rows.filter(d=>(d.date||'').startsWith(curMonth)) : rows.slice(0,30);
+    const monthTotal = isOwnerMonthly ? rows.reduce((s,d)=>s+(d.amount||0),0) : 0;
+    return `${monthHeader('🧰 রিসেপশন রেকর্ড (ক্যাশ জমা)'+badge)}
+      ${isOwnerMonthly?`<div style="font-size:12.5px;color:#0369a1;font-weight:700;margin-bottom:8px">এই মাসের মোট জমা: ৳ ${fmt2(monthTotal)} &nbsp;|&nbsp; এন্ট্রি: ${rows.length}টি</div>`:''}
       <div style="overflow-x:auto"><table style="${tableStyle}">
         <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">সময়</th><th style="${thStyle}">জমা দিয়েছেন</th><th style="${thStyle}">রোগী</th><th style="${thStyle}">মেমো রেঞ্জ</th><th style="${thStyle}">পরিমাণ</th></tr>
         ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.date)}</td><td style="${tdStyle}">${d.time||'—'}</td><td style="${tdStyle}">${d.by||'—'}</td><td style="${tdStyle};text-align:center">${d.visitCount||0}জন</td><td style="${tdStyle}">${d.memoFrom||''}–${d.memoTo||''}</td><td style="${tdStyle};font-weight:700;color:#2ecc71">৳ ${fmt2(d.amount)}</td></tr>`).join('') : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#aaa">কোনো রেকর্ড নেই</td></tr>`}
@@ -27661,6 +27725,7 @@ function updateCategorySelects() {
   if(incSel) incSel.innerHTML='<option value="">-- খাত নির্বাচন করুন --</option>'+incCats.map(c=>`<option>${c}</option>`).join('');
   if(expSel) expSel.innerHTML='<option value="">-- ক্যাটাগরি নির্বাচন করুন --</option>'+expCats.map(c=>`<option>${c}</option>`).join('');
   populateExpFilterCat();
+  populateIncFilterCat();
   populateSubCatParentSelect();
   // স্টক ক্যাটাগরি ড্রপডাউন আপডেট
   updateStockCatSelects();
