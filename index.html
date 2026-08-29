@@ -372,6 +372,9 @@
   /* TABLE — premium */
   .table-wrap { overflow-x:auto; border-radius:12px; }
   table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  /* ✅ বিল হিস্ট্রি টেবিলের সারিতে ক্লিক করলে প্রিন্ট প্রিভিউ খোলে — হোভার ইঙ্গিত */
+  .bill-hist-row { cursor:pointer; transition:background .12s; }
+  .bill-hist-row:hover { background:#f0f9ff; }
 
   /* ✅ প্রিমিয়াম গ্লোবাল সার্চ — মোডাল স্টাইলে (আগের ছোট ড্রপডাউনের বদলে) */
   .psm-backdrop { position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.55); display:flex; align-items:flex-start; justify-content:center; padding:88px 16px 40px; overflow-y:auto; backdrop-filter:blur(2px); }
@@ -558,7 +561,7 @@
   /* ✅ পণ্য ও সার্ভিস হেডার — টাইটেল ও "যোগ করুন" ড্রপডাউন এক লাইনে, সঠিক এলাইনমেন্টে */
   .rn-svc-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
   .rn-svc-chips { display:flex; align-items:center; flex-wrap:wrap; gap:5px; }
-  .rn-svc-cols { display:grid; grid-template-columns:2.2fr 1fr 1fr 1fr auto; gap:6px; margin-bottom:4px; padding:0 4px; }
+  .rn-svc-cols { display:grid; grid-template-columns:2.2fr 1fr 1fr 1fr 46px; gap:6px; margin-bottom:4px; padding:0 4px; }
   .rn-svc-cols span { font-size:10.5px; font-weight:700; color:var(--text-light); }
 
   /* ✅ মোবাইল ব্যাংকিং ও নগদ প্রদান — পাশাপাশি */
@@ -2308,6 +2311,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="nav-item admin-only" data-page="testfees"><span class="nav-icon">🔬</span> টেস্ট/অপারেশন ফি</div>
 
       <div class="nav-item" data-page="newbill"><span class="nav-icon">🧾</span> নতুন বিল <span id="draftBadge" style="display:none;background:#e74c3c;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;animation:blink-anim 1s infinite">!</span></div>
+      <div class="nav-item" data-page="billhistory"><span class="nav-icon">📋</span> বিলের ইতিহাস</div>
 
       <div class="nav-item" data-page="stock"><span class="nav-icon">📦</span> স্টক ম্যানেজমেন্ট</div>
       <div class="nav-item" data-page="salary"><span class="nav-icon">👨‍⚕️</span> স্যালারি শিট</div>
@@ -3328,26 +3332,31 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <div id="nb_serviceRows"></div>
             </div>
             <div class="rn-right-col">
-              <!-- ডিসকাউন্ট — অ্যাডমিনের নিজস্ব লজিক (চশমার sellMin-এর উপরের অংশে প্রযোজ্য নিয়মসহ) অপরিবর্তিত -->
-              <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:9px 12px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-                  <span style="font-size:12px;font-weight:700;color:#92400e">🎫 ডিসকাউন্ট</span>
-                  <span id="nb_DiscountLimit" style="font-size:10.5px;color:#92400e"></span>
+              <!-- ✅ একটাই ডিসকাউন্ট বক্স — চশমা (উপরে) ও ওভারঅল (নিচে), দুটো সম্পূর্ণ আলাদা হিসাব, ফিল্ড ছোট করে একসাথে -->
+              <div style="background:#fdfaf5;border:1.5px solid #d6c9a8;border-radius:8px;padding:8px 10px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                  <span style="font-size:11.5px;font-weight:700;color:#92400e">👓 চশমার ডিসকাউন্ট</span>
+                  <span id="nb_DiscountLimit" style="font-size:10px;color:#92400e"></span>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end">
-                  <div class="field" style="margin-bottom:0">
-                    <label style="font-size:10.5px">ডিসকাউন্ট (%)</label>
-                    <input type="number" id="nb_DiscountPct" placeholder="০" min="0" oninput="nbApplyDiscPct()" style="padding:8px 9px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;min-width:0">
-                  </div>
-                  <div class="field" style="margin-bottom:0">
-                    <label style="font-size:10.5px">ডিসকাউন্ট (৳)</label>
-                    <input type="number" id="nb_DiscountAmt" placeholder="০" min="0" oninput="nbApplyDiscAmt()" style="padding:8px 9px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;min-width:0">
-                  </div>
-                  <button class="btn btn-outline btn-sm" onclick="nbClearDisc()" style="margin-bottom:0;padding:8px 9px">✕</button>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center;margin-bottom:6px">
+                  <input type="number" id="nb_DiscountPct" placeholder="%" min="0" oninput="nbApplyDiscPct()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <input type="number" id="nb_DiscountAmt" placeholder="৳" min="0" oninput="nbApplyDiscAmt()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <button class="btn btn-outline btn-sm" onclick="nbClearDisc()" style="padding:5px 8px;font-size:11px">✕</button>
                 </div>
-                <div id="nb_GlassDiscInfo" style="display:none;margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:11.5px;color:#856404">
-                  ⚠️ চশমার বিল: ডিসকাউন্ট শুধু sellMin এর উপরের অংশে প্রযোজ্য।
+                <div id="nb_GlassDiscInfo" style="display:none;margin-bottom:6px;padding:6px 7px;background:#fff3cd;border-radius:6px;font-size:10.5px;color:#856404">
+                  ⚠️ ডিসকাউন্ট শুধু sellMin এর উপরের অংশে প্রযোজ্য।
                 </div>
+                <div style="border-top:1px dashed #d6c9a8;margin:6px 0"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                  <span style="font-size:11.5px;font-weight:700;color:#0369a1">🎫 ওভারঅল ডিসকাউন্ট</span>
+                  <span id="nb_OverallDiscountLimit" style="font-size:10px;color:#0369a1"></span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center">
+                  <input type="number" id="nb_OverallDiscPct" placeholder="%" min="0" oninput="nbApplyOverallDiscPct()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <input type="number" id="nb_OverallDiscAmt" placeholder="৳" min="0" oninput="nbApplyOverallDiscAmt()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <button class="btn btn-outline btn-sm" onclick="nbClearOverallDisc()" style="padding:5px 8px;font-size:11px">✕</button>
+                </div>
+                <div style="margin-top:5px;font-size:10px;color:#0369a1">ℹ️ ভিজিট ফি আগে কাটবে, তারপর বাকি সার্ভিস — মেডিসিন/চশমা/সার্জিক্যালে কখনো না।</div>
               </div>
               <!-- মোবাইল ব্যাংকিং ও নগদ প্রদান পাশাপাশি -->
               <div class="rn-mfs-cash-row">
@@ -3399,6 +3408,40 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <thead><tr><th>Memo</th><th>তারিখ</th><th>রোগী</th><th>ফোন</th><th>মোট</th><th>ডিসকাউন্ট</th><th>নেট</th><th>পরিশোধ</th><th>বাকি</th><th>এন্ট্রিকারী</th></tr></thead>
           <tbody id="newBillHistTable"></tbody>
         </table></div></div>
+      </div>
+    </div>
+
+    <!-- BILL HISTORY (dedicated page) -->
+    <div id="pg-billhistory" class="page-view">
+      <div class="panel">
+        <div class="panel-header" style="flex-wrap:wrap;gap:8px">
+          <div class="panel-title">📋 বিলের ইতিহাস</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="bhSearch" oninput="renderBillHistoryTable()" placeholder="🔍 নাম, ফোন বা মেমো..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:170px">
+            <select id="bhViewMode" onchange="bhViewModeChanged()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="day">ডে ওয়াইজ</option>
+              <option value="month" selected>মান্থ ওয়াইজ</option>
+            </select>
+            <input type="date" id="bhFilterDate" onchange="renderBillHistoryTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;display:none">
+            <input type="month" id="bhFilterMonth" onchange="renderBillHistoryTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <select id="bhDueFilter" onchange="renderBillHistoryTable()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব বিল</option>
+              <option value="due">শুধু বাকি আছে</option>
+              <option value="clear">বাকি নেই</option>
+            </select>
+            <select id="bhByFilter" onchange="renderBillHistoryTable()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব এন্ট্রিকারী</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="clearBhFilters()" title="ফিল্টার রিসেট করুন">✕ রিসেট</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="bhSummary" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:12.5px"></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Memo</th><th>তারিখ</th><th>রোগী</th><th>ফোন</th><th>মোট</th><th>ডিসকাউন্ট</th><th>নেট</th><th>পরিশোধ</th><th>বাকি</th><th>এন্ট্রিকারী</th></tr></thead>
+            <tbody id="billHistoryTable"></tbody>
+          </table></div>
+        </div>
       </div>
     </div>
 
@@ -4876,6 +4919,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <select id="docStatus"><option value="active">সক্রিয়</option><option value="inactive">নিষ্ক্রিয়</option></select>
             </div>
           </div>
+          <div class="form-row">
+            <div class="field"><label>ভিজিট ফি (৳) <span style="font-size:11px;color:var(--text-light)">— নতুন বিলে এই ডাক্তার নির্বাচিত থাকলে ভিজিট ফি লাইনে স্বয়ংক্রিয়ভাবে এই ফি বসে যাবে</span></label>
+              <input type="number" id="docVisitFee" placeholder="যেমন: ৫০০" min="0"></div>
+          </div>
           <div class="panel" style="background:#f8fafc;border:1.5px solid var(--border);margin:10px 0;padding:12px 14px">
             <div style="font-weight:700;font-size:13px;color:var(--primary);margin-bottom:8px">📇 রিসেপশন ডিরেক্টরি তথ্য <span style="font-weight:400;color:var(--text-light);font-size:11.5px">(রিসেপশনিস্ট ফোনে জিজ্ঞেস করলে বলতে পারবে — কমিশন হিসাবের সাথে সম্পর্কিত না)</span></div>
             <div class="form-row three">
@@ -5117,12 +5164,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
           <div style="background:var(--bg-card);border-radius:10px;padding:16px;margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>মোট:</span><span id="abTotal" style="font-weight:700">৳ ০</span></div>
-            <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+            <div style="display:flex;gap:12px;align-items:center;margin-bottom:4px">
               <label style="font-size:13px">অ্যাডমিন ডিসকাউন্ট:</label>
               <input type="number" id="abDiscPct" min="0" max="100" placeholder="%" style="width:70px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit" oninput="updateAdminBillSummary()">
               <span style="font-size:13px">%</span>
               <span id="abDiscLimit" style="font-size:12px;color:var(--text-light)"></span>
             </div>
+            <div style="font-size:10.5px;color:#0369a1;margin-bottom:8px">ℹ️ ভিজিট ফি/টেস্ট/অন্যান্য সার্ভিসের উপর প্রযোজ্য (cascade: ভিজিট ফি আগে, তারপর বাকি) — ওষুধ, চশমা ও সার্জিক্যাল আইটেমের দামে কখনো প্রযোজ্য হবে না।</div>
             <div id="abDiscRow" style="display:none;justify-content:space-between;margin-bottom:8px;color:var(--danger)"><span>ডিসকাউন্ট:</span><span id="abDiscAmt">-৳ ০</span></div>
             <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:var(--success)"><span>নেট বিল:</span><span id="abNetBill">৳ ০</span></div>
             <div style="display:flex;gap:12px;align-items:center;margin-top:10px;background:linear-gradient(135deg,#ecfeff,#e0f7fa);border:2px solid var(--accent);border-radius:8px;padding:8px 12px">
@@ -6187,6 +6235,40 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
 
       <div class="panel">
+        <div class="panel-header"><div class="panel-title">🧾 আয়/ব্যয় স্বীকৃতির সময় (Recognition Timing) — কোন মাসে গণনা হয়</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p><strong>নীতি: টাকা প্রকৃতপক্ষে হাত-বদল যেদিন হয়, সেই দিনের মাসেই আয়/ব্যয় গণনা হয় — বিল/এন্ট্রি করার তারিখে না।</strong> এটা "মাসিক তুলনা" স্ট্রিপ, পাই চার্ট, রিপোর্ট, ও মাস-ক্লোজিং নিট মুনাফা — সবগুলো জায়গায় সমানভাবে প্রযোজ্য।</p>
+          <div class="table-wrap"><table style="font-size:13px">
+            <thead><tr style="background:#f0f4f8"><th>ঘটনা</th><th>কোন তারিখে গণনা হয়</th></tr></thead>
+            <tbody>
+              <tr><td>ভিজিট/অ্যাডমিন বিলের মূল পরিশোধ (cashPaid)</td><td>বিলের তারিখ</td></tr>
+              <tr><td>ভিজিট/ক্যাম্প রোগীর পরবর্তী "বাকি আদায়"</td><td>আদায়ের প্রকৃত তারিখ — বিল যত পুরনোই হোক না কেন (এমনকি এক বছর পরে আদায় হলেও সেই আদায়ের মাসেই গণনা হবে)</td></tr>
+              <tr><td>নগদ খরচ</td><td>খরচের তারিখ</td></tr>
+              <tr><td>ব্যাংক চেকে করা খরচ</td><td>চেক <strong>ভাঙানোর (cleared) তারিখ</strong> — ইস্যুর তারিখ না। যতক্ষণ চেক "পেন্ডিং" থাকে, ততক্ষণ কোনো মাসেই এই খরচ গণনা হয় না (ব্যাংক ব্যালেন্সও কমে না)।</td></tr>
+            </tbody>
+          </table></div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400e;margin-top:8px">কারণ: পোস্টডেটেড চেক ইস্যু করা মানেই সেই মুহূর্তে খরচ হয়ে যাওয়া না (ব্যাংক ব্যালেন্স তখনো কমেনি, এবং চেকটা আদৌ কবে/আদৌ ভাঙানো হবে তারও নিশ্চয়তা নেই)। একইভাবে, রোগীর বাকি টাকা যেদিন হাতে আসে সেদিনই সেটা প্রকৃত আয় — বিলিং-এর পুরনো তারিখে গণনা করলে সেই মাসের প্রকৃত ক্যাশ ফ্লো বিভ্রান্তিকর হয়ে যায়।</div>
+          <p style="margin-top:8px;color:#4b5563"><strong>আয়/ব্যয় "পেজ"</strong> (তালিকা পেজ দুটো) — এই একই নিয়ম মেনে চলে (ব্যয় পেজ effective/ভাঙানোর তারিখ দিয়ে ফিল্টার-গ্রুপ করে, পেন্ডিং চেক শুধু উপরের আলাদা ব্যানারে দেখায়, নিচের তালিকায় দ্বৈতভাবে না)। তবে এই পেজদুটো <strong>raw সম্পূর্ণ লেজার</strong> — ফান্ড খরচ ও ইনভেন্টরি ক্রয়ও এখানে দেখায় (নিচের "ফান্ড বরাদ্দ" প্যানেল দ্রষ্টব্য), যেখানে "মাসিক তুলনা"/পাই চার্ট এই দুই ধরনের এন্ট্রি বাদ দিয়ে শুধু প্রকৃত অপারেটিং আয়/ব্যয় দেখায়। তাই ব্যয় পেজের গ্রুপ-হেডারে এখন "সাধারণ ব্যয়" (পাই/তুলনার সাথে মিলবে), "ফান্ড থেকে ব্যয়", "ইনভেন্টরি ক্রয়" — আলাদা ব্র্যাকেটে, আর সবমিলিয়ে "প্রকৃত মোট ব্যয়"ও দেখায়।</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🎫 ডিসকাউন্ট নীতি</div></div>
+        <div class="panel-body" style="font-size:13.5px;line-height:1.8">
+          <p>দুই ধরনের ডিসকাউন্ট সম্পূর্ণ আলাদাভাবে কাজ করে — একটা আরেকটাকে স্পর্শ করে না:</p>
+          <div class="table-wrap"><table style="font-size:13px">
+            <thead><tr style="background:#f0f4f8"><th>ধরন</th><th>কোথায় প্রযোজ্য</th><th>নিয়ম</th></tr></thead>
+            <tbody>
+              <tr><td>চশমার ডিসকাউন্ট</td><td>শুধু চশমার ফ্রেমের দাম (qty×price)</td><td>সর্বনিম্ন বিক্রয়মূল্য (sellMin) বাদ দিয়ে উপরের অংশে প্রযোজ্য। লেন্স কাস্টমাইজেশনের (কোটিং/লেন্স-টাইপ/কোয়ালিটি) মূল্যে কখনো না।</td></tr>
+              <tr><td>ওভারঅল ডিসকাউন্ট</td><td>ভিজিট ফি, টেস্ট, সার্জিক্যাল, অন্যান্য সার্ভিস</td><td><strong>Cascade:</strong> ভিজিট ফি থেকে আগে কাটে; ভিজিট ফি-র চেয়ে বেশি হলে ভিজিট ফি শূন্য হয়ে বাকিটা পরের সার্ভিস থেকে (বিলের ক্রম অনুযায়ী) কাটে। <strong>মেডিসিনের দামে কখনো কাটে না</strong>, চশমার দামও এই cascade স্পর্শ করে না।</td></tr>
+            </tbody>
+          </table></div>
+          <p style="margin-top:8px">দুটো ডিসকাউন্টেরই <strong>সর্বোচ্চ সীমা role-ভিত্তিক</strong> (সেটিংস থেকে নির্ধারিত %) — অ্যাডমিনের সীমা সবচেয়ে বেশি, তারপর মডারেটর, তারপর রিসেপশনিস্ট। ইনপুট ফিল্ডে % দিলে সংশ্লিষ্ট সর্বোচ্চ টাকার অ্যামাউন্ট স্বয়ংক্রিয়ভাবে দেখানো হয়।</p>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-top:8px">নীতি: বিলের প্রতিটা সার্ভিস লাইনে ঠিক কত ডিসকাউন্ট কাটা হলো তা রেকর্ড রাখা হয় — এই তথ্যের ভিত্তিতেই পাই চার্ট/রিপোর্টে প্রতিটা ক্যাটাগরির (OPD/পরামর্শ, টেস্ট ইত্যাদি) <strong>প্রকৃত (নেট, ডিসকাউন্টের পরের) আয়</strong> দেখানো হয় — গ্রস (ডিসকাউন্টের আগের) বিলড অ্যামাউন্ট না।</div>
+        </div>
+      </div>
+
+      <div class="panel">
         <div class="panel-header"><div class="panel-title">📦 ইনভেন্টরি খরচ (COGS) — ওয়েটেড এভারেজ কস্ট পদ্ধতি</div></div>
         <div class="panel-body" style="font-size:13.5px;line-height:1.8">
           <p>স্টকের প্রতিটি আইটেমের একটা <strong>ওয়েটেড এভারেজ ক্রয়মূল্য (Weighted Average Cost)</strong> রাখা হয়। নতুন স্টক-ইন হলে নতুন দামটা আগের গড়ের সাথে পরিমাণ-ভিত্তিক ওজন দিয়ে মিশিয়ে নতুন গড় বের করা হয় — কোনো একটা ব্যাচের দাম আলাদা হলেই পুরো ইতিহাস এলোমেলো হয়ে যায় না।</p>
@@ -6266,6 +6348,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <p>মাস ক্লোজ করার সময় বণ্টনযোগ্য মুনাফা থেকে সেটিংসে নির্ধারিত % অনুযায়ী বিভিন্ন <strong>ফান্ড খাতে</strong> একটা অংশ আলাদা করে রাখা হয় (যেমন — জরুরি তহবিল, উন্নয়ন তহবিল ইত্যাদি, নাম/শতাংশ সেটিংস থেকে ঠিক করা যায়)। ফান্ড খাত থেকে খরচ করা হলে সেটা <strong>"P&L-নিরপেক্ষ"</strong> হিসেবে চিহ্নিত থাকে — অর্থাৎ মাসিক নিট লাভ/লোকসানের হিসাবে সেই খরচ আবার বিয়োগ হয় না (কারণ এটা ইতিমধ্যে বরাদ্দের সময় মুনাফা থেকে আলাদা হয়ে গেছে)।</p>
           <div style="background:#ede9fe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#5b21b6">ফান্ড ব্যালেন্স = এই ফান্ডে সর্বমোট বরাদ্দ − এই ফান্ড থেকে সর্বমোট খরচ</div>
           <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400e;margin-top:8px">নীতি: ফান্ডে যা <strong>প্রকৃতপক্ষে আছে</strong> তার বেশি কখনো P&L-নিরপেক্ষ হিসেবে দেখানো যাবে না। ফান্ডের ব্যালেন্সের চেয়ে বেশি খরচ করলে — ব্যালেন্স পর্যন্ত অংশ ফান্ড খরচ থাকে, বাকি অংশ স্বয়ংক্রিয়ভাবে একটা <strong>সাধারণ ব্যয়</strong> হিসেবে আলাদা রেকর্ড হয় ও মাসিক নিট মুনাফা/লোকসানে স্বাভাবিকভাবে হিসাব হয় — যাতে কোনো প্রকৃত ব্যয়/লোকসান লুকিয়ে না যায়।</div>
+          <p style="margin-top:8px;color:#4b5563"><strong>ইনভেন্টরি ক্রয়</strong> (বিক্রয়যোগ্য স্টক কেনা) একইভাবে P&L-নিরপেক্ষ — কারণ এটা তখনই "সম্পদ" (স্টক), খরচ না; বিক্রি হওয়ার সময় ওয়েটেড-এভারেজ COGS হিসেবে প্রকৃত খরচ ধরা হয় (উপরের প্যানেল দ্রষ্টব্য)। তাই ব্যয় পেজে ফান্ড খরচ ও ইনভেন্টরি ক্রয় — দুটোই "সাধারণ ব্যয়" ব্র্যাকেটের বাইরে আলাদাভাবে দেখানো হয়।</p>
         </div>
       </div>
 
@@ -6925,26 +7008,31 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <div id="serviceRows"></div>
             </div>
             <div class="rn-right-col">
-              <!-- ডিসকাউন্ট -->
-              <div style="background:#fff9f0;border:1.5px solid #f59e0b;border-radius:8px;padding:9px 12px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-                  <span style="font-size:12px;font-weight:700;color:#92400e">🎫 ডিসকাউন্ট</span>
-                  <span id="rDiscountLimit" style="font-size:10.5px;color:#92400e"></span>
+              <!-- ✅ একটাই ডিসকাউন্ট বক্স — চশমা (উপরে) ও ওভারঅল (নিচে), দুটো সম্পূর্ণ আলাদা হিসাব -->
+              <div style="background:#fdfaf5;border:1.5px solid #d6c9a8;border-radius:8px;padding:8px 10px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                  <span style="font-size:11.5px;font-weight:700;color:#92400e">👓 চশমার ডিসকাউন্ট</span>
+                  <span id="rDiscountLimit" style="font-size:10px;color:#92400e"></span>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:end">
-                  <div class="field" style="margin-bottom:0">
-                    <label style="font-size:10.5px">ডিসকাউন্ট (%)</label>
-                    <input type="number" id="rDiscountPct" placeholder="০" min="0" oninput="applyDiscountPct()" style="padding:8px 9px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;min-width:0">
-                  </div>
-                  <div class="field" style="margin-bottom:0">
-                    <label style="font-size:10.5px">ডিসকাউন্ট (৳)</label>
-                    <input type="number" id="rDiscountAmt" placeholder="০" min="0" oninput="applyDiscountAmt()" style="padding:8px 9px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;min-width:0">
-                  </div>
-                  <button class="btn btn-outline btn-sm" onclick="clearDiscount()" style="margin-bottom:0;padding:8px 9px">✕</button>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center;margin-bottom:6px">
+                  <input type="number" id="rDiscountPct" placeholder="%" min="0" oninput="applyDiscountPct()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <input type="number" id="rDiscountAmt" placeholder="৳" min="0" oninput="applyDiscountAmt()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <button class="btn btn-outline btn-sm" onclick="clearDiscount()" style="padding:5px 8px;font-size:11px">✕</button>
                 </div>
-                <div id="glassDiscInfo" style="display:none;margin-top:8px;padding:8px;background:#fff3cd;border-radius:6px;font-size:11.5px;color:#856404">
-                  ⚠️ চশমার বিল: ডিসকাউন্ট শুধু sellMin এর উপরের অংশে প্রযোজ্য।
+                <div id="glassDiscInfo" style="display:none;margin-bottom:6px;padding:6px 7px;background:#fff3cd;border-radius:6px;font-size:10.5px;color:#856404">
+                  ⚠️ ডিসকাউন্ট শুধু sellMin এর উপরের অংশে প্রযোজ্য।
                 </div>
+                <div style="border-top:1px dashed #d6c9a8;margin:6px 0"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                  <span style="font-size:11.5px;font-weight:700;color:#0369a1">🎫 ওভারঅল ডিসকাউন্ট</span>
+                  <span id="rOverallDiscountLimit" style="font-size:10px;color:#0369a1"></span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center">
+                  <input type="number" id="rOverallDiscPct" placeholder="%" min="0" oninput="applyOverallDiscPct()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <input type="number" id="rOverallDiscAmt" placeholder="৳" min="0" oninput="applyOverallDiscAmt()" style="padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;width:100%;min-width:0">
+                  <button class="btn btn-outline btn-sm" onclick="clearOverallDiscount()" style="padding:5px 8px;font-size:11px">✕</button>
+                </div>
+                <div style="margin-top:5px;font-size:10px;color:#0369a1">ℹ️ ভিজিট ফি আগে কাটবে, তারপর বাকি সার্ভিস — মেডিসিন/চশমা/সার্জিক্যালে কখনো না।</div>
               </div>
               <!-- মোবাইল ব্যাংকিং ও নগদ প্রদান পাশাপাশি -->
               <div class="rn-mfs-cash-row">
@@ -9017,6 +9105,7 @@ function startApp() {
     if (el) el.textContent = `সর্বোচ্চ ${limit}% পর্যন্ত দিতে পারবেন`;
     if (typeof populateDoctorSelect==='function') populateDoctorSelect('rDocSelect');
     if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor();
+    if (typeof refreshVisitFeeRow==='function') refreshVisitFeeRow('');
     if (typeof initReceptionExtras==='function') initReceptionExtras();
 
   } else if (role === 'owner' || role === 'campaigner') {
@@ -9348,7 +9437,7 @@ function showEditHistory(module, entryId, label) {
     modal.id = 'editHistoryModal';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)';
     modal.innerHTML = `
-      <div style="background:var(--card-bg);border-radius:14px;padding:0;width:min(700px,96vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.22)">
+      <div style="background:var(--card);border-radius:14px;padding:0;width:min(700px,96vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.22)">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)">
           <div style="font-weight:800;font-size:16px;color:var(--primary)">🕐 এডিট হিস্ট্রি</div>
           <div id="editHistoryLabel" style="font-size:13px;color:var(--text-light)"></div>
@@ -9759,6 +9848,7 @@ const pageMap = {
   memorandum:   { title:'📜 মেমোরেন্ডাম ও TOR', sub:'হাসপাতালের মেমোরেন্ডাম ও টার্মস অফ রেফারেন্স' },
   'accounting-principles': { title:'📖 হিসাবরক্ষণ নীতিমালা', sub:'এই অ্যাপে কোন হিসাব কীভাবে ও কোন নীতির ভিত্তিতে করা হয়' },
   adminbill:{ title:'🧾 নতুন বিল (অ্যাডমিন)', sub:'অ্যাডমিন বিলিং ও ড্রাফট অ্যাপ্রুভাল' },
+  billhistory:{ title:'📋 বিলের ইতিহাস', sub:'সকল বিলের তালিকা, ফিল্টার ও প্রিন্ট প্রিভিউ' },
   patients: { title:'🏥 রোগীর ডেটাবেস', sub:'সকল রোগীর তথ্য ও ইতিহাস' },
   recdeposit:   { title:'🏦 রিসেপশন ক্যাশ জমার রেকর্ড', sub:'রিসেপশনিস্টের দৈনিক ক্যাশ জমার বিস্তারিত' },
   balancesheet: { title:'📊 ব্যালেন্স শিট', sub:'ডে ওয়াইজ ও মান্থ ওয়াইজ ক্যাশ ব্যালেন্স' },
@@ -9837,6 +9927,7 @@ function showPage(name) {
   if (name === 'officialpad')  { initOfficialPad(); }
   if (name === 'memorandum')   { initMemorandumPage(); }
   if (name === 'newbill')      { initNewBillPage(); }
+  if (name === 'billhistory')  { initBillHistoryPage(); }
   if (name === 'adminbill')    { initAdminBillPage(); renderDraftBills(); }
   if (name === 'patients')     { renderPatientDB(); renderCampOps(); renderMergedPatientsList(); }
   if (name === 'settings')     { renderCategoryLists(); updateCategorySelects(); closeSettingsSection(); }
@@ -9923,6 +10014,15 @@ function dashEntryModuleName(cls) {
   if (cls === 'badge-expense') return 'ব্যয়';
   if (cls === 'badge-transfer') return 'ব্যাংক ট্রান্সফার';
   return '';
+}
+// ✅ ড্যাশবোর্ডের "সাম্প্রতিক এন্ট্রি" তালিকায় একটা বিলের (রিসেপশন/অ্যাডমিন বিল) অটো-জেনারেটেড আয়-এন্ট্রিতে
+// 🕐 চাপলে, রিসেপশনিস্ট/অ্যাডমিনের করা আসল সংশোধনগুলো (যেগুলো visit রেকর্ডের উপর, module='রোগীর বিল' নামে
+// সেভ হয়) আগে দেখাতো না — কারণ আয়-এন্ট্রির নিজস্ব আলাদা id/module দিয়ে খোঁজা হতো, যেটাতে কখনো কিছু লেখা হয়নি।
+// এখন e.visitId থাকলে (অর্থাৎ এটা কোনো বিলের অটো-এন্ট্রি) সরাসরি সেই ভিজিটেরই এডিট হিস্ট্রি দেখানো হয়।
+function dashShowEditHistoryFor(cls, id, cat, visitId) {
+  if (visitId) { showEditHistory('রোগীর বিল', visitId, cat||''); return; }
+  const numId = isNaN(id) ? id : Number(id); // saveEditHistory-তে entryId নাম্বার হিসেবে সেভ হয়, তাই === মিলাতে কনভার্ট করা দরকার
+  showEditHistory(dashEntryModuleName(cls), numId, cat||'');
 }
 let _dashEditEntry = null;
 // রিসেন্ট এন্ট্রি টেবিলের হোভার-এডিট বাটন থেকে কল হয় — শুধু income/expense/bankTx সাপোর্টেড; ডিলিটের বদলে সংশোধনের সুযোগ দেয় এবং আগের মান এডিট হিস্ট্রিতে রক্ষিত থাকে
@@ -11256,14 +11356,19 @@ function renderExpenseTable() {
   const vm=document.getElementById('expViewMode')?.value||'day';
   const groupBy=document.getElementById('expGroupBy')?.value||'date';
   const filterCat=document.getElementById('expFilterCat')?.value||'';
-  let data = [...(appData.expense||[])];
-  if (vm==='day' && fd) data=data.filter(e=>e.date===fd);
-  else if (vm==='month' && fm) data=data.filter(e=>e.date&&e.date.startsWith(fm));
+  // ✅ ফিক্স: এখন থেকে ফিল্টার/গ্রুপিং entry তারিখ (e.date) দিয়ে না, বরং expenseEffectiveDate(e) দিয়ে হয় —
+  // ব্যাংক চেকের জন্য এটা আসল ভাঙ্গানোর তারিখ (clearDate/actualClearedDate), pending থাকলে null (কোনো
+  // মাসেই গণনায় ধরা হয় না, যতক্ষণ না "✅ ভাঙ্গানো হয়েছে" চেপে ক্লিয়ার করা হয়)। এটাই dashboard/মাসিক তুলনা/
+  // পাই চার্টে ব্যবহৃত একই সংজ্ঞা, যাতে একই মাসের মোট ব্যয় সব জায়গায় মিলে যায়।
+  let data = [...(appData.expense||[])].filter(e=>e.status!=='pending');
+  if (vm==='day' && fd) data=data.filter(e=>expenseEffectiveDate(e)===fd);
+  else if (vm==='month' && fm) data=data.filter(e=>{const eff=expenseEffectiveDate(e); return eff&&eff.startsWith(fm);});
   if (filterCat) data=data.filter(e=>e.category===filterCat);
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('expenseTable');
 
   // সব পেন্ডিং চেক (ফিল্টার নির্বিশেষে) — সবসময় উপরে ভেসে থাকবে, যতদিন না ভাঙ্গানো নিশ্চিত হয়
+  // (এগুলো উপরের ফিল্টারেই effective date null হওয়ায় বাদ পড়ে গেছে, তাই এখানে আলাদাভাবে দেখানো হলেও কোথাও ডাবল গণনা/প্রদর্শন হচ্ছে না)
   const allPending = [...(appData.expense||[])].filter(e=>e.status==='pending').sort((a,b)=>a.clearDate.localeCompare(b.clearDate));
   let pendingHtml = '';
   if (allPending.length) {
@@ -11296,8 +11401,9 @@ function renderExpenseTable() {
   const getKey = e => {
     if (groupBy==='category') return e.category||'অজানা';
     if (groupBy==='paymode') return e.payMode==='bank' ? '🏦 ব্যাংক' : '💵 ক্যাশ';
-    // date (default)
-    const k = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
+    // date (default) — effective date অনুযায়ী গ্রুপ হয়
+    const eff = expenseEffectiveDate(e)||'';
+    const k = vm==='month' ? eff.substring(0,7) : eff;
     return k;
   };
   const getGroupLabel = key => {
@@ -11316,12 +11422,24 @@ function renderExpenseTable() {
   let html=pendingHtml;
   sortedKeys.forEach(key => {
     const items = groups[key];
-    const total = items.reduce((s,e)=>s+e.amount,0);
+    // ✅ ব্র্যাকেট-ভিত্তিক সাব-টোটাল: সাধারণ ব্যয় (পাই চার্ট/মাসিক তুলনার সাথে মিলে যাওয়ার কথা) + ফান্ড থেকে ব্যয়
+    // + ইনভেন্টরি ক্রয় (সম্পদ হিসেবে গণ্য, তাই P&L-এ ধরা হয় না) — আলাদা করে দেখানো হচ্ছে, আর সব মিলিয়ে "প্রকৃত মোট ব্যয়"ও দেখানো হচ্ছে
+    const normalItems = items.filter(e=>!e.isFundExpense && !e.isInventoryPurchase);
+    const fundItems = items.filter(e=>e.isFundExpense);
+    const invItems = items.filter(e=>e.isInventoryPurchase);
+    const normalTotal = normalItems.reduce((s,e)=>s+e.amount,0);
+    const fundTotal = fundItems.reduce((s,e)=>s+e.amount,0);
+    const invTotal = invItems.reduce((s,e)=>s+e.amount,0);
+    const grandTotal = normalTotal + fundTotal + invTotal;
     const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
+    let bracketsHtml = `<span style="color:${groupText}">সাধারণ ব্যয়: ৳ ${fmt(normalTotal)}</span>`;
+    if (fundTotal) bracketsHtml += ` <span style="color:#5b21b6">| ফান্ড থেকে: ৳ ${fmt(fundTotal)}</span>`;
+    if (invTotal) bracketsHtml += ` <span style="color:#0369a1">| ইনভেন্টরি: ৳ ${fmt(invTotal)}</span>`;
+    if (fundTotal || invTotal) bracketsHtml += ` <span style="color:#991b1b;font-weight:800">| প্রকৃত মোট ব্যয়: ৳ ${fmt(grandTotal)}</span>`;
     html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" data-hdr-gid="exp_${gid}" data-open="1" onclick="toggleExpGroup('${gid}')">
       <td colspan="7" style="color:${groupText};font-weight:700;padding:7px 12px;font-size:12.5px">
-        ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; মোট ব্যয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+        ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; ${bracketsHtml} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
       <td style="color:#64748b;text-align:right;padding:7px 12px" colspan="3"><span id="expGrpIcon-${gid}">▼</span></td>
     </tr>`;
@@ -11338,10 +11456,11 @@ function renderExpenseTable() {
         ? `${e.checkNo ? `চেক: ${e.checkNo}` : '—'}${e.payPerson ? ` <span style="color:#888">(বাহক: ${e.payPerson})</span>` : ''}`
         : (e.payPerson || '—');
       const fundBadge = e.isFundExpense ? `<span title="এই খরচ ফান্ড থেকে করা হয়েছে — মাসিক নিট লাভ/লোকসান হিসাবে গণনা হয় না" style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏦 P&L-নিরপেক্ষ</span>` : '';
+      const invBadge = e.isInventoryPurchase ? `<span title="ইনভেন্টরি ক্রয় — সম্পদ হিসেবে গণ্য, বিক্রির সময় COGS হিসেবে গণনা হয়, তাই এখন P&L-এ ধরা হয় না" style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">📦 সম্পদ</span>` : '';
       html += `<tr class="exp-grp-row"${e.isFundExpense?' style="background:#faf5ff"':''} data-grp="${gid}" id="exp-row-${e.id}">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
-        <td>${e.category}${fundBadge}</td>
+        <td>${e.category}${fundBadge}${invBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
         <td>${payBadge}${statusBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${personOrCheck}</td>
@@ -11616,7 +11735,7 @@ function renderRecDepositList() {
     </div>
     <div id="recDepGrp-${key}" style="margin-bottom:12px">`;
     items.forEach(d => {
-      html += `<div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:6px;cursor:pointer" onclick="showRecDepositDetail(${d.id})">
+      html += `<div style="background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:6px;cursor:pointer" onclick="showRecDepositDetail(${d.id})">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <span style="font-weight:700;color:var(--success)">৳ ${fmt(d.amount||0)}</span>
@@ -11824,6 +11943,7 @@ function renderDashRecentEntries() {
       cat: e.category,
       ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.ref||'—'),
       campId: e.campId||null,
+      visitId: e.visitId||null,
       amt: e.amount, by: e.by||'—', cls:'badge-income'
     })),
     ...(appData.expense||[]).map(e=>({
@@ -11958,7 +12078,7 @@ function renderDashRecentEntries() {
         <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
         <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
         <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
-        <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="showEditHistory('${dashEntryModuleName(e.cls)}',${e.id},'${(e.cat||'').replace(/'/g,"\\'")}')" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
+        <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
       </tr>`;
     });
 
@@ -11993,7 +12113,7 @@ function renderDashRecentEntries() {
           <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
           <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
           <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
-          <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="showEditHistory('${dashEntryModuleName(e.cls)}',${e.id},'${(e.cat||'').replace(/'/g,"\\'")}')" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
+          <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
         </tr>`;
       });
     });
@@ -14365,9 +14485,15 @@ function getCOGSForPrefix(prefix) {
 // ⚠️ গুরুত্বপূর্ণ: বিল সেভ হওয়ার সময় "রিসেপশন আয়"/"অ্যাডমিন বিল" ক্যাটাগরিতে যে income এন্ট্রি তৈরি হয় (visitId ট্যাগসহ),
 // সেটা শুধু আয়-তালিকায় দেখানোর জন্য — সেই একই টাকা visit.cashPaid এও আছে। তাই income যোগ করার সময় visitId-ট্যাগড
 // এন্ট্রি বাদ দেওয়া হয়, নাহলে একই বিলের টাকা দুইবার (income থেকে একবার, visits থেকে আরেকবার) গণনা হয়ে যেত।
+// ✅ ফিক্স ২: একই কারণে campVisitId-ট্যাগড এন্ট্রিও (ক্যাম্প রোগীর "বাকি আদায়") বাদ দেওয়া হচ্ছে — এই টাকা
+// আদায়ের সময় camp.totalIncome-ও বাড়িয়ে দেওয়া হয় (নিচে cmp-এ গণনা হচ্ছে), তাই বাদ না দিলে ডাবল কাউন্ট হতো।
+// ✅ ফিক্স ৩: নিয়মিত ভিজিটের "বাকি আদায়" এখন আদায়ের প্রকৃত মাসেই গণনা হয়, বিলিং-এর মাসে না —
+// visitId-ট্যাগড হলেও ক্যাটাগরি "বাকি আদায়" হলে বাদ দেওয়া হচ্ছে না (কারণ এই টাকা getVisitBilledCashPaid()-এ
+// আর ধরা নেই), আর vis-সাম এখন v.cashPaid (লাইভ, পরবর্তী আদায়সহ) এর বদলে getVisitBilledCashPaid() ব্যবহার
+// করছে — অর্থাৎ শুধু বিলিং-এর সময়কার টাকা, পরে আদায় যাই হোক না কেন সেটা তার নিজের মাসেই আলাদাভাবে গণনা হবে।
 function getTotalRevenueForPrefix(prefix) {
-  const inc = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.visitId).reduce((s,e)=>s+(e.amount||0),0);
-  const vis = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+(v.cashPaid||0),0);
+  const inc = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!e.campVisitId&&!(e.visitId&&e.category!=='বাকি আদায়')).reduce((s,e)=>s+(e.amount||0),0);
+  const vis = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+getVisitBilledCashPaid(v),0);
   const cmp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+(c.totalIncome||0),0);
   return inc + vis + cmp;
 }
@@ -16452,7 +16578,7 @@ function populateDocLinkedStaffSelect() {
 }
 function clearDoctorForm() {
   const idEl=document.getElementById('docEditId'); if(idEl) idEl.value='';
-  ['docName','docAfterDutyPercent','docDayRate','docCommissionPercent','docSpecialty','docPhone','docAffiliation','docAvailability','docChamber'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  ['docName','docAfterDutyPercent','docDayRate','docCommissionPercent','docSpecialty','docPhone','docAffiliation','docAvailability','docChamber','docVisitFee'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
   const te=document.getElementById('docType'); if(te) te.value='salaried';
   const se=document.getElementById('docStatus'); if(se) se.value='active';
   const ceEl=document.getElementById('docCommissionEnabled'); if(ceEl) ceEl.checked=false;
@@ -16484,6 +16610,7 @@ function saveDoctor() {
   const doc = {
     id: editId ? parseInt(editId) : Date.now(),
     name, type, status,
+    visitFee: parseFloat(document.getElementById('docVisitFee').value)||0,
     commissionEnabled: !!(document.getElementById('docCommissionEnabled')||{}).checked,
     linkedStaffId: document.getElementById('docLinkedStaff').value ? parseInt(document.getElementById('docLinkedStaff').value) : null,
     dutyStart: document.getElementById('docDutyStart').value || '09:00',
@@ -16530,6 +16657,7 @@ function editDoctor(id) {
   document.getElementById('docName').value=d.name;
   document.getElementById('docType').value=d.type;
   document.getElementById('docStatus').value=d.status;
+  document.getElementById('docVisitFee').value=d.visitFee||'';
   document.getElementById('docCommissionEnabled').checked = !!d.commissionEnabled;
   populateDocLinkedStaffSelect();
   document.getElementById('docLinkedStaff').value=d.linkedStaffId||'';
@@ -16568,6 +16696,7 @@ function classifyBillItemForCommission(item) {
   if (!item) return 'other';
   const type = item.type || '';
   if (type==='med' || type==='glass' || type==='surgical') return 'product';
+  if (type==='visitfee') return 'visit';
   if (type==='service' && item.feeId) {
     const tf = (appData.testFees||[]).find(t=>t.id===item.feeId);
     if (tf) {
@@ -16689,6 +16818,10 @@ function onDocSelectChange(p) {
     const { doctorId } = parseDocSelectValue(sel ? sel.value : '');
     try { localStorage.setItem('recDefaultDoctorId_'+todayStr(), doctorId||''); } catch(e){}
   }
+  // ✅ ডাক্তার পাল্টালে বিলে থাকা ভিজিট ফি লাইনও নতুন ডাক্তারের ফি অনুযায়ী আপডেট হয়ে যায়
+  if (p==='r') refreshVisitFeeRow('');
+  else if (p==='nb_') refreshVisitFeeRow('nb_');
+  else if (p==='ab' && typeof refreshAdminVisitFeeRow==='function') refreshAdminVisitFeeRow();
 }
 // ✅ পাতা লোড হওয়ার সময় বা নতুন বিল ফর্ম রিসেটের সময় — আজকের জন্য আগে সিলেক্ট করা ডিফল্ট ডাক্তার ফিরিয়ে আনে
 // p: 'r' (রিসেপশন) বা 'nb_' (অ্যাডমিন/মড নতুন বিল) — উভয়েই একই সংরক্ষিত ডিফল্ট ব্যবহার করে
@@ -17025,6 +17158,7 @@ const ALL_FEATURES = [
   { id:'balancesheet', label:'ব্যালেন্স শিট' },
   { id:'chart', label:'📊 চার্ট (ড্যাশবোর্ড)' },
   { id:'newbill',    label:'নতুন বিল' },
+  { id:'billhistory', label:'বিলের ইতিহাস' },
   { id:'testfees',   label:'টেস্ট ফি তালিকা' },
   { id:'patients',   label:'রোগীর ডেটাবেস' },
   { id:'officialpad', label:'অফিসিয়াল প্যাড' },
@@ -17042,7 +17176,7 @@ const FEATURE_ICONS = {
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
   bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
   delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️', funds:'🏦',
-  newbill:'🧾', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖',
+  newbill:'🧾', billhistory:'📋', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖',
   campdue:'🏕️'
 };
 const OWNER_TAB_CONFIG_KEY = 'hms_owner_tabs';
@@ -17870,7 +18004,7 @@ const QA_ICON_MAP = {
   salary:'briefcase', attendance:'calendar',
   camp:'tent',
   vendor:'truck', shareholders:'users',
-  memorandum:'filetext', officialpad:'file', patients:'heart', newbill:'fileplus', adminbill:'fileplus', testfees:'flask',
+  memorandum:'filetext', officialpad:'file', patients:'heart', newbill:'fileplus', billhistory:'clipboard', adminbill:'fileplus', testfees:'flask',
   'set-hosp-info':'heart', 'set-num-series':'hash', 'set-fixed-cost':'coin', 'set-pricing':'tag',
   'set-users':'users', 'set-feature-acc':'lock', 'set-camp-sched':'tent', 'set-test-fee':'flask',
   'set-income-cat':'folder', 'set-exp-subcat':'clipboard', 'set-stock-cat':'box', 'set-cash-persons':'user',
@@ -24349,8 +24483,9 @@ function initServiceRows() {
   document.getElementById('serviceRows').innerHTML='';
   if(!_rowCount) window._rowCount={};
   _rowCount['']=0;
-  // ✅ বাই ডিফল্ট কোনো ফিল্ড/রো থাকবে না — ব্যবহারকারী "+ যোগ করুন" থেকে যা সিলেক্ট করবে শুধু সেটাই যোগ হবে
-  updateSummary();
+  // ✅ ভিজিট ফি বাই ডিফল্ট বিলে উঠে থাকে (এর কোনো "পরিমাণ" নেই বলে আলাদা করে বাটনে ক্লিক করে যোগ করার দরকার নেই) —
+  // বাকি সব (মেডিসিন/চশমা/সার্জিক্যাল/টেস্ট/ম্যানুয়াল) ব্যবহারকারী "+" চিপ থেকে যা লাগবে তা যোগ করবে
+  addRow('visitfee','');
 }
 function addServiceRow() {
   serviceCount++;
@@ -24513,18 +24648,58 @@ function getDiscountableBase(services) {
   const glassItems = (services||[]).filter(s=>s.type==='glass');
   return glassItems.reduce((s,i)=>s+Math.max(0, (i.price*i.qty)-((i.sellMin||0)*i.qty)), 0);
 }
+// ✅ ওভারঅল ডিসকাউন্ট — ভিজিট ফি/টেস্ট/অপারেশন/অন্যান্য সার্ভিসের উপর প্রযোজ্য। চশমা, মেডিসিন ও সার্জিক্যাল
+// সম্পূর্ণ বাদে। চশমার নিজস্ব ডিসকাউন্ট (উপরের getDiscountableBase) সম্পূর্ণ আলাদা।
+// ⚠️ বাদ-দেওয়ার চেক canonicalCat()-এর উপর নির্ভর করে না শুধু — কারণ রিসেপশন বিলে item.type সংক্ষিপ্ত কোড
+// ('med','glass','surgical') থাকে যা canonicalCat()-এর কীওয়ার্ড-ম্যাচিং-এ ধরা পড়ে না (যেমন 'med' শব্দে
+// 'medicine'/'ওষুধ' না থাকায় আগে ভুলবশত মেডিসিনেও ডিসকাউন্ট কেটে যাচ্ছিল)। তাই টাইপ-কোড সরাসরি চেক করা হয়,
+// এবং অ্যাডমিন বিলের ক্যাটাগরি-নাম-ভিত্তিক টাইপের জন্য canonicalCat() + সরাসরি "সার্জিক্যাল" টেক্সট চেক দুটোই ব্যবহার হয়।
+function isOverallDiscountExempt(s) {
+  const t=((s.type||'')+'').toLowerCase();
+  if (t==='glass' || t==='med' || t==='surgical') return true; // রিসেপশন বিলের সংক্ষিপ্ত টাইপ-কোড
+  const raw=((s.type||'')+' '+(s.name||'')).toLowerCase();
+  if (raw.includes('সার্জিক্যাল') || raw.includes('surgical')) return true; // অ্যাডমিন বিলের ক্যাটাগরি-নাম টাইপ
+  const cat=canonicalCat(s.type||s.name||'');
+  return cat==='চশমা' || cat==='মেডিসিন';
+}
+function getOverallDiscountableBase(services) {
+  return (services||[]).filter(s=>!isOverallDiscountExempt(s))
+    .reduce((sum,s)=>sum+(s.subtotal||(s.price*s.qty)||0), 0);
+}
+// ✅ cascade: ভিজিট ফি (OPD/পরামর্শ) থেকে আগে কাটা হয়, তারপর বাকি এলিজিবল সার্ভিসগুলো থেকে মূল বিলের ক্রম
+// অনুযায়ী একের পর এক। ভিজিট ফি-র চেয়ে ডিসকাউন্ট বেশি হলে ভিজিট ফি শূন্য হয়ে বাকিটা পরের সার্ভিস থেকে কাটে।
+// প্রতিটা সার্ভিসে ঠিক কতটা ওভারঅল ডিসকাউন্ট কাটা হলো তা s.overallDisc-এ বসিয়ে ফেরত দেয় (রিপোর্টিং/পাই চার্টের জন্য)।
+function applyOverallDiscountCascade(services, overallDiscAmt) {
+  let remaining = Math.max(0, overallDiscAmt||0);
+  const withMeta = (services||[]).map((s,i)=>({s,i,cat:canonicalCat(s.type||s.name||''),exempt:isOverallDiscountExempt(s)}));
+  const order = withMeta.slice().sort((a,b)=>{
+    const aFirst=(a.cat==='OPD/পরামর্শ'&&!a.exempt)?0:1, bFirst=(b.cat==='OPD/পরামর্শ'&&!b.exempt)?0:1;
+    return aFirst!==bFirst ? aFirst-bFirst : a.i-b.i;
+  });
+  const cutMap={};
+  order.forEach(({s,i,exempt})=>{
+    const gross=s.subtotal||(s.price*s.qty)||0;
+    let cut=0;
+    if(!exempt && remaining>0){ cut=Math.min(remaining,gross); remaining-=cut; }
+    cutMap[i]=cut;
+  });
+  return (services||[]).map((s,i)=>({...s, overallDisc:cutMap[i]||0}));
+}
 function getDiscountLimit() {
   const s=appData.settings;
   if(currentUser?.role==='admin') return s.adminDiscount||30;
   if(currentUser?.role==='moderator') return s.modDiscount||15;
   return s.recDiscount||10;
+
 }
 
 function updateSummary() {
   const services = getServices();
   const total    = services.reduce((s,r)=>s+r.subtotal, 0);
-  const discAmt  = parseFloat(document.getElementById('rDiscountAmt').value)||0;
-  const netBill  = Math.max(0, total - discAmt);
+  const discAmt  = parseFloat(document.getElementById('rDiscountAmt').value)||0; // চশমার ডিসকাউন্ট
+  const overallDiscAmt = parseFloat((document.getElementById('rOverallDiscAmt')||{}).value)||0; // ভিজিট/টেস্ট/অন্যান্য ডিসকাউন্ট
+  const totalDiscAmt = discAmt + overallDiscAmt;
+  const netBill  = Math.max(0, total - totalDiscAmt);
   const paid     = parseFloat(document.getElementById('rCashPaid').value)||0;
   const due      = Math.max(0, netBill - paid);
 
@@ -24535,16 +24710,20 @@ function updateSummary() {
   document.getElementById('rNetDue').textContent  = '৳ ' + fmt(due);
 
   // discount row দেখানো/লুকানো
-  if (discAmt > 0) {
+  if (totalDiscAmt > 0) {
     document.getElementById('rDiscountRow').style.display = '';
-    document.getElementById('rDiscountShow').textContent  = '- ৳ ' + fmt(discAmt);
+    document.getElementById('rDiscountShow').textContent  = '- ৳ ' + fmt(totalDiscAmt);
   } else {
     document.getElementById('rDiscountRow').style.display = 'none';
   }
 
   // সীমা দেখানো
   const limit = getDiscountLimit();
-  document.getElementById('rDiscountLimit').textContent = `সর্বোচ্চ ${limit}% পর্যন্ত দিতে পারবেন`;
+  const discountable = getDiscountableBase(services);
+  document.getElementById('rDiscountLimit').textContent = `সর্বোচ্চ ${limit}% = ৳${fmt(Math.floor(discountable*limit/100))}`;
+  const overallDiscountable = getOverallDiscountableBase(services);
+  const ovLimEl=document.getElementById('rOverallDiscountLimit');
+  if (ovLimEl) ovLimEl.textContent = `সর্বোচ্চ ${limit}% = ৳${fmt(Math.floor(overallDiscountable*limit/100))}`;
   if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview('r');
 }
 
@@ -24637,6 +24816,42 @@ function clearDiscount() {
   document.getElementById('rDiscountAmt').value = '';
   updateSummary();
 }
+
+// ✅ ওভারঅল ডিসকাউন্ট (ভিজিট/টেস্ট/অন্যান্য — মেডিসিন/চশমা/সার্জিক্যাল বাদে) — একই role-ভিত্তিক % সীমা, আলাদা বেস
+function applyOverallDiscPct() {
+  const services = getServices();
+  const discountable = getOverallDiscountableBase(services);
+  let pct     = parseFloat(document.getElementById('rOverallDiscPct').value)||0;
+  const limit = getDiscountLimit();
+  if (pct > limit) {
+    pct = limit;
+    document.getElementById('rOverallDiscPct').value = limit;
+    showToast(`⚠️ সর্বোচ্চ ${limit}% ডিসকাউন্ট দেওয়া যাবে!`);
+  }
+  const amt = Math.floor(discountable * pct / 100);
+  document.getElementById('rOverallDiscAmt').value = amt;
+  updateSummary();
+}
+function applyOverallDiscAmt() {
+  const services = getServices();
+  const discountable = getOverallDiscountableBase(services);
+  let amt     = parseFloat(document.getElementById('rOverallDiscAmt').value)||0;
+  const limit = getDiscountLimit();
+  const maxAmt = Math.floor(discountable * limit / 100);
+  if (amt > maxAmt) {
+    amt = maxAmt;
+    document.getElementById('rOverallDiscAmt').value = maxAmt;
+    showToast(`⚠️ সর্বোচ্চ ৳${fmt(maxAmt)} (${limit}%) ডিসকাউন্ট দেওয়া যাবে!`);
+  }
+  const pct = discountable > 0 ? Math.round(amt/discountable*100) : 0;
+  document.getElementById('rOverallDiscPct').value = pct;
+  updateSummary();
+}
+function clearOverallDiscount() {
+  document.getElementById('rOverallDiscPct').value = '';
+  document.getElementById('rOverallDiscAmt').value = '';
+  updateSummary();
+}
 // ===== চশমা অর্ডার — বিলে "চশমা" আইটেমে ডেলিভারি তারিখ দেওয়া থাকলে স্বয়ংক্রিয়ভাবে বিদ্যমান "ডেলিভারি শিডিউল"-এ যোগ হয় =====
 // (আগে আলাদা চেকবক্স চাপতে হতো — এখন কমপ্যাক্ট চশমা বক্সে তারিখ দিলেই যথেষ্ট, দুটো ফিচার একসাথে মার্জ করা হয়েছে)
 function recordGlassOrders(services, ctx) {
@@ -24670,7 +24885,9 @@ function saveBill() {
   const note      = document.getElementById('rNote').value.trim();
   const nextSerialDate = (document.getElementById('rNextSerial')||{}).value||'';
   const services  = getServices();
-  const discAmt   = parseFloat(document.getElementById('rDiscountAmt').value)||0;
+  const discAmt   = parseFloat(document.getElementById('rDiscountAmt').value)||0; // চশমার ডিসকাউন্ট
+  const overallDiscAmt = parseFloat((document.getElementById('rOverallDiscAmt')||{}).value)||0; // ভিজিট/টেস্ট/অন্যান্য ডিসকাউন্ট
+  const totalDiscAmt = discAmt + overallDiscAmt;
   const cashPaid  = parseFloat(document.getElementById('rCashPaid').value)||0;
   let mfsPaid     = parseFloat((document.getElementById('rMfsPaid')||{}).value)||0;
   const mfsAccountId = (document.getElementById('rMfsAccount')||{}).value||'';
@@ -24680,14 +24897,26 @@ function saveBill() {
   if (!services.length) { showToast('⚠️ কমপক্ষে একটি সার্ভিস ও মূল্য দিন!'); return; }
   if (!date) { showToast('⚠️ তারিখ দিন!'); return; }
   const total   = services.reduce((s,r)=>s+r.subtotal, 0);
-  const netBill = Math.max(0, total - discAmt);
+  const netBill = Math.max(0, total - totalDiscAmt);
   const due     = Math.max(0, netBill - cashPaid);
+  // ✅ প্রতিটা সার্ভিস লাইনে কতটা ডিসকাউন্ট কাটা হলো তা বসানো হচ্ছে (পাই চার্ট/রিপোর্টে প্রকৃত নেট অ্যামাউন্ট
+  // দেখানোর জন্য) — চশমার ডিসকাউন্ট আনুপাতিক ভাগে চশমা আইটেমে, আর ওভারঅল ডিসকাউন্ট cascade অনুযায়ী
+  const glassBaseTotal=services.filter(i=>i.type==='glass').reduce((s,i)=>s+Math.max(0,(i.price*i.qty)-((i.sellMin||0)*i.qty)),0);
+  const servicesWithOverall=applyOverallDiscountCascade(services, overallDiscAmt);
+  const servicesFinal=servicesWithOverall.map(i=>{
+    let glassShare=0;
+    if(i.type==='glass' && glassBaseTotal>0 && discAmt>0){
+      const iBase=Math.max(0,(i.price*i.qty)-((i.sellMin||0)*i.qty));
+      glassShare=discAmt*(iBase/glassBaseTotal);
+    }
+    return {...i, discAmt:Math.round((i.overallDisc||0)+glassShare)};
+  });
   // মেমো নম্বর — ইনপুট থেকে অথবা অটো
   const memoEl = document.getElementById('rMemoNo');
   const memoNo = (memoEl&&memoEl.value.trim()) ? memoEl.value.trim() : generateNextMemoNo();
   const visit   = {
     id:Date.now(), date, patName, patPhone, patAge, patGender, patAddress, patDoc,
-    services, total, discAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
+    services:servicesFinal, total, discAmt:totalDiscAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
     nextSerialDate: nextSerialDate||undefined,
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
@@ -24748,7 +24977,7 @@ function toggleDeliveryDate(p) {
   if (checked) { const d=document.getElementById(p+'DeliveryDate'); if(d&&!d.value) d.value=todayStr(); }
 }
 function clearBillForm() {
-  ['rPatName','rPatPhone','rPatAge','rPatAddress','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt','rMfsPaid','rNextSerial'].forEach(id=>{
+  ['rPatName','rPatPhone','rPatAge','rPatAddress','rPatDoc','rCashPaid','rNote','rDiscountPct','rDiscountAmt','rOverallDiscPct','rOverallDiscAmt','rMfsPaid','rNextSerial'].forEach(id=>{
     const el=document.getElementById(id); if(el){ el.value=''; el.readOnly=false; el.style.background=''; }
   });
   const mfsAccEl=document.getElementById('rMfsAccount'); if(mfsAccEl) mfsAccEl.value='';
@@ -24760,6 +24989,7 @@ function clearBillForm() {
   const phoneEl2=document.getElementById('rPatPhone'); if(phoneEl2) phoneEl2.style.borderColor='';
   document.getElementById('rDiscountRow').style.display='none';
   const limEl=document.getElementById('rDiscountLimit'); if(limEl) limEl.textContent='';
+  const ovLimEl=document.getElementById('rOverallDiscountLimit'); if(ovLimEl) ovLimEl.textContent='';
   refreshDeliveryInfoBox('r');
   window._returnedDraftId=null;
   restoreRecDefaultDoctor();
@@ -26350,14 +26580,65 @@ function addAdminBillRow() {
     <td style="text-align:right;font-weight:600" id="abSub${adminBillRowCount}">৳ ০</td>
     <td><button class="btn btn-danger btn-sm" onclick="document.getElementById('abRow${adminBillRowCount}').remove();updateAdminBillSummary()">🗑️</button></td>`;
   tbody.appendChild(tr);
+  return tr;
+}
+// ✅ নির্বাচিত ডাক্তারের ভিজিট ফি স্বয়ংক্রিয়ভাবে বসিয়ে একটা বিশেষ রো যোগ করে — এর কোনো "পরিমাণ (qty)" নেই
+// (একটা ভিজিট মানেই একটা ফি), তাই qty কলাম লুকানো/লক থাকে; ডিলিট বাটনের বদলে "ফ্রি" বাটন (নিকটাত্মীয়/
+// বিনামূল্যে দেখানো রোগীর জন্য)। এই রো টি বাই ডিফল্ট ফর্ম রিসেট/লোড হওয়ার সময় স্বয়ংক্রিয়ভাবে যোগ হয় (clearAdminBillForm)।
+function addAdminVisitFeeRow() {
+  adminBillRowCount++;
+  const tbody = document.getElementById('adminBillRows');
+  const cats = getIncCats();
+  const doc = getSelectedDoctorForPrefix('ab');
+  const label = doc ? `ভিজিট ফি — ${doc.name}` : 'ভিজিট ফি';
+  const fee = doc ? (doc.visitFee||0) : 0;
+  const tr = document.createElement('tr');
+  tr.id = 'abRow'+adminBillRowCount;
+  tr.setAttribute('data-visitfee','1');
+  const opts = cats.map(c=>`<option${c.includes('ভিজিট')?' selected':''}>${c}</option>`).join('');
+  tr.innerHTML = `
+    <td><input type="text" value="${label}" readonly style="width:100%;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;background:#eef2ff;color:#3730a3;font-weight:700"></td>
+    <td><select style="width:100%;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateAdminBillSummary()">${opts}</select></td>
+    <td style="text-align:center"><input type="hidden" value="1"><span style="color:var(--text-light);font-size:12px">—</span></td>
+    <td style="text-align:right"><input type="number" value="${fee}" min="0" style="width:100px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;text-align:right;font-size:13px" oninput="updateAdminBillSummary()"></td>
+    <td style="text-align:right;font-weight:600" id="abSub${adminBillRowCount}">৳ ${fmt(fee)}</td>
+    <td><button class="btn btn-outline btn-sm" onclick="toggleAdminVisitFeeFree('abRow${adminBillRowCount}')">ভিজিট</button></td>`;
+  tbody.appendChild(tr);
+  updateAdminBillSummary();
+  return tr;
+}
+function toggleAdminVisitFeeFree(rowId) {
+  const tr=document.getElementById(rowId); if(!tr) return;
+  const priceEl=tr.querySelector('td:nth-child(4) input');
+  const btnEl=tr.querySelector('td:nth-child(6) button');
+  if(!priceEl) return;
+  const cur=parseFloat(priceEl.value)||0;
+  if(cur>0){ priceEl.dataset.prevFee=cur; priceEl.value=0; if(btnEl) btnEl.textContent='ফ্রি'; }
+  else { priceEl.value=priceEl.dataset.prevFee||0; if(btnEl) btnEl.textContent='ভিজিট'; }
+  updateAdminBillSummary();
+}
+// ✅ ডাক্তার পাল্টালে অ্যাডমিন বিলের ভিজিট ফি রো-ও নতুন ডাক্তারের ফি অনুযায়ী আপডেট হয় ("ফ্রি" করা না থাকলে)
+function refreshAdminVisitFeeRow() {
+  const tr=document.querySelector('#adminBillRows tr[data-visitfee="1"]');
+  if(!tr) return;
+  const nameEl=tr.querySelector('td:nth-child(1) input');
+  const priceEl=tr.querySelector('td:nth-child(4) input');
+  const doc=getSelectedDoctorForPrefix('ab');
+  if(nameEl) nameEl.value = doc?`ভিজিট ফি — ${doc.name}`:'ভিজিট ফি';
+  const isFree = priceEl && (parseFloat(priceEl.value)||0)===0 && priceEl.dataset.prevFee;
+  if(priceEl && !isFree){ priceEl.value = doc?(doc.visitFee||0):0; }
+  updateAdminBillSummary();
 }
 function getAdminBillServices() {
   return [...document.getElementById('adminBillRows').querySelectorAll('tr')].map((tr,i)=>{
-    const inputs = tr.querySelectorAll('input,select');
-    const name = inputs[0].value.trim();
-    const type = inputs[1].value;
-    const qty = parseFloat(inputs[2].value)||1;
-    const price = parseFloat(inputs[3].value)||0;
+    const isVisitFee = tr.getAttribute('data-visitfee')==='1';
+    const nameEl = tr.querySelector('td:nth-child(1) input');
+    const typeEl = tr.querySelector('td:nth-child(2) select');
+    const priceEl = tr.querySelector('td:nth-child(4) input');
+    const name = (nameEl.value||'').trim();
+    const type = isVisitFee ? 'visitfee' : (typeEl?typeEl.value:'');
+    const qty = isVisitFee ? 1 : (parseFloat(tr.querySelector('td:nth-child(3) input')?.value)||1);
+    const price = parseFloat(priceEl.value)||0;
     const sub = qty*price;
     const subEl = tr.querySelector('[id^="abSub"]');
     if(subEl) subEl.textContent = '৳ '+fmt(sub);
@@ -26369,13 +26650,17 @@ function updateAdminBillSummary() {
   const total = svcs.reduce((s,r)=>s+r.subtotal,0);
   document.getElementById('abTotal').textContent = '৳ '+fmt(total);
   const maxDisc = appData.settings.adminDiscount||30;
+  // ✅ ডিসকাউন্ট এখন শুধু ভিজিট ফি/টেস্ট/অন্যান্য সার্ভিসের উপর প্রযোজ্য (ওষুধ ও চশমা বাদে), মোট বিলের উপর না
+  const discountable = getOverallDiscountableBase(svcs);
   const discPct = Math.min(parseFloat(document.getElementById('abDiscPct').value)||0, maxDisc);
-  const discAmt = Math.floor(total*discPct/100);
+  const discAmt = Math.floor(discountable*discPct/100);
   const netBill = Math.max(0,total-discAmt);
   document.getElementById('abNetBill').textContent = '৳ '+fmt(netBill);
   const dRow = document.getElementById('abDiscRow');
   if(discAmt>0){dRow.style.display='flex';document.getElementById('abDiscAmt').textContent='-৳ '+fmt(discAmt);}
   else dRow.style.display='none';
+  const limEl=document.getElementById('abDiscLimit');
+  if(limEl) limEl.textContent = `সর্বোচ্চ ${maxDisc}% = ৳${fmt(Math.floor(discountable*maxDisc/100))}`;
   const paid = parseFloat(document.getElementById('abCashPaid').value)||0;
   document.getElementById('abDue').textContent = '৳ '+fmt(Math.max(0,netBill-paid));
   if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview('ab');
@@ -26389,8 +26674,10 @@ function saveAdminBill() {
   const memoNo = document.getElementById('abMemoNo').value.trim()||('Memo-'+Date.now());
   const total = svcs.reduce((s,r)=>s+r.subtotal,0);
   const maxDisc = appData.settings.adminDiscount||30;
+  // ✅ ডিসকাউন্ট এখন শুধু ভিজিট ফি/টেস্ট/অন্যান্য সার্ভিসের উপর প্রযোজ্য (ওষুধ ও চশমা বাদে) — cascade: ভিজিট ফি আগে
+  const discountable = getOverallDiscountableBase(svcs);
   const discPct = Math.min(parseFloat(document.getElementById('abDiscPct').value)||0, maxDisc);
-  const discAmt = Math.floor(total*discPct/100);
+  const discAmt = Math.floor(discountable*discPct/100);
   const netBill = Math.max(0,total-discAmt);
   const cashPaid = parseFloat(document.getElementById('abCashPaid').value)||0;
   let abMfsPaid = parseFloat((document.getElementById('abMfsPaid')||{}).value)||0;
@@ -26404,13 +26691,15 @@ function saveAdminBill() {
   const sendToDelivery = (document.getElementById('abSendToDelivery')||{}).checked||false;
   const deliveryDate = (document.getElementById('abDeliveryDate')||{}).value||'';
   if (sendToDelivery && !deliveryDate) { showToast('⚠️ ডেলিভারির তারিখ দিন!'); return; }
-  const bill = {id:Date.now(),date,memoNo,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,discPct,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,by:currentUser.name,time:new Date().toLocaleTimeString('bn-BD')};
+  // ✅ প্রতিটা সার্ভিস লাইনে কতটা ডিসকাউন্ট কাটা হলো তা বসানো হচ্ছে (পাই চার্ট/রিপোর্টে প্রকৃত নেট অ্যামাউন্ট দেখানোর জন্য)
+  const svcsFinal = applyOverallDiscountCascade(svcs, discAmt).map(s=>({...s, discAmt:s.overallDisc||0}));
+  const bill = {id:Date.now(),date,memoNo,patName,patPhone,patAge,patDoc,services:svcsFinal,total,discAmt,discPct,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,by:currentUser.name,time:new Date().toLocaleTimeString('bn-BD')};
   if (!checkDoctorCommissionAlarm('ab')) return;
   if(!appData.adminBills) appData.adminBills=[];
   appData.adminBills.push(bill);
   // visits এ যোগ
   const abVisitId = Date.now()+1;
-  appData.visits.push({id:abVisitId,date,patName,patPhone,patAge,patDoc,services:svcs,total,discAmt,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
+  appData.visits.push({id:abVisitId,date,patName,patPhone,patAge,patDoc,services:svcsFinal,total,discAmt,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
   recordDoctorCommission('ab', date, memoNo, bill.id);
   // income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না, visit.cashPaid দিয়েই গণনা হয়)
   if(cashPaid>0) appData.income.push({id:Date.now()+2,date,category:'অ্যাডমিন বিল',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:currentUser.name,visitId:abVisitId});
@@ -26428,7 +26717,7 @@ function clearAdminBillForm() {
   document.getElementById('abBillDate').value=todayStr();
   document.getElementById('adminBillRows').innerHTML='';
   adminBillRowCount=0;
-  addAdminBillRow();
+  addAdminVisitFeeRow();
   updateAdminBillSummary();
   const sdEl=document.getElementById('abSendToDelivery'); if(sdEl) sdEl.checked=false;
   const ddRow=document.getElementById('abDeliveryDateRow'); if(ddRow) ddRow.style.display='none';
@@ -26443,7 +26732,7 @@ function renderAdminBillHistory() {
   const tbody=document.getElementById('adminBillHistTable');
   if(!tbody)return;
   if(!bills.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো বিল নেই</td></tr>';return;}
-  tbody.innerHTML=bills.map(b=>`<tr>
+  tbody.innerHTML=bills.map(b=>`<tr class="bill-hist-row" onclick="printAdminBillReceipt(${b.id})" title="🖨️ প্রিন্ট প্রিভিউ দেখতে ক্লিক করুন">
     <td style="font-weight:600;color:var(--accent)">${b.memoNo}</td>
     <td>${formatDate(b.date)}</td>
     <td style="font-weight:600">${b.patName}</td>
@@ -26453,7 +26742,7 @@ function renderAdminBillHistory() {
     <td style="font-weight:700">৳ ${fmt(b.netBill)}</td>
     <td style="color:var(--success)">৳ ${fmt(b.cashPaid)}</td>
     <td style="color:${b.due>0?'var(--danger)':'var(--success)'}">${b.due>0?'৳ '+fmt(b.due):'✅'}</td>
-    <td><button class="btn btn-danger btn-sm" onclick="deleteAdminBill(${b.id})">🗑️</button></td>
+    <td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteAdminBill(${b.id})">🗑️</button></td>
   </tr>`).join('');
 }
 function deleteAdminBill(id) {
@@ -28020,13 +28309,13 @@ function initNewBillPage() {
   if(document.getElementById('nb_BillDate')) document.getElementById('nb_BillDate').value=todayStr();
   if(document.getElementById('nb_MemoNo'))   document.getElementById('nb_MemoNo').value=generateNextMemoNo();
   document.getElementById('nb_serviceRows').innerHTML=''; _rowCount['nb_']=0;
-  // ✅ বাই ডিফল্ট কোনো রো থাকবে না — রিসেপশন প্যানেলের সাথে সামঞ্জস্য রেখে, ব্যবহারকারী যা যোগ করবে শুধু সেটাই থাকবে
-  nbUpdateSummary();
   renderNewBillDrafts(); updateDraftBadge(); renderNewBillHistory();
   window._adminDraftId=null;
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   if (typeof populateDoctorSelect==='function') populateDoctorSelect('nb_DocSelect');
   if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor('nb_');
+  // ✅ ভিজিট ফি বাই ডিফল্ট বিলে উঠে থাকে — ডাক্তার রিস্টোরের পরে যোগ হচ্ছে যাতে সঠিক ফি বসে
+  addRow('visitfee','nb_');
   if (typeof renderNbRecentPatients==='function') renderNbRecentPatients();
 }
 
@@ -28039,8 +28328,17 @@ function nbClearDisc() {
   nbUpdateSummary();
 }
 
+function nbApplyOverallDiscAmt() { _applyOverallAmt('nb_'); }
+
+function nbApplyOverallDiscPct() { _applyOverallPct('nb_'); }
+
+function nbClearOverallDisc() {
+  ['nb_OverallDiscPct','nb_OverallDiscAmt'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  nbUpdateSummary();
+}
+
 function nbClearForm() {
-  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatAddress','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt','nb_MfsPaid','nb_NextSerial'].forEach(id=>{
+  ['nb_PatName','nb_PatPhone','nb_PatAge','nb_PatAddress','nb_PatDoc','nb_CashPaid','nb_Note','nb_DiscountPct','nb_DiscountAmt','nb_OverallDiscPct','nb_OverallDiscAmt','nb_MfsPaid','nb_NextSerial'].forEach(id=>{
     const el=document.getElementById(id);if(el){el.value='';el.readOnly=false;el.style.background='';}
   });
   const genderEl=document.getElementById('nb_PatGender'); if(genderEl) genderEl.value='';
@@ -28056,8 +28354,8 @@ function nbClearForm() {
   refreshDeliveryInfoBox('nb_');
   document.getElementById('nb_serviceRows').innerHTML='';
   _rowCount['nb_']=0;
-  // ✅ বাই ডিফল্ট কোনো রো থাকবে না
-  nbUpdateSummary();
+  // ✅ ভিজিট ফি বাই ডিফল্ট বিলে উঠে থাকে (এর কোনো "পরিমাণ" নেই) — বাকি সব ব্যবহারকারী চিপ থেকে যোগ করবে
+  addRow('visitfee','nb_');
   if (typeof renderNbRecentPatients==='function') renderNbRecentPatients();
 }
 
@@ -28223,7 +28521,94 @@ function renderNewBillHistory() {
   if(!tbody)return;
   const visits=(appData.visits||[]).filter(v=>!fd||v.date===fd).sort((a,b)=>b.id-a.id).slice(0,200);
   if(!visits.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো বিল নেই</td></tr>';return;}
-  tbody.innerHTML=visits.map(v=>`<tr>
+  tbody.innerHTML=visits.map(v=>`<tr class="bill-hist-row" onclick="printVisitReceipt(${v.id})" title="🖨️ প্রিন্ট প্রিভিউ দেখতে ক্লিক করুন">
+    <td style="font-weight:600;color:var(--accent)">${v.memoNo||v.rcptNo||'—'}</td>
+    <td>${formatDate(v.date)}</td>
+    <td style="font-weight:600">${v.patName}</td>
+    <td style="color:var(--text-light)">${v.patPhone||'—'}</td>
+    <td>৳ ${fmt(v.total)}</td>
+    <td style="color:var(--danger)">${v.discAmt>0?'৳ '+fmt(v.discAmt):'—'}</td>
+    <td style="font-weight:700">৳ ${fmt(v.netBill)}</td>
+    <td style="color:var(--success)">৳ ${fmt(v.cashPaid)}</td>
+    <td style="color:${v.due>0?'var(--danger)':'var(--success)'}">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
+    <td style="font-size:12px;color:var(--text-light)">${v.by||'—'}</td>
+  </tr>`).join('');
+}
+
+// ===== BILL HISTORY (dedicated sidebar page) =====
+function initBillHistoryPage() {
+  const vm=document.getElementById('bhViewMode'), fm=document.getElementById('bhFilterMonth'), fd=document.getElementById('bhFilterDate');
+  // ✅ বাই ডিফল্ট রানিং (চলতি) মাস দেখাবে
+  if (vm && fm && fd && !fm.value && !fd.value) {
+    vm.value='month'; fm.value=todayStr().substring(0,7);
+    fd.style.display='none'; fm.style.display='';
+  }
+  populateBhByFilter();
+  renderBillHistoryTable();
+}
+function bhViewModeChanged() {
+  const vm=(document.getElementById('bhViewMode')||{}).value||'month';
+  const dateEl=document.getElementById('bhFilterDate');
+  const monthEl=document.getElementById('bhFilterMonth');
+  if(dateEl) dateEl.style.display = vm==='day' ? '' : 'none';
+  if(monthEl) monthEl.style.display = vm==='month' ? '' : 'none';
+  renderBillHistoryTable();
+}
+function populateBhByFilter() {
+  const sel=document.getElementById('bhByFilter'); if(!sel) return;
+  const cur=sel.value;
+  const names=[...new Set((appData.visits||[]).map(v=>v.by).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'bn'));
+  sel.innerHTML='<option value="">সব এন্ট্রিকারী</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  if(cur && names.includes(cur)) sel.value=cur;
+}
+function clearBhFilters() {
+  const s=document.getElementById('bhSearch'); if(s) s.value='';
+  const vm=document.getElementById('bhViewMode'); if(vm) vm.value='month';
+  const fd=document.getElementById('bhFilterDate'); if(fd){fd.value='';fd.style.display='none';}
+  const fm=document.getElementById('bhFilterMonth'); if(fm){fm.value=todayStr().substring(0,7);fm.style.display='';}
+  const df=document.getElementById('bhDueFilter'); if(df) df.value='';
+  const bf=document.getElementById('bhByFilter'); if(bf) bf.value='';
+  renderBillHistoryTable();
+}
+function renderBillHistoryTable() {
+  const tbody=document.getElementById('billHistoryTable');
+  if(!tbody) return;
+  const vm=(document.getElementById('bhViewMode')||{}).value||'month';
+  const fd=(document.getElementById('bhFilterDate')||{}).value||'';
+  const fm=(document.getElementById('bhFilterMonth')||{}).value||'';
+  const dueF=(document.getElementById('bhDueFilter')||{}).value||'';
+  const byF=(document.getElementById('bhByFilter')||{}).value||'';
+  const q=((document.getElementById('bhSearch')||{}).value||'').trim().toLowerCase();
+
+  let visits=[...(appData.visits||[])];
+  if (vm==='day' && fd) visits=visits.filter(v=>v.date===fd);
+  else if (vm==='month' && fm) visits=visits.filter(v=>v.date&&v.date.startsWith(fm));
+  if (dueF==='due') visits=visits.filter(v=>(v.due||0)>0);
+  else if (dueF==='clear') visits=visits.filter(v=>!(v.due>0));
+  if (byF) visits=visits.filter(v=>v.by===byF);
+  if (q) visits=visits.filter(v=>
+    (v.patName||'').toLowerCase().includes(q) ||
+    (v.patPhone||'').toLowerCase().includes(q) ||
+    (v.memoNo||v.rcptNo||'').toLowerCase().includes(q)
+  );
+  visits.sort((a,b)=>b.id-a.id);
+
+  // সারসংক্ষেপ
+  const sumEl=document.getElementById('bhSummary');
+  if (sumEl) {
+    const totalNet=visits.reduce((s,v)=>s+(v.netBill||v.total||0),0);
+    const totalPaid=visits.reduce((s,v)=>s+(v.cashPaid||0),0);
+    const totalDue=visits.reduce((s,v)=>s+(v.due||0),0);
+    sumEl.innerHTML = visits.length ? `
+      <div><span style="color:var(--text-light)">মোট বিল:</span> <strong>${visits.length}টি</strong></div>
+      <div><span style="color:var(--text-light)">নেট মোট:</span> <strong style="color:var(--primary)">৳ ${fmt(totalNet)}</strong></div>
+      <div><span style="color:var(--text-light)">পরিশোধ:</span> <strong style="color:var(--success)">৳ ${fmt(totalPaid)}</strong></div>
+      <div><span style="color:var(--text-light)">বাকি:</span> <strong style="color:${totalDue>0?'var(--danger)':'var(--success)'}">৳ ${fmt(totalDue)}</strong></div>
+    ` : '';
+  }
+
+  if(!visits.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো বিল পাওয়া যায়নি</td></tr>';return;}
+  tbody.innerHTML=visits.slice(0,500).map(v=>`<tr class="bill-hist-row" onclick="printVisitReceipt(${v.id})" title="🖨️ প্রিন্ট প্রিভিউ দেখতে ক্লিক করুন">
     <td style="font-weight:600;color:var(--accent)">${v.memoNo||v.rcptNo||'—'}</td>
     <td>${formatDate(v.date)}</td>
     <td style="font-weight:600">${v.patName}</td>
@@ -28332,6 +28717,28 @@ function addRow(type, p='') {
   const container=document.getElementById(p+'serviceRows');
   if(!container)return;
 
+  // ✅ ভিজিট ফি — এর কোনো "পরিমাণ (qty)" নেই (একটা ভিজিট মানেই একটা ফি), তাই আলাদা কমপ্যাক্ট লেআউট:
+  // নাম + মূল্য + সাবটোটাল + "ফ্রি" বাটন (ডিলিট বাটনের বদলে — নিকটাত্মীয়/বিনামূল্যে দেখানো রোগীর জন্য)
+  if(type==='visitfee') {
+    const docPrefix = p==='nb_' ? 'nb_' : 'r';
+    const doc = getSelectedDoctorForPrefix(docPrefix);
+    const fee = doc ? (doc.visitFee||0) : 0;
+    const label = doc ? `ভিজিট ফি — ${doc.name}` : 'ভিজিট ফি';
+    const div=document.createElement('div');
+    div.className='service-row'; div.id=rowId;
+    div.setAttribute('data-type','visitfee'); div.setAttribute('data-p',p); div.setAttribute('data-rid',id);
+    div.innerHTML=`<input type="hidden" id="${p}sQty-${id}" value="1">
+    <div style="display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr 46px;gap:8px;align-items:center;margin-bottom:6px;padding:8px;background:#eef2ff;border-radius:8px;border:1.5px solid #a5b4fc">
+      <input type="text" id="${p}sName-${id}" value="${label}" readonly style="grid-column:span 2;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%;background:#eef2ff;color:#3730a3;font-weight:700">
+      <input type="number" id="${p}sPrice-${id}" value="${fee}" min="0" oninput="${p===''?'updateSummary':'nbUpdateSummary'}()" style="padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%;text-align:right">
+      <span id="${p}sSub-${id}" style="font-weight:700;text-align:right;color:var(--success);white-space:nowrap">৳ ${fmt(fee)}</span>
+      <button type="button" class="btn btn-outline btn-sm" id="${p}sFreeBtn-${id}" onclick="toggleVisitFeeFree('${p}',${id})" style="white-space:nowrap;padding:6px 2px;font-size:11px;width:100%;text-align:center">ভিজিট</button>
+    </div>`;
+    container.appendChild(div);
+    p===''?updateSummary():nbUpdateSummary();
+    return;
+  }
+
   const base='padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%';
   const bg=type==='glass'?'#fffbf0':type==='med'?'#f0fff4':type==='surgical'?'#f5f0ff':type==='service'?'#f0f9ff':'#f8fafc';
   let inner='';
@@ -28402,7 +28809,7 @@ function addRow(type, p='') {
   const div=document.createElement('div');
   div.className='service-row'; div.id=rowId;
   div.setAttribute('data-type',type); div.setAttribute('data-p',p); div.setAttribute('data-rid',id);
-  div.innerHTML=`<div style="display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:6px;padding:8px;background:${bg};border-radius:8px;border:1px solid var(--border)">
+  div.innerHTML=`<div style="display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr 46px;gap:8px;align-items:center;margin-bottom:6px;padding:8px;background:${bg};border-radius:8px;border:1px solid var(--border)">
     ${inner}
     <input type="number" id="${p}sQty-${id}" value="1" min="1" oninput="${p===''?'updateSummary':'nbUpdateSummary'}()" style="${base};text-align:center">
     <input type="number" id="${p}sPrice-${id}" placeholder="০.০০" min="0" oninput="${p===''?'updateSummary':'nbUpdateSummary'}()" style="${base};text-align:right">
@@ -28413,6 +28820,41 @@ function addRow(type, p='') {
   container.appendChild(div);
   if(type==='glass') { renderGlassOptChecks(p,id); refreshDeliveryInfoBox(p); }
   p===''?updateSummary():nbUpdateSummary();
+}
+
+// ✅ ভিজিট ফি লাইনে বাটন — বাই ডিফল্ট "ভিজিট" লেখা (ফি প্রযোজ্য), চাপলে "ফ্রি" হয়ে যায় ও এমাউন্ট ০ দেখায়
+// (নিকটাত্মীয়/বিনামূল্যে দেখানো রোগীর জন্য) — আগের মূল্য মনে রাখে, আবার চাপলে ফি ফেরত এসে "ভিজিট"-এ ফিরে যায়
+function toggleVisitFeeFree(p, id) {
+  const priceEl=document.getElementById(p+'sPrice-'+id);
+  const btnEl=document.getElementById(p+'sFreeBtn-'+id);
+  if(!priceEl) return;
+  const cur=parseFloat(priceEl.value)||0;
+  if(cur>0){
+    priceEl.dataset.prevFee=cur;
+    priceEl.value=0;
+    if(btnEl) btnEl.textContent='ফ্রি';
+  } else {
+    priceEl.value=priceEl.dataset.prevFee||0;
+    if(btnEl) btnEl.textContent='ভিজিট';
+  }
+  p===''?updateSummary():nbUpdateSummary();
+}
+// ✅ ডাক্তার পরিবর্তন হলে বিলে থাকা ভিজিট ফি লাইনের নাম/মূল্য স্বয়ংক্রিয়ভাবে নতুন ডাক্তারের ফি অনুযায়ী আপডেট হয়
+// (তবে "ফ্রি" করা থাকলে ডাক্তার পাল্টালেও ফ্রি-ই থাকবে — জোর করে ফি বসানো হবে না)
+function refreshVisitFeeRow(rowPrefix) {
+  const container=document.getElementById(rowPrefix+'serviceRows');
+  if(!container) return;
+  const row=container.querySelector('.service-row[data-type="visitfee"]');
+  if(!row) return;
+  const rid=row.getAttribute('data-rid');
+  const docPrefix = rowPrefix==='nb_' ? 'nb_' : 'r';
+  const doc=getSelectedDoctorForPrefix(docPrefix);
+  const nameEl=document.getElementById(rowPrefix+'sName-'+rid);
+  const priceEl=document.getElementById(rowPrefix+'sPrice-'+rid);
+  if(nameEl) nameEl.value = doc?`ভিজিট ফি — ${doc.name}`:'ভিজিট ফি';
+  const isFree = priceEl && (parseFloat(priceEl.value)||0)===0 && priceEl.dataset.prevFee;
+  if(priceEl && !isFree){ priceEl.value = doc?(doc.visitFee||0):0; }
+  rowPrefix===''?updateSummary():nbUpdateSummary();
 }
 
 // ===== চশমা/লেন্স কাস্টমাইজেশন — বিলের রো-তে অপশন চেকবক্স রেন্ডার ও মূল্য হিসাব =====
@@ -28711,6 +29153,29 @@ function _applyPct(p) {
   _renderSummary(p);
 }
 
+// ✅ ওভারঅল ডিসকাউন্ট (ভিজিট/টেস্ট/অন্যান্য — মেডিসিন ও চশমা বাদে) — একই role-ভিত্তিক % সীমা, আলাদা বেস
+function _applyOverallAmt(p) {
+  const {overallDiscountable,maxPct,overallMaxAmt}=_discountInfo(p);
+  const nb=p==='nb_';
+  const pctEl=document.getElementById(nb?'nb_OverallDiscPct':'rOverallDiscPct');
+  const amtEl=document.getElementById(nb?'nb_OverallDiscAmt':'rOverallDiscAmt');
+  let amt=parseFloat(amtEl.value)||0;
+  if(amt>overallMaxAmt){amt=overallMaxAmt;amtEl.value=overallMaxAmt;showToast(`⚠️ সর্বোচ্চ ৳${fmt(overallMaxAmt)}`);}
+  pctEl.value=overallDiscountable>0?Math.round(amt/overallDiscountable*100):0;
+  _renderSummary(p);
+}
+
+function _applyOverallPct(p) {
+  const {overallDiscountable,maxPct,overallMaxAmt}=_discountInfo(p);
+  const nb=p==='nb_';
+  const pctEl=document.getElementById(nb?'nb_OverallDiscPct':'rOverallDiscPct');
+  const amtEl=document.getElementById(nb?'nb_OverallDiscAmt':'rOverallDiscAmt');
+  let pct=parseFloat(pctEl.value)||0;
+  if(pct>maxPct){pct=maxPct;pctEl.value=maxPct;showToast(`⚠️ সর্বোচ্চ ${maxPct}%`);}
+  amtEl.value=Math.floor(overallDiscountable*pct/100);
+  _renderSummary(p);
+}
+
 function _billSave(p) {
   const nb=p==='nb_';
   const patName=(document.getElementById(p+'PatName')||{}).value?.trim();
@@ -28721,16 +29186,30 @@ function _billSave(p) {
   if(!date){showToast('⚠️ তারিখ দিন!');return;}
   const note=(document.getElementById(p+'Note')||{}).value?.trim()||'';
   const nextSerialDate=(document.getElementById(p+'NextSerial')||{}).value||'';
-  const discAmt=parseFloat((document.getElementById(nb?'nb_DiscountAmt':'rDiscountAmt')||{}).value)||0;
+  const discAmt=parseFloat((document.getElementById(nb?'nb_DiscountAmt':'rDiscountAmt')||{}).value)||0; // চশমার ডিসকাউন্ট
+  const overallDiscAmt=parseFloat((document.getElementById(nb?'nb_OverallDiscAmt':'rOverallDiscAmt')||{}).value)||0; // ভিজিট/টেস্ট/অন্যান্য ডিসকাউন্ট
+  const totalDiscAmt=discAmt+overallDiscAmt;
   const cashPaid=parseFloat((document.getElementById(nb?'nb_CashPaid':'rCashPaid')||{}).value)||0;
   let mfsPaid=parseFloat((document.getElementById(nb?'nb_MfsPaid':'rMfsPaid')||{}).value)||0;
   const mfsAccountId=(document.getElementById(nb?'nb_MfsAccount':'rMfsAccount')||{}).value||'';
   if (mfsPaid > cashPaid) mfsPaid = cashPaid; // নিরাপত্তা: মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ ধরা হবে না
   if (mfsPaid > 0 && !mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
   const total=items.reduce((s,i)=>s+i.subtotal,0);
-  const netBill=Math.max(0,total-discAmt);
+  const netBill=Math.max(0,total-totalDiscAmt);
   const due=Math.max(0,netBill-cashPaid);
   if (nb && !checkDoctorCommissionAlarm('nb_')) return;
+  // ✅ প্রতিটা সার্ভিস লাইনে কতটা ডিসকাউন্ট কাটা হলো তা বসানো হচ্ছে (পাই চার্ট/রিপোর্টে প্রকৃত নেট অ্যামাউন্ট
+  // দেখানোর জন্য) — চশমার ডিসকাউন্ট আনুপাতিক ভাগে চশমা আইটেমে, আর ওভারঅল ডিসকাউন্ট cascade অনুযায়ী
+  const glassBaseTotal=items.filter(i=>i.type==='glass').reduce((s,i)=>s+Math.max(0,(i.price*i.qty)-((i.sellMin||0)*i.qty)),0);
+  const itemsWithOverall=applyOverallDiscountCascade(items, overallDiscAmt);
+  const itemsFinal=itemsWithOverall.map(i=>{
+    let glassShare=0;
+    if(i.type==='glass' && glassBaseTotal>0 && discAmt>0){
+      const iBase=Math.max(0,(i.price*i.qty)-((i.sellMin||0)*i.qty));
+      glassShare=discAmt*(iBase/glassBaseTotal);
+    }
+    return {...i, discAmt:Math.round((i.overallDisc||0)+glassShare)};
+  });
 
   const _billVisitId = Date.now();
   // স্টক কমাই + COGS হিসাব (visitId ট্যাগ করা থাকছে, যাতে বিল ডিলিট হলে এই COGS/স্টক ফেরত দেওয়া যায়)
@@ -28759,7 +29238,7 @@ function _billSave(p) {
   const patAddress=(document.getElementById(p+'PatAddress')||{}).value?.trim()||'';
   const patDoc=(document.getElementById(p+'PatDoc')||{}).value?.trim()||'';
 
-  const _newVisit = {id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:items,total,discAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
+  const _newVisit = {id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:itemsFinal,total,discAmt:totalDiscAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
     nextSerialDate: nextSerialDate||undefined,
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved};
@@ -28801,7 +29280,10 @@ function _discountInfo(p) {
   const role=currentUser?.role||'receptionist';
   const maxPct=isReturned?100:role==='admin'?(appData.settings.adminDiscount||30):role==='moderator'?(appData.settings.modDiscount||15):(appData.settings.recDiscount||10);
   const maxAmt=isReturned?999999:Math.floor(discountable*maxPct/100);
-  return {items,total,glassMin,discountable,maxPct,maxAmt,isReturned};
+  // ✅ ওভারঅল ডিসকাউন্ট (ভিজিট/টেস্ট/অন্যান্য — মেডিসিন ও চশমা বাদে) — একই role-ভিত্তিক সীমা ব্যবহার করছে
+  const overallDiscountable=getOverallDiscountableBase(items);
+  const overallMaxAmt=isReturned?999999:Math.floor(overallDiscountable*maxPct/100);
+  return {items,total,glassMin,discountable,maxPct,maxAmt,isReturned,overallDiscountable,overallMaxAmt};
 }
 
 function _g(p, id) { return document.getElementById(p==='' ? id : (p+id)); }
@@ -28829,6 +29311,10 @@ function _getItems(p) {
       if(!sel||!sel.value)return null;
       const opt=sel.options[sel.selectedIndex];
       return {type:'service',feeId:parseInt(sel.value),name:opt.getAttribute('data-name')||opt.text,qty,price,subtotal:qty*price};
+    } else if(type==='visitfee') {
+      const nm=(document.getElementById(p+'sName-'+rid)||{}).value||'ভিজিট ফি';
+      if(price<=0)return null;
+      return {type:'visitfee',name:nm.trim(),qty,price,subtotal:qty*price};
     } else {
       const nm=(document.getElementById(p+'sName-'+rid)||{}).value||'';
       if(!nm.trim())return null;
@@ -28840,7 +29326,7 @@ function _getItems(p) {
 function _gv(p, id, def=0) { const el=_g(p,id); return el ? (parseFloat(el.value)||def) : def; }
 
 function _renderSummary(p) {
-  const {items,total,glassMin,discountable,maxPct,maxAmt,isReturned}=_discountInfo(p);
+  const {items,total,glassMin,discountable,maxPct,maxAmt,isReturned,overallDiscountable,overallMaxAmt}=_discountInfo(p);
   const nb=p==='nb_';
   const hasGlass=items.some(i=>i.type==='glass');
   const gi=document.getElementById(nb?'nb_GlassDiscInfo':'glassDiscInfo');
@@ -28850,9 +29336,16 @@ function _renderSummary(p) {
     if(isReturned) limEl.textContent='✅ অ্যাডমিন অনুমোদিত ডিসকাউন্ট';
     else limEl.textContent=hasGlass?`সর্বোচ্চ ${maxPct}% (চশমার sellMin ৳${fmt(glassMin)} বাদে) = ৳${fmt(maxAmt)}`:`সর্বোচ্চ ${maxPct}% = ৳${fmt(maxAmt)}`;
   }
+  const ovLimEl=document.getElementById(nb?'nb_OverallDiscountLimit':'rOverallDiscountLimit');
+  if(ovLimEl) {
+    ovLimEl.textContent=isReturned?'✅ অ্যাডমিন অনুমোদিত ডিসকাউন্ট':`সর্বোচ্চ ${maxPct}% = ৳${fmt(overallMaxAmt)}`;
+  }
   let discAmt=parseFloat((document.getElementById(nb?'nb_DiscountAmt':'rDiscountAmt')||{}).value)||0;
   if(!isReturned&&discAmt>maxAmt) discAmt=maxAmt;
-  const netBill=Math.max(0,total-discAmt);
+  let overallDiscAmt=parseFloat((document.getElementById(nb?'nb_OverallDiscAmt':'rOverallDiscAmt')||{}).value)||0;
+  if(!isReturned&&overallDiscAmt>overallMaxAmt) overallDiscAmt=overallMaxAmt;
+  const totalDiscAmt=discAmt+overallDiscAmt;
+  const netBill=Math.max(0,total-totalDiscAmt);
   const paid=parseFloat((document.getElementById(nb?'nb_CashPaid':'rCashPaid')||{}).value)||0;
   const due=Math.max(0,netBill-paid);
   const _ =id=>document.getElementById(id);
@@ -28862,7 +29355,7 @@ function _renderSummary(p) {
     if(_('nb_Paid'))    _('nb_Paid').textContent='৳ '+fmt(paid);
     if(_('nb_Due'))     _('nb_Due').textContent='৳ '+fmt(due);
     if(_('nb_NetDue'))  _('nb_NetDue').textContent='৳ '+fmt(due);
-    if(discAmt>0){if(_('nb_DiscountRow'))_('nb_DiscountRow').style.display='';if(_('nb_DiscountShow'))_('nb_DiscountShow').textContent='- ৳ '+fmt(discAmt);}
+    if(totalDiscAmt>0){if(_('nb_DiscountRow'))_('nb_DiscountRow').style.display='';if(_('nb_DiscountShow'))_('nb_DiscountShow').textContent='- ৳ '+fmt(totalDiscAmt);}
     else if(_('nb_DiscountRow'))_('nb_DiscountRow').style.display='none';
   } else {
     if(_('rTotal'))   _('rTotal').textContent='৳ '+fmt(total);
@@ -28870,7 +29363,7 @@ function _renderSummary(p) {
     if(_('rPaid'))    _('rPaid').textContent='৳ '+fmt(paid);
     if(_('rDue'))     _('rDue').textContent='৳ '+fmt(due);
     if(_('rNetDue'))  _('rNetDue').textContent='৳ '+fmt(due);
-    if(discAmt>0){if(_('rDiscountRow'))_('rDiscountRow').style.display='';if(_('rDiscountShow'))_('rDiscountShow').textContent='- ৳ '+fmt(discAmt);}
+    if(totalDiscAmt>0){if(_('rDiscountRow'))_('rDiscountRow').style.display='';if(_('rDiscountShow'))_('rDiscountShow').textContent='- ৳ '+fmt(totalDiscAmt);}
     else if(_('rDiscountRow'))_('rDiscountRow').style.display='none';
   }
   if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview(nb?'nb_':'r');
@@ -29000,6 +29493,16 @@ function canonicalCat(raw) {
   return 'অন্যান্য';
 }
 
+// ✅ কোনো ভিজিটের "বিলিং সময়ের" cashPaid বের করে — অর্থাৎ পরবর্তীতে "বাকি আদায়" হয়ে cashPaid যতটা বেড়েছে
+// তা বাদ দিয়ে। কারণ: বাকি আদায় হলে v.cashPaid সরাসরি বাড়িয়ে দেওয়া হয় (v.date অপরিবর্তিত থাকে), কিন্তু
+// টাকাটা বাস্তবে ঢুকেছে আদায়ের দিনে, বিলের আসল মাসে না। তাই এই ফাংশন শুধু বিলিং-এর সময়কার cashPaid রিটার্ন
+// করে; বাকি আদায়ের টাকা আলাদাভাবে সেই আদায়ের তারিখেই income থেকে গণনা হয় (নিচে buildPieData/
+// getDashPieDetailRows-এ visitId-ট্যাগড 'বাকি আদায়' এন্ট্রি বাদ দেওয়া হয় না)।
+function getVisitBilledCashPaid(v) {
+  const dueCollected = (appData.income||[]).filter(e=>e.visitId===v.id && e.category==='বাকি আদায়').reduce((s,e)=>s+(e.amount||0),0);
+  return (v.cashPaid||0) - dueCollected;
+}
+
 // visits থেকে item/service ভিত্তিক breakdown
 function getVisitItemBreakdown(visits) {
   const map = {};
@@ -29011,9 +29514,18 @@ function getVisitItemBreakdown(visits) {
       const k = canonicalCat(it.type || it.name || '');
       map[k] = (map[k]||0) + (it.total || it.price*it.qty || 0);
     });
-    // if no items, lump into OPD
-    if (!(v.items&&v.items.length) && v.cashPaid > 0) {
-      const k = 'OPD/পরামর্শ'; map[k] = (map[k]||0) + (v.cashPaid - (v.visitFee||0));
+    // ✅ অ্যাডমিন বিলের services (items-এর বদলে ব্যবহৃত ফিল্ড) — প্রতিটা সার্ভিস তার ক্যাটাগরি অনুযায়ী ভাঙা হয়,
+    // আগে পুরো অ্যাডমিন-বিল অ্যামাউন্ট "OPD/পরামর্শ"-এ লাম্প হয়ে যেত (চশমা/মেডিসিন/টেস্ট আলাদা বোঝা যেত না)
+    // ✅ ফিক্স: এখন s.discAmt (সেই নির্দিষ্ট লাইনে কাটা ডিসকাউন্ট, cascade/চশমা-ডিসকাউন্ট থেকে) বাদ দিয়ে নেট
+    // অ্যামাউন্ট যোগ হচ্ছে — আগে গ্রস (ডিসকাউন্টের আগের) সাবটোটাল যোগ হতো, যা প্রকৃত cashPaid-এর চেয়ে বেশি দেখাতো
+    (v.services||[]).forEach(s => {
+      const k = canonicalCat(s.type || s.name || '');
+      const gross = s.subtotal || s.price*s.qty || 0;
+      map[k] = (map[k]||0) + Math.max(0, gross - (s.discAmt||0));
+    });
+    // if no items/services, lump remaining (বিলিং সময়ের cashPaid) into OPD
+    if (!(v.items&&v.items.length) && !(v.services&&v.services.length) && v.cashPaid > 0) {
+      const k = 'OPD/পরামর্শ'; map[k] = (map[k]||0) + (getVisitBilledCashPaid(v) - (v.visitFee||0));
     }
   });
   return map;
@@ -29057,7 +29569,13 @@ function buildPieData(type, period) {
     // manual income — ⚠️ visitId/campId ট্যাগযুক্ত এন্ট্রি বাদ, কারণ সেগুলো বিল/ক্যাম্প সেভের সময়
     // অটো তৈরি হওয়া ডুপ্লিকেট (নিচে visits/camps breakdown থেকেই আগে থেকে গণনা হয়ে যায়,
     // নাহলে একই আয় দুইবার — একবার "অন্যান্য"/মূল ক্যাটাগরিতে, একবার আইটেম-ভিত্তিক ক্যাটাগরিতে — গণনা হয়ে ডাবল দেখাতো)
-    (appData.income||[]).filter(e=>dateMatch(e.date) && !e.visitId && !e.campId).forEach(e=>{
+    // ✅ ব্যতিক্রম ১: visitId-ট্যাগড হলেও যদি ক্যাটাগরি "বাকি আদায়" হয়, সেটা বাদ দেওয়া হচ্ছে না — কারণ এই
+    // টাকা মূল ভিজিটের বিলিং-সময়ের cashPaid-এ ধরা নেই (getVisitBilledCashPaid() ব্যবহার করা হচ্ছে উপরে),
+    // তাই এটা এখানে আলাদাভাবে (আদায়ের আসল তারিখে) গণনা না করলে ঐ টাকা পাই চার্ট থেকে সম্পূর্ণ বাদ পড়ে যেত।
+    // ✅ ব্যতিক্রম ২: campVisitId-ট্যাগড এন্ট্রি (ক্যাম্প রোগীর বাকি আদায়) বাদ দেওয়া হচ্ছে — কারণ এই টাকা
+    // ইতিমধ্যে camp.totalIncome-এ যোগ হয়ে গেছে এবং getCampItemBreakdown() সেখান থেকেই গণনা করে;
+    // এটাও বাদ না দিলে একই টাকা দুইবার (এখানে + ক্যাম্প ব্রেকডাউনে) গণনা হয়ে যেত।
+    (appData.income||[]).filter(e=>dateMatch(e.date) && !e.campId && !e.campVisitId && !(e.visitId && e.category!=='বাকি আদায়')).forEach(e=>{
       const k = canonicalCat(e.category);
       map[k] = (map[k]||0) + e.amount;
     });
@@ -29071,7 +29589,12 @@ function buildPieData(type, period) {
     Object.entries(cmap).forEach(([k,v])=>{ map[k]=(map[k]||0)+v; });
   } else {
     // expense breakdown
-    (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&dateMatch(expenseEffectiveDate(e))).forEach(e=>{
+    // ✅ ফিক্স: ফান্ড খরচ (isFundExpense) ও ইনভেন্টরি ক্রয় (isInventoryPurchase) এখানেও বাদ দেওয়া হচ্ছে —
+    // expenseCountsInPrefix()-এ (মাসিক তুলনা/Cash-Flow-P&L স্ট্রিপে ব্যবহৃত) এই দুই ধরনের এন্ট্রি বাদ
+    // যায়, কারণ ফান্ড খরচ নিট মুনাফা/লোকসান হিসাবে গণনা হয় না এবং ইনভেন্টরি ক্রয় "সম্পদ" (COGS হিসেবে
+    // বিক্রির সময় গণনা হয়)। আগে এই ফিল্টার এখানে না থাকায়, ফান্ড খরচ/ইনভেন্টরি ক্রয় থাকা মাসে পাই চার্টের
+    // মোট ব্যয় "মাসিক তুলনা" স্ট্রিপের চেয়ে বেশি দেখাত।
+    (appData.expense||[]).filter(e=>!e.isFundExpense && !e.isInventoryPurchase && expenseEffectiveDate(e)&&dateMatch(expenseEffectiveDate(e))).forEach(e=>{
       const k = canonicalCat(e.category);
       map[k] = (map[k]||0) + e.amount;
     });
@@ -31762,7 +32285,9 @@ function getDashPieDetailRows(catLabel, type, period){
     // ক্যাটাগরি ম্যাপিং এর সাথে হুবহু মিলে যায় (আগে সরাসরি e.category===catLabel
     // চেক করায় 'অন্যান্য' সহ বেশিরভাগ ক্যাটাগরিতে কোনো ফলাফল আসতো না)
     // sub = সাব-ক্যাটাগরি (গ্রুপিং-এর জন্য, যেমন নির্দিষ্ট আইটেমের নাম/খাত), label = পূর্ণ এন্ট্রি বর্ণনা
-    (appData.income||[]).filter(e=>inPeriod(e.date)&&canonicalCat(e.category)===catLabel).forEach(e=>rows.push({sub:e.category||'সাধারণ আয়',label:e.note||e.category,amount:e.amount,date:e.date}));
+    // ✅ ফিক্স: buildPieData()-এর মতোই visitId/campId-ট্যাগড অটো-এন্ট্রি বাদ (নিচে visits/camps থেকে
+    // গণনা হয়ে যাচ্ছে), তবে visitId-ট্যাগড "বাকি আদায়" ও campVisitId-ট্যাগড এন্ট্রি নিয়মমাফিক হ্যান্ডেল হয়
+    (appData.income||[]).filter(e=>inPeriod(e.date)&&canonicalCat(e.category)===catLabel && !e.campId && !e.campVisitId && !(e.visitId && e.category!=='বাকি আদায়')).forEach(e=>rows.push({sub:e.category||'সাধারণ আয়',label:e.note||e.category,amount:e.amount,date:e.date}));
 
     // রিসেপশন ভিজিট — ভিজিট ফি (OPD/পরামর্শ) + বিক্রিত আইটেম (চশমা/মেডিসিন/টেস্ট/অপারেশন/ইত্যাদি)
     // getVisitItemBreakdown()-এর লজিকের সাথে হুবহু মিলিয়ে বানানো, যেন পাই চার্টের
@@ -31778,8 +32303,17 @@ function getDashPieDetailRows(catLabel, type, period){
         const subName=it.name||it.type||'আইটেম';
         if(k===catLabel && amt) rows.push({sub:subName,label:vPatLabel+' — '+subName,amount:amt,date:v.date});
       });
-      if(!(v.items&&v.items.length) && v.cashPaid>0 && catLabel==='OPD/পরামর্শ'){
-        const amt=v.cashPaid-(v.visitFee||0);
+      // ✅ অ্যাডমিন বিলের services — এখন প্রতিটা সার্ভিস তার নিজস্ব ক্যাটাগরিতে দেখাবে
+      // ✅ ফিক্স: s.discAmt বাদ দিয়ে নেট অ্যামাউন্ট দেখানো হচ্ছে (getVisitItemBreakdown()-এর সাথে সামঞ্জস্যপূর্ণ)
+      (v.services||[]).forEach(s=>{
+        const k=canonicalCat(s.type||s.name||'');
+        const gross=s.subtotal||(s.price*s.qty)||0;
+        const amt=Math.max(0, gross-(s.discAmt||0));
+        const subName=s.name||s.type||'সার্ভিস';
+        if(k===catLabel && amt) rows.push({sub:subName,label:vPatLabel+' — '+subName,amount:amt,date:v.date});
+      });
+      if(!(v.items&&v.items.length) && !(v.services&&v.services.length) && v.cashPaid>0 && catLabel==='OPD/পরামর্শ'){
+        const amt=getVisitBilledCashPaid(v)-(v.visitFee||0);
         if(amt) rows.push({sub:'ভিজিট (অন্যান্য পেমেন্ট)',label:vPatLabel,amount:amt,date:v.date});
       }
     });
