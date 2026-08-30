@@ -2343,7 +2343,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div id="dashCheckReminderBanner" style="display:none;margin-bottom:14px"></div>
       <!-- ✅ Cash Flow ও Profit & Loss — কম্প্যাক্ট স্ট্রিপ (মাসিক তুলনার মতো ডিজাইন), ডিফল্ট কলাপ্সড, ক্লিক করলে বিস্তারিত এক্সপ্যান্ড হয় -->
       <div style="background:#fffdf3;border-radius:var(--radius);border-top:1.5px solid var(--border);border-right:1.5px solid var(--border);border-bottom:1.5px solid var(--border);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden">
-        <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto;cursor:pointer" onclick="toggleCashFlowPnLPanel()">
+        <div style="display:flex;align-items:stretch;height:40px;overflow-x:auto">
           <div id="dashCashFlowPnLSummary" style="display:flex;align-items:stretch;flex:1;min-width:max-content"></div>
           <div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);white-space:nowrap">
             <span style="font-size:12px;font-weight:700;color:var(--primary)">💵📊 Cash Flow / P&amp;L</span>
@@ -2624,6 +2624,12 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <select id="incFilterCat" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="">সব খাত</option>
             </select>
+            <select id="incFilterPayMode" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব মাধ্যম</option>
+              <option value="cash">💵 ক্যাশ</option>
+              <option value="bank">🏦 ব্যাংক</option>
+              <option value="mfs">📱 মোবাইল ব্যাংকিং</option>
+            </select>
             <input type="date" id="incFilterDate" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
             <input type="month" id="incFilterMonth" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;display:none">
           </div>
@@ -2744,6 +2750,12 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </select>
             <select id="expFilterCat" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="">সব ক্যাটাগরি</option>
+            </select>
+            <select id="expFilterPayMode" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব মাধ্যম</option>
+              <option value="cash">💵 ক্যাশ</option>
+              <option value="bank">🏦 ব্যাংক</option>
+              <option value="mfs">📱 মোবাইল ব্যাংকিং</option>
             </select>
             <input type="date" id="expFilterDate" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
             <input type="month" id="expFilterMonth" onchange="renderExpenseTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;display:none">
@@ -3352,7 +3364,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <input type="date" id="nbHistDate" onchange="renderNewBillHistory()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>Memo</th><th>তারিখ</th><th>রোগী</th><th>ফোন</th><th>মোট</th><th>ডিসকাউন্ট</th><th>নেট</th><th>পরিশোধ</th><th>বাকি</th><th>এন্ট্রিকারী</th></tr></thead>
+          <thead><tr><th>Memo</th><th>তারিখ</th><th>রোগী</th><th>ফোন</th><th>মোট</th><th>ডিসকাউন্ট</th><th>নেট</th><th>পরিশোধ</th><th>বাকি</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="newBillHistTable"></tbody>
         </table></div></div>
       </div>
@@ -3829,6 +3841,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
 
+    </div>
+    <!-- অপারেশন শিট (স্বতন্ত্র পেজ — আগে এটা ভুলবশত স্যালারি শিটের ভেতরে ছিল) -->
+    <div id="pg-opsheet" class="page-view">
       <!-- অপারেশন এন্ট্রি ও পেমেন্ট -->
       <div class="panel">
         <div class="panel-header">
@@ -3845,6 +3860,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
         <!-- অপারেশন এন্ট্রি ফর্ম -->
         <div id="opEntryForm" style="display:none;padding:16px;border-bottom:1px solid var(--border);background:#f8fafc">
+          <!-- ✅ নতুন বিল থেকে "অপারেশন শিটে পাঠান" বাটনে ক্লিক করে এলে দেখা যায় — ফি ইতিমধ্যে বিলের
+               মাধ্যমে আয় হিসেবে জমা হয়ে গেছে, তাই এখানে শুধু সার্জন বেছে সেভ করলেই হবে (আয় আবার যোগ হবে না) -->
+          <div id="opSourceBillNote" style="display:none;margin-bottom:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#1e40af">
+            🔗 বিল থেকে পাঠানো — মেমো: <strong id="opSourceMemoLabel">—</strong>। অপারেশন ফি ইতিমধ্যে বিলের মাধ্যমে আয় হিসেবে জমা হয়ে গেছে, তাই শুধু সার্জন নির্বাচন করে সেভ করুন — আয় আবার যোগ হবে না।
+          </div>
+          <input type="hidden" id="opSourceVisitId" value="">
+          <input type="hidden" id="opSourceMemoNo" value="">
           <div class="form-row three">
             <div class="field"><label>তারিখ *</label><input type="date" id="opDate"></div>
             <div class="field"><label>রোগীর নাম *</label><input type="text" id="opPatName" placeholder="রোগীর নাম"></div>
@@ -3911,7 +3933,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </table></div>
         </div>
       </div>
-
     </div>
     <!-- নিয়োগপত্র -->
     <div id="pg-appointletter" class="page-view">
@@ -9833,6 +9854,7 @@ const pageMap = {
   funds:        { title:'🏦 ফান্ড', sub:'লাভ বন্টন ফান্ড খাতভিত্তিক জমা হিসাব' },
   doctors:      { title:'🩺 ডাক্তার', sub:'ডাক্তার ব্যবস্থাপনা ও কমিশন' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
+  opsheet:  { title:'🏥 অপারেশন শিট', sub:'অপারেশন এন্ট্রি ও সার্জন পারিশ্রমিক ব্যবস্থাপনা' },
   appointletter: { title:'📜 নিয়োগপত্র', sub:'কর্মী নিয়োগপত্র তৈরি ও ব্যবস্থাপনা' },
   attendance:{ title:'🕐 এটেন্ডেন্স শিট', sub:'কর্মীদের উপস্থিতি ব্যবস্থাপনা' },
   stock:    { title:'📦 স্টক ম্যানেজমেন্ট', sub:'ওষুধ ও চশমার স্টক' },
@@ -9902,6 +9924,7 @@ function showPage(name) {
   if (name === 'dashboard') { refreshDashboard(); makeTableResizable('recentTable'); }
   if (name === 'report') { initReportFilters(); renderReport(); }
   if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderLeaveQuotaTable(); }
+  if (name === 'opsheet') { initOperationSheetFilters(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); }
@@ -10775,10 +10798,14 @@ function renderIncomeTable() {
   const vm=document.getElementById('incViewMode')?document.getElementById('incViewMode').value:'day';
   const groupBy=document.getElementById('incGroupBy')?document.getElementById('incGroupBy').value:'date';
   const filterCat=document.getElementById('incFilterCat')?document.getElementById('incFilterCat').value:'';
+  const filterPayMode=document.getElementById('incFilterPayMode')?document.getElementById('incFilterPayMode').value:'';
   let data = [...appData.income];
   if (vm==='day' && fd) data=data.filter(e=>e.date===fd);
   else if (vm==='month' && fm) data=data.filter(e=>e.date&&e.date.startsWith(fm));
   if (filterCat) data=data.filter(e=>e.category===filterCat);
+  // ✅ পেমেন্ট মাধ্যম ফিল্টার — এন্ট্রিতে payMode না থাকলে (undefined/blank) সেটাকে ডিফল্ট 'ক্যাশ' ধরা হয়,
+  // বাকি সব হিসাব-ফাংশনের (calcCashBankFlowForPrefix/calcCashBankBalance) মতোই একই সংজ্ঞা
+  if (filterPayMode) data=data.filter(e=>(e.payMode||'cash')===filterPayMode);
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('incomeTable');
   if (!data.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
@@ -11354,6 +11381,7 @@ function renderExpenseTable() {
   const vm=document.getElementById('expViewMode')?.value||'day';
   const groupBy=document.getElementById('expGroupBy')?.value||'date';
   const filterCat=document.getElementById('expFilterCat')?.value||'';
+  const filterPayMode=document.getElementById('expFilterPayMode')?.value||'';
   // ✅ ফিক্স: এখন থেকে ফিল্টার/গ্রুপিং entry তারিখ (e.date) দিয়ে না, বরং expenseEffectiveDate(e) দিয়ে হয় —
   // ব্যাংক চেকের জন্য এটা আসল ভাঙ্গানোর তারিখ (clearDate/actualClearedDate), pending থাকলে null (কোনো
   // মাসেই গণনায় ধরা হয় না, যতক্ষণ না "✅ ভাঙ্গানো হয়েছে" চেপে ক্লিয়ার করা হয়)। এটাই dashboard/মাসিক তুলনা/
@@ -11362,6 +11390,8 @@ function renderExpenseTable() {
   if (vm==='day' && fd) data=data.filter(e=>expenseEffectiveDate(e)===fd);
   else if (vm==='month' && fm) data=data.filter(e=>{const eff=expenseEffectiveDate(e); return eff&&eff.startsWith(fm);});
   if (filterCat) data=data.filter(e=>e.category===filterCat);
+  // ✅ পেমেন্ট মাধ্যম ফিল্টার — payMode না থাকলে ডিফল্ট 'ক্যাশ' (calcCashBankFlowForPrefix-এর সাথে সামঞ্জস্যপূর্ণ সংজ্ঞা)
+  if (filterPayMode) data=data.filter(e=>(e.payMode||'cash')===filterPayMode);
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('expenseTable');
 
@@ -11398,7 +11428,7 @@ function renderExpenseTable() {
   // গ্রুপিং কী নির্ধারণ
   const getKey = e => {
     if (groupBy==='category') return e.category||'অজানা';
-    if (groupBy==='paymode') return e.payMode==='bank' ? '🏦 ব্যাংক' : '💵 ক্যাশ';
+    if (groupBy==='paymode') return e.payMode==='bank' ? '🏦 ব্যাংক' : e.payMode==='mfs' ? '📱 মোবাইল ব্যাংকিং' : '💵 ক্যাশ';
     // date (default) — effective date অনুযায়ী গ্রুপ হয়
     const eff = expenseEffectiveDate(e)||'';
     const k = vm==='month' ? eff.substring(0,7) : eff;
@@ -13891,11 +13921,17 @@ function updateOpStatus(key, status) {
 function sendOpPatientToOperationSheet(key) {
   const { pat, camp } = _findOpPatientByKey(key);
   if (!pat) return;
-  showPage('salary');
+  showPage('opsheet');
   setTimeout(()=>{
     const f = document.getElementById('opEntryForm');
     if (f) f.style.display='block';
     if (typeof populateSurgeonSelect==='function') populateSurgeonSelect();
+    // ✅ এই ফ্লো কোনো নির্দিষ্ট বিলের সাথে যুক্ত নয় — ফি এখনো জমা হয়নি, তাই সোর্স-বিল ট্যাগ ফাঁকা রাখা হচ্ছে
+    // (সেভ করলে আগের মতোই অটো আয় এন্ট্রি তৈরি হবে)
+    const svEl=document.getElementById('opSourceVisitId'); if(svEl) svEl.value='';
+    const smEl=document.getElementById('opSourceMemoNo'); if(smEl) smEl.value='';
+    const noteEl=document.getElementById('opSourceBillNote'); if(noteEl) noteEl.style.display='none';
+    const feeEl=document.getElementById('opFee'); if(feeEl){ feeEl.readOnly=false; feeEl.style.background=''; }
     const dateEl=document.getElementById('opDate'); if(dateEl) dateEl.value=(camp?camp.date:pat.campDate)||todayStr();
     const nameEl=document.getElementById('opPatName'); if(nameEl) nameEl.value=pat.name||'';
     const typeEl=document.getElementById('opType'); if(typeEl&&pat.opType) typeEl.value=pat.opType;
@@ -14161,6 +14197,7 @@ function goToIncomeForPatient(patKey, patName) {
   const dEl=document.getElementById('incFilterDate'); if (dEl) dEl.value='';
   const mEl=document.getElementById('incFilterMonth'); if (mEl) mEl.style.display='none';
   const catEl=document.getElementById('incFilterCat'); if (catEl) catEl.value='';
+  const pmEl=document.getElementById('incFilterPayMode'); if (pmEl) pmEl.value='';
   const gbEl=document.getElementById('incGroupBy'); if (gbEl) gbEl.value='date';
   renderIncomeTable();
   // ✅ আগে শুধু income.ref (নামের টেক্সট) দিয়ে key মেলানো হতো — কিন্তু ফোন নম্বর থাকা রোগীর আসল key ফোন-ভিত্তিক হওয়ায়
@@ -14187,6 +14224,7 @@ function goToIncomeRow(id, date) {
   const dEl=document.getElementById('incFilterDate'); if (dEl) { dEl.value=date; dEl.style.display=''; }
   const mEl=document.getElementById('incFilterMonth'); if (mEl) mEl.style.display='none';
   const catEl=document.getElementById('incFilterCat'); if (catEl) catEl.value='';
+  const pmEl=document.getElementById('incFilterPayMode'); if (pmEl) pmEl.value='';
   const gbEl=document.getElementById('incGroupBy'); if (gbEl) gbEl.value='date';
   renderIncomeTable();
   const gid=(date||'').replace(/[^a-zA-Z0-9]/g,'_');
@@ -14201,6 +14239,7 @@ function goToExpenseRow(id, date) {
   const dEl=document.getElementById('expFilterDate'); if (dEl) { dEl.value=date; dEl.style.display=''; }
   const mEl=document.getElementById('expFilterMonth'); if (mEl) mEl.style.display='none';
   const catEl=document.getElementById('expFilterCat'); if (catEl) catEl.value='';
+  const pmEl=document.getElementById('expFilterPayMode'); if (pmEl) pmEl.value='';
   renderExpenseTable();
   const gid=(date||'').replace(/[^a-zA-Z0-9]/g,'_');
   const rows=document.querySelectorAll('.exp-grp-row[data-grp="'+gid+'"]');
@@ -14682,10 +14721,19 @@ function calcCashBankBalance() {
       cash -= (e.amount||0);
     }
   });
-  // ৫. Camp expense → ক্যাশ থেকে বাদ
-  (appData.camps||[]).forEach(c => { cash -= ((c.totalExpense||0) + (c.totalCOGS||0) + (c.regularStaffCost||0)); });
+  // ✅ ফিক্স: আগে এখানে ধাপ ৫-এ camp.totalExpense/totalCOGS/regularStaffCost আবার ক্যাশ থেকে বাদ
+  // দেওয়া হতো — কিন্তু camp.totalExpense ইতিমধ্যে ধাপ ৪-এ campId-ট্যাগড appData.expense এন্ট্রি
+  // থেকে বাদ হয়ে গেছে (finalizeCampClose এ পুশ করা হয়, দ্রষ্টব্য), তাই এটা দ্বিতীয়বার বাদ দিলে
+  // ক্যাশ ব্যালেন্স আসলের চেয়ে কম দেখাত। totalCOGS আসলে কোনো নতুন ক্যাশ-খরচ না — সেই টাকা স্টক
+  // কেনার সময়ই (bulk stock-in, isInventoryPurchase) একবার বাদ গেছে, বিক্রি/ব্যবহারের সময় শুধু
+  // COGS হিসেবে রিপোর্টে দেখানো হয়, ক্যাশ আবার কমে না। regularStaffCost নিয়মিত বেতনের মতোই একটা
+  // নোশনাল P&L বরাদ্দ — এটা কোথাও ক্যাশ লেনদেন হিসেবে ট্র্যাক হয় না, তাই এখান থেকেও বাদ দেওয়া ঠিক না।
   // ৬. bankTx: ক্যাশ→ব্যাংক ট্রান্সফার, মোবাইল ব্যাংকিং ⇄ ক্যাশ/ব্যাংক ট্রান্সফার ও ম্যানুয়াল অ্যাডজাস্টমেন্ট
-  (appData.bankTx||[]).forEach(tx => {
+  // ✅ ফিক্স: ref:'duty-submit' (রিসেপশনিস্ট/ক্যাম্পেইনার ডিউটি শেষে ক্যাশ জমার লগ) বাদ দেওয়া হচ্ছে —
+  // এই টাকা বিল/ক্যাম্প তৈরির সময়ই ধাপ ২/৩-এ (visit.cashPaid / camp.totalIncome) একবার গণনা হয়ে গেছে;
+  // ডিউটি-সাবমিট এন্ট্রি শুধু "কে কার হাত থেকে মূল ক্যাশ বক্সে জমা দিলো" তার অডিট লগ, নতুন টাকা নয় —
+  // আগে এটাকেও cash_in হিসেবে যোগ করায় প্রতিটা ডিউটি-সাবমিটে একই ক্যাশ দ্বিতীয়বার যোগ হয়ে যেত।
+  (appData.bankTx||[]).filter(tx=>tx.ref!=='duty-submit').forEach(tx => {
     if(tx.type==='cash_in') cash+=tx.amount;
     else if(tx.type==='bank_in') bank+=tx.amount;
     else if(tx.type==='cash_to_bank'){cash-=tx.amount; bank+=tx.amount;}
@@ -16863,6 +16911,42 @@ function classifyBillItemForCommission(item) {
   }
   return 'other';
 }
+// ✅ একটা বিলে (visit) অপারেশন-ক্যাটাগরির আইটেম থাকলে তার মোট ফি বের করে — এই ফি-ই "অপারেশন শিটে পাঠান"
+// বাটনে প্রি-ফিল হয়ে যাবে (টেস্ট/অপারেশন ফি তালিকার 'অপারেশন' ক্যাটাগরির আইটেম বা ম্যানুয়াল আইটেম নামে "অপারেশন" থাকলে ধরা হয়)
+function getVisitOperationFee(v) {
+  return (v && v.services || []).reduce((s,item)=> s + (classifyBillItemForCommission(item)==='operation' ? (item.subtotal||0) : 0), 0);
+}
+// ✅ এই বিলের অপারেশন ফি ইতিমধ্যে অপারেশন শিটে পাঠানো হয়েছে কিনা (ডাবল-পাঠানো/ডাবল-কাউন্ট ঠেকাতে)
+function isVisitSentToOperationSheet(visitId) {
+  return (appData.operations||[]).some(o=>o.sourceVisitId===visitId);
+}
+// ✅ "নতুন বিল" বা "রিসেপশন" থেকে বিলে অপারেশন ফি জমা হলে — সরাসরি অপারেশন শিটের এন্ট্রি ফর্মে রোগীর নাম/
+// তারিখ/ফি প্রি-ফিল করে পাঠায় (ফি রিড-অনলি, কারণ বিলের মাধ্যমে আয় ইতিমধ্যে জমা হয়ে গেছে) — অ্যাডমিন শুধু
+// সার্জন বেছে সেভ করলেই অপারেশন রেকর্ড তৈরি হবে, নতুন আয় এন্ট্রি হবে না
+function sendBillToOperationSheet(visitId) {
+  const v = (appData.visits||[]).find(x=>x.id===visitId);
+  if (!v) return;
+  const fee = getVisitOperationFee(v);
+  if (!fee) { showToast('⚠️ এই বিলে অপারেশন ফি পাওয়া যায়নি'); return; }
+  if (isVisitSentToOperationSheet(visitId)) { showToast('ℹ️ এই বিলের অপারেশন ফি ইতিমধ্যে অপারেশন শিটে পাঠানো হয়েছে'); return; }
+  showPage('opsheet');
+  setTimeout(()=>{
+    const f = document.getElementById('opEntryForm');
+    if (f) f.style.display='block';
+    if (typeof populateSurgeonSelect==='function') populateSurgeonSelect();
+    const dateEl=document.getElementById('opDate'); if(dateEl) dateEl.value=v.date||todayStr();
+    const nameEl=document.getElementById('opPatName'); if(nameEl) nameEl.value=v.patName||'';
+    const feeEl=document.getElementById('opFee');
+    if (feeEl) { feeEl.value=fee; feeEl.readOnly=true; feeEl.style.background='#f0f4f8'; }
+    const svEl=document.getElementById('opSourceVisitId'); if(svEl) svEl.value=String(visitId);
+    const smEl=document.getElementById('opSourceMemoNo'); if(smEl) smEl.value=v.memoNo||v.rcptNo||'';
+    const memoLbl=document.getElementById('opSourceMemoLabel'); if(memoLbl) memoLbl.textContent=v.memoNo||v.rcptNo||'—';
+    const noteEl=document.getElementById('opSourceBillNote'); if(noteEl) noteEl.style.display='block';
+    if (typeof calcOpProfit==='function') calcOpProfit();
+    if (f) f.scrollIntoView({behavior:'smooth',block:'center'});
+    showToast('📋 বিলের তথ্য অপারেশন ফর্মে ভরে দেওয়া হয়েছে — সার্জন নির্বাচন করে সম্পন্ন করুন');
+  }, 150);
+}
 function getDoctorCommissionBaseAmount(items, doctor) {
   if (!doctor || !doctor.commissionEnabled) return 0;
   const types = doctor.commissionTypes && doctor.commissionTypes.length ? doctor.commissionTypes : ['visit','test'];
@@ -17243,6 +17327,9 @@ function renderDoctorsPage() {
   }
   renderDoctorDayPayTable();
   renderDoctorCommissionHistory();
+  // ✅ সার্জন/অপারেশন ডাক্তার তালিকা — এই পেজেই প্যানেল আছে, তাই এখানেই রেন্ডার হওয়া উচিত
+  // (আগে ভুলবশত এটা শুধু স্যালারি শিট পেজ ভিজিট করলেই রেন্ডার হতো)
+  if (typeof renderSurgeonList==='function') renderSurgeonList();
 }
 function renderDoctorDayPayTable() {
   const tbody = document.getElementById('doctorDayPayTable'); if (!tbody) return;
@@ -17288,6 +17375,7 @@ const ALL_FEATURES = [
   { id:'due',       label:'বাকি তালিকা' },
   { id:'stock',     label:'স্টক ম্যানেজমেন্ট' },
   { id:'salary',    label:'স্যালারি শিট' },
+  { id:'opsheet',   label:'অপারেশন শিট' },
   { id:'attendance', label:'এটেন্ডেন্স শিট' },
   { id:'demand',    label:'ডিমান্ড নোট' },
   { id:'report',    label:'মাসিক রিপোর্ট' },
@@ -17459,6 +17547,7 @@ const SIDEBAR_NAV_ITEMS = [
   { id:'billhistory', icon:'📋', label:'বিলের ইতিহাস' },
   { id:'stock', icon:'📦', label:'স্টক ম্যানেজমেন্ট' },
   { id:'salary', icon:'👨‍⚕️', label:'স্যালারি শিট' },
+  { id:'opsheet', icon:'🏥', label:'অপারেশন শিট' },
   { id:'appointletter', icon:'📜', label:'নিয়োগপত্র', adminOnly:true },
   { id:'attendance', icon:'🕐', label:'এটেন্ডেন্স শিট' },
   { id:'demand', icon:'📝', label:'ডিমান্ড নোট', badge:'<span class="nbadge" id="demandBadge" style="display:none">0</span>' },
@@ -21831,6 +21920,12 @@ function toggleOpEntryForm() {
   f.style.display = f.style.display==='none' ? 'block' : 'none';
   document.getElementById('opDate').value = todayStr();
   populateSurgeonSelect();
+  // ✅ ম্যানুয়ালি "➕ অপারেশন যোগ" চাপলে — আগের কোনো "বিল থেকে পাঠানো" এন্ট্রির অবশিষ্টাংশ থেকে যাওয়া ঠিক না
+  document.getElementById('opPatName').value = '';
+  const feeEl=document.getElementById('opFee'); if(feeEl){ feeEl.value=''; feeEl.readOnly=false; feeEl.style.background=''; }
+  const svEl=document.getElementById('opSourceVisitId'); if(svEl) svEl.value='';
+  const smEl=document.getElementById('opSourceMemoNo'); if(smEl) smEl.value='';
+  const noteEl=document.getElementById('opSourceBillNote'); if(noteEl) noteEl.style.display='none';
   calcOpProfit();
   // ক্যাম্প-রেফারেল ফিল্ড রিসেট
   const chk = document.getElementById('opIsCampRef');
@@ -21910,6 +22005,13 @@ function saveOperation() {
   const refCamp    = refCampId ? (appData.camps||[]).find(c=>String(c.id)===String(refCampId)) : null;
   const opSource   = (isCampRef && refCamp) ? 'camp' : 'reception';
 
+  // ✅ "নতুন বিল" থেকে "অপারেশন শিটে পাঠান" বাটন দিয়ে এলে — অপারেশন ফি ইতিমধ্যে সেই বিলের মাধ্যমে আয় হিসেবে
+  // জমা হয়ে গেছে, তাই এখানে আবার আয় এন্ট্রি তৈরি করলে ডাবল-কাউন্ট হয়ে যাবে। sourceVisitId থাকলে শুধু
+  // অপারেশন রেকর্ড (সার্জন পারিশ্রমিক/নেট লাভ হিসাবের জন্য) তৈরি হবে, নতুন আয় এন্ট্রি হবে না।
+  const sourceVisitId = document.getElementById('opSourceVisitId')?.value || '';
+  const sourceMemoNo  = document.getElementById('opSourceMemoNo')?.value || '';
+  const fromBill = !!sourceVisitId;
+
   if (!appData.operations) appData.operations=[];
   appData.operations.push({
     id:Date.now(), date, patName, opType,
@@ -21918,27 +22020,34 @@ function saveOperation() {
     source: opSource,
     refCampId: refCamp ? refCamp.id : null,
     refCampName: refCamp ? refCamp.name : '',
-    refCampLocation: refCamp ? refCamp.location : ''
+    refCampLocation: refCamp ? refCamp.location : '',
+    sourceVisitId: fromBill ? Number(sourceVisitId) : null,
+    sourceMemoNo: fromBill ? sourceMemoNo : ''
   });
-  // আয় এন্ট্রি অটো
-  appData.income.push({
-    id:Date.now()+1, date, category:'অপারেশন ফি',
-    amount:fee, ref:patName,
-    note:`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো)`,
-    by:currentUser.name,
-    source: opSource,
-    refCampId: refCamp ? refCamp.id : null
-  });
+  // আয় এন্ট্রি অটো — শুধু তখনই, যখন এই অপারেশন ফি কোনো বিলের মাধ্যমে ইতিমধ্যে আয় হিসেবে জমা হয়নি
+  if (!fromBill) {
+    appData.income.push({
+      id:Date.now()+1, date, category:'অপারেশন ফি',
+      amount:fee, ref:patName,
+      note:`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো)`,
+      by:currentUser.name,
+      source: opSource,
+      refCampId: refCamp ? refCamp.id : null
+    });
+  }
   saveData();
   document.getElementById('opEntryForm').style.display='none';
   document.getElementById('opPatName').value='';
-  document.getElementById('opFee').value='';
+  const feeElReset=document.getElementById('opFee'); if(feeElReset){ feeElReset.value=''; feeElReset.readOnly=false; feeElReset.style.background=''; }
   document.getElementById('opSurgeonFee').value='';
+  const svElReset=document.getElementById('opSourceVisitId'); if(svElReset) svElReset.value='';
+  const smElReset=document.getElementById('opSourceMemoNo'); if(smElReset) smElReset.value='';
+  const noteElReset=document.getElementById('opSourceBillNote'); if(noteElReset) noteElReset.style.display='none';
   const opChk = document.getElementById('opIsCampRef'); if (opChk) opChk.checked=false;
   const opCampFields = document.getElementById('opCampRefFields'); if (opCampFields) opCampFields.style.display='none';
   renderOperationSheet();
   refreshDashboard();
-  showToast(`✅ অপারেশন এন্ট্রি সেভ! আয় ৳${fmt(fee)} অটো যোগ।`);
+  showToast(fromBill ? `✅ অপারেশন এন্ট্রি সেভ! সার্জন পারিশ্রমিক হিসাব করা হলো (আয় আগেই বিলের মাধ্যমে জমা হয়েছে)।` : `✅ অপারেশন এন্ট্রি সেভ! আয় ৳${fmt(fee)} অটো যোগ।`);
 }
 function toggleOpPaid(id) {
   if (!appData.operations) return;
@@ -23372,7 +23481,16 @@ function initSalaryFilters() {
       yearSel.appendChild(opt);
     }
   }
-  // operation year select
+  if (document.getElementById('salMonth')) document.getElementById('salMonth').value = now.getMonth()+1;
+  if (document.getElementById('salYear'))  document.getElementById('salYear').value  = now.getFullYear();
+  const panel = document.getElementById('staffFormPanel');
+  if (panel) panel.style.display = currentUser.role === 'admin' ? '' : 'none';
+}
+
+// ===== OPERATION SHEET পেজ (স্বতন্ত্র সাইডবার পেজ) — সার্জন/অপারেশন-সম্পর্কিত ফিল্টার ও রেন্ডার এখানে,
+// স্যালারি শিট থেকে সম্পূর্ণ আলাদা, যাতে স্যালারি পেজে গিয়ে অপারেশন যোগ করার অসংগতি না থাকে =====
+function initOperationSheetFilters() {
+  const now = new Date();
   const opYearSel = document.getElementById('opYear');
   if (opYearSel && opYearSel.options.length === 0) {
     for (let y = now.getFullYear(); y >= now.getFullYear()-3; y--) {
@@ -23381,15 +23499,10 @@ function initSalaryFilters() {
       opYearSel.appendChild(opt);
     }
   }
-  if (document.getElementById('salMonth')) document.getElementById('salMonth').value = now.getMonth()+1;
-  if (document.getElementById('salYear'))  document.getElementById('salYear').value  = now.getFullYear();
-  if (document.getElementById('opMonth'))  document.getElementById('opMonth').value  = now.getMonth()+1;
-  if (document.getElementById('opYear'))   document.getElementById('opYear').value   = now.getFullYear();
-  const panel = document.getElementById('staffFormPanel');
-  if (panel) panel.style.display = currentUser.role === 'admin' ? '' : 'none';
-  renderSurgeonList();
-  renderOperationSheet();
+  if (document.getElementById('opMonth')) document.getElementById('opMonth').value = now.getMonth()+1;
+  if (document.getElementById('opYear'))  document.getElementById('opYear').value  = now.getFullYear();
   populateSurgeonSelect();
+  renderOperationSheet();
 }
 
 function toggleStaffForm() {
@@ -25484,7 +25597,12 @@ function renderRecHistory() {
   const visits=appData.visits.filter(v=>v.date===fd).sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('recHistTable');
   if (!visits.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">কোনো এন্ট্রি নেই</td></tr>'; return; }
-  tbody.innerHTML=visits.map(v=>`<tr>
+  tbody.innerHTML=visits.map(v=>{
+    const opFee = getVisitOperationFee(v);
+    const opBtn = (opFee>0 && !isVisitSentToOperationSheet(v.id))
+      ? `<button class="btn btn-outline btn-sm" onclick="sendBillToOperationSheet(${v.id})" title="এই বিলের অপারেশন ফি অপারেশন শিটে পাঠান">🏥➡️ অপারেশন শিটে পাঠান</button>`
+      : (opFee>0 ? `<span style="font-size:11px;color:#94a3b8">✅ পাঠানো হয়েছে</span>` : '');
+    return `<tr>
     <td style="font-size:12px;color:var(--text-light)">${v.time||'—'}</td>
     <td style="font-weight:600">${v.patName}</td>
     <td style="color:var(--text-light)">${v.patPhone||'—'}</td>
@@ -25496,8 +25614,10 @@ function renderRecHistory() {
       <button class="btn btn-warning btn-sm" onclick="printVisitReceipt(${v.id})" title="প্রিন্ট">🖨️</button>
       <button class="btn btn-outline btn-sm" onclick="openRecVisitEdit(${v.id})" title="ভুল থাকলে সংশোধন করুন">✏️</button>
       <button class="btn btn-outline btn-sm" onclick="showEditHistory('রোগীর বিল',${v.id},'${(v.patName||'').replace(/'/g,"\\'")}')" title="এডিট হিস্ট্রি">🕐</button>
+      ${opBtn}
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 // ===================================================================
@@ -28914,8 +29034,14 @@ function renderNewBillHistory() {
   const tbody=document.getElementById('newBillHistTable');
   if(!tbody)return;
   const visits=(appData.visits||[]).filter(v=>!fd||v.date===fd).sort((a,b)=>b.id-a.id).slice(0,200);
-  if(!visits.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো বিল নেই</td></tr>';return;}
-  tbody.innerHTML=visits.map(v=>`<tr class="bill-hist-row" onclick="printVisitReceipt(${v.id})" title="🖨️ প্রিন্ট প্রিভিউ দেখতে ক্লিক করুন">
+  if(!visits.length){tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:#aaa;padding:24px">কোনো বিল নেই</td></tr>';return;}
+  tbody.innerHTML=visits.map(v=>{
+    // ✅ বিলে অপারেশন ফি থাকলে ও এখনো অপারেশন শিটে পাঠানো না হলে — এখান থেকেই সরাসরি পাঠানো যাবে
+    const opFee = getVisitOperationFee(v);
+    const opBtn = (opFee>0 && !isVisitSentToOperationSheet(v.id))
+      ? `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();sendBillToOperationSheet(${v.id})" title="এই বিলের অপারেশন ফি অপারেশন শিটে পাঠান">🏥➡️ অপারেশন শিটে পাঠান</button>`
+      : (opFee>0 ? `<span style="font-size:11px;color:#94a3b8">✅ পাঠানো হয়েছে</span>` : '—');
+    return `<tr class="bill-hist-row" onclick="printVisitReceipt(${v.id})" title="🖨️ প্রিন্ট প্রিভিউ দেখতে ক্লিক করুন">
     <td style="font-weight:600;color:var(--accent)">${v.memoNo||v.rcptNo||'—'}</td>
     <td>${formatDate(v.date)}</td>
     <td style="font-weight:600">${v.patName}</td>
@@ -28926,7 +29052,9 @@ function renderNewBillHistory() {
     <td style="color:var(--success)">৳ ${fmt(v.cashPaid)}</td>
     <td style="color:${v.due>0?'var(--danger)':'var(--success)'}">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
     <td style="font-size:12px;color:var(--text-light)">${v.by||'—'}</td>
-  </tr>`).join('');
+    <td>${opBtn}</td>
+  </tr>`;
+  }).join('');
 }
 
 // ===== BILL HISTORY (dedicated sidebar page) =====
@@ -32912,7 +33040,7 @@ function _checkStatusCol(label, count, amount, accentColor, divider, bgColor, on
 // ✅ নির্দিষ্ট মাসের জন্য ক্যাশ ও ব্যাংক ইন/আউট আলাদাভাবে হিসাব — calcCashBankBalance()-এর সাথে সামঞ্জস্যপূর্ণ লজিক,
 // শুধু চলমান ব্যালেন্সের বদলে নির্দিষ্ট মাসের মধ্যে কতটা ইন/আউট হয়েছে সেটা রিটার্ন করে
 function calcCashBankFlowForPrefix(prefix) {
-  let cashIn=0, cashOut=0, bankIn=0, bankOut=0;
+  let cashRevIn=0, cashExpOut=0, bankRevIn=0, bankExpOut=0;
   // ✅ আয় — পেমেন্ট মাধ্যম (ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং) অনুযায়ী রুট করা হয়। মোবাইল ব্যাংকিং অংশ এখানে
   // যোগ হয় না — সেটা calcMfsAccountBalance()-এ আলাদাভাবে ট্র্যাক হয়, ক্যাশ/ব্যাংক ফ্লো-তে না।
   // ✅ ফিক্স: campId/campVisitId-ট্যাগড এন্ট্রি বাদ (নিচে camp.totalIncome থেকে আলাদাভাবে যোগ হয়, নাহলে
@@ -32920,29 +33048,45 @@ function calcCashBankFlowForPrefix(prefix) {
   // না — এটা আসল আদায়ের তারিখে payMode অনুযায়ী রুট হবে; নিচে ভিজিটের জন্য getVisitBilledCashPaid()
   // ব্যবহার করা হচ্ছে যাতে এই একই টাকা ভিজিটের (ভুল) বিলিং-তারিখে দ্বৈতভাবে/ভুল মাসে না গণনা হয়।
   (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!e.campVisitId&&(!e.visitId||e.category==='বাকি আদায়')).forEach(e=>{
-    if (e.payMode==='bank') bankIn+=(e.amount||0);
+    if (e.payMode==='bank') bankRevIn+=(e.amount||0);
     else if (e.payMode==='mfs') { /* মোবাইল ব্যাংকিং একাউন্টে যোগ হয় */ }
-    else cashIn+=(e.amount||0);
+    else cashRevIn+=(e.amount||0);
   });
-  (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).forEach(v=>{cashIn+=(getVisitBilledCashPaid(v)-(v.mfsPaid||0));});
-  (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).forEach(c=>{cashIn+=(c.totalIncome||0);});
+  (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).forEach(v=>{cashRevIn+=(getVisitBilledCashPaid(v)-(v.mfsPaid||0));});
+  (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).forEach(c=>{cashRevIn+=(c.totalIncome||0);});
   // ব্যয় — payMode অনুযায়ী ক্যাশ, ব্যাংক বা মোবাইল ব্যাংকিং থেকে আউট (ব্যাংকের চেক এখনো পেন্ডিং হলে গণনায় আসবে না)
   (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).forEach(e=>{
-    if (e.payMode==='bank') { if (e.status!=='pending') bankOut+=(e.amount||0); }
+    if (e.payMode==='bank') { if (e.status!=='pending') bankExpOut+=(e.amount||0); }
     else if (e.payMode==='mfs') { /* মোবাইল ব্যাংকিং একাউন্ট থেকে বাদ যায় */ }
-    else cashOut+=(e.amount||0);
+    else cashExpOut+=(e.amount||0);
   });
-  (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).forEach(c=>{cashOut+=((c.totalExpense||0)+(c.totalCOGS||0)+(c.regularStaffCost||0));});
-  // bankTx — ক্যাশ↔ব্যাংক ট্রান্সফার ও সরাসরি অ্যাডজাস্টমেন্ট
-  (appData.bankTx||[]).filter(tx=>tx.date&&tx.date.startsWith(prefix)).forEach(tx=>{
-    if(tx.type==='cash_in') cashIn+=tx.amount;
-    else if(tx.type==='bank_in') bankIn+=tx.amount;
-    else if(tx.type==='cash_to_bank'){cashOut+=tx.amount; bankIn+=tx.amount;}
-    else if(tx.type==='bank_to_cash'){bankOut+=tx.amount; cashIn+=tx.amount;}
-    else if(tx.type==='cash_out') cashOut+=tx.amount;
-    else if(tx.type==='bank_out') bankOut+=tx.amount;
+  // ✅ ফিক্স: ক্যাম্প-এর totalExpense আলাদাভাবে আর যোগ হচ্ছে না — সেটা উপরের লুপেই campId-ট্যাগড
+  // appData.expense এন্ট্রি থেকে ইতিমধ্যে গণনা হয়ে গেছে (calcCashBankBalance()-এর একই কারণ, উপরে দেখুন)।
+  // totalCOGS/regularStaffCost ক্যাশ-লেনদেন না, তাই cashOut-এ যোগ হবে না।
+
+  // ✅ bankTx — ক্যাশ↔ব্যাংক ট্রান্সফার ও সরাসরি অ্যাডজাস্টমেন্ট। এগুলো "পরিশোধিত ব্যয়" বা "প্রাপ্ত আয়" না —
+  // শুধু টাকা এক বাকেট (ক্যাশ) থেকে আরেক বাকেটে (ব্যাংক) সরানো হচ্ছে, তাই আয়/ব্যয় থেকে আলাদা করে রাখা হয়েছে,
+  // যাতে ড্যাশবোর্ডে "নগদে পরিশোধিত ব্যয়" লাইনে ট্রান্সফার মিশে গিয়ে বিভ্রান্তিকর সংখ্যা না দেখায়।
+  // ✅ ফিক্স: ref:'duty-submit' বাদ — calcCashBankBalance()-এর একই কারণে (উপরে দেখুন), এই টাকা
+  // ইতিমধ্যে visits/camps থেকে cashRevIn-এ গণনা হয়ে গেছে, দ্বিতীয়বার নয়
+  let cashTransIn=0, cashTransOut=0, bankTransIn=0, bankTransOut=0;
+  (appData.bankTx||[]).filter(tx=>tx.date&&tx.date.startsWith(prefix)&&tx.ref!=='duty-submit').forEach(tx=>{
+    if(tx.type==='cash_in') cashTransIn+=tx.amount;
+    else if(tx.type==='bank_in') bankTransIn+=tx.amount;
+    else if(tx.type==='cash_to_bank'){cashTransOut+=tx.amount; bankTransIn+=tx.amount;}
+    else if(tx.type==='bank_to_cash'){bankTransOut+=tx.amount; cashTransIn+=tx.amount;}
+    else if(tx.type==='cash_out') cashTransOut+=tx.amount;
+    else if(tx.type==='bank_out') bankTransOut+=tx.amount;
   });
-  return { cashIn, cashOut, bankIn, bankOut };
+  return {
+    // সম্মিলিত মোট (আয়/ব্যয় + ট্রান্সফার) — লাইভ ব্যালেন্স-স্টাইল "মোট কত ইন/আউট হলো" দেখার জন্য
+    cashIn: cashRevIn+cashTransIn, cashOut: cashExpOut+cashTransOut,
+    bankIn: bankRevIn+bankTransIn, bankOut: bankExpOut+bankTransOut,
+    // ভাঙন — শুধু প্রকৃত আয়/ব্যয় (revenue/expense), ট্রান্সফার বাদে
+    cashRevIn, cashExpOut, bankRevIn, bankExpOut,
+    // শুধু ক্যাশ↔ব্যাংক ট্রান্সফার/অ্যাডজাস্টমেন্ট অংশ
+    cashTransIn, cashTransOut, bankTransIn, bankTransOut
+  };
 }
 // ✅ নির্দিষ্ট মাসের জন্য মোবাইল ব্যাংকিং (সব একাউন্ট মিলিয়ে) ইন/আউট — calcMfsAccountBalance()-এর সাথে সামঞ্জস্যপূর্ণ লজিক
 function calcMfsFlowForPrefix(prefix) {
@@ -32967,7 +33111,8 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
   if (!wrap) return;
 
   // --- Cash Flow: এই মাসের ক্যাশ, ব্যাংক ও মোবাইল ব্যাংকিং ইন/আউট — আলাদাভাবে ---
-  const { cashIn, cashOut, bankIn, bankOut } = calcCashBankFlowForPrefix(prefix);
+  const cf = calcCashBankFlowForPrefix(prefix);
+  const { cashIn, cashOut, bankIn, bankOut, cashRevIn, cashExpOut, bankRevIn, bankExpOut, cashTransIn, cashTransOut, bankTransIn, bankTransOut } = cf;
   const { cash: liveCash, bank: liveBank } = calcCashBankBalance();
   const { mfsIn, mfsOut } = (typeof calcMfsFlowForPrefix==='function') ? calcMfsFlowForPrefix(prefix) : {mfsIn:0,mfsOut:0};
   const liveMfs = (typeof calcTotalMfsBalance==='function') ? calcTotalMfsBalance() : 0;
@@ -32986,17 +33131,19 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
   }
 
   // ✅ কলাপ্সড অবস্থায় দেখানোর জন্য কম্প্যাক্ট এক-লাইন সামারি (মাসিক তুলনা স্ট্রিপের ডিজাইনে, কাউন্ট ছাড়া শুধু এমাউন্ট)
-  function summaryCol(label, amount, accentColor, divider, bgColor) {
+  // ✅ এখন প্রতিটা পার্ট আলাদাভাবে ক্লিকযোগ্য — নিজের key দিয়ে toggleCashFlowPnLPanel(key) কল করে, যাতে
+  // শুধু সেই অংশের প্রাসঙ্গিক ডিটেইলই বামে দেখায় (আগের মতো ক্যাশ+ব্যাংক+মোবাইল ব্যাংকিং সব একসাথে না, ফলে হাইট অনেক কমে যায়)
+  function summaryCol(key, label, amount, accentColor, divider, bgColor) {
     const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
-    return `<div onclick="toggleCashFlowPnLPanel()" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
+    return `<div onclick="toggleCashFlowPnLPanel('${key}')" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
       <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
       <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">${amount}</span>
     </div>`;
   }
   // ✅ ইন/আউট একসাথে দেখানোর কলাম — ইন সবুজ, আউট লাল রঙে (স্ট্রিপে হরাইজন্টাল স্ক্রল এড়াতে শুধু ৪টি কলাম রাখা হয়েছে: ক্যাশ ইন/আউট, ব্যাংক ইন/আউট, মোবাইল ব্যাংকিং ইন/আউট, নিট মুনাফা/লোকসান)
-  function summaryColInOut(label, inVal, outVal, accentColor, divider, bgColor) {
+  function summaryColInOut(key, label, inVal, outVal, accentColor, divider, bgColor) {
     const borderRight = divider ? 'border-right:1px solid var(--border);' : '';
-    return `<div onclick="toggleCashFlowPnLPanel()" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
+    return `<div onclick="toggleCashFlowPnLPanel('${key}')" title="বিস্তারিত দেখতে ক্লিক করুন" style="cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:0 14px;border-left:4px solid ${accentColor};${borderRight}background:${bgColor};white-space:nowrap;overflow:hidden">
       <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
       <span style="font-size:14px;font-weight:900;flex-shrink:0">
         <span style="color:#16a34a">৳ ${fmt(inVal)}</span><span style="color:var(--text-light);font-weight:600"> / </span><span style="color:#dc2626">৳ ${fmt(outVal)}</span>
@@ -33006,56 +33153,119 @@ function renderCashFlowAndPnLPanel(prefix, mCOGS, mExp, totalMonthlyFixed) {
   const summaryEl = document.getElementById('dashCashFlowPnLSummary');
   if (summaryEl) {
     summaryEl.innerHTML =
-      summaryColInOut('ক্যাশ ইন/আউট', cashIn, cashOut, '#16a34a', true, 'rgba(22,163,74,0.06)')
-      + summaryColInOut('ব্যাংক ইন/আউট', bankIn, bankOut, '#3498db', true, 'rgba(52,152,219,0.06)')
-      + summaryColInOut('মোবাইল ব্যাংকিং ইন/আউট', mfsIn, mfsOut, '#d63384', true, 'rgba(214,51,132,0.06)')
-      + summaryCol('নিট মুনাফা/লোকসান', (netProfit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(netProfit)), netProfit>=0?'#8e44ad':'#dc2626', false, 'rgba(142,68,173,0.06)');
+      summaryColInOut('cash', 'ক্যাশ ইন/আউট', cashIn, cashOut, '#16a34a', true, 'rgba(22,163,74,0.06)')
+      + summaryColInOut('bank', 'ব্যাংক ইন/আউট', bankIn, bankOut, '#3498db', true, 'rgba(52,152,219,0.06)')
+      + summaryColInOut('mfs', 'মোবাইল ব্যাংকিং ইন/আউট', mfsIn, mfsOut, '#d63384', true, 'rgba(214,51,132,0.06)')
+      + summaryCol('net', 'নিট মুনাফা/লোকসান', (netProfit>=0?'৳ ':'- ৳ ')+fmt(Math.abs(netProfit)), netProfit>=0?'#8e44ad':'#dc2626', false, 'rgba(142,68,173,0.06)');
   }
 
-  wrap.innerHTML = `
-    <div style="padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+  // ✅ ডানে সবসময় Profit & Loss — সব key-এর জন্য অভিন্ন (এখন যেমন দেখাচ্ছে ঠিক তেমনই থাকছে)
+  const pnlPanelHTML = `
+    <div class="panel" style="margin:0">
+      <div class="panel-header"><div class="panel-title">📊 Profit &amp; Loss — ${monthLabel}</div></div>
+      <div class="panel-body">
+        ${row('মোট আয় (Total Revenue)', pnl.totalRevenue, 'var(--success)')}
+        ${row('পণ্যের ক্রয়মূল্য (COGS)', pnl.cogs, 'var(--danger)')}
+        ${row('গ্রস প্রফিট (Gross Profit)', pnl.grossProfit, '#8e44ad', true)}
+        ${row('পরিচালন ব্যয় (Operating Expense + ফিক্সড)', mExp+totalMonthlyFixed, 'var(--danger)')}
+        ${row('নিট মুনাফা/লোকসান (Net Profit)', netProfit, netProfit>=0?'#8e44ad':'var(--danger)', true)}
+      </div>
+    </div>`;
+
+  // ✅ বামে key অনুযায়ী শুধু প্রাসঙ্গিক অংশ — ক্যাশ ইন/আউটে ক্লিক করলে শুধু ক্যাশ, ব্যাংকে ক্লিক করলে শুধু ব্যাংক,
+  // মোবাইল ব্যাংকিংয়ে ক্লিক করলে শুধু মোবাইল ব্যাংকিং, আর নিট মুনাফা/লোকসানে ক্লিক করলে তিনটার বর্তমান ব্যালেন্স
+  const leftPanelByKey = {
+    cash: `
       <div class="panel" style="margin:0">
-        <div class="panel-header"><div class="panel-title">💵 Cash Flow — ${monthLabel}</div></div>
+        <div class="panel-header"><div class="panel-title">💵 ক্যাশ ইন/আউট — ${monthLabel}</div></div>
         <div class="panel-body">
-          ${row('ক্যাশ ইন (নগদে প্রাপ্ত আয়)', cashIn, 'var(--success)')}
-          ${row('ক্যাশ আউট (নগদে পরিশোধিত ব্যয়)', cashOut, 'var(--danger)')}
-          ${row('ব্যাংক ইন', bankIn, 'var(--success)')}
-          ${row('ব্যাংক আউট (চেক/ব্যাংকে পরিশোধিত ব্যয়)', bankOut, 'var(--danger)')}
+          ${row('ক্যাশ ইন (নগদে প্রাপ্ত আয়)', cashRevIn, 'var(--success)')}
+          ${cashTransIn>0?row('↳ ক্যাশ ট্রান্সফার/অ্যাডজাস্টমেন্ট ইন (আয় নয়)', cashTransIn, '#0891b2'):''}
+          ${row('মোট ক্যাশ ইন', cashIn, 'var(--success)', true)}
+          ${row('ক্যাশ আউট (নগদে পরিশোধিত ব্যয়)', cashExpOut, 'var(--danger)')}
+          ${cashTransOut>0?row('↳ ক্যাশ → ব্যাংক ট্রান্সফার/অ্যাডজাস্টমেন্ট (ব্যয় নয়)', cashTransOut, '#0891b2'):''}
+          ${row('মোট ক্যাশ আউট', cashOut, 'var(--danger)', true)}
+          ${row('বর্তমান ক্যাশ ব্যালেন্স', liveCash, 'var(--primary)', true)}
+        </div>
+      </div>`,
+    bank: `
+      <div class="panel" style="margin:0">
+        <div class="panel-header"><div class="panel-title">🏦 ব্যাংক ইন/আউট — ${monthLabel}</div></div>
+        <div class="panel-body">
+          ${row('ব্যাংক ইন', bankRevIn, 'var(--success)')}
+          ${bankTransIn>0?row('↳ ব্যাংক ট্রান্সফার/অ্যাডজাস্টমেন্ট ইন (আয় নয়)', bankTransIn, '#0891b2'):''}
+          ${row('মোট ব্যাংক ইন', bankIn, 'var(--success)', true)}
+          ${row('ব্যাংক আউট (চেক/ব্যাংকে পরিশোধিত ব্যয়)', bankExpOut, 'var(--danger)')}
+          ${bankTransOut>0?row('↳ ব্যাংক → ক্যাশ ট্রান্সফার/অ্যাডজাস্টমেন্ট (ব্যয় নয়)', bankTransOut, '#0891b2'):''}
+          ${row('মোট ব্যাংক আউট', bankOut, 'var(--danger)', true)}
+          ${row('বর্তমান ব্যাংক ব্যালেন্স', liveBank, 'var(--primary)', true)}
+        </div>
+      </div>`,
+    mfs: `
+      <div class="panel" style="margin:0">
+        <div class="panel-header"><div class="panel-title">📱 মোবাইল ব্যাংকিং ইন/আউট — ${monthLabel}</div></div>
+        <div class="panel-body">
           ${row('মোবাইল ব্যাংকিং ইন (বিকাশ/নগদ/রকেট)', mfsIn, 'var(--success)')}
           ${row('মোবাইল ব্যাংকিং আউট', mfsOut, 'var(--danger)')}
+          ${row('বর্তমান মোবাইল ব্যাংকিং ব্যালেন্স (সব একাউন্ট)', liveMfs, '#d63384', true)}
+        </div>
+      </div>`,
+    net: `
+      <div class="panel" style="margin:0">
+        <div class="panel-header"><div class="panel-title">💰 বর্তমান ব্যালেন্স</div></div>
+        <div class="panel-body">
           ${row('বর্তমান ক্যাশ ব্যালেন্স', liveCash, 'var(--primary)', true)}
           ${row('বর্তমান ব্যাংক ব্যালেন্স', liveBank, 'var(--primary)')}
           ${row('বর্তমান মোবাইল ব্যাংকিং ব্যালেন্স (সব একাউন্ট)', liveMfs, '#d63384')}
         </div>
-      </div>
-      <div class="panel" style="margin:0">
-        <div class="panel-header"><div class="panel-title">📊 Profit &amp; Loss — ${monthLabel}</div></div>
-        <div class="panel-body">
-          ${row('মোট আয় (Total Revenue)', pnl.totalRevenue, 'var(--success)')}
-          ${row('পণ্যের ক্রয়মূল্য (COGS)', pnl.cogs, 'var(--danger)')}
-          ${row('গ্রস প্রফিট (Gross Profit)', pnl.grossProfit, '#8e44ad', true)}
-          ${row('পরিচালন ব্যয় (Operating Expense + ফিক্সড)', mExp+totalMonthlyFixed, 'var(--danger)')}
-          ${row('নিট মুনাফা/লোকসান (Net Profit)', netProfit, netProfit>=0?'#8e44ad':'var(--danger)', true)}
-        </div>
-      </div>
-    </div>
-    <div style="font-size:11px;color:#94a3b8;padding:8px 4px 0">* বিলে/আয় এন্ট্রিতে পেমেন্ট মাধ্যম হিসেবে ক্যাশ, ব্যাংক বা মোবাইল ব্যাংকিং (বিকাশ/নগদ/রকেট) নির্বাচন করা থাকলে সেই অনুযায়ী উপরের ইন/আউট আলাদাভাবে গণনা হয় — একই টাকা দুইবার গণনা হয় না। মোবাইল ব্যাংকিং একাউন্ট ⇄ ক্যাশ/ব্যাংক ট্রান্সফার করতে সেটিংস → 📱 মোবাইল ব্যাংকিং একাউন্ট পেজে যান।</div>`;
-  // ✅ প্যানেলটা এক্সপ্যান্ডেড থাকলে (ইউজার আগেই খুলেছিল) নতুন কন্টেন্টের উচ্চতা অনুযায়ী max-height আপডেট করা হয়
-  if (_cfPnlExpanded) wrap.style.maxHeight = wrap.scrollHeight + 'px';
+      </div>`
+  };
+
+  const noteHTML = `<div style="font-size:11px;color:#94a3b8;padding:8px 4px 0">* বিলে/আয় এন্ট্রিতে পেমেন্ট মাধ্যম হিসেবে ক্যাশ, ব্যাংক বা মোবাইল ব্যাংকিং (বিকাশ/নগদ/রকেট) নির্বাচন করা থাকলে সেই অনুযায়ী উপরের ইন/আউট আলাদাভাবে গণনা হয় — একই টাকা দুইবার গণনা হয় না। মোবাইল ব্যাংকিং একাউন্ট ⇄ ক্যাশ/ব্যাংক ট্রান্সফার করতে সেটিংস → 📱 মোবাইল ব্যাংকিং একাউন্ট পেজে যান।</div>`;
+
+  // ✅ এই পুরো রেন্ডারড ডেটা মনে রাখা হচ্ছে, যাতে toggleCashFlowPnLPanel() পরে (রি-কম্পিউট ছাড়াই) সঠিক key-এর জন্য প্যানেল বানাতে পারে
+  _cfPnlLastRender = { leftPanelByKey, pnlPanelHTML, noteHTML };
+
+  // ✅ আগে থেকে কোনো key এক্সপ্যান্ডেড থাকলে (ড্যাশবোর্ড রিফ্রেশের কারণে) নতুন ডেটা দিয়ে সেই একই key আবার রেন্ডার হবে
+  if (_cfPnlExpanded && _cfPnlActiveKey) {
+    renderCfPnlDetail(_cfPnlActiveKey);
+    wrap.style.maxHeight = wrap.scrollHeight + 'px';
+  }
 }
 let _cfPnlExpanded = false;
-function toggleCashFlowPnLPanel() {
-  _cfPnlExpanded = !_cfPnlExpanded;
+let _cfPnlActiveKey = null;
+let _cfPnlLastRender = null;
+// ✅ শুধু ক্লিক করা অংশের প্যানেলই বামে বসায় (leftPanelByKey[key]), ডানে সবসময় Profit & Loss — এভাবে আগের
+// "ক্যাশ+ব্যাংক+মোবাইল ব্যাংকিং সব একসাথে" ডিজাইনের বদলে হাইট অনেক কমে যায়
+function renderCfPnlDetail(key) {
+  const wrap = document.getElementById('dashCashFlowPnLPanel');
+  if (!wrap || !_cfPnlLastRender) return;
+  const { leftPanelByKey, pnlPanelHTML, noteHTML } = _cfPnlLastRender;
+  wrap.innerHTML = `
+    <div style="padding-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${leftPanelByKey[key] || leftPanelByKey.net}
+      ${pnlPanelHTML}
+    </div>
+    ${noteHTML}`;
+}
+// ✅ কোনো একটা পার্টে (ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং/নিট মুনাফা) ক্লিক করলে শুধু সেই পার্টের জন্য প্যানেল এক্সপ্যান্ড হয়;
+// একই পার্টে আবার ক্লিক করলে কোলাপ্স হয়ে যায়, আর অন্য পার্টে ক্লিক করলে এক্সপ্যান্ডেড থেকেই কনটেন্ট পাল্টে যায়
+function toggleCashFlowPnLPanel(key) {
   const wrap = document.getElementById('dashCashFlowPnLPanel');
   const icon = document.getElementById('cfPnlToggleIcon');
   if (!wrap) return;
-  if (_cfPnlExpanded) {
-    wrap.style.maxHeight = wrap.scrollHeight + 'px';
-    if (icon) icon.style.transform = 'rotate(180deg)';
-  } else {
+  if (_cfPnlExpanded && _cfPnlActiveKey === key) {
+    _cfPnlExpanded = false;
+    _cfPnlActiveKey = null;
     wrap.style.maxHeight = '0px';
     if (icon) icon.style.transform = 'rotate(0deg)';
+    return;
   }
+  _cfPnlActiveKey = key;
+  renderCfPnlDetail(key);
+  _cfPnlExpanded = true;
+  wrap.style.maxHeight = wrap.scrollHeight + 'px';
+  if (icon) icon.style.transform = 'rotate(180deg)';
 }
 function renderDashCheckStatus(){
   const wrap=document.getElementById('dashCheckStatusWrap');
