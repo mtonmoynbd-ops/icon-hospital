@@ -2619,10 +2619,17 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </select>
             <select id="incGroupBy" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="date">তারিখ অনুযায়ী</option>
-              <option value="category">খাত অনুযায়ী</option>
+              <option value="source">উৎস অনুযায়ী</option>
             </select>
-            <select id="incFilterCat" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-              <option value="">সব খাত</option>
+            <!-- ✅ আয়ের খাতভিত্তিক (৭টা খাত: ভিজিট/চশমা/মেডিসিন/সার্জিক্যাল/টেস্ট/অপারেশন/অন্যান্য) বিশ্লেষণ
+                 পাই চার্ট ও মাসিক রিপোর্টেই আছে (দুটোই একই সোর্স থেকে হিসাব করে) — তাই এই তালিকা পেজে আলাদা
+                 খাত-ফিল্টার/কলাম না রেখে, বরং এন্ট্রিটা কোথা থেকে এসেছে (রিসেপশন বিল/ক্যাম্প/ম্যানুয়াল টাইপ করা)
+                 সেই উৎস দেখানো হচ্ছে — যেটা এখানেই দরকারি, পাই চার্টে নেই। -->
+            <select id="incFilterSource" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="">সব উৎস</option>
+              <option value="reception">🏥 রিসেপশন</option>
+              <option value="camp">🏕️ ক্যাম্প</option>
+              <option value="manual">✍️ ম্যানুয়াল</option>
             </select>
             <select id="incFilterPayMode" onchange="renderIncomeTable()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="">সব মাধ্যম</option>
@@ -2635,7 +2642,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>মেমো/Receipt নং</th><th>খাত</th><th>রোগী/রেফ</th><th>বিবরণ</th><th>পরিমাণ</th><th>সোর্স</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th>মেমো/Receipt নং</th><th>রোগী/রেফ</th><th>বিবরণ</th><th>পরিমাণ</th><th>সোর্স</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="incomeTable"></tbody>
         </table></div></div>
       </div>
@@ -3277,7 +3284,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                   <button type="button" class="btn btn-primary btn-sm" onclick="addRow('med','nb_')">💊 মেডিসিন</button>
                   <button type="button" class="btn btn-primary btn-sm" onclick="addRow('glass','nb_')">👓 চশমা</button>
                   <button type="button" class="btn btn-primary btn-sm" onclick="addRow('surgical','nb_')">🩺 সার্জিক্যাল</button>
-                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('service','nb_')">🔬 টেস্ট/অপারেশন</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('test','nb_')">🔬 টেস্ট</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('operation','nb_')">🏥 অপারেশন</button>
                   <button type="button" class="btn btn-outline btn-sm" onclick="addRow('manual','nb_')">✏️ ম্যানুয়াল</button>
                 </div>
               </div>
@@ -3841,13 +3849,39 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
 
+      <!-- সার্জন পারিশ্রমিক (পেমেন্ট) — স্যালারি শিটেই থাকবে, অপারেশন এন্ট্রি/ব্যবস্থাপনা থেকে আলাদা।
+           অপারেশন শিট পেজ শুধু অপারেশন-রোগীর ব্যবস্থাপনা করে; এখানে শুধু সার্জনের পারিশ্রমিক পরিশোধের হিসাব ও স্ট্যাটাস দেখানো হয়। -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🏥 সার্জন পারিশ্রমিক</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="spMonth" onchange="renderSurgeonPaymentPanel()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+              <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
+              <option value="5">মে</option><option value="6">জুন</option><option value="7">জুলাই</option><option value="8">আগস্ট</option>
+              <option value="9">সেপ্টেম্বর</option><option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
+            </select>
+            <select id="spYear" onchange="renderSurgeonPaymentPanel()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;"></select>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap"><table>
+            <thead><tr>
+              <th>তারিখ</th><th>রোগী</th><th>অপারেশন</th><th>সার্জন</th>
+              <th>অপারেশন ফি</th><th>সার্জন পারিশ্রমিক</th><th>স্ট্যাটাস</th>
+            </tr></thead>
+            <tbody id="surgeonPaymentTable"></tbody>
+            <tfoot id="surgeonPaymentFoot"></tfoot>
+          </table></div>
+        </div>
+      </div>
+
     </div>
-    <!-- অপারেশন শিট (স্বতন্ত্র পেজ — আগে এটা ভুলবশত স্যালারি শিটের ভেতরে ছিল) -->
+    <!-- অপারেশন শিট (স্বতন্ত্র পেজ — শুধু অপারেশন-রোগীর ব্যবস্থাপনা; সার্জন পারিশ্রমিক/পেমেন্ট স্যালারি শিটেই থাকে) -->
     <div id="pg-opsheet" class="page-view">
       <!-- অপারেশন এন্ট্রি ও পেমেন্ট -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">🏥 অপারেশন ও সার্জন পেমেন্ট</div>
+          <div class="panel-title">🏥 অপারেশন ব্যবস্থাপনা</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <select id="opMonth" onchange="renderOperationSheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
               <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
@@ -5104,107 +5138,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
     </div>
 
-    <!-- ADMIN BILLING -->
-    <div id="pg-adminbill" class="page-view">
-      <!-- Draft bills from receptionist -->
-      <div class="panel" id="draftBillsPanel" style="display:none">
-        <div class="panel-header"><div class="panel-title">📨 রিসেপশনিস্টের ড্রাফট বিল</div></div>
-        <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>রোগী</th><th>সার্ভিস</th><th>মোট</th><th>ড্রাফট ডিসকাউন্ট</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
-          <tbody id="draftBillTable"></tbody>
-        </table></div></div>
-      </div>
-      <!-- New admin bill form -->
-      <div class="panel">
-        <div class="panel-header"><div class="panel-title">🧾 নতুন বিল (অ্যাডমিন)</div></div>
-        <div class="panel-body">
-          <div class="form-row three">
-            <div class="field"><label>রোগীর নাম *</label><input type="text" id="abPatName" placeholder="পূর্ণ নাম" oninput="searchPatientForBill(this.value)"></div>
-            <div class="field"><label>ফোন নম্বর</label><input type="text" id="abPatPhone" placeholder="০১XXXXXXXXX"></div>
-            <div class="field"><label>তারিখ *</label><input type="date" id="abBillDate"></div>
-          </div>
-          <div class="form-row three">
-            <div class="field"><label>বয়স</label><input type="text" id="abPatAge" placeholder="যেমন: ৩৫ বছর"></div>
-            <div class="field"><label>ডাক্তার / রেফারেন্স</label><input type="text" id="abPatDoc" placeholder="ডাক্তারের নাম"></div>
-            <div class="field"><label>মেমো নং</label><input type="text" id="abMemoNo" placeholder="অটো"></div>
-          </div>
-          <div class="form-row three" style="background:#f8fafc;border-radius:8px;padding:10px;border:1px solid var(--border)">
-            <div class="field"><label>🩺 কমিশন প্রযোজ্য ডাক্তার <span style="font-size:11px;color:var(--text-light)">(ঐচ্ছিক)</span></label>
-              <select id="abDocSelect" onchange="onDocSelectChange('ab')"><option value="">-- কোনো ডাক্তার/কমিশন নেই --</option></select>
-            </div>
-            <div class="field" id="abDocAfterDutyRow" style="display:none">
-              <label>&nbsp;</label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:white;border:1.5px solid var(--border);border-radius:6px;padding:9px 10px">
-                <input type="checkbox" id="abDocAfterDuty" onchange="updateDocCommissionPreview('ab')"> ডিউটি সময়ের পরে দেখা হয়েছে
-              </label>
-            </div>
-            <div class="field"><label>&nbsp;</label><div id="abDocCommissionPreview" style="font-size:12.5px;color:var(--text-light);padding-top:8px"></div></div>
-          </div>
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <label style="font-weight:600">🏷️ সার্ভিস / পণ্য</label>
-              <button class="btn btn-primary btn-sm" onclick="addAdminBillRow()">+ যোগ করুন</button>
-            </div>
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:var(--bg-card)"><th style="padding:8px;text-align:left;font-size:13px">সার্ভিস/পণ্যের নাম</th><th style="padding:8px;text-align:left;font-size:13px">ধরন</th><th style="padding:8px;text-align:center;font-size:13px">পরিমাণ</th><th style="padding:8px;text-align:right;font-size:13px">মূল্য (৳)</th><th style="padding:8px;text-align:right;font-size:13px">সাবটোটাল</th><th style="padding:8px"></th></tr></thead>
-              <tbody id="adminBillRows"></tbody>
-            </table>
-          </div>
-          <div style="background:var(--bg-card);border-radius:10px;padding:16px;margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>মোট:</span><span id="abTotal" style="font-weight:700">৳ ০</span></div>
-            <div style="display:flex;gap:12px;align-items:center;margin-bottom:4px">
-              <label style="font-size:13px">অ্যাডমিন ডিসকাউন্ট:</label>
-              <input type="number" id="abDiscPct" min="0" max="100" placeholder="%" style="width:70px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit" oninput="updateAdminBillSummary()">
-              <span style="font-size:13px">%</span>
-              <span id="abDiscLimit" style="font-size:12px;color:var(--text-light)"></span>
-            </div>
-            <div style="font-size:10.5px;color:#0369a1;margin-bottom:8px">ℹ️ ভিজিট ফি/টেস্ট/অন্যান্য সার্ভিসের উপর প্রযোজ্য (cascade: ভিজিট ফি আগে, তারপর বাকি) — ওষুধ, চশমা ও সার্জিক্যাল আইটেমের দামে কখনো প্রযোজ্য হবে না।</div>
-            <div id="abDiscRow" style="display:none;justify-content:space-between;margin-bottom:8px;color:var(--danger)"><span>ডিসকাউন্ট:</span><span id="abDiscAmt">-৳ ০</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:var(--success)"><span>নেট বিল:</span><span id="abNetBill">৳ ০</span></div>
-            <div style="display:flex;gap:12px;align-items:center;margin-top:10px;background:linear-gradient(135deg,#ecfeff,#e0f7fa);border:2px solid var(--accent);border-radius:8px;padding:8px 12px">
-              <label style="font-size:13px;font-weight:800;color:var(--primary)">নগদ পরিশোধ (৳):</label>
-              <input type="number" id="abCashPaid" placeholder="৳" style="width:130px;padding:8px 10px;border:2px solid #7dd8ea;border-radius:6px;font-family:inherit;font-size:18px;font-weight:800;color:var(--primary);background:#ffffff" oninput="updateAdminBillSummary(); onAbMfsPaidChange()">
-              <span style="color:var(--danger);font-weight:600">বাকি: <span id="abDue">৳ ০</span></span>
-            </div>
-            <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:8px;padding:10px 12px;margin-top:8px">
-              <label style="font-size:12px;font-weight:700;color:#9d174d;display:block;margin-bottom:6px">📱 এর মধ্যে মোবাইল ব্যাংকিং দিয়ে পরিশোধ (ঐচ্ছিক)</label>
-              <div style="display:flex;gap:8px">
-                <input type="number" id="abMfsPaid" placeholder="০.০০" min="0" oninput="onAbMfsPaidChange()" style="flex:1;padding:9px 12px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:13px">
-                <select id="adminBillMfsAccount" style="flex:1;padding:9px 12px;border:1.5px solid #f9a8d4;border-radius:6px;font-family:inherit;font-size:13px;background:#fff">
-                  <option value="">-- একাউন্ট --</option>
-                </select>
-              </div>
-              <div id="abMfsPaidHint" style="font-size:11px;color:#9d174d;margin-top:4px"></div>
-            </div>
-          </div>
-          <div id="abDeliveryBox" style="background:#eef6ff;border:1.5px solid #3498db;border-radius:8px;padding:12px 14px;margin-bottom:12px">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:#2c5d8a;cursor:pointer">
-              <input type="checkbox" id="abSendToDelivery" onchange="toggleDeliveryDate('ab')" style="width:16px;height:16px">
-              🚚 ডেলিভারি শিডিউলে পাঠান
-            </label>
-            <div id="abDeliveryDateRow" style="display:none;margin-top:8px">
-              <label style="font-size:12px">ডেলিভারির তারিখ *</label>
-              <input type="date" id="abDeliveryDate" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-            </div>
-          </div>
-          <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-outline" onclick="clearAdminBillForm()">🔄 রিসেট</button>
-            <button class="btn btn-success" onclick="saveAdminBill()">✅ বিল সেভ ও প্রিন্ট</button>
-          </div>
-        </div>
-      </div>
-      <!-- Admin bill history -->
-      <div class="panel">
-        <div class="panel-header"><div class="panel-title">📋 বিলের ইতিহাস</div>
-          <input type="date" id="abHistDate" onchange="renderAdminBillHistory()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
-        </div>
-        <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>মেমো নং</th><th>তারিখ</th><th>রোগী</th><th>ফোন</th><th>মোট</th><th>ডিসকাউন্ট</th><th>নেট</th><th>পরিশোধ</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
-          <tbody id="adminBillHistTable"></tbody>
-        </table></div></div>
-      </div>
-    </div>
-
     <!-- PATIENT DATABASE -->
     <div id="pg-patients" class="page-view">
       <div class="panel">
@@ -6280,7 +6213,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </tbody>
           </table></div>
           <p style="margin-top:8px">দুটো ডিসকাউন্টেরই <strong>সর্বোচ্চ সীমা role-ভিত্তিক</strong> (সেটিংস থেকে নির্ধারিত %) — অ্যাডমিনের সীমা সবচেয়ে বেশি, তারপর মডারেটর, তারপর রিসেপশনিস্ট। ইনপুট ফিল্ডে % দিলে সংশ্লিষ্ট সর্বোচ্চ টাকার অ্যামাউন্ট স্বয়ংক্রিয়ভাবে দেখানো হয়।</p>
-          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-top:8px">নীতি: বিলের প্রতিটা সার্ভিস লাইনে ঠিক কত ডিসকাউন্ট কাটা হলো তা রেকর্ড রাখা হয় — এই তথ্যের ভিত্তিতেই পাই চার্ট/রিপোর্টে প্রতিটা ক্যাটাগরির (OPD/পরামর্শ, টেস্ট ইত্যাদি) <strong>প্রকৃত (নেট, ডিসকাউন্টের পরের) আয়</strong> দেখানো হয় — গ্রস (ডিসকাউন্টের আগের) বিলড অ্যামাউন্ট না।</div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-top:8px">নীতি: বিলের প্রতিটা সার্ভিস লাইনে ঠিক কত ডিসকাউন্ট কাটা হলো তা রেকর্ড রাখা হয় — এই তথ্যের ভিত্তিতেই পাই চার্ট/রিপোর্টে প্রতিটা ক্যাটাগরির (ভিজিট ফি, টেস্ট ইত্যাদি) <strong>প্রকৃত (নেট, ডিসকাউন্টের পরের) আয়</strong> দেখানো হয় — গ্রস (ডিসকাউন্টের আগের) বিলড অ্যামাউন্ট না।</div>
         </div>
       </div>
 
@@ -7010,7 +6943,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                   <button type="button" class="btn btn-primary btn-sm" onclick="addRow('med','')">💊 মেডিসিন</button>
                   <button type="button" class="btn btn-primary btn-sm" onclick="addRow('glass','')">👓 চশমা</button>
                   <button type="button" class="btn btn-primary btn-sm" onclick="addRow('surgical','')">🩺 সার্জিক্যাল</button>
-                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('service','')">🔬 টেস্ট/অপারেশন</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('test','')">🔬 টেস্ট</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="addRow('operation','')">🏥 অপারেশন</button>
                   <button type="button" class="btn btn-outline btn-sm" onclick="addRow('manual','')">✏️ ম্যানুয়াল</button>
                 </div>
               </div>
@@ -9257,8 +9191,6 @@ const REALTIME_SAFE_PAGE_REFRESH = {
     if (typeof renderNewBillHistory==='function') renderNewBillHistory();
     if (typeof renderNewBillDrafts==='function') renderNewBillDrafts();
   },
-  // ✅ adminbill পেজের মূল ফর্মও টাচ করা হয় না, শুধু "পেন্ডিং ড্রাফট" তালিকা রিফ্রেশ হয়
-  adminbill:    () => { if (typeof renderDraftBills==='function') renderDraftBills(); },
 };
 // ✅ পারফরম্যান্স ফিক্স: Firebase-এর একটামাত্র "বিল সেভ" অ্যাকশনও ভেতরে ভেতরে income/visits/bankTx/editHistory/
 // activityLog — এরকম একাধিক আলাদা পাথে আলাদা write পাঠায়, প্রতিটাই এই onValue লিসেনার আলাদাভাবে ফায়ার করে।
@@ -9854,7 +9786,7 @@ const pageMap = {
   funds:        { title:'🏦 ফান্ড', sub:'লাভ বন্টন ফান্ড খাতভিত্তিক জমা হিসাব' },
   doctors:      { title:'🩺 ডাক্তার', sub:'ডাক্তার ব্যবস্থাপনা ও কমিশন' },
   salary:   { title:'👨‍⚕️ স্যালারি শিট', sub:'কর্মীদের বেতন ব্যবস্থাপনা' },
-  opsheet:  { title:'🏥 অপারেশন শিট', sub:'অপারেশন এন্ট্রি ও সার্জন পারিশ্রমিক ব্যবস্থাপনা' },
+  opsheet:  { title:'🏥 অপারেশন শিট', sub:'অপারেশন-রোগীর এন্ট্রি ও ব্যবস্থাপনা' },
   appointletter: { title:'📜 নিয়োগপত্র', sub:'কর্মী নিয়োগপত্র তৈরি ও ব্যবস্থাপনা' },
   attendance:{ title:'🕐 এটেন্ডেন্স শিট', sub:'কর্মীদের উপস্থিতি ব্যবস্থাপনা' },
   stock:    { title:'📦 স্টক ম্যানেজমেন্ট', sub:'ওষুধ ও চশমার স্টক' },
@@ -9865,7 +9797,6 @@ const pageMap = {
   officialpad:  { title:'📄 অফিসিয়াল প্যাড', sub:'অফিসিয়াল প্যাড' },
   memorandum:   { title:'📜 মেমোরেন্ডাম ও TOR', sub:'হাসপাতালের মেমোরেন্ডাম ও টার্মস অফ রেফারেন্স' },
   'accounting-principles': { title:'📖 হিসাবরক্ষণ নীতিমালা', sub:'এই অ্যাপে কোন হিসাব কীভাবে ও কোন নীতির ভিত্তিতে করা হয়' },
-  adminbill:{ title:'🧾 নতুন বিল (অ্যাডমিন)', sub:'অ্যাডমিন বিলিং ও ড্রাফট অ্যাপ্রুভাল' },
   billhistory:{ title:'📋 বিলের ইতিহাস', sub:'সকল বিলের তালিকা, ফিল্টার ও প্রিন্ট প্রিভিউ' },
   patients: { title:'🏥 রোগীর ডেটাবেস', sub:'সকল রোগীর তথ্য ও ইতিহাস' },
   recdeposit:   { title:'🏦 রিসেপশন ক্যাশ জমার রেকর্ড', sub:'রিসেপশনিস্টের দৈনিক ক্যাশ জমার বিস্তারিত' },
@@ -9893,7 +9824,7 @@ function filterSidebarCategory(cat) {
   }
 }
 function showPage(name) {
-  if ((name === 'settings'||name==='adminbill') && currentUser.role !== 'admin') return;
+  if (name === 'settings' && currentUser.role !== 'admin') return;
   if (name === 'memorandum' && currentUser.role !== 'admin' && !canAccess(currentUser.role, 'memorandum')) return;
   currentActivePage = name;
   document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
@@ -9923,7 +9854,11 @@ function showPage(name) {
   }
   if (name === 'dashboard') { refreshDashboard(); makeTableResizable('recentTable'); }
   if (name === 'report') { initReportFilters(); renderReport(); }
-  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); initAttendancePage(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderLeaveQuotaTable(); }
+  // ✅ ফিক্স: initAttendancePage() নামে কোনো ফাংশন কখনোই ডিফাইন করা ছিল না (attendance এখন নিজস্ব
+  // স্বতন্ত্র পেজ, initAttendanceStandalonePage() দিয়ে init হয়) — এই ভুল কলটা প্রতিবার স্যালারি শিটে
+  // গেলে JS এরর ছুঁড়ে দিত, ফলে এর পরের সবগুলো কল (অগ্রিম টেবিল, ছুটির কোটা, সার্জন পারিশ্রমিক প্যানেল)
+  // কখনোই রান হতো না — তাই বাদ দেওয়া হলো।
+  if (name === 'salary') { initSalaryFilters(); renderSalarySheet(); renderAdvanceTable(); populateAdvStaffSelect(); populateAdvYearSelect(); renderLeaveQuotaTable(); initSurgeonPaymentFilters(); }
   if (name === 'opsheet') { initOperationSheetFilters(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
@@ -9947,7 +9882,6 @@ function showPage(name) {
   if (name === 'memorandum')   { initMemorandumPage(); }
   if (name === 'newbill')      { initNewBillPage(); }
   if (name === 'billhistory')  { initBillHistoryPage(); }
-  if (name === 'adminbill')    { initAdminBillPage(); renderDraftBills(); }
   if (name === 'patients')     { renderPatientDB(); renderCampOps(); renderMergedPatientsList(); }
   if (name === 'settings')     { renderCategoryLists(); updateCategorySelects(); closeSettingsSection(); }
   if (name === 'recdeposit')   { renderRecDepositList(); }
@@ -10792,37 +10726,46 @@ function clearIncomeForm() {
   const mfsRow=document.getElementById('incMfsRow'); if(mfsRow) mfsRow.style.display='none';
   updateIncMemo();
 }
+// ✅ একটা income এন্ট্রি আসলে কোথা থেকে এসেছে (রিসেপশন বিল/ক্যাম্প/ম্যানুয়াল টাইপ করা) তা বের করে —
+// আয়ের তালিকা পেজে "সোর্স" কলাম ও ফিল্টারে ব্যবহৃত হয়। এটা এন্ট্রির category টেক্সট নয়, বরং এন্ট্রিটা
+// সিস্টেম কীভাবে তৈরি করেছে তার প্রকৃত উৎস — যেমন কেউ হাতে "ক্যাম্প আয়" ক্যাটাগরি বেছে ম্যানুয়ালি এন্ট্রি
+// করলে সেটা এখনো "ম্যানুয়াল" হিসেবেই গণনা হবে, ক্যাম্প ক্লোজ করার সময় অটো-তৈরি এন্ট্রি থেকে আলাদা করার জন্য।
+function getIncomeSourceInfo(e) {
+  if (e.source === 'camp' || e.campId || e.campVisitId) return { key:'camp', label:'🏕️ ক্যাম্প' };
+  if (e.source === 'reception' || e.visitId || e.adminBillId) return { key:'reception', label:'🏥 রিসেপশন' };
+  return { key:'manual', label:'✍️ ম্যানুয়াল' };
+}
 function renderIncomeTable() {
   const fd=document.getElementById('incFilterDate').value;
   const fm=document.getElementById('incFilterMonth')?document.getElementById('incFilterMonth').value:'';
   const vm=document.getElementById('incViewMode')?document.getElementById('incViewMode').value:'day';
   const groupBy=document.getElementById('incGroupBy')?document.getElementById('incGroupBy').value:'date';
-  const filterCat=document.getElementById('incFilterCat')?document.getElementById('incFilterCat').value:'';
+  const filterSource=document.getElementById('incFilterSource')?document.getElementById('incFilterSource').value:'';
   const filterPayMode=document.getElementById('incFilterPayMode')?document.getElementById('incFilterPayMode').value:'';
   let data = [...appData.income];
   if (vm==='day' && fd) data=data.filter(e=>e.date===fd);
   else if (vm==='month' && fm) data=data.filter(e=>e.date&&e.date.startsWith(fm));
-  if (filterCat) data=data.filter(e=>e.category===filterCat);
+  if (filterSource) data=data.filter(e=>getIncomeSourceInfo(e).key===filterSource);
   // ✅ পেমেন্ট মাধ্যম ফিল্টার — এন্ট্রিতে payMode না থাকলে (undefined/blank) সেটাকে ডিফল্ট 'ক্যাশ' ধরা হয়,
   // বাকি সব হিসাব-ফাংশনের (calcCashBankFlowForPrefix/calcCashBankBalance) মতোই একই সংজ্ঞা
   if (filterPayMode) data=data.filter(e=>(e.payMode||'cash')===filterPayMode);
   data.sort((a,b)=>b.id-a.id);
   const tbody=document.getElementById('incomeTable');
-  if (!data.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
 
-  // গ্রুপিং কী নির্ধারণ (তারিখ/খাত অনুযায়ী)
+  // গ্রুপিং কী নির্ধারণ (তারিখ/উৎস অনুযায়ী)
   const getKey = e => {
-    if (groupBy==='category') return e.category||'অজানা';
+    if (groupBy==='source') return getIncomeSourceInfo(e).key;
     const k = vm==='month' ? (e.date||'').substring(0,7) : (e.date||'');
     return k;
   };
   const getGroupLabel = key => {
-    if (groupBy==='category') return key;
+    if (groupBy==='source') return {camp:'🏕️ ক্যাম্প', reception:'🏥 রিসেপশন', manual:'✍️ ম্যানুয়াল'}[key] || key;
     return vm==='month' ? (()=>{const[y,m]=key.split('-');return`${m}/${y}`;})() : formatDate(key);
   };
-  const groupColor = groupBy==='category' ? '#7c3aed' : '#166534';
-  const groupBg    = groupBy==='category' ? '#faf5ff' : '#f0fdf4';
-  const groupBorder= groupBy==='category' ? '#e9d5ff' : '#bbf7d0';
+  const groupColor = groupBy==='source' ? '#7c3aed' : '#166534';
+  const groupBg    = groupBy==='source' ? '#faf5ff' : '#f0fdf4';
+  const groupBorder= groupBy==='source' ? '#e9d5ff' : '#bbf7d0';
 
   const groups = {};
   data.forEach(e => { const k=getKey(e); if(!groups[k])groups[k]=[]; groups[k].push(e); });
@@ -10835,8 +10778,8 @@ function renderIncomeTable() {
     const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
     html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" data-hdr-gid="inc_${gid}" data-open="1" onclick="toggleIncGroup('${gid}')">
-      <td colspan="6" style="color:${groupColor};font-weight:700;padding:7px 12px;font-size:12.5px">
-        ${groupBy==='category'?'📂':'📅'} ${label} &nbsp;—&nbsp; মোট আয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+      <td colspan="5" style="color:${groupColor};font-weight:700;padding:7px 12px;font-size:12.5px">
+        ${groupBy==='source'?'📂':'📅'} ${label} &nbsp;—&nbsp; মোট আয়: ৳ ${fmt(total)} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
       </td>
       <td style="color:#64748b;text-align:right;padding:7px 12px" colspan="3"><span id="incGrpIcon-${gid}">▼</span></td>
     </tr>`;
@@ -10844,11 +10787,10 @@ function renderIncomeTable() {
       html += `<tr class="inc-grp-row" data-grp="${gid}" id="inc-row-${e.id}">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--accent);font-weight:600;font-size:12px">${formatVoucherRefDisplay(e.memo)||'—'}</td>
-        <td>${e.category}${e.subCategory?`<div style="color:var(--text-light);font-size:11px">${e.subCategory}</div>`:''}</td>
         <td style="color:var(--text-light)">${e.ref||'—'}</td>
         <td style="color:var(--text-light)">${e.note||'—'}</td>
         <td style="font-weight:700;color:var(--success)">৳ ${fmt(e.amount)}</td>
-        <td><span class="badge badge-income">ম্যানুয়াল</span></td>
+        <td><span class="badge badge-income">${getIncomeSourceInfo(e).label}</span></td>
         <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
         <td>${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteIncome(${e.id})">🗑️</button>`:'—'}</td>
       </tr>`;
@@ -10856,12 +10798,8 @@ function renderIncomeTable() {
   });
   tbody.innerHTML=html;
 }
-// incFilterCat সিলেক্ট পপুলেট
-function populateIncFilterCat() {
-  const sel=document.getElementById('incFilterCat'); if(!sel) return;
-  const incCats=getIncCats();
-  sel.innerHTML='<option value="">সব খাত</option>'+incCats.map(c=>`<option value="${c}">${c}</option>`).join('');
-}
+// incFilterCat সরিয়ে ফেলা হয়েছে (এখন সোর্স-ভিত্তিক ফিল্টার, incFilterSource ব্যবহৃত হয়, যেটার
+// অপশন ফিক্সড — dynamically পপুলেট করার দরকার নেই)
 function toggleIncGroup(gid) {
   const rows=document.querySelectorAll('.inc-grp-row[data-grp="'+gid+'"]');
   const ic=document.getElementById('incGrpIcon-'+gid);
@@ -13426,7 +13364,7 @@ function updateCampAllTotals() {
 
 // ✅ ক্যাম্পের incBreakdown (visit/med/glass/test/other) থেকে প্রকৃত income category-তে ম্যাপিং
 const CAMP_INC_KEY_TO_CAT = {
-  visit: 'OPD ভিজিট ফি',
+  visit: 'ভিজিট ফি',
   med:   'ওষুধ বিক্রি',
   glass: 'চশমা বিক্রি',
   test:  'টেস্ট / রিপোর্ট ফি',
@@ -14196,7 +14134,7 @@ function goToIncomeForPatient(patKey, patName) {
   const vmEl=document.getElementById('incViewMode'); if (vmEl) vmEl.value='day';
   const dEl=document.getElementById('incFilterDate'); if (dEl) dEl.value='';
   const mEl=document.getElementById('incFilterMonth'); if (mEl) mEl.style.display='none';
-  const catEl=document.getElementById('incFilterCat'); if (catEl) catEl.value='';
+  const srcEl=document.getElementById('incFilterSource'); if (srcEl) srcEl.value='';
   const pmEl=document.getElementById('incFilterPayMode'); if (pmEl) pmEl.value='';
   const gbEl=document.getElementById('incGroupBy'); if (gbEl) gbEl.value='date';
   renderIncomeTable();
@@ -14223,7 +14161,7 @@ function goToIncomeRow(id, date) {
   const vmEl=document.getElementById('incViewMode'); if (vmEl) vmEl.value='day';
   const dEl=document.getElementById('incFilterDate'); if (dEl) { dEl.value=date; dEl.style.display=''; }
   const mEl=document.getElementById('incFilterMonth'); if (mEl) mEl.style.display='none';
-  const catEl=document.getElementById('incFilterCat'); if (catEl) catEl.value='';
+  const srcEl=document.getElementById('incFilterSource'); if (srcEl) srcEl.value='';
   const pmEl=document.getElementById('incFilterPayMode'); if (pmEl) pmEl.value='';
   const gbEl=document.getElementById('incGroupBy'); if (gbEl) gbEl.value='date';
   renderIncomeTable();
@@ -16421,7 +16359,7 @@ function deleteMfsAccount(id) {
 function refreshAllMfsSelects() {
   const accs = appData.mfsAccounts || [];
   const opts = '<option value="">-- একাউন্ট নির্বাচন করুন --</option>' + accs.map(a=>`<option value="${a.id}">${a.name} (৳ ${fmt(calcMfsAccountBalance(a.id))})</option>`).join('');
-  ['expMfsAccount','vendorPayMfsAccount','incMfsAccount','visitMfsAccount','mfsTransferAccount','rMfsAccount','adminBillMfsAccount','nb_MfsAccount'].forEach(id => {
+  ['expMfsAccount','vendorPayMfsAccount','incMfsAccount','visitMfsAccount','mfsTransferAccount','rMfsAccount','nb_MfsAccount'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { const cur = el.value; el.innerHTML = opts; if (cur) el.value = cur; }
   });
@@ -16892,6 +16830,14 @@ function classifyBillItemForCommission(item) {
   const type = item.type || '';
   if (type==='med' || type==='glass' || type==='surgical') return 'product';
   if (type==='visitfee') return 'visit';
+  // ✅ 'test' ও 'operation' বাটন থেকে যোগ হওয়া আইটেম — বাটন অনুযায়ী নিশ্চিতভাবেই শ্রেণীবদ্ধ (ক্যাটালগ লুকআপের উপর নির্ভর না করেই)
+  if (type==='operation') return 'operation';
+  if (type==='test') {
+    const tf = (appData.testFees||[]).find(t=>t.id===item.feeId);
+    if (tf && tf.cat==='টেস্ট / পরীক্ষা') return 'test';
+    if (tf && tf.cat==='ভিজিট ফি') return 'visit';
+    return tf ? 'other' : 'test';
+  }
   if (type==='service' && item.feeId) {
     const tf = (appData.testFees||[]).find(t=>t.id===item.feeId);
     if (tf) {
@@ -16967,7 +16913,6 @@ function isAfterDutyTimeNow(doctor) {
 function _getBillItemsForCommission(p) {
   if (p==='r') return (typeof getServices==='function') ? getServices() : [];
   if (p==='nb_') return (typeof _getItems==='function') ? _getItems('nb_') : [];
-  if (p==='ab') return (typeof getAdminBillServices==='function') ? getAdminBillServices() : [];
   return [];
 }
 // ✅ splitAfterDutyOption=true (ডিফল্ট) হলে — স্যালারিড কমিশন-প্রযোজ্য ডাক্তারের জন্য ড্রপডাউনেই "ডিউটি পরে"
@@ -17052,7 +16997,6 @@ function onDocSelectChange(p) {
   // ✅ ডাক্তার পাল্টালে বিলে থাকা ভিজিট ফি লাইনও নতুন ডাক্তারের ফি অনুযায়ী আপডেট হয়ে যায়
   if (p==='r') refreshVisitFeeRow('');
   else if (p==='nb_') refreshVisitFeeRow('nb_');
-  else if (p==='ab' && typeof refreshAdminVisitFeeRow==='function') refreshAdminVisitFeeRow();
 }
 // ✅ পাতা লোড হওয়ার সময় বা নতুন বিল ফর্ম রিসেটের সময় — আজকের জন্য আগে সিলেক্ট করা ডিফল্ট ডাক্তার ফিরিয়ে আনে
 // p: 'r' (রিসেপশন) বা 'nb_' (অ্যাডমিন/মড নতুন বিল) — উভয়েই একই সংরক্ষিত ডিফল্ট ব্যবহার করে
@@ -17308,7 +17252,7 @@ function renderDoctorsPage() {
       }).join('');
     }
   }
-  ['rDocSelect','nb_DocSelect','abDocSelect'].forEach(id=>populateDoctorSelect(id, id!=='abDocSelect'));
+  ['rDocSelect','nb_DocSelect'].forEach(id=>populateDoctorSelect(id, true));
   const dpSel = document.getElementById('dpDoctor');
   if (dpSel) {
     const prev = dpSel.value;
@@ -17397,7 +17341,6 @@ const ALL_FEATURES = [
   { id:'testfees',   label:'টেস্ট ফি তালিকা' },
   { id:'patients',   label:'রোগীর ডেটাবেস' },
   { id:'officialpad', label:'অফিসিয়াল প্যাড' },
-  { id:'adminbill',  label:'নতুন বিল (অ্যাডমিন)' },
   { id:'campdue',    label:'ক্যাম্প বাকি' },
 ];
 const OWNER_FEATURES = ['dashboard','report','shareholders'];
@@ -17411,7 +17354,7 @@ const FEATURE_ICONS = {
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
   bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', memorandum:'📜', recdeposit:'🧰',
   delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️', funds:'🏦',
-  newbill:'🧾', billhistory:'📋', testfees:'🔬', patients:'🏥', officialpad:'📄', adminbill:'🧾', 'accounting-principles':'📖',
+  newbill:'🧾', billhistory:'📋', testfees:'🔬', patients:'🏥', officialpad:'📄', 'accounting-principles':'📖',
   campdue:'🏕️'
 };
 const OWNER_TAB_CONFIG_KEY = 'hms_owner_tabs';
@@ -18442,7 +18385,7 @@ const QA_ICON_MAP = {
   salary:'briefcase', attendance:'calendar',
   camp:'tent',
   vendor:'truck', shareholders:'users',
-  memorandum:'filetext', officialpad:'file', patients:'heart', newbill:'fileplus', billhistory:'clipboard', adminbill:'fileplus', testfees:'flask',
+  memorandum:'filetext', officialpad:'file', patients:'heart', newbill:'fileplus', billhistory:'clipboard', testfees:'flask',
   'set-hosp-info':'heart', 'set-num-series':'hash', 'set-fixed-cost':'coin', 'set-pricing':'tag',
   'set-users':'users', 'set-feature-acc':'lock', 'set-camp-sched':'tent', 'set-test-fee':'flask',
   'set-income-cat':'folder', 'set-exp-subcat':'clipboard', 'set-stock-cat':'box', 'set-cash-persons':'user',
@@ -22047,6 +21990,7 @@ function saveOperation() {
   const opCampFields = document.getElementById('opCampRefFields'); if (opCampFields) opCampFields.style.display='none';
   renderOperationSheet();
   refreshDashboard();
+  if (typeof renderSurgeonPaymentPanel==='function' && document.getElementById('surgeonPaymentTable')) renderSurgeonPaymentPanel();
   showToast(fromBill ? `✅ অপারেশন এন্ট্রি সেভ! সার্জন পারিশ্রমিক হিসাব করা হলো (আয় আগেই বিলের মাধ্যমে জমা হয়েছে)।` : `✅ অপারেশন এন্ট্রি সেভ! আয় ৳${fmt(fee)} অটো যোগ।`);
 }
 function toggleOpPaid(id) {
@@ -22055,12 +21999,15 @@ function toggleOpPaid(id) {
   if (!op) return;
   op.paid = !op.paid;
   saveData(); renderOperationSheet();
+  if (typeof renderSurgeonPaymentPanel==='function' && document.getElementById('surgeonPaymentTable')) renderSurgeonPaymentPanel();
   showToast(op.paid ? '✅ সার্জন পেমেন্ট পরিশোধিত' : 'পেমেন্ট অপরিশোধিত হিসেবে চিহ্নিত');
 }
 function deleteOperation(id) {
   if (!confirm('এই অপারেশন এন্ট্রি মুছবেন?')) return;
   appData.operations = (appData.operations||[]).filter(o=>o.id!==id);
-  saveData(); renderOperationSheet(); refreshDashboard(); showToast('🗑️ মুছে ফেলা হয়েছে');
+  saveData(); renderOperationSheet(); refreshDashboard();
+  if (typeof renderSurgeonPaymentPanel==='function' && document.getElementById('surgeonPaymentTable')) renderSurgeonPaymentPanel();
+  showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 function renderOperationSheet() {
   if (!appData.operations) appData.operations=[];
@@ -22088,8 +22035,7 @@ function renderOperationSheet() {
       <td style="color:var(--danger)">৳ ${fmt(op.sgFee||0)}</td>
       <td style="font-weight:700;color:${(op.net||0)>=0?'var(--primary)':'var(--danger)'}">৳ ${fmt(op.net||0)}</td>
       <td style="display:flex;gap:4px">
-        ${isAdmin?`<button class="btn btn-sm ${op.paid?'btn-success':'btn-outline'}" onclick="toggleOpPaid(${op.id})">${op.paid?'✅ পরিশোধিত':'⏳ বাকি'}</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteOperation(${op.id})">🗑️</button>`:''}
+        ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteOperation(${op.id})">🗑️</button>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -22098,6 +22044,59 @@ function renderOperationSheet() {
     <td>৳ ${fmt(totalFee)}</td>
     <td>৳ ${fmt(totalSgFee)}</td>
     <td>৳ ${fmt(totalNet)}</td>
+    <td></td>
+  </tr>`;
+}
+// ===== সার্জন পারিশ্রমিক (পেমেন্ট) প্যানেল — স্যালারি শিটে, একই appData.operations থেকে ডেটা নেয়
+// কিন্তু শুধু পেমেন্ট/স্ট্যাটাস দেখায়; অপারেশন এন্ট্রি/এডিট এখানে হয় না (তার জন্য অপারেশন শিট পেজ) =====
+function initSurgeonPaymentFilters() {
+  const now = new Date();
+  const yearSel = document.getElementById('spYear');
+  if (yearSel && yearSel.options.length === 0) {
+    for (let y = now.getFullYear(); y >= now.getFullYear()-3; y--) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      yearSel.appendChild(opt);
+    }
+  }
+  if (document.getElementById('spMonth')) document.getElementById('spMonth').value = now.getMonth()+1;
+  if (document.getElementById('spYear'))  document.getElementById('spYear').value  = now.getFullYear();
+  renderSurgeonPaymentPanel();
+}
+function renderSurgeonPaymentPanel() {
+  if (!appData.operations) appData.operations=[];
+  const monthEl=document.getElementById('spMonth'), yearEl=document.getElementById('spYear');
+  if (!monthEl || !yearEl) return;
+  const month  = parseInt(monthEl.value);
+  const year   = parseInt(yearEl.value);
+  const pad    = n=>String(n).padStart(2,'0');
+  const prefix = `${year}-${pad(month)}`;
+  const ops    = appData.operations.filter(o=>o.date&&o.date.startsWith(prefix)).sort((a,b)=>b.id-a.id);
+  const tbody  = document.getElementById('surgeonPaymentTable');
+  const tfoot  = document.getElementById('surgeonPaymentFoot');
+  if (!tbody || !tfoot) return;
+  if (!ops.length) {
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">এই মাসে কোনো অপারেশন/সার্জন পারিশ্রমিক নেই</td></tr>';
+    tfoot.innerHTML=''; return;
+  }
+  let totalFee=0, totalSgFee=0;
+  const isAdmin = currentUser.role==='admin';
+  tbody.innerHTML = ops.map(op=>{
+    totalFee+=op.fee; totalSgFee+=op.sgFee||0;
+    return `<tr>
+      <td>${formatDate(op.date)}</td>
+      <td style="font-weight:600">${op.patName}</td>
+      <td style="font-size:12px">${op.opType}</td>
+      <td style="color:var(--text-light)">${op.surgeonName||'—'}</td>
+      <td style="font-weight:600;color:var(--success)">৳ ${fmt(op.fee)}</td>
+      <td style="color:var(--danger)">৳ ${fmt(op.sgFee||0)}</td>
+      <td>${isAdmin?`<button class="btn btn-sm ${op.paid?'btn-success':'btn-outline'}" onclick="toggleOpPaid(${op.id})">${op.paid?'✅ পরিশোধিত':'⏳ বাকি'}</button>`:`<span style="color:${op.paid?'var(--success)':'var(--danger)'}">${op.paid?'✅ পরিশোধিত':'⏳ বাকি'}</span>`}</td>
+    </tr>`;
+  }).join('');
+  tfoot.innerHTML=`<tr style="background:#0f4c81;color:white;font-weight:700">
+    <td colspan="4">সর্বমোট (${ops.length}টি অপারেশন)</td>
+    <td>৳ ${fmt(totalFee)}</td>
+    <td>৳ ${fmt(totalSgFee)}</td>
     <td></td>
   </tr>`;
 }
@@ -25004,7 +25003,7 @@ function addServiceRow() {
     <input type="text" placeholder="সার্ভিস / পণ্যের নাম" id="sName-${id}" oninput="updateSummary()" list="stockSuggestions-${id}" />
     <datalist id="stockSuggestions-${id}"></datalist>
     <select id="sType-${id}" onchange="onServiceTypeChange(${id})">
-      <option value="opd">OPD ভিজিট ফি</option>
+      <option value="opd">ভিজিট ফি</option>
       <option value="surgical">অপারেশন / সার্জিক্যাল ফি</option>
       <option value="med">ওষুধ বিক্রি</option>
       <option value="glass">চশমা বিক্রি</option>
@@ -25173,14 +25172,14 @@ function getOverallDiscountableBase(services) {
   return (services||[]).filter(s=>!isOverallDiscountExempt(s))
     .reduce((sum,s)=>sum+(s.subtotal||(s.price*s.qty)||0), 0);
 }
-// ✅ cascade: ভিজিট ফি (OPD/পরামর্শ) থেকে আগে কাটা হয়, তারপর বাকি এলিজিবল সার্ভিসগুলো থেকে মূল বিলের ক্রম
+// ✅ cascade: ভিজিট ফি (ভিজিট ফি) থেকে আগে কাটা হয়, তারপর বাকি এলিজিবল সার্ভিসগুলো থেকে মূল বিলের ক্রম
 // অনুযায়ী একের পর এক। ভিজিট ফি-র চেয়ে ডিসকাউন্ট বেশি হলে ভিজিট ফি শূন্য হয়ে বাকিটা পরের সার্ভিস থেকে কাটে।
 // প্রতিটা সার্ভিসে ঠিক কতটা ওভারঅল ডিসকাউন্ট কাটা হলো তা s.overallDisc-এ বসিয়ে ফেরত দেয় (রিপোর্টিং/পাই চার্টের জন্য)।
 function applyOverallDiscountCascade(services, overallDiscAmt) {
   let remaining = Math.max(0, overallDiscAmt||0);
   const withMeta = (services||[]).map((s,i)=>({s,i,cat:canonicalCat(s.type||s.name||''),exempt:isOverallDiscountExempt(s)}));
   const order = withMeta.slice().sort((a,b)=>{
-    const aFirst=(a.cat==='OPD/পরামর্শ'&&!a.exempt)?0:1, bFirst=(b.cat==='OPD/পরামর্শ'&&!b.exempt)?0:1;
+    const aFirst=(a.cat==='ভিজিট ফি'&&!a.exempt)?0:1, bFirst=(b.cat==='ভিজিট ফি'&&!b.exempt)?0:1;
     return aFirst!==bFirst ? aFirst-bFirst : a.i-b.i;
   });
   const cutMap={};
@@ -25247,23 +25246,6 @@ function onRMfsPaidChange() {
     mfsInput.value = cashPaid || '';
     if (hint) hint.textContent = '⚠️ মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ দেওয়া যাবে না, সমন্বয় করা হয়েছে';
   } else if (mfsPaid > 0 && !document.getElementById('rMfsAccount').value) {
-    if (hint) hint.textContent = '⚠️ কোন একাউন্টে জমা হয়েছে তা নির্বাচন করুন';
-  } else if (mfsPaid > 0) {
-    if (hint) hint.textContent = `বাকি ৳ ${fmt(cashPaid - mfsPaid)} ক্যাশে গণ্য হবে`;
-  } else if (hint) hint.textContent = '';
-}
-function onAbMfsPaidChange() {
-  const sel = document.getElementById('adminBillMfsAccount');
-  if (sel && sel.options.length <= 1) sel.innerHTML = '<option value="">-- একাউন্ট --</option>' + (appData.mfsAccounts||[]).map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
-  const cashPaid = parseFloat(document.getElementById('abCashPaid').value)||0;
-  const mfsInput = document.getElementById('abMfsPaid');
-  let mfsPaid = parseFloat(mfsInput.value)||0;
-  const hint = document.getElementById('abMfsPaidHint');
-  if (mfsPaid > cashPaid) {
-    mfsPaid = cashPaid;
-    mfsInput.value = cashPaid || '';
-    if (hint) hint.textContent = '⚠️ মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ দেওয়া যাবে না, সমন্বয় করা হয়েছে';
-  } else if (mfsPaid > 0 && !document.getElementById('adminBillMfsAccount').value) {
     if (hint) hint.textContent = '⚠️ কোন একাউন্টে জমা হয়েছে তা নির্বাচন করুন';
   } else if (mfsPaid > 0) {
     if (hint) hint.textContent = `বাকি ৳ ${fmt(cashPaid - mfsPaid)} ক্যাশে গণ্য হবে`;
@@ -27066,215 +27048,6 @@ function showToast(msg) {
   toastTimer=setTimeout(()=>{ t.style.transform='translateY(80px)'; t.style.opacity='0'; },3000);
 }
 
-// ===== ADMIN BILLING =====
-let adminBillRowCount = 0;
-function initAdminBillPage() {
-  document.getElementById('abBillDate').value = todayStr();
-  // অটো মেমো নম্বর
-  document.getElementById('abMemoNo').value = generateNextMemoNo();
-  document.getElementById('abDiscLimit').textContent = `সর্বোচ্চ ${appData.settings.adminDiscount||30}% পর্যন্ত`;
-  if (!adminBillRowCount) addAdminBillRow();
-  renderDraftBills();
-  renderAdminBillHistory();
-  if (typeof populateDoctorSelect==='function') populateDoctorSelect('abDocSelect', false);
-}
-function addAdminBillRow() {
-  adminBillRowCount++;
-  const tbody = document.getElementById('adminBillRows');
-  const cats = getIncCats();
-  const tr = document.createElement('tr');
-  tr.id = 'abRow'+adminBillRowCount;
-  tr.innerHTML = `
-    <td><input type="text" placeholder="সার্ভিস/পণ্যের নাম" style="width:100%;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" oninput="updateAdminBillSummary()"></td>
-    <td><select style="width:100%;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateAdminBillSummary()">
-      ${cats.map(c=>`<option>${c}</option>`).join('')}
-    </select></td>
-    <td style="text-align:center"><input type="number" value="1" min="1" style="width:60px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;text-align:center;font-size:13px" oninput="updateAdminBillSummary()"></td>
-    <td style="text-align:right"><input type="number" placeholder="০" min="0" style="width:100px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;text-align:right;font-size:13px" oninput="updateAdminBillSummary()"></td>
-    <td style="text-align:right;font-weight:600" id="abSub${adminBillRowCount}">৳ ০</td>
-    <td><button class="btn btn-danger btn-sm" onclick="document.getElementById('abRow${adminBillRowCount}').remove();updateAdminBillSummary()">🗑️</button></td>`;
-  tbody.appendChild(tr);
-  return tr;
-}
-// ✅ নির্বাচিত ডাক্তারের ভিজিট ফি স্বয়ংক্রিয়ভাবে বসিয়ে একটা বিশেষ রো যোগ করে — এর কোনো "পরিমাণ (qty)" নেই
-// (একটা ভিজিট মানেই একটা ফি), তাই qty কলাম লুকানো/লক থাকে; ডিলিট বাটনের বদলে "ফ্রি" বাটন (নিকটাত্মীয়/
-// বিনামূল্যে দেখানো রোগীর জন্য)। এই রো টি বাই ডিফল্ট ফর্ম রিসেট/লোড হওয়ার সময় স্বয়ংক্রিয়ভাবে যোগ হয় (clearAdminBillForm)।
-function addAdminVisitFeeRow() {
-  adminBillRowCount++;
-  const tbody = document.getElementById('adminBillRows');
-  const cats = getIncCats();
-  const doc = getSelectedDoctorForPrefix('ab');
-  const label = doc ? `ভিজিট ফি — ${doc.name}` : 'ভিজিট ফি';
-  const fee = doc ? (doc.visitFee||0) : 0;
-  const tr = document.createElement('tr');
-  tr.id = 'abRow'+adminBillRowCount;
-  tr.setAttribute('data-visitfee','1');
-  const opts = cats.map(c=>`<option${c.includes('ভিজিট')?' selected':''}>${c}</option>`).join('');
-  tr.innerHTML = `
-    <td><input type="text" value="${label}" readonly style="width:100%;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;background:#eef2ff;color:#3730a3;font-weight:700"></td>
-    <td><select style="width:100%;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px" onchange="updateAdminBillSummary()">${opts}</select></td>
-    <td style="text-align:center"><input type="hidden" value="1"><span style="color:var(--text-light);font-size:12px">—</span></td>
-    <td style="text-align:right"><input type="number" value="${fee}" min="0" style="width:100px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;text-align:right;font-size:13px" oninput="updateAdminBillSummary()"></td>
-    <td style="text-align:right;font-weight:600" id="abSub${adminBillRowCount}">৳ ${fmt(fee)}</td>
-    <td><button class="btn btn-outline btn-sm" onclick="toggleAdminVisitFeeFree('abRow${adminBillRowCount}')">ভিজিট</button></td>`;
-  tbody.appendChild(tr);
-  updateAdminBillSummary();
-  return tr;
-}
-function toggleAdminVisitFeeFree(rowId) {
-  const tr=document.getElementById(rowId); if(!tr) return;
-  const priceEl=tr.querySelector('td:nth-child(4) input');
-  const btnEl=tr.querySelector('td:nth-child(6) button');
-  if(!priceEl) return;
-  const cur=parseFloat(priceEl.value)||0;
-  if(cur>0){ priceEl.dataset.prevFee=cur; priceEl.value=0; if(btnEl) btnEl.textContent='ফ্রি'; }
-  else { priceEl.value=priceEl.dataset.prevFee||0; if(btnEl) btnEl.textContent='ভিজিট'; }
-  updateAdminBillSummary();
-}
-// ✅ ডাক্তার পাল্টালে অ্যাডমিন বিলের ভিজিট ফি রো-ও নতুন ডাক্তারের ফি অনুযায়ী আপডেট হয় ("ফ্রি" করা না থাকলে)
-function refreshAdminVisitFeeRow() {
-  const tr=document.querySelector('#adminBillRows tr[data-visitfee="1"]');
-  if(!tr) return;
-  const nameEl=tr.querySelector('td:nth-child(1) input');
-  const priceEl=tr.querySelector('td:nth-child(4) input');
-  const doc=getSelectedDoctorForPrefix('ab');
-  if(nameEl) nameEl.value = doc?`ভিজিট ফি — ${doc.name}`:'ভিজিট ফি';
-  const isFree = priceEl && (parseFloat(priceEl.value)||0)===0 && priceEl.dataset.prevFee;
-  if(priceEl && !isFree){ priceEl.value = doc?(doc.visitFee||0):0; }
-  updateAdminBillSummary();
-}
-function getAdminBillServices() {
-  return [...document.getElementById('adminBillRows').querySelectorAll('tr')].map((tr,i)=>{
-    const isVisitFee = tr.getAttribute('data-visitfee')==='1';
-    const nameEl = tr.querySelector('td:nth-child(1) input');
-    const typeEl = tr.querySelector('td:nth-child(2) select');
-    const priceEl = tr.querySelector('td:nth-child(4) input');
-    const name = (nameEl.value||'').trim();
-    const type = isVisitFee ? 'visitfee' : (typeEl?typeEl.value:'');
-    const qty = isVisitFee ? 1 : (parseFloat(tr.querySelector('td:nth-child(3) input')?.value)||1);
-    const price = parseFloat(priceEl.value)||0;
-    const sub = qty*price;
-    const subEl = tr.querySelector('[id^="abSub"]');
-    if(subEl) subEl.textContent = '৳ '+fmt(sub);
-    return name?{name,type,qty,price,subtotal:sub}:null;
-  }).filter(Boolean);
-}
-function updateAdminBillSummary() {
-  const svcs = getAdminBillServices();
-  const total = svcs.reduce((s,r)=>s+r.subtotal,0);
-  document.getElementById('abTotal').textContent = '৳ '+fmt(total);
-  const maxDisc = appData.settings.adminDiscount||30;
-  // ✅ ডিসকাউন্ট এখন শুধু ভিজিট ফি/টেস্ট/অন্যান্য সার্ভিসের উপর প্রযোজ্য (ওষুধ ও চশমা বাদে), মোট বিলের উপর না
-  const discountable = getOverallDiscountableBase(svcs);
-  const discPct = Math.min(parseFloat(document.getElementById('abDiscPct').value)||0, maxDisc);
-  const discAmt = Math.floor(discountable*discPct/100);
-  const netBill = Math.max(0,total-discAmt);
-  document.getElementById('abNetBill').textContent = '৳ '+fmt(netBill);
-  const dRow = document.getElementById('abDiscRow');
-  if(discAmt>0){dRow.style.display='flex';document.getElementById('abDiscAmt').textContent='-৳ '+fmt(discAmt);}
-  else dRow.style.display='none';
-  const limEl=document.getElementById('abDiscLimit');
-  if(limEl) limEl.textContent = `সর্বোচ্চ ${maxDisc}% = ৳${fmt(Math.floor(discountable*maxDisc/100))}`;
-  const paid = parseFloat(document.getElementById('abCashPaid').value)||0;
-  document.getElementById('abDue').textContent = '৳ '+fmt(Math.max(0,netBill-paid));
-  if (typeof updateDocCommissionPreview==='function') updateDocCommissionPreview('ab');
-}
-function saveAdminBill() {
-  const patName = document.getElementById('abPatName').value.trim();
-  if(!patName){showToast('⚠️ রোগীর নাম দিন!');return;}
-  const svcs = getAdminBillServices();
-  if(!svcs.length){showToast('⚠️ কমপক্ষে একটি সার্ভিস দিন!');return;}
-  const date = document.getElementById('abBillDate').value;
-  const memoNo = document.getElementById('abMemoNo').value.trim()||('Memo-'+Date.now());
-  const total = svcs.reduce((s,r)=>s+r.subtotal,0);
-  const maxDisc = appData.settings.adminDiscount||30;
-  // ✅ ডিসকাউন্ট এখন শুধু ভিজিট ফি/টেস্ট/অন্যান্য সার্ভিসের উপর প্রযোজ্য (ওষুধ ও চশমা বাদে) — cascade: ভিজিট ফি আগে
-  const discountable = getOverallDiscountableBase(svcs);
-  const discPct = Math.min(parseFloat(document.getElementById('abDiscPct').value)||0, maxDisc);
-  const discAmt = Math.floor(discountable*discPct/100);
-  const netBill = Math.max(0,total-discAmt);
-  const cashPaid = parseFloat(document.getElementById('abCashPaid').value)||0;
-  let abMfsPaid = parseFloat((document.getElementById('abMfsPaid')||{}).value)||0;
-  const abMfsAccountId = (document.getElementById('adminBillMfsAccount')||{}).value||'';
-  if (abMfsPaid > cashPaid) abMfsPaid = cashPaid;
-  if (abMfsPaid > 0 && !abMfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
-  const due = Math.max(0,netBill-cashPaid);
-  const patPhone = document.getElementById('abPatPhone').value.trim();
-  const patAge = document.getElementById('abPatAge').value.trim();
-  const patDoc = document.getElementById('abPatDoc').value.trim();
-  const sendToDelivery = (document.getElementById('abSendToDelivery')||{}).checked||false;
-  const deliveryDate = (document.getElementById('abDeliveryDate')||{}).value||'';
-  if (sendToDelivery && !deliveryDate) { showToast('⚠️ ডেলিভারির তারিখ দিন!'); return; }
-  // ✅ প্রতিটা সার্ভিস লাইনে কতটা ডিসকাউন্ট কাটা হলো তা বসানো হচ্ছে (পাই চার্ট/রিপোর্টে প্রকৃত নেট অ্যামাউন্ট দেখানোর জন্য)
-  const svcsFinal = applyOverallDiscountCascade(svcs, discAmt).map(s=>({...s, discAmt:s.overallDisc||0}));
-  const bill = {id:Date.now(),date,memoNo,patName,patPhone,patAge,patDoc,services:svcsFinal,total,discAmt,discPct,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,by:currentUser.name,time:new Date().toLocaleTimeString('bn-BD')};
-  if (!checkDoctorCommissionAlarm('ab')) return;
-  if(!appData.adminBills) appData.adminBills=[];
-  appData.adminBills.push(bill);
-  // visits এ যোগ
-  const abVisitId = Date.now()+1;
-  appData.visits.push({id:abVisitId,date,patName,patPhone,patAge,patDoc,services:svcsFinal,total,discAmt,netBill,cashPaid,due,mfsPaid:abMfsPaid||undefined,mfsAccountId:abMfsPaid>0?abMfsAccountId:undefined,rcptNo:memoNo,by:currentUser.name,time:bill.time,source:'admin'});
-  recordDoctorCommission('ab', date, memoNo, bill.id);
-  // income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না, visit.cashPaid দিয়েই গণনা হয়)
-  if(cashPaid>0) appData.income.push({id:Date.now()+2,date,category:'অ্যাডমিন বিল',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:currentUser.name,visitId:abVisitId});
-  if (sendToDelivery) {
-    createDeliveryFromBill({ name:patName, phone:patPhone, orderDate:date, item:svcs.map(s=>s.name).join(', '), total:netBill, advance:cashPaid, deliveryDate, note:`মেমো: ${memoNo}` });
-  }
-  saveData(); clearAdminBillForm(); renderAdminBillHistory(); refreshDashboard();
-  showToast(`✅ বিল সেভ! মেমো: ${memoNo}` + (sendToDelivery?' — ডেলিভারি শিডিউলে পাঠানো হয়েছে':''));
-}
-function clearAdminBillForm() {
-  ['abPatName','abPatPhone','abPatAge','abPatDoc','abDiscPct','abCashPaid','abMfsPaid'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const abMfsAccEl=document.getElementById('adminBillMfsAccount'); if(abMfsAccEl) abMfsAccEl.value='';
-  const abMfsHintEl=document.getElementById('abMfsPaidHint'); if(abMfsHintEl) abMfsHintEl.textContent='';
-  clearDocSelectUI('ab');
-  document.getElementById('abBillDate').value=todayStr();
-  document.getElementById('adminBillRows').innerHTML='';
-  adminBillRowCount=0;
-  addAdminVisitFeeRow();
-  updateAdminBillSummary();
-  const sdEl=document.getElementById('abSendToDelivery'); if(sdEl) sdEl.checked=false;
-  const ddRow=document.getElementById('abDeliveryDateRow'); if(ddRow) ddRow.style.display='none';
-  const ddEl=document.getElementById('abDeliveryDate'); if(ddEl) ddEl.value='';
-  // নতুন মেমো নম্বর
-  const allBills=[...(appData.adminBills||[])];
-  document.getElementById('abMemoNo').value=generateNextMemoNo();
-}
-function renderAdminBillHistory() {
-  const fd=document.getElementById('abHistDate')?.value||'';
-  const bills=[...(appData.adminBills||[])].filter(b=>!fd||b.date===fd).sort((a,b)=>b.id-a.id);
-  const tbody=document.getElementById('adminBillHistTable');
-  if(!tbody)return;
-  if(!bills.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো বিল নেই</td></tr>';return;}
-  tbody.innerHTML=bills.map(b=>`<tr class="bill-hist-row" onclick="printAdminBillReceipt(${b.id})" title="🖨️ প্রিন্ট প্রিভিউ দেখতে ক্লিক করুন">
-    <td style="font-weight:600;color:var(--accent)">${b.memoNo}</td>
-    <td>${formatDate(b.date)}</td>
-    <td style="font-weight:600">${b.patName}</td>
-    <td style="color:var(--text-light)">${b.patPhone||'—'}</td>
-    <td>৳ ${fmt(b.total)}</td>
-    <td style="color:var(--danger)">${b.discAmt>0?'৳ '+fmt(b.discAmt):'—'}</td>
-    <td style="font-weight:700">৳ ${fmt(b.netBill)}</td>
-    <td style="color:var(--success)">৳ ${fmt(b.cashPaid)}</td>
-    <td style="color:${b.due>0?'var(--danger)':'var(--success)'}">${b.due>0?'৳ '+fmt(b.due):'✅'}</td>
-    <td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteAdminBill(${b.id})">🗑️</button></td>
-  </tr>`).join('');
-}
-function deleteAdminBill(id) {
-  if(!confirm('মুছবেন?'))return;
-  appData.adminBills=(appData.adminBills||[]).filter(b=>b.id!==id);
-  saveData(); renderAdminBillHistory(); showToast('🗑️ মুছে ফেলা হয়েছে');
-}
-function searchPatientForBill(q) {
-  if(!q||q.length<2)return;
-  const patients = buildPatientList();
-  const match = patients.find(p=>p.name.toLowerCase().includes(q.toLowerCase()));
-  if(match){
-    document.getElementById('abPatPhone').value=match.phone||'';
-    document.getElementById('abPatAge').value=match.age||'';
-    document.getElementById('abPatDoc').value=match.doctor||'';
-  }
-}
-
 // ===== DRAFT BILL (Rec → Admin) =====
 function sendDraftToAdmin() {
   const patName=(document.getElementById('rPatName')||{}).value?.trim();
@@ -27296,122 +27069,6 @@ function sendDraftToAdmin() {
   });
   saveData(); updateDraftBadge(); showToast('✅ অ্যাডমিনে পাঠানো হয়েছে!');
   clearBillForm();
-}
-function renderDraftBills() {
-  const drafts=(appData.draftBills||[]).filter(d=>d.status==='pending'||d.status==='returned');
-  const panel=document.getElementById('draftBillsPanel');
-  const tbody=document.getElementById('draftBillTable');
-  if(!panel||!tbody)return;
-  if(!drafts.length){panel.style.display='none';return;}
-  panel.style.display='block';
-  tbody.innerHTML=drafts.map(d=>`<tr>
-    <td style="font-weight:600">${d.patName}</td>
-    <td style="font-size:12px">${d.services.map(s=>s.name).join(', ')}</td>
-    <td>৳ ${fmt(d.total)}</td>
-    <td style="color:var(--danger)">${d.adminDiscAmt>0?'৳ '+fmt(d.adminDiscAmt):(d.discAmt>0?'৳ '+fmt(d.discAmt):'—')}</td>
-    <td style="font-size:12px;color:var(--text-light)">${d.by}</td>
-    <td style="font-size:12px;color:${d.status==='returned'?'var(--success)':'var(--warning)'}">
-      ${d.status==='returned'?'↩️ ফেরত পাঠানো হয়েছে':'⏳ অপেক্ষমাণ'}
-    </td>
-    <td style="display:flex;gap:6px;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" onclick="editDraftInAdmin(${d.id})">✏️ এডিট</button>
-      <button class="btn btn-success btn-sm" onclick="approveDraft(${d.id})">✅ অ্যাপ্রুভ</button>
-      <button class="btn btn-danger btn-sm" onclick="rejectDraft(${d.id})">❌ বাতিল</button>
-    </td>
-  </tr>`).join('');
-}
-function editDraftInAdmin(id) {
-  const draft=(appData.draftBills||[]).find(d=>d.id===id);
-  if(!draft)return;
-  // admin bill form এ লোড করি সব তথ্য সহ
-  document.getElementById('abPatName').value=draft.patName;
-  document.getElementById('abPatPhone').value=draft.patPhone||'';
-  document.getElementById('abPatAge').value=draft.patAge||'';
-  document.getElementById('abPatDoc').value=draft.patDoc||'';
-  document.getElementById('abBillDate').value=draft.date;
-  document.getElementById('adminBillRows').innerHTML='';
-  adminBillRowCount=0;
-  draft.services.forEach(s=>{
-    addAdminBillRow();
-    const rows=document.getElementById('adminBillRows').querySelectorAll('tr');
-    const last=rows[rows.length-1];
-    const inputs=last.querySelectorAll('input,select');
-    inputs[0].value=s.name;
-    inputs[2].value=s.qty||1;
-    inputs[3].value=s.price||0;
-  });
-  // rec এর আগের discount দেখাই
-  if(draft.discAmt>0){
-    const total=draft.services.reduce((s,r)=>s+r.subtotal,0);
-    const pct=Math.round(draft.discAmt/total*100);
-    document.getElementById('abDiscPct').value=pct;
-  }
-  updateAdminBillSummary();
-  // Save বাটন → এই draft update করবে + rec এ ফেরত পাঠাবে
-  // draftId hidden field এ রাখি
-  document.getElementById('abMemoNo').setAttribute('data-draft-id', id);
-  // Send back button দেখাই
-  const btnArea=document.querySelector('#pg-adminbill .panel:nth-child(2) .panel-body div:last-child');
-  if(btnArea && !document.getElementById('sendBackBtn')){
-    const btn=document.createElement('button');
-    btn.id='sendBackBtn';
-    btn.className='btn btn-warning';
-    btn.innerHTML='↩️ রিসেপশনিস্টে ফেরত পাঠান';
-    btn.onclick=()=>sendDraftBackToRec(id);
-    btnArea.insertBefore(btn, btnArea.lastElementChild);
-  }
-  showToast('✏️ ড্রাফট এডিট মোডে আছেন');
-}
-function sendDraftBackToRec(id) {
-  const draft=(appData.draftBills||[]).find(d=>d.id===id);
-  if(!draft)return;
-  // admin এর এডিট করা তথ্য সেভ করি
-  const svcs=getAdminBillServices();
-  const total=svcs.reduce((s,r)=>s+r.subtotal,0);
-  const maxDisc=appData.settings.adminDiscount||30;
-  const discPct=Math.min(parseFloat(document.getElementById('abDiscPct').value)||0,maxDisc);
-  const adminDiscAmt=Math.floor(total*discPct/100);
-  draft.services=svcs.length?svcs:draft.services;
-  draft.adminDiscAmt=adminDiscAmt;
-  draft.adminDiscPct=discPct;
-  draft.total=total||draft.total;
-  draft.adminNote=`অ্যাডমিন ডিসকাউন্ট: ${discPct}%`;
-  draft.status='returned';
-  draft.returnedAt=new Date().toLocaleString('bn-BD');
-  saveData();
-  // Send back button সরাই
-  const btn=document.getElementById('sendBackBtn');
-  if(btn)btn.remove();
-  document.getElementById('abMemoNo').removeAttribute('data-draft-id');
-  clearAdminBillForm();
-  showToast('↩️ রিসেপশনিস্টে ফেরত পাঠানো হয়েছে!');
-}
-function approveDraft(id) {
-  const draft=(appData.draftBills||[]).find(d=>d.id===id);
-  if(!draft)return;
-  // admin bill form এ লোড করি
-  showPage('adminbill');
-  document.getElementById('abPatName').value=draft.patName;
-  document.getElementById('abPatPhone').value=draft.patPhone||'';
-  document.getElementById('abPatAge').value=draft.patAge||'';
-  document.getElementById('abPatDoc').value=draft.patDoc||'';
-  document.getElementById('abBillDate').value=draft.date;
-  document.getElementById('adminBillRows').innerHTML='';
-  adminBillRowCount=0;
-  draft.services.forEach(s=>{
-    addAdminBillRow();
-    const rows=document.getElementById('adminBillRows').querySelectorAll('tr');
-    const last=rows[rows.length-1];
-    const inputs=last.querySelectorAll('input,select');
-    inputs[0].value=s.name;
-    inputs[2].value=s.qty||1;
-    inputs[3].value=s.price||0;
-  });
-  if(draft.adminDiscPct) document.getElementById('abDiscPct').value=draft.adminDiscPct;
-  draft.status='approved';
-  saveData();
-  updateAdminBillSummary();
-  showToast('✅ ড্রাফট লোড হয়েছে — বিল সেভ করুন');
 }
 function loadReturnedDraft() {
   const returned=(appData.draftBills||[]).filter(d=>d.status==='returned');
@@ -27446,13 +27103,6 @@ function loadReturnedDraft() {
   switchRecTab('new',document.getElementById('rtab-new'));
   showToast('↩️ অ্যাডমিন অনুমোদিত বিল লোড হয়েছে!');
 }
-function rejectDraft(id) {
-  if(!confirm('ড্রাফট বাতিল করবেন?'))return;
-  const d=(appData.draftBills||[]).find(d=>d.id===id);
-  if(d) d.status='rejected';
-  saveData(); renderDraftBills(); showToast('❌ ড্রাফট বাতিল হয়েছে');
-}
-
 // ===== PATIENT DATABASE =====
 // ✅ ফোন নম্বর নরমালাইজ করে (স্পেস/ড্যাশ/+৮৮০/০০৮৮০ ভ্যারিয়েশন এক ফরম্যাটে আনে) — যাতে
 // একই রোগীর ফোন ভিন্নভাবে লেখা থাকলেও (যেমন "+8801XXXXXXXXX" বনাম "01XXXXXXXXX") গ্রুপিং মিলে যায়
@@ -28471,7 +28121,7 @@ function searchRecPatients() {
 // এগুলো শুধুমাত্র প্রথমবার সেটিংসে সিড (seed) করার জন্য ব্যবহৃত হয়।
 // একবার সিড হয়ে গেলে appData.settings.incCats / expCats থেকেই সব খাত আসে —
 // অর্থাৎ কোনো খাত কোডে হার্ডকোড থাকে না, সবই সেটিংস থেকে যোগ/মুছা যায়।
-const DEFAULT_INC_CATS = ['OPD ভিজিট ফি','অপারেশন ফি','ওষুধ বিক্রি','চশমা বিক্রি','টেস্ট / রিপোর্ট ফি','ভর্তি ফি','ক্যাম্প আয়','রিসেপশন আয়','অ্যাডমিন বিল','অন্যান্য আয়'];
+const DEFAULT_INC_CATS = ['ভিজিট ফি','অপারেশন ফি','ওষুধ বিক্রি','চশমা বিক্রি','টেস্ট / রিপোর্ট ফি','ভর্তি ফি','ক্যাম্প আয়','রিসেপশন আয়','অ্যাডমিন বিল','অন্যান্য আয়'];
 // দ্রষ্টব্য: ক্যাটাগরির নাম নিজেই যখন expSubCats/incSubCats/stockSubCats অবজেক্টের key হিসেবে ব্যবহার হয়,
 // তখন উপরের fbSafeKey() দিয়ে sanitize করে নেওয়া হয় (দেখুন লাইন ~7584) — নইলে "মেরামত/রক্ষণাবেক্ষণ"-এর মতো
 // নামে থাকা "/" এর কারণে Firebase update/set ব্যর্থ হয়ে পুরো saveData সিঙ্ক্রোনাসভাবে থেমে যায়।
@@ -28483,6 +28133,14 @@ function ensureCatSeed() {
   if (!appData.settings) appData.settings = {};
   if (!appData.settings.incCats) {
     appData.settings.incCats = [...DEFAULT_INC_CATS, ...(appData.settings.customIncCats||[])];
+  } else {
+    // ✅ মাইগ্রেশন: আগে "ভিজিট ফি" নামে ছিল, এখন সব জায়গায় (পাই চার্ট/মাসিক রিপোর্ট) একই শব্দ
+    // "ভিজিট ফি" ব্যবহারের জন্য — যাদের সেটিংসে ইতিমধ্যে পুরনো নামটা সেভ করা আছে তাদেরও নাম বদলে দেওয়া হচ্ছে,
+    // যাতে আয়ের পেজের খাত-ফিল্টারেও একই শব্দ দেখায়।
+    const oldIdx = appData.settings.incCats.indexOf('OPD ভিজিট ফি');
+    if (oldIdx !== -1 && !appData.settings.incCats.includes('ভিজিট ফি')) {
+      appData.settings.incCats[oldIdx] = 'ভিজিট ফি';
+    }
   }
   if (!appData.settings.expCats) {
     appData.settings.expCats = [...DEFAULT_EXP_CATS, ...(appData.settings.customExpCats||[])];
@@ -28543,7 +28201,6 @@ function updateCategorySelects() {
   if(incSel) incSel.innerHTML='<option value="">-- খাত নির্বাচন করুন --</option>'+incCats.map(c=>`<option>${c}</option>`).join('');
   if(expSel) expSel.innerHTML='<option value="">-- ক্যাটাগরি নির্বাচন করুন --</option>'+expCats.map(c=>`<option>${c}</option>`).join('');
   populateExpFilterCat();
-  populateIncFilterCat();
   populateSubCatParentSelect();
   // স্টক ক্যাটাগরি ড্রপডাউন আপডেট
   updateStockCatSelects();
@@ -29262,7 +28919,7 @@ function addRow(type, p='') {
   }
 
   const base='padding:8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:100%';
-  const bg=type==='glass'?'#fffbf0':type==='med'?'#f0fff4':type==='surgical'?'#f5f0ff':type==='service'?'#f0f9ff':'#f8fafc';
+  const bg=type==='glass'?'#fffbf0':type==='med'?'#f0fff4':type==='surgical'?'#f5f0ff':(type==='service'||type==='test')?'#f0f9ff':type==='operation'?'#fef2f2':'#f8fafc';
   let inner='';
   let extra='';
 
@@ -29318,10 +28975,14 @@ function addRow(type, p='') {
       <option value="">-- সার্জিক্যাল --</option>
       ${items.map(s=>`<option value="${s.id}" data-price="${s.sellPrice||0}" data-name="${s.name}">${s.name}${s.code?' ['+s.code+']':''} (${s.qty})</option>`).join('')}
     </select>`;
-  } else if(type==='service') {
-    const items=(appData.testFees||[]).filter(t=>t.status==='active');
-    inner=`<select id="${p}sName-${id}" onchange="onSvcSel('${p}',${id})" style="${base};background:#f0f9ff">
-      <option value="">-- টেস্ট/অপারেশন --</option>
+  } else if(type==='service' || type==='test' || type==='operation') {
+    // ✅ 'test' বাটনে শুধু 'অপারেশন' ছাড়া বাকি সব ক্যাটাগরি (টেস্ট/পরীক্ষা, ভিজিট ফি, অন্যান্য সেবা),
+    // 'operation' বাটনে শুধু 'অপারেশন' ক্যাটাগরির আইটেম — বিলে টেস্ট ও অপারেশন এখন আলাদা বাটনে
+    const isOp = type==='operation';
+    const items=(appData.testFees||[]).filter(t=>t.status==='active' && (type==='service' ? true : (isOp ? t.cat==='অপারেশন' : t.cat!=='অপারেশন')));
+    const ph = isOp ? '-- অপারেশন নির্বাচন করুন --' : (type==='test' ? '-- টেস্ট/সেবা নির্বাচন করুন --' : '-- টেস্ট/অপারেশন --');
+    inner=`<select id="${p}sName-${id}" onchange="onSvcSel('${p}',${id})" style="${base};background:${isOp?'#fef2f2':'#f0f9ff'}">
+      <option value="">${ph}</option>
       ${items.map(t=>`<option value="${t.id}" data-price="${t.fee}" data-name="${t.name}">${t.name} (${t.cat})</option>`).join('')}
     </select>`;
   } else {
@@ -29828,11 +29489,11 @@ function _getItems(p) {
       const sellMin=type==='glass'?(parseFloat(opt.getAttribute('data-min'))||0):0;
       const glass=type==='glass'?getGlassOptionsData(p,rid):null;
       return {type,stockId:parseInt(sel.value),name:opt.getAttribute('data-name')||opt.text,qty,price,subtotal:qty*price+glassOptTotal,sellMin,glass};
-    } else if(type==='service') {
+    } else if(type==='service'||type==='test'||type==='operation') {
       const sel=document.getElementById(p+'sName-'+rid);
       if(!sel||!sel.value)return null;
       const opt=sel.options[sel.selectedIndex];
-      return {type:'service',feeId:parseInt(sel.value),name:opt.getAttribute('data-name')||opt.text,qty,price,subtotal:qty*price};
+      return {type, feeId:parseInt(sel.value), name:opt.getAttribute('data-name')||opt.text, qty, price, subtotal:qty*price};
     } else if(type==='visitfee') {
       const nm=(document.getElementById(p+'sName-'+rid)||{}).value||'ভিজিট ফি';
       if(price<=0)return null;
@@ -30006,13 +29667,29 @@ function canonicalCat(raw) {
   if (r.includes('চশমা') || r.includes('glass') || r.includes('frame') || r.includes('lens')) return 'চশমা';
   if (r.includes('মেডিসিন') || r.includes('ওষুধ') || r.includes('medicine') || r.includes('drug') || r.includes('ওষু') || r==='med') return 'মেডিসিন';
   if (r.includes('টেস্ট') || r.includes('রিপোর্ট') || r.includes('test') || r.includes('report') || r.includes('pathology') || r==='lab') return 'টেস্ট';
-  if (r.includes('অপারেশন') || r.includes('সার্জারি') || r.includes('সার্জিক্যাল') || r.includes('operation') || r.includes('surgery') || r.includes('surgical') || r==='surgical' || (r.includes('ফি') && r.includes('অপ'))) return 'অপারেশন';
-  if (r.includes('opd') || r.includes('ভিজিট') || r.includes('visit') || r.includes('consultation') || r.includes('চেকআপ') || (r.includes('ফি') && !r.includes('অপ'))) return 'OPD/পরামর্শ';
+  // ✅ ফিক্স: সার্জিক্যাল (স্টক থেকে বিক্রিত সার্জারির সরঞ্জাম/কনজিউমেবল, "🩺 সার্জিক্যাল" বাটন) আগে ভুলবশত
+  // "অপারেশন" খাতের সাথে মিশে যেত (দুটোই একই if-এ ছিল) — এখন থেকে এটা নিজস্ব আলাদা খাত, অপারেশন ফি থেকে
+  // ভিন্ন (এই চেকটা অপারেশনের আগে থাকা জরুরি, নাহলে "সার্জিক্যাল" শব্দটা অপারেশনের চেকেও ম্যাচ করত)।
+  if (r.includes('সার্জিক্যাল') || r.includes('surgical')) return 'সার্জিক্যাল';
+  if (r.includes('অপারেশন') || r.includes('সার্জারি') || r.includes('operation') || r.includes('surgery') || (r.includes('ফি') && r.includes('অপ'))) return 'অপারেশন';
+  if (r.includes('opd') || r.includes('ভিজিট') || r.includes('visit') || r.includes('consultation') || r.includes('চেকআপ') || (r.includes('ফি') && !r.includes('অপ'))) return 'ভিজিট ফি';
   if (r.includes('ভর্তি') || r.includes('admit') || r.includes('bed') || r.includes('ward')) return 'ভর্তি ফি';
   if (r.includes('বেতন') || r.includes('salary') || r.includes('স্যালারি')) return 'বেতন/বোনাস';
   if (r.includes('ভাড়া') || r.includes('rent') || r.includes('বিদ্যুৎ') || r.includes('utility') || r.includes('বিল')) return 'ইউটিলিটি/ভাড়া';
   if (r.includes('সরবরাহ') || r.includes('stock') || r.includes('purchase') || r.includes('ক্রয়') || r.includes('মালামাল')) return 'মালামাল ক্রয়';
   return 'অন্যান্য';
+}
+// ✅ বিলের একটা আইটেম/সার্ভিসের প্রকৃত ক্যাটাগরি-কী বের করে — canonicalCat()-এ পাঠানোর আগে এখানে ব্যবহার হয়,
+// যাতে পাই চার্ট/মাসিক রিপোর্টে টেস্ট ও অপারেশন সবসময় আলাদা খাতে দেখায়। নতুন বিলে "🔬 টেস্ট" ও "🏥 অপারেশন"
+// বাটন আলাদা হওয়ায় item.type সরাসরি 'test'/'operation' থাকে (সরাসরি canonicalCat ম্যাচ করে)। পুরনো ডেটায়
+// (আগে একটা মিলিত বাটনে যোগ হতো, type='service' হিসেবে সেভ হয়েছিল) টেস্ট ফি ক্যাটালগ থেকে আসল ক্যাটাগরি
+// (t.cat) বের করে সঠিক খাতে ফেলা হয় — নাহলে টাইপ='service' কোনো কীওয়ার্ডেই না মেলায় ভুলবশত "অন্যান্য"তে চলে যেত।
+function serviceItemCatKey(s) {
+  if (s && s.type === 'service' && s.feeId) {
+    const tf = (appData.testFees||[]).find(t=>t.id===s.feeId);
+    if (tf && tf.cat) return tf.cat;
+  }
+  return (s && (s.type || s.name)) || '';
 }
 
 // ✅ কোনো ভিজিটের "বিলিং সময়ের" cashPaid বের করে — অর্থাৎ পরবর্তীতে "বাকি আদায়" হয়ে cashPaid যতটা বেড়েছে
@@ -30036,14 +29713,14 @@ function getVisitItemBreakdown(visits) {
   const map = {};
   visits.forEach(v => {
     const parts = []; // {key, amt}
-    if (v.visitFee > 0) parts.push({k:'OPD/পরামর্শ', amt:v.visitFee});
+    if (v.visitFee > 0) parts.push({k:'ভিজিট ফি', amt:v.visitFee});
     (v.items||[]).forEach(it => {
-      const k = canonicalCat(it.type || it.name || '');
+      const k = canonicalCat(serviceItemCatKey(it));
       const amt = it.total || it.price*it.qty || 0;
       if (amt) parts.push({k, amt});
     });
     (v.services||[]).forEach(s => {
-      const k = canonicalCat(s.type || s.name || '');
+      const k = canonicalCat(serviceItemCatKey(s));
       const gross = s.subtotal || s.price*s.qty || 0;
       const amt = Math.max(0, gross - (s.discAmt||0));
       if (amt) parts.push({k, amt});
@@ -30051,7 +29728,7 @@ function getVisitItemBreakdown(visits) {
     if (!parts.length && v.cashPaid > 0) {
       // if no items/services, lump remaining (বিলিং সময়ের cashPaid) into OPD
       const amt = getVisitBilledCashPaid(v) - (v.visitFee||0);
-      if (amt) parts.push({k:'OPD/পরামর্শ', amt});
+      if (amt) parts.push({k:'ভিজিট ফি', amt});
     } else if (parts.length) {
       // বাকি থাকলে আনুপাতিক স্কেল — মোট cash-basis আয়ের সাথে মেলানোর জন্য
       const billedTotal = parts.reduce((s,p)=>s+p.amt,0);
@@ -32823,16 +32500,16 @@ function getDashPieDetailRows(catLabel, type, period){
     // গণনা হয়ে যাচ্ছে), তবে visitId-ট্যাগড "বাকি আদায়" ও campVisitId-ট্যাগড এন্ট্রি নিয়মমাফিক হ্যান্ডেল হয়
     (appData.income||[]).filter(e=>inPeriod(e.date)&&canonicalCat(e.category)===catLabel && !e.campId && !e.campVisitId && !(e.visitId && e.category!=='বাকি আদায়')).forEach(e=>rows.push({sub:e.category||'সাধারণ আয়',label:e.note||e.category,amount:e.amount,date:e.date}));
 
-    // রিসেপশন ভিজিট — ভিজিট ফি (OPD/পরামর্শ) + বিক্রিত আইটেম (চশমা/মেডিসিন/টেস্ট/অপারেশন/ইত্যাদি)
+    // রিসেপশন ভিজিট — ভিজিট ফি (ভিজিট ফি) + বিক্রিত আইটেম (চশমা/মেডিসিন/টেস্ট/অপারেশন/ইত্যাদি)
     // getVisitItemBreakdown()-এর লজিকের সাথে হুবহু মিলিয়ে বানানো, যেন পাই চার্টের
     // প্রতিটি স্লাইসের বিস্তারিত এন্ট্রি লিস্ট এখানে দেখা যায়
     (appData.visits||[]).filter(v=>inPeriod(v.date)).forEach(v=>{
       const vPatLabel = (v.patName||'রোগী') + (v.memoNo?` (${v.memoNo})`:'');
-      if(v.visitFee>0 && catLabel==='OPD/পরামর্শ'){
+      if(v.visitFee>0 && catLabel==='ভিজিট ফি'){
         rows.push({sub:'ভিজিট ফি',label:vPatLabel+' — ভিজিট ফি',amount:v.visitFee,date:v.date});
       }
       (v.items||[]).forEach(it=>{
-        const k=canonicalCat(it.type||it.name||'');
+        const k=canonicalCat(serviceItemCatKey(it));
         const amt=it.total||(it.price*it.qty)||0;
         const subName=it.name||it.type||'আইটেম';
         if(k===catLabel && amt) rows.push({sub:subName,label:vPatLabel+' — '+subName,amount:amt,date:v.date});
@@ -32840,13 +32517,13 @@ function getDashPieDetailRows(catLabel, type, period){
       // ✅ অ্যাডমিন বিলের services — এখন প্রতিটা সার্ভিস তার নিজস্ব ক্যাটাগরিতে দেখাবে
       // ✅ ফিক্স: s.discAmt বাদ দিয়ে নেট অ্যামাউন্ট দেখানো হচ্ছে (getVisitItemBreakdown()-এর সাথে সামঞ্জস্যপূর্ণ)
       (v.services||[]).forEach(s=>{
-        const k=canonicalCat(s.type||s.name||'');
+        const k=canonicalCat(serviceItemCatKey(s));
         const gross=s.subtotal||(s.price*s.qty)||0;
         const amt=Math.max(0, gross-(s.discAmt||0));
         const subName=s.name||s.type||'সার্ভিস';
         if(k===catLabel && amt) rows.push({sub:subName,label:vPatLabel+' — '+subName,amount:amt,date:v.date});
       });
-      if(!(v.items&&v.items.length) && !(v.services&&v.services.length) && v.cashPaid>0 && catLabel==='OPD/পরামর্শ'){
+      if(!(v.items&&v.items.length) && !(v.services&&v.services.length) && v.cashPaid>0 && catLabel==='ভিজিট ফি'){
         const amt=getVisitBilledCashPaid(v)-(v.visitFee||0);
         if(amt) rows.push({sub:'ভিজিট (অন্যান্য পেমেন্ট)',label:vPatLabel,amount:amt,date:v.date});
       }
@@ -32862,12 +32539,12 @@ function getDashPieDetailRows(catLabel, type, period){
       if (cVisits.length) {
         cVisits.forEach(v=>{
           (v.items||[]).forEach(it=>{
-            const k=canonicalCat(it.type||it.name||'');
+            const k=canonicalCat(serviceItemCatKey(it));
             const amt=it.total||(it.price*it.qty)||0;
             const subName=it.name||it.type||'আইটেম';
             if(k===catLabel && amt) rows.push({sub:subName,label:cName+' — '+subName,amount:amt,date:c.date});
           });
-          if(v.visitFee>0 && catLabel==='OPD/পরামর্শ'){
+          if(v.visitFee>0 && catLabel==='ভিজিট ফি'){
             rows.push({sub:'ভিজিট ফি (ক্যাম্প)',label:cName+' — ভিজিট ফি',amount:v.visitFee,date:c.date});
           }
         });
@@ -32877,7 +32554,7 @@ function getDashPieDetailRows(catLabel, type, period){
         // appData.income-এ সেভ হওয়া অ্যামাউন্টের সাথে হুবহু মিলে যাবে
         const bd = getCampCategoryBreakdown(c);
         const parts = [
-          ['OPD ভিজিট ফি', bd.visit, 'ভিজিট ফি (ক্যাম্প)'],
+          ['ভিজিট ফি', bd.visit, 'ভিজিট ফি (ক্যাম্প)'],
           ['ওষুধ বিক্রি', bd.med, 'ওষুধ বিক্রি (ক্যাম্প)'],
           ['চশমা বিক্রি', bd.glass, 'চশমা বিক্রি (ক্যাম্প)'],
           ['টেস্ট / রিপোর্ট ফি', bd.test, 'টেস্ট (ক্যাম্প)'],
