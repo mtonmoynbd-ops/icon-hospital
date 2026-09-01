@@ -540,6 +540,9 @@
   .rn-header-chips { display:flex; align-items:center; flex-wrap:wrap; gap:6px; justify-content:center; flex:1; }
   .rn-header-commission { min-width:200px; max-width:230px; position:relative; }
   .rn-header-commission select { padding:7px 9px; border:1.5px solid var(--border); border-radius:7px; font-family:'Hind Siliguri',sans-serif; font-size:12px; width:100%; background:white; }
+  .rn-patron-toggle { display:flex; background:#eef1f6; border-radius:9px; padding:3px; gap:2px; }
+  .rn-patron-btn { border:none; background:transparent; padding:7px 11px; border-radius:7px; font-family:'Hind Siliguri',sans-serif; font-size:12px; font-weight:700; color:#64748b; cursor:pointer; white-space:nowrap; transition:background .15s,color .15s; }
+  .rn-patron-btn.active { background:var(--primary); color:#fff; }
   /* ✅ ডাক্তার সিলেক্ট করলে/কমিশন টিক দিলে যেন প্যানেল-হেডারের উচ্চতা না বাড়ে — after-duty চেকবক্স ও কমিশন প্রিভিউ
      এখন সিলেক্ট বক্সের ঠিক নিচে একটা ছোট ভাসমান (floating) প্যানেলে দেখানো হয়, নরমাল ফ্লো-তে জায়গা নেয় না */
   /* ✅ "ডিউটি পরে" অপশনটা এখন ডাক্তার সিলেক্ট ড্রপডাউনের ভেতরেই একটা আলাদা অপশন হিসেবে থাকে (নিচে দেখুন
@@ -678,6 +681,8 @@
   .row-del-btn:hover { background:rgba(220,38,38,0.12); }
   .row-actions { position:absolute; right:2px; top:50%; transform:translateY(-50%); display:flex; gap:1px; opacity:0; transition:opacity .15s ease; }
   tr.dash-grp-row:hover .row-actions { opacity:1; }
+  /* ✅ টাচ ডিভাইসে (মোবাইল/ট্যাবলেট) হোভার নেই, তাই এডিট/হিস্ট্রি বাটন সবসময় দৃশ্যমান রাখা হচ্ছে — নাহলে ট্যাপ করা যায় না */
+  @media (hover: none) { .row-actions { opacity:1; } }
   .row-icon-btn { border:none; background:transparent; cursor:pointer; font-size:12px; padding:2px 5px; border-radius:6px; line-height:1; transition:background .15s ease; }
   .row-icon-btn:hover { background:rgba(37,99,235,0.12); }
   .dash-chart-col { display:contents; } /* legacy wrapper kept harmless if present */
@@ -3244,13 +3249,17 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="panel-header">
           <div class="panel-title">🧾 নতুন বিল তৈরি করুন</div>
           <div id="nb_RecentPatients" class="rn-header-chips"></div>
-          <div class="rn-header-commission">
+          <div class="rn-patron-toggle" id="nb_PatronToggle">
+            <button type="button" id="nb_PatronBtnPatient" class="rn-patron-btn active" onclick="setPatronType('nb_','patient')">🧑‍⚕️ রোগী</button>
+            <button type="button" id="nb_PatronBtnCustomer" class="rn-patron-btn" onclick="setPatronType('nb_','customer')">🛍️ ক্রেতা</button>
+          </div>
+          <div class="rn-header-commission" id="nb_DocHeaderBox">
             <select id="nb_DocSelect" onchange="onDocSelectChange('nb_')" title="কমিশন প্রযোজ্য ডাক্তার (ঐচ্ছিক) — স্যালারিড ডাক্তারের ক্ষেত্রে ড্রপডাউনেই &quot;ওভার টাইম&quot; আলাদা অপশন থাকবে"><option value="">🩺 কোনো ডাক্তার/কমিশন নেই</option></select>
           </div>
         </div>
         <div class="panel-body">
           <div class="rn-row rn-row1">
-            <div class="field"><label>রোগীর নাম *</label><input type="text" id="nb_PatName" placeholder="পূর্ণ নাম"></div>
+            <div class="field"><label id="nb_PatNameLabel">রোগীর নাম *</label><input type="text" id="nb_PatName" placeholder="পূর্ণ নাম"></div>
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="nb_PatPhone" placeholder="০১XXXXXXXXX"></div>
             <div class="field"><label>বয়স</label><input type="text" id="nb_PatAge" placeholder="৩৫"></div>
             <div class="field"><label>লিঙ্গ</label>
@@ -3270,7 +3279,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field"><label>রেফারেন্স</label><input type="text" id="nb_PatDoc" placeholder="পরিচিত ব্যক্তির নাম (ঐচ্ছিক)"></div>
             <div class="field rn-note-split">
               <div><label>বিবরণ / মন্তব্য</label><textarea id="nb_Note" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
-              <div><label>পরবর্তী সিরিয়াল</label><input type="date" id="nb_NextSerial" title="পরবর্তী ভিজিট/সিরিয়ালের তারিখ (ঐচ্ছিক) — রোগীর ডেটাবেসে ও কল লিস্টের রিমাইন্ডারে দেখাবে"></div>
+              <div id="nb_NextSerialField"><label>পরবর্তী সিরিয়াল</label><input type="date" id="nb_NextSerial" title="পরবর্তী ভিজিট/সিরিয়ালের তারিখ (ঐচ্ছিক) — রোগীর ডেটাবেসে ও কল লিস্টের রিমাইন্ডারে দেখাবে"></div>
             </div>
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><input type="text" id="nb_MemoNo" placeholder="Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
@@ -3883,27 +3892,45 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="panel-header">
           <div class="panel-title">🏥 অপারেশন ব্যবস্থাপনা</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="opSearchQuery" placeholder="🔍 রোগী/ফোন/সার্জন খুঁজুন..." oninput="renderOperationSheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;width:180px">
+            <select id="opStatusFilter" onchange="renderOperationSheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+              <option value="">সব স্ট্যাটাস</option>
+              <option value="completed">✅ সম্পন্ন</option>
+              <option value="scheduled">🗓️ সিডিউলড</option>
+              <option value="cancelled">❌ বাতিল</option>
+            </select>
             <select id="opMonth" onchange="renderOperationSheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
               <option value="1">জানুয়ারি</option><option value="2">ফেব্রুয়ারি</option><option value="3">মার্চ</option><option value="4">এপ্রিল</option>
               <option value="5">মে</option><option value="6">জুন</option><option value="7">জুলাই</option><option value="8">আগস্ট</option>
               <option value="9">সেপ্টেম্বর</option><option value="10">অক্টোবর</option><option value="11">নভেম্বর</option><option value="12">ডিসেম্বর</option>
             </select>
             <select id="opYear" onchange="renderOperationSheet()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;"></select>
+            <button class="btn btn-outline btn-sm" onclick="printOperationSheet()" title="বর্তমান তালিকা প্রিন্ট করুন">🖨️ প্রিন্ট</button>
+            <button class="btn btn-outline btn-sm" onclick="exportOperationSheetCSV()" title="বর্তমান তালিকা CSV হিসেবে ডাউনলোড করুন">📊 CSV</button>
             <button class="btn btn-primary btn-sm" onclick="toggleOpEntryForm()">➕ অপারেশন যোগ</button>
           </div>
         </div>
         <!-- অপারেশন এন্ট্রি ফর্ম -->
+        <!-- ✅ সিডিউলড অপারেশন রিমাইন্ডার — টাকা আয় হয়ে গেলেও অপারেশন এখনো "সম্পন্ন" চিহ্নিত না হলে এখানে সতর্ক করবে -->
+        <div id="opScheduledReminder" style="display:none;margin:0 16px;margin-top:14px;padding:10px 14px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;font-size:12.5px;color:#9a3412;cursor:pointer" onclick="filterOpsByScheduled()"></div>
         <div id="opEntryForm" style="display:none;padding:16px;border-bottom:1px solid var(--border);background:#f8fafc">
           <!-- ✅ নতুন বিল থেকে "অপারেশন শিটে পাঠান" বাটনে ক্লিক করে এলে দেখা যায় — ফি ইতিমধ্যে বিলের
                মাধ্যমে আয় হিসেবে জমা হয়ে গেছে, তাই এখানে শুধু সার্জন বেছে সেভ করলেই হবে (আয় আবার যোগ হবে না) -->
           <div id="opSourceBillNote" style="display:none;margin-bottom:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#1e40af">
             🔗 বিল থেকে পাঠানো — মেমো: <strong id="opSourceMemoLabel">—</strong>। অপারেশন ফি ইতিমধ্যে বিলের মাধ্যমে আয় হিসেবে জমা হয়ে গেছে, তাই শুধু সার্জন নির্বাচন করে সেভ করুন — আয় আবার যোগ হবে না।
           </div>
+          <div id="opEditingNote" style="display:none;margin-bottom:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#9a3412">
+            ✏️ বিদ্যমান অপারেশন এন্ট্রি সংশোধন করছেন
+          </div>
           <input type="hidden" id="opSourceVisitId" value="">
           <input type="hidden" id="opSourceMemoNo" value="">
+          <input type="hidden" id="opEditId" value="">
           <div class="form-row three">
             <div class="field"><label>তারিখ *</label><input type="date" id="opDate"></div>
             <div class="field"><label>রোগীর নাম *</label><input type="text" id="opPatName" placeholder="রোগীর নাম"></div>
+            <div class="field"><label>রোগীর ফোন</label><input type="text" id="opPatPhone" placeholder="০১XXXXXXXXX"></div>
+          </div>
+          <div class="form-row three">
             <div class="field"><label>অপারেশনের ধরন *</label>
               <select id="opType">
                 <option>ছানি অপারেশন (Cataract)</option>
@@ -3912,6 +3939,21 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                 <option>রেটিনা সার্জারি</option>
                 <option>চোখের পাতার অপারেশন</option>
                 <option>অন্যান্য অপারেশন</option>
+              </select>
+            </div>
+            <div class="field"><label>চোখ</label>
+              <select id="opEye">
+                <option value="">-- নির্বাচন করুন --</option>
+                <option value="ডান">👁️ ডান চোখ</option>
+                <option value="বাম">👁️ বাম চোখ</option>
+                <option value="উভয়">👁️👁️ উভয় চোখ</option>
+              </select>
+            </div>
+            <div class="field"><label>স্ট্যাটাস</label>
+              <select id="opStatus" onchange="onOpStatusChange()">
+                <option value="completed">✅ সম্পন্ন</option>
+                <option value="scheduled">🗓️ সিডিউলড (আসন্ন)</option>
+                <option value="cancelled">❌ বাতিল</option>
               </select>
             </div>
           </div>
@@ -3929,6 +3971,22 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field" style="max-width:240px">
               <label>সেশন ফিক্সড পেমেন্ট (৳) <span style="color:var(--accent);font-size:11px">এডজাস্ট করতে পারবেন</span></label>
               <input type="number" id="opSessionFeeInput" placeholder="০.০০" min="0" oninput="calcOpProfit()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;width:100%">
+            </div>
+          </div>
+          <!-- ✅ IOL লেন্স / কনজিউমেবল খরচ — নেট লাভ হিসাব থেকে বাদ পড়ে না যাতে প্রকৃত লাভ দেখা যায় -->
+          <div style="margin-bottom:10px">
+            <div class="field" style="max-width:280px">
+              <label>IOL লেন্স / কনজিউমেবল খরচ (৳) <span style="color:var(--text-light);font-size:11px">ঐচ্ছিক</span></label>
+              <input type="number" id="opConsumableCost" placeholder="০.০০" min="0" oninput="calcOpProfit()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;width:100%">
+            </div>
+          </div>
+          <!-- ✅ এই অপারেশন বাবদ এখন পর্যন্ত রোগী কত টাকা জমা দিয়েছেন — বিল থেকে এলে বিলের পরিশোধিত টাকা থেকে
+               স্বয়ংক্রিয়ভাবে বসে (রিড-অনলি); সরাসরি অপারেশন শিটে এন্ট্রি করলে ম্যানুয়ালি দিতে হবে। অপারেশন
+               বাতিল হলে এই টাকার সাথে প্রি-অপারেটিভ খরচ মিলিয়ে রিফান্ড/বাকি আদায়ের হিসাব হয় (নিচে দেখুন)। -->
+          <div style="margin-bottom:10px">
+            <div class="field" style="max-width:280px">
+              <label>অগ্রিম গৃহীত (৳) <span style="color:var(--text-light);font-size:11px">এই অপারেশন বাবদ এ পর্যন্ত জমা</span></label>
+              <input type="number" id="opAdvancePaid" placeholder="০.০০" min="0" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;width:100%">
             </div>
           </div>
           <!-- ✅ ক্যাম্প-রেফার্ড রোগী — শুধু হিসাবের স্বার্থে এই অপারেশন ফি-টা কোন উৎস (ক্যাম্প/রিসেপশন) থেকে
@@ -3950,9 +4008,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               </div>
             </div>
           </div>
+          <div class="field" style="margin-bottom:10px">
+            <label>কমপ্লিকেশন / নোট <span style="color:var(--text-light);font-size:11px">ঐচ্ছিক</span></label>
+            <textarea id="opNote" rows="2" placeholder="কোনো জটিলতা বা বিশেষ মন্তব্য থাকলে লিখুন (ঐচ্ছিক)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical"></textarea>
+          </div>
           <div style="background:#f0f4f8;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px" id="opProfitPreview">নেট লাভ: —</div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-outline btn-sm" onclick="document.getElementById(&#39;opEntryForm&#39;).style.display=&#39;none&#39;">বাতিল</button>
+            <button class="btn btn-outline btn-sm" onclick="closeOpEntryForm()">বাতিল</button>
             <button class="btn btn-success" onclick="saveOperation()">✅ সেভ করুন</button>
           </div>
         </div>
@@ -3960,7 +4022,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="table-wrap"><table>
             <thead><tr>
               <th>তারিখ</th><th>রোগী</th><th>অপারেশন</th><th>সার্জন</th>
-              <th>অপারেশন ফি</th><th>সার্জন পারিশ্রমিক</th><th>নেট লাভ</th><th>অ্যাকশন</th>
+              <th>ফি ও খরচ</th><th>নেট লাভ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th>
             </tr></thead>
             <tbody id="operationTable"></tbody>
             <tfoot id="operationFoot"></tfoot>
@@ -6902,13 +6964,17 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="panel-header">
           <div class="panel-title">🧾 নতুন ক্যাশ মেমো / বিল</div>
           <div id="recRecentPatients" class="rn-header-chips"></div>
-          <div class="rn-header-commission">
+          <div class="rn-patron-toggle" id="rPatronToggle">
+            <button type="button" id="rPatronBtnPatient" class="rn-patron-btn active" onclick="setPatronType('r','patient')">🧑‍⚕️ রোগী</button>
+            <button type="button" id="rPatronBtnCustomer" class="rn-patron-btn" onclick="setPatronType('r','customer')">🛍️ ক্রেতা</button>
+          </div>
+          <div class="rn-header-commission" id="rDocHeaderBox">
             <select id="rDocSelect" onchange="onDocSelectChange('r')" title="আজকের দায়িত্বরত ডাক্তার নির্বাচন করুন — একবার সিলেক্ট করলে সব বিলে থেকে যাবে। স্যালারিড ডাক্তারের ক্ষেত্রে ড্রপডাউনেই &quot;ওভার টাইম&quot; আলাদা অপশন থাকবে"><option value="">🩺 কোনো ডাক্তার/কমিশন নেই</option></select>
           </div>
         </div>
         <div class="panel-body">
           <div class="rn-row rn-row1">
-            <div class="field"><label>রোগীর নাম *</label><input type="text" id="rPatName" placeholder="পূর্ণ নাম"></div>
+            <div class="field"><label id="rPatNameLabel">রোগীর নাম *</label><input type="text" id="rPatName" placeholder="পূর্ণ নাম"></div>
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="rPatPhone" placeholder="০১XXXXXXXXX" oninput="onRPatPhoneInput()"></div>
             <div class="field"><label>বয়স</label><input type="text" id="rPatAge" placeholder="৩৫"></div>
             <div class="field"><label>লিঙ্গ</label>
@@ -6929,7 +6995,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field"><label>রেফারেন্স</label><input type="text" id="rPatDoc" placeholder="পরিচিত ব্যক্তির নাম (ঐচ্ছিক)"></div>
             <div class="field rn-note-split">
               <div><label>বিবরণ / মন্তব্য</label><textarea id="rNote" placeholder="ঐচ্ছিক" rows="1"></textarea></div>
-              <div><label>পরবর্তী সিরিয়াল</label><input type="date" id="rNextSerial" title="পরবর্তী ভিজিট/সিরিয়ালের তারিখ (ঐচ্ছিক) — রোগীর ডেটাবেসে ও কল লিস্টের রিমাইন্ডারে দেখাবে"></div>
+              <div id="rNextSerialField"><label>পরবর্তী সিরিয়াল</label><input type="date" id="rNextSerial" title="পরবর্তী ভিজিট/সিরিয়ালের তারিখ (ঐচ্ছিক) — রোগীর ডেটাবেসে ও কল লিস্টের রিমাইন্ডারে দেখাবে"></div>
             </div>
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><input type="text" id="rMemoNo" placeholder="Memo-0001" style="font-weight:600;color:var(--accent)"></div>
           </div>
@@ -12606,7 +12672,8 @@ function printBoardReport() {
   const expenses = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix));
   const visits   = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix));
   const camps    = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix));
-  const ops      = (appData.operations||[]).filter(o=>o.date&&o.date.startsWith(prefix));
+  // ✅ শুধু "সম্পন্ন" অপারেশন গোনা হচ্ছে — সিডিউলড/বাতিল অপারেশনের ফি এখনো আয় হিসেবে জমা হয়নি, তাই রিপোর্টে গণনায় আসা উচিত না
+  const ops      = (appData.operations||[]).filter(o=>o.date&&o.date.startsWith(prefix)&&(o.status||'completed')==='completed');
 
   // সারসংক্ষেপ হিসাব
   const totalManualInc = incomes.reduce((s,e)=>s+e.amount,0); // ম্যানুয়াল/রিসেপশন এন্ট্রি (ক্যাম্প বাদে) — অপারেশন ফি এর মধ্যেই আছে
@@ -16869,7 +16936,7 @@ function isVisitSentToOperationSheet(visitId) {
 // ✅ "নতুন বিল" বা "রিসেপশন" থেকে বিলে অপারেশন ফি জমা হলে — সরাসরি অপারেশন শিটের এন্ট্রি ফর্মে রোগীর নাম/
 // তারিখ/ফি প্রি-ফিল করে পাঠায় (ফি রিড-অনলি, কারণ বিলের মাধ্যমে আয় ইতিমধ্যে জমা হয়ে গেছে) — অ্যাডমিন শুধু
 // সার্জন বেছে সেভ করলেই অপারেশন রেকর্ড তৈরি হবে, নতুন আয় এন্ট্রি হবে না
-function sendBillToOperationSheet(visitId) {
+function sendBillToOperationSheet(visitId, presetDate, presetStatus) {
   const v = (appData.visits||[]).find(x=>x.id===visitId);
   if (!v) return;
   const fee = getVisitOperationFee(v);
@@ -16880,17 +16947,31 @@ function sendBillToOperationSheet(visitId) {
     const f = document.getElementById('opEntryForm');
     if (f) f.style.display='block';
     if (typeof populateSurgeonSelect==='function') populateSurgeonSelect();
-    const dateEl=document.getElementById('opDate'); if(dateEl) dateEl.value=v.date||todayStr();
+    // ✅ presetDate থাকলে সেটাই প্রকৃত অপারেশনের তারিখ (বিলের তারিখ থেকে ভিন্ন হতে পারে — অর্থ পরিশোধ
+    // আজ হলেও অপারেশন ভবিষ্যতে সিডিউল করা থাকতে পারে); না থাকলে বিলের তারিখই ধরে নেওয়া হয়
+    const dateEl=document.getElementById('opDate'); if(dateEl) dateEl.value=presetDate||v.date||todayStr();
     const nameEl=document.getElementById('opPatName'); if(nameEl) nameEl.value=v.patName||'';
+    const phoneEl=document.getElementById('opPatPhone'); if(phoneEl) phoneEl.value=v.patPhone||'';
+    const statusEl=document.getElementById('opStatus'); if(statusEl) statusEl.value=presetStatus||'completed';
+    const editIdEl=document.getElementById('opEditId'); if(editIdEl) editIdEl.value='';
+    const editingNoteEl=document.getElementById('opEditingNote'); if(editingNoteEl) editingNoteEl.style.display='none';
     const feeEl=document.getElementById('opFee');
     if (feeEl) { feeEl.value=fee; feeEl.readOnly=true; feeEl.style.background='#f0f4f8'; }
+    // ✅ শুধু অপারেশন ফি-র ভাগটুকু কত পরিশোধিত হয়েছে তা হিসাব করা হচ্ছে — পুরো বিলের cashPaid নয়।
+    // বিলে অপারেশন ছাড়াও অন্য আইটেম (ওষুধ/টেস্ট) থাকতে পারে, তাই ধরে নেওয়া হয়: রোগী যা পরিশোধ করেছেন তার
+    // মধ্যে অপারেশন ফি (ফি পর্যন্ত) অগ্রাধিকার পায় — cashPaid যদি ফি-এর চেয়ে বেশি/সমান হয়, ফি পুরোটাই
+    // পরিশোধিত ধরা হয় (বাকি টাকা অন্য আইটেমের জন্য); কম হলে যা পরিশোধিত তার পুরোটাই অপারেশনের ভাগ ধরা হয়
+    const advPaidForOp = Math.min(v.cashPaid||0, fee);
+    const advEl=document.getElementById('opAdvancePaid'); if (advEl) { advEl.value=advPaidForOp; advEl.readOnly=true; advEl.style.background='#f0f4f8'; }
     const svEl=document.getElementById('opSourceVisitId'); if(svEl) svEl.value=String(visitId);
     const smEl=document.getElementById('opSourceMemoNo'); if(smEl) smEl.value=v.memoNo||v.rcptNo||'';
     const memoLbl=document.getElementById('opSourceMemoLabel'); if(memoLbl) memoLbl.textContent=v.memoNo||v.rcptNo||'—';
     const noteEl=document.getElementById('opSourceBillNote'); if(noteEl) noteEl.style.display='block';
     if (typeof calcOpProfit==='function') calcOpProfit();
     if (f) f.scrollIntoView({behavior:'smooth',block:'center'});
-    showToast('📋 বিলের তথ্য অপারেশন ফর্মে ভরে দেওয়া হয়েছে — সার্জন নির্বাচন করে সম্পন্ন করুন');
+    showToast(presetStatus==='scheduled'
+      ? '📋 বিলের তথ্য ভরা হয়েছে — অপারেশনের তারিখ যাচাই করে সার্জন নির্বাচন করে সেভ করুন (আয় ইতিমধ্যে বিলের মাধ্যমে জমা হয়ে গেছে)'
+      : '📋 বিলের তথ্য অপারেশন ফর্মে ভরে দেওয়া হয়েছে — সার্জন নির্বাচন করে সম্পন্ন করুন');
   }, 150);
 }
 function getDoctorCommissionBaseAmount(items, doctor) {
@@ -17123,6 +17204,56 @@ function clearDocSelectUI(p) {
   const cb = document.getElementById(p+'DocAfterDuty'); if (cb) { cb.checked=false; delete cb.dataset.suggested; }
   const row = document.getElementById(p+'DocAfterDutyRow'); if (row) row.style.display='none';
   const prev = document.getElementById(p+'DocCommissionPreview'); if (prev) { prev.textContent=''; prev.title=''; }
+}
+// ===== রোগী / ক্রেতা টগল =====
+// ✅ বিলে সবসময় "রোগী" থাকে না — অনেকে শুধু মেডিসিন/সার্জিক্যাল/চশমা/টেস্ট/অন্যান্য সার্ভিস কিনতে আসেন, ডাক্তার দেখান না।
+// তাদের নাম রোগীর ডেটাবেজে ঢুকে গেলে অসংগতি তৈরি হয়। তাই বিলে বাই ডিফল্ট "রোগী" থাকে, ইচ্ছেমতো "ক্রেতা"-তে পাল্টানো যায়।
+// "ক্রেতা" নির্বাচিত হলে ডাক্তার সিলেক্ট/ভিজিট ফি ও "পরবর্তী সিরিয়াল" অপশন হাইড হয়ে যায় — buildPatientList() এ এই বিল স্কিপ হয়।
+// formPrefix: 'r' (রিসেপশন) বা 'nb_' (অ্যাডমিন/মড নতুন বিল)
+function isPatronCustomer(formPrefix) {
+  const btn = document.getElementById(formPrefix+'PatronBtnCustomer');
+  return !!(btn && btn.classList.contains('active'));
+}
+function resetPatronToggleUI(formPrefix) {
+  const btnPat = document.getElementById(formPrefix+'PatronBtnPatient');
+  const btnCus = document.getElementById(formPrefix+'PatronBtnCustomer');
+  if (btnPat) btnPat.classList.add('active');
+  if (btnCus) btnCus.classList.remove('active');
+  const nameLabel = document.getElementById(formPrefix+'PatNameLabel');
+  if (nameLabel) nameLabel.textContent = 'রোগীর নাম *';
+  const docBox = document.getElementById(formPrefix+'DocHeaderBox');
+  if (docBox) docBox.style.display = '';
+  const nsField = document.getElementById(formPrefix+'NextSerialField');
+  if (nsField) nsField.style.display = '';
+}
+function setPatronType(formPrefix, type) {
+  const rowPrefix = formPrefix==='nb_' ? 'nb_' : '';
+  const isCustomer = type === 'customer';
+  const btnPat = document.getElementById(formPrefix+'PatronBtnPatient');
+  const btnCus = document.getElementById(formPrefix+'PatronBtnCustomer');
+  if (btnPat) btnPat.classList.toggle('active', !isCustomer);
+  if (btnCus) btnCus.classList.toggle('active', isCustomer);
+  const nameLabel = document.getElementById(formPrefix+'PatNameLabel');
+  if (nameLabel) nameLabel.textContent = isCustomer ? 'ক্রেতার নাম *' : 'রোগীর নাম *';
+  const docBox = document.getElementById(formPrefix+'DocHeaderBox');
+  if (docBox) docBox.style.display = isCustomer ? 'none' : '';
+  const nsField = document.getElementById(formPrefix+'NextSerialField');
+  if (nsField) nsField.style.display = isCustomer ? 'none' : '';
+  if (isCustomer) {
+    // ডাক্তার সিলেকশন ক্লিয়ার + বিল থেকে ভিজিট ফি রো সরিয়ে দেওয়া হচ্ছে (ক্রেতা ডাক্তার দেখান না)
+    clearDocSelectUI(formPrefix);
+    const container = document.getElementById(rowPrefix+'serviceRows');
+    const feeRow = container ? container.querySelector('.service-row[data-type="visitfee"]') : null;
+    if (feeRow) feeRow.remove();
+    const nsInput = document.getElementById(formPrefix+'NextSerial');
+    if (nsInput) nsInput.value = '';
+  } else {
+    // রোগীতে ফিরে গেলে আজকের ডিফল্ট ডাক্তার ও ভিজিট ফি রো পুনরায় বসানো হচ্ছে
+    if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor(formPrefix);
+    const container = document.getElementById(rowPrefix+'serviceRows');
+    if (container && !container.querySelector('.service-row[data-type="visitfee"]')) addRow('visitfee', rowPrefix);
+  }
+  rowPrefix===''?updateSummary():nbUpdateSummary();
 }
 function calcDoctorMonthlyCommission(doctorId, month, year) {
   const prefix = `${year}-${String(month).padStart(2,'0')}`;
@@ -21858,17 +21989,55 @@ function populateSurgeonSelect() {
 }
 
 // ===== OPERATION MODULE =====
+// ✅ সিডিউলড অপারেশন রিমাইন্ডার — বিলের মাধ্যমে টাকা আয় হয়ে গেলেও অপারেশনের দিন পার হয়ে গেলে
+// staff যাতে ভুলে না যায় যে এটাকে "সম্পন্ন" হিসেবে আপডেট করতে হবে (নাহলে সার্জন পেমেন্ট/রিপোর্টেও আসবে না)
+function renderOpScheduledReminder() {
+  const box = document.getElementById('opScheduledReminder');
+  if (!box) return;
+  const today = todayStr();
+  const scheduled = (appData.operations||[]).filter(o=>(o.status||'completed')==='scheduled');
+  const overdue = scheduled.filter(o=>o.date && o.date<=today);
+  const upcoming = scheduled.filter(o=>o.date && o.date>today);
+  // ✅ বাতিল অপারেশনের পেন্ডিং রিফান্ড (হাসপাতাল থেকে রোগীকে ফেরত বাকি) — আলাদা করে দেখানো হচ্ছে, যাতে ভুলে না যায়
+  const pendingRefunds = (appData.operations||[]).filter(o=>o.status==='cancelled' && o.cancellation && o.cancellation.refundAmount>0 && !o.cancellation.refundPaid);
+  const pendingRefundTotal = pendingRefunds.reduce((s,o)=>s+o.cancellation.refundAmount,0);
+  if (!scheduled.length && !pendingRefunds.length) { box.style.display='none'; return; }
+  box.style.display='block';
+  const parts = [];
+  if (overdue.length) parts.push(`⚠️ <strong>${overdue.length}টি সিডিউলড অপারেশনের তারিখ পার হয়ে গেছে</strong> — সম্পন্ন হয়ে থাকলে এন্ট্রি এডিট করে "✅ সম্পন্ন" করুন।`);
+  if (upcoming.length) parts.push(`🗓️ আরও ${upcoming.length}টি সিডিউলড অপারেশন আসছে।`);
+  if (pendingRefunds.length) parts.push(`💸 <strong>${pendingRefunds.length}টি বাতিল অপারেশনে মোট ৳${fmt(pendingRefundTotal)} রিফান্ড বাকি</strong> — রোগীকে ফেরত দেওয়া বাকি আছে।`);
+  box.innerHTML = parts.join(' ') + ` <span style="text-decoration:underline">তালিকা দেখুন</span>`;
+}
+// ✅ রিমাইন্ডার ব্যানারে ক্লিক করলে সরাসরি স্ট্যাটাস ফিল্টার "সিডিউলড"-এ বসিয়ে দেয়
+function filterOpsByScheduled() {
+  const sel = document.getElementById('opStatusFilter');
+  if (sel) sel.value = 'scheduled';
+  const q = document.getElementById('opSearchQuery'); if (q) q.value='';
+  renderOperationSheet();
+  document.getElementById('operationTable')?.scrollIntoView({behavior:'smooth', block:'center'});
+}
 function toggleOpEntryForm() {
   const f = document.getElementById('opEntryForm');
-  f.style.display = f.style.display==='none' ? 'block' : 'none';
+  const opening = f.style.display==='none';
+  f.style.display = opening ? 'block' : 'none';
+  if (!opening) return;
   document.getElementById('opDate').value = todayStr();
   populateSurgeonSelect();
-  // ✅ ম্যানুয়ালি "➕ অপারেশন যোগ" চাপলে — আগের কোনো "বিল থেকে পাঠানো" এন্ট্রির অবশিষ্টাংশ থেকে যাওয়া ঠিক না
+  // ✅ ম্যানুয়ালি "➕ অপারেশন যোগ" চাপলে — আগের কোনো "বিল থেকে পাঠানো"/এডিট এন্ট্রির অবশিষ্টাংশ থেকে যাওয়া ঠিক না
   document.getElementById('opPatName').value = '';
+  const phoneEl=document.getElementById('opPatPhone'); if(phoneEl) phoneEl.value='';
+  const eyeEl=document.getElementById('opEye'); if(eyeEl) eyeEl.value='';
+  const statusEl=document.getElementById('opStatus'); if(statusEl) statusEl.value='completed';
+  const consEl=document.getElementById('opConsumableCost'); if(consEl) consEl.value='';
+  const advEl=document.getElementById('opAdvancePaid'); if(advEl){ advEl.value=''; advEl.readOnly=false; advEl.style.background=''; }
+  const noteEl2=document.getElementById('opNote'); if(noteEl2) noteEl2.value='';
   const feeEl=document.getElementById('opFee'); if(feeEl){ feeEl.value=''; feeEl.readOnly=false; feeEl.style.background=''; }
   const svEl=document.getElementById('opSourceVisitId'); if(svEl) svEl.value='';
   const smEl=document.getElementById('opSourceMemoNo'); if(smEl) smEl.value='';
   const noteEl=document.getElementById('opSourceBillNote'); if(noteEl) noteEl.style.display='none';
+  const editIdEl=document.getElementById('opEditId'); if(editIdEl) editIdEl.value='';
+  const editingNoteEl=document.getElementById('opEditingNote'); if(editingNoteEl) editingNoteEl.style.display='none';
   calcOpProfit();
   // ক্যাম্প-রেফারেল ফিল্ড রিসেট
   const chk = document.getElementById('opIsCampRef');
@@ -21879,6 +22048,57 @@ function toggleOpEntryForm() {
   if (campSel) campSel.innerHTML = '<option value="">-- আগে মাস নির্বাচন করুন --</option>';
   toggleOpCampRefFields();
 }
+// ✅ ফর্ম বন্ধ করে (অ্যাড ও এডিট — উভয় মোডে কাজ করে)
+function closeOpEntryForm() {
+  const f = document.getElementById('opEntryForm');
+  if (f) f.style.display='none';
+}
+// ✅ বিদ্যমান অপারেশন এন্ট্রি এডিট করতে ফর্মে সব তথ্য প্রি-ফিল করে দেয়
+function openOpEditForm(id) {
+  const op = (appData.operations||[]).find(o=>o.id===id);
+  if (!op) return;
+  populateSurgeonSelect();
+  document.getElementById('opDate').value = op.date||'';
+  document.getElementById('opPatName').value = op.patName||'';
+  const phoneEl=document.getElementById('opPatPhone'); if(phoneEl) phoneEl.value=op.patPhone||'';
+  const eyeEl=document.getElementById('opEye'); if(eyeEl) eyeEl.value=op.eye||'';
+  const statusEl=document.getElementById('opStatus'); if(statusEl) statusEl.value=op.status||'completed';
+  document.getElementById('opType').value = op.opType||'';
+  document.getElementById('opSurgeon').value = op.surgeonId||'';
+  const consEl=document.getElementById('opConsumableCost'); if(consEl) consEl.value=op.consumableCost||'';
+  const advEl=document.getElementById('opAdvancePaid');
+  if (advEl) { advEl.value=op.advancePaid||0; advEl.readOnly=!!op.sourceVisitId; advEl.style.background=op.sourceVisitId?'#f0f4f8':''; }
+  const noteEl2=document.getElementById('opNote'); if(noteEl2) noteEl2.value=op.note||'';
+  const sg = (appData.surgeons||[]).find(s=>s.id===op.surgeonId);
+  if (sg && sg.type==='fixed') {
+    const sessionFeeInput = document.getElementById('opSessionFeeInput');
+    if (sessionFeeInput) sessionFeeInput.value = op.sgFee||sg.fixed||0;
+  }
+  const feeEl=document.getElementById('opFee');
+  if (feeEl) { feeEl.value=op.fee||''; feeEl.readOnly=!!op.sourceVisitId; feeEl.style.background=op.sourceVisitId?'#f0f4f8':''; }
+  const svEl=document.getElementById('opSourceVisitId'); if(svEl) svEl.value=op.sourceVisitId||'';
+  const smEl=document.getElementById('opSourceMemoNo'); if(smEl) smEl.value=op.sourceMemoNo||'';
+  const memoLbl=document.getElementById('opSourceMemoLabel'); if(memoLbl) memoLbl.textContent=op.sourceMemoNo||'—';
+  const noteEl=document.getElementById('opSourceBillNote'); if(noteEl) noteEl.style.display=op.sourceVisitId?'block':'none';
+  const editIdEl=document.getElementById('opEditId'); if(editIdEl) editIdEl.value=String(op.id);
+  const editingNoteEl=document.getElementById('opEditingNote'); if(editingNoteEl) editingNoteEl.style.display='block';
+  // ক্যাম্প-রেফারেল
+  const chk = document.getElementById('opIsCampRef');
+  if (chk) chk.checked = !!op.refCampId;
+  if (op.refCampId) {
+    const monthEl = document.getElementById('opRefCampMonth');
+    if (monthEl) monthEl.value = (op.date||'').slice(0,7);
+    populateOpRefCampOptions();
+    const campSel = document.getElementById('opRefCampId');
+    if (campSel) campSel.value = String(op.refCampId);
+  }
+  toggleOpCampRefFields();
+  calcOpProfit();
+  const f = document.getElementById('opEntryForm');
+  f.style.display='block';
+  f.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function onOpStatusChange() { calcOpProfit(); }
 // ✅ ক্যাম্প-রেফারেল checkbox চেক/আনচেক হলে মাস+ক্যাম্প ফিল্ড দেখানো/লুকানো
 function toggleOpCampRefFields() {
   const chk = document.getElementById('opIsCampRef');
@@ -21902,6 +22122,7 @@ function calcOpProfit() {
   const fee  = parseFloat(document.getElementById('opFee').value)||0;
   const sgId = parseInt(document.getElementById('opSurgeon').value)||0;
   const sg   = (appData.surgeons||[]).find(s=>s.id===sgId);
+  const consumableCost = parseFloat((document.getElementById('opConsumableCost')||{}).value)||0;
   let sgFee  = 0;
 
   // সেশন ফিক্সড হলে ম্যানুয়াল ইনপুট দেখাবে
@@ -21917,18 +22138,46 @@ function calcOpProfit() {
   }
 
   document.getElementById('opSurgeonFee').value = sgFee ? '৳ '+fmt(sgFee) : '—';
-  const net = fee - sgFee;
+  const net = fee - sgFee - consumableCost;
+  const statusEl = document.getElementById('opStatus');
+  const status = statusEl ? statusEl.value : 'completed';
+  const statusHint = status==='scheduled' ? ' &nbsp;|&nbsp; 🗓️ সিডিউলড — সম্পন্ন না হওয়া পর্যন্ত আয় জমা হবে না' : status==='cancelled' ? ' &nbsp;|&nbsp; ❌ বাতিল — আয় জমা হবে না' : '';
   document.getElementById('opProfitPreview').innerHTML =
-    `নেট লাভ: <strong style="color:${net>=0?'var(--success)':'var(--danger)'}">৳ ${fmt(Math.abs(net))} ${net<0?'(লোকসান)':''}</strong> &nbsp;|&nbsp; অপারেশন ফি: ৳${fmt(fee)} − সার্জন: ৳${fmt(sgFee)}`;
+    `নেট লাভ: <strong style="color:${net>=0?'var(--success)':'var(--danger)'}">৳ ${fmt(Math.abs(net))} ${net<0?'(লোকসান)':''}</strong> &nbsp;|&nbsp; ফি: ৳${fmt(fee)} − সার্জন: ৳${fmt(sgFee)}${consumableCost>0?' − IOL/কনজিউমেবল: ৳'+fmt(consumableCost):''}${statusHint}`;
 }
 function saveOperation() {
   const date    = document.getElementById('opDate').value;
   const patName = document.getElementById('opPatName').value.trim();
+  const patPhone = (document.getElementById('opPatPhone')||{}).value?.trim()||'';
+  const eye     = (document.getElementById('opEye')||{}).value||'';
+  const status  = (document.getElementById('opStatus')||{}).value||'completed';
   const opType  = document.getElementById('opType').value;
   const sgId    = parseInt(document.getElementById('opSurgeon').value)||0;
   const fee     = parseFloat(document.getElementById('opFee').value)||0;
-  if (!date||!patName||!fee) { showToast('⚠️ তারিখ, রোগীর নাম ও ফি আবশ্যক!'); return; }
-  if (!sgId) { showToast('⚠️ সার্জন নির্বাচন করুন!'); return; }
+  const consumableCost = parseFloat((document.getElementById('opConsumableCost')||{}).value)||0;
+  const advancePaid = parseFloat((document.getElementById('opAdvancePaid')||{}).value)||0;
+  const note    = (document.getElementById('opNote')||{}).value?.trim()||'';
+  if (!date||!patName) { showToast('⚠️ তারিখ ও রোগীর নাম আবশ্যক!'); return; }
+  const sourceVisitId = document.getElementById('opSourceVisitId')?.value || '';
+  const sourceMemoNo  = document.getElementById('opSourceMemoNo')?.value || '';
+  const fromBill = !!sourceVisitId;
+  const editId = parseInt((document.getElementById('opEditId')||{}).value)||0;
+  const isCampRef  = !!document.getElementById('opIsCampRef')?.checked;
+  const refCampId  = isCampRef ? (document.getElementById('opRefCampId')?.value||'') : '';
+
+  // ✅ "বাতিল" নির্বাচন করলে — সরাসরি সেভ না হয়ে রিফান্ড/ঘাটতি সমন্বয়ের জন্য আলাদা মোডাল দেখানো হয়,
+  // কারণ প্রি-অপারেটিভ খরচ বাদ দিয়ে রোগীকে ফেরত বা রোগীর কাছ থেকে ঘাটতি আদায়ের হিসাব এখানেই ঠিক হয়
+  if (status === 'cancelled') {
+    openOpCancelModal({ editId, date, patName, patPhone, eye, opType, sgId, fee, consumableCost, advancePaid, note,
+      sourceVisitId, sourceMemoNo, fromBill, isCampRef, refCampId });
+    return;
+  }
+
+  // ✅ "সম্পন্ন" অপারেশনের জন্য ফি ও সার্জন আবশ্যক, "সিডিউলড"-এর জন্য ঐচ্ছিক (এখনো চূড়ান্ত না-ও হতে পারে)
+  if (status==='completed') {
+    if (!fee) { showToast('⚠️ অপারেশন ফি দিন!'); return; }
+    if (!sgId) { showToast('⚠️ সার্জন নির্বাচন করুন!'); return; }
+  }
   const sg    = (appData.surgeons||[]).find(s=>s.id===sgId);
   let sgFee = 0;
   if (sg) {
@@ -21939,59 +22188,90 @@ function saveOperation() {
       sgFee = parseFloat(document.getElementById('opSessionFeeInput')?.value)||sg.fixed||0;
     }
   }
-  const net   = fee - sgFee;
+  const net   = fee - sgFee - consumableCost;
 
   // ✅ ক্যাম্প-রেফার্ড কিনা — শুধু হিসাবের স্বার্থে, অপারেশন ফি জমা সবসময় রিসেপশনেই হয়, কিন্তু
   // রোগী ক্যাম্প থেকে অনুপ্রাণিত হয়ে এসে থাকলে তার উৎস "ক্যাম্প" হিসেবে ট্যাগ করা হচ্ছে
-  const isCampRef  = !!document.getElementById('opIsCampRef')?.checked;
-  const refCampId  = isCampRef ? (document.getElementById('opRefCampId')?.value||'') : '';
   const refCamp    = refCampId ? (appData.camps||[]).find(c=>String(c.id)===String(refCampId)) : null;
   const opSource   = (isCampRef && refCamp) ? 'camp' : 'reception';
 
-  // ✅ "নতুন বিল" থেকে "অপারেশন শিটে পাঠান" বাটন দিয়ে এলে — অপারেশন ফি ইতিমধ্যে সেই বিলের মাধ্যমে আয় হিসেবে
-  // জমা হয়ে গেছে, তাই এখানে আবার আয় এন্ট্রি তৈরি করলে ডাবল-কাউন্ট হয়ে যাবে। sourceVisitId থাকলে শুধু
-  // অপারেশন রেকর্ড (সার্জন পারিশ্রমিক/নেট লাভ হিসাবের জন্য) তৈরি হবে, নতুন আয় এন্ট্রি হবে না।
-  const sourceVisitId = document.getElementById('opSourceVisitId')?.value || '';
-  const sourceMemoNo  = document.getElementById('opSourceMemoNo')?.value || '';
-  const fromBill = !!sourceVisitId;
-
   if (!appData.operations) appData.operations=[];
-  appData.operations.push({
-    id:Date.now(), date, patName, opType,
+  const existing = editId ? appData.operations.find(o=>o.id===editId) : null;
+
+  const fields = {
+    date, patName, patPhone, eye, status, opType,
     surgeonId:sgId, surgeonName:sg?sg.name:'—',
-    fee, sgFee, net, paid:false, by:currentUser.name,
+    fee, sgFee, consumableCost, advancePaid, net, note,
     source: opSource,
     refCampId: refCamp ? refCamp.id : null,
     refCampName: refCamp ? refCamp.name : '',
     refCampLocation: refCamp ? refCamp.location : '',
     sourceVisitId: fromBill ? Number(sourceVisitId) : null,
     sourceMemoNo: fromBill ? sourceMemoNo : ''
-  });
-  // আয় এন্ট্রি অটো — শুধু তখনই, যখন এই অপারেশন ফি কোনো বিলের মাধ্যমে ইতিমধ্যে আয় হিসেবে জমা হয়নি
-  if (!fromBill) {
-    appData.income.push({
-      id:Date.now()+1, date, category:'অপারেশন ফি',
-      amount:fee, ref:patName,
-      note:`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো)`,
-      by:currentUser.name,
-      source: opSource,
-      refCampId: refCamp ? refCamp.id : null
-    });
+  };
+
+  let toastMsg;
+  if (existing) {
+    // ===== এডিট মোড =====
+    const oldStatus = existing.status || 'completed';
+    Object.assign(existing, fields); // id, paid, by, incomeId অপরিবর্তিত থাকে
+    if (!fromBill) {
+      if (oldStatus!=='completed' && status==='completed' && !existing.incomeId) {
+        // এতদিন আয় জমা হয়নি (সিডিউলড/বাতিল ছিল) — এখন সম্পন্ন হলো, তাই আয় এন্ট্রি তৈরি হচ্ছে
+        const inc = { id:Date.now()+1, date, category:'অপারেশন ফি', amount:fee, ref:patName,
+          note:`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো)`,
+          by:currentUser.name, source: opSource, refCampId: refCamp?refCamp.id:null };
+        appData.income.push(inc);
+        existing.incomeId = inc.id;
+      } else if (oldStatus==='completed' && status!=='completed') {
+        // আগে সম্পন্ন ছিল, এখন সিডিউলড/বাতিলে পরিবর্তন হলো — যুক্ত আয় এন্ট্রি সরিয়ে ফেলা হচ্ছে
+        if (existing.incomeId) {
+          appData.income = (appData.income||[]).filter(i=>i.id!==existing.incomeId);
+          existing.incomeId = null;
+        } else {
+          showToast('⚠️ পুরনো এন্ট্রি — যুক্ত আয় স্বয়ংক্রিয়ভাবে সরানো যায়নি, "আয়" তালিকায় ম্যানুয়ালি চেক করুন');
+        }
+      } else if (oldStatus==='completed' && status==='completed' && existing.incomeId) {
+        // ফি/তারিখ বদলে থাকলে যুক্ত আয় এন্ট্রিও আপডেট হবে
+        const inc = (appData.income||[]).find(i=>i.id===existing.incomeId);
+        if (inc) { inc.date=date; inc.amount=fee; inc.ref=patName; inc.note=`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো, সংশোধিত)`; }
+      }
+    }
+    logActivity('edit', 'অপারেশন', `${patName} — ${opType} সংশোধিত`);
+    toastMsg = '✅ অপারেশন এন্ট্রি সংশোধন করা হয়েছে';
+  } else {
+    // ===== নতুন এন্ট্রি =====
+    const op = { id:Date.now(), paid:false, by:currentUser.name, incomeId:null, ...fields };
+    appData.operations.push(op);
+    // আয় এন্ট্রি অটো — শুধু তখনই, যখন সম্পন্ন এবং এই ফি কোনো বিলের মাধ্যমে ইতিমধ্যে আয় হিসেবে জমা হয়নি
+    if (!fromBill && status==='completed') {
+      const inc = { id:Date.now()+1, date, category:'অপারেশন ফি', amount:fee, ref:patName,
+        note:`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো)`,
+        by:currentUser.name, source: opSource, refCampId: refCamp?refCamp.id:null };
+      appData.income.push(inc);
+      op.incomeId = inc.id;
+    }
+    toastMsg = fromBill ? `✅ অপারেশন এন্ট্রি সেভ! সার্জন পারিশ্রমিক হিসাব করা হলো (আয় আগেই বিলের মাধ্যমে জমা হয়েছে)।`
+      : status==='completed' ? `✅ অপারেশন এন্ট্রি সেভ! আয় ৳${fmt(fee)} অটো যোগ।`
+      : `✅ অপারেশন এন্ট্রি সেভ! (${status==='scheduled'?'সিডিউলড':'বাতিল'} — আয় এখনো জমা হয়নি)`;
   }
+
   saveData();
-  document.getElementById('opEntryForm').style.display='none';
+  closeOpEntryForm();
   document.getElementById('opPatName').value='';
   const feeElReset=document.getElementById('opFee'); if(feeElReset){ feeElReset.value=''; feeElReset.readOnly=false; feeElReset.style.background=''; }
   document.getElementById('opSurgeonFee').value='';
   const svElReset=document.getElementById('opSourceVisitId'); if(svElReset) svElReset.value='';
   const smElReset=document.getElementById('opSourceMemoNo'); if(smElReset) smElReset.value='';
   const noteElReset=document.getElementById('opSourceBillNote'); if(noteElReset) noteElReset.style.display='none';
+  const editIdElReset=document.getElementById('opEditId'); if(editIdElReset) editIdElReset.value='';
+  const editingNoteElReset=document.getElementById('opEditingNote'); if(editingNoteElReset) editingNoteElReset.style.display='none';
   const opChk = document.getElementById('opIsCampRef'); if (opChk) opChk.checked=false;
   const opCampFields = document.getElementById('opCampRefFields'); if (opCampFields) opCampFields.style.display='none';
   renderOperationSheet();
   refreshDashboard();
   if (typeof renderSurgeonPaymentPanel==='function' && document.getElementById('surgeonPaymentTable')) renderSurgeonPaymentPanel();
-  showToast(fromBill ? `✅ অপারেশন এন্ট্রি সেভ! সার্জন পারিশ্রমিক হিসাব করা হলো (আয় আগেই বিলের মাধ্যমে জমা হয়েছে)।` : `✅ অপারেশন এন্ট্রি সেভ! আয় ৳${fmt(fee)} অটো যোগ।`);
+  showToast(toastMsg);
 }
 function toggleOpPaid(id) {
   if (!appData.operations) return;
@@ -22004,48 +22284,376 @@ function toggleOpPaid(id) {
 }
 function deleteOperation(id) {
   if (!confirm('এই অপারেশন এন্ট্রি মুছবেন?')) return;
+  const op = (appData.operations||[]).find(o=>o.id===id);
+  // ✅ এই অপারেশনের সাথে স্বয়ংক্রিয় আয় এন্ট্রি যুক্ত থাকলে (বিল থেকে আসা না হলে) সেটাও মুছে ফেলা হবে,
+  // নাহলে অপারেশন এন্ট্রি মোছার পরেও পুরনো আয় এন্ট্রি থেকে যেত (ইতিপূর্বে এই বাগ ছিল)
+  if (op && op.incomeId) {
+    appData.income = (appData.income||[]).filter(i=>i.id!==op.incomeId);
+  }
+  // ✅ বাতিল-সংক্রান্ত রিফান্ড (ব্যয় এন্ট্রি) ও ঘাটতি-আদায়ের জন্য তৈরি সিন্থেটিক বিল/এন্ট্রিও একসাথে সরানো হবে
+  if (op && op.cancellation) {
+    if (op.cancellation.refundExpenseId) appData.expense = (appData.expense||[]).filter(e=>e.id!==op.cancellation.refundExpenseId);
+    if (op.cancellation.deficitVisitId && !op.sourceVisitId) appData.visits = (appData.visits||[]).filter(v=>v.id!==op.cancellation.deficitVisitId);
+  }
   appData.operations = (appData.operations||[]).filter(o=>o.id!==id);
   saveData(); renderOperationSheet(); refreshDashboard();
   if (typeof renderSurgeonPaymentPanel==='function' && document.getElementById('surgeonPaymentTable')) renderSurgeonPaymentPanel();
-  showToast('🗑️ মুছে ফেলা হয়েছে');
+  showToast('🗑️ মুছে ফেলা হয়েছে' + (op&&op.incomeId?' (যুক্ত আয় এন্ট্রিসহ)':''));
+}
+// ===== অপারেশন বাতিল — রিফান্ড / ঘাটতি সমন্বয় =====
+// ✅ প্রি-অপারেটিভ (মেডিসিন/ইনজেকশন/এনেস্থেসিয়া/খাবার/বেড চার্জ ইত্যাদি) খরচ ইতিমধ্যে হয়ে থাকলে সেটা মূল
+// অপারেশন ফি-র মধ্যেই ছিল — তাই বাতিলের সময় সেই খরচ বাদ দিয়ে বাকিটা রোগীকে ফেরত, বা ঘাটতি থাকলে রোগীর
+// কাছ থেকে বাকিটা আদায়ের রেকর্ড তৈরি হয়। শূন্য পার্থক্য হলেও (জমা == প্রি-অপ খরচ) একটা অডিট রেকর্ড থাকে।
+var OP_PREOP_CATS = [
+  { key:'medicine', label:'মেডিসিন' },
+  { key:'injection', label:'ইনজেকশন' },
+  { key:'anesthesia', label:'এনেস্থেসিয়া' },
+  { key:'food', label:'খাবার' },
+  { key:'bed', label:'বেড চার্জ' }
+];
+function openOpCancelModal(fields) {
+  window._opCancelFields = fields;
+  const existing = fields.editId ? (appData.operations||[]).find(o=>o.id===fields.editId) : null;
+  const prevItems = existing?.cancellation?.items || [];
+  const getPrev = key => (prevItems.find(i=>i.key===key)||{}).amount || '';
+  const old = document.getElementById('opCancelModal'); if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.id = 'opCancelModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:22px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);max-height:92vh;overflow-y:auto">
+      <h3 style="margin:0 0 4px;color:var(--danger);font-size:16px">❌ অপারেশন বাতিল — টাকা সমন্বয়</h3>
+      <p style="margin:0 0 14px;font-size:12.5px;color:var(--text-light)"><strong>${fields.patName}</strong> এর অপারেশন বাতিল করা হচ্ছে। প্রি-অপারেটিভ বাবদ যা খরচ হয়েছে তা বাদ দিয়ে বাকিটা ফেরত/আদায়ের হিসাব করুন।</p>
+      <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:12.5px;font-weight:700;color:#334155;margin-bottom:8px">প্রি-অপারেটিভ খরচ (যা প্রয়োগ হয়েছে তা লিখুন, বাকি ০ রাখুন)</div>
+        ${OP_PREOP_CATS.map(c=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <label style="flex:1;font-size:12.5px;color:#475569">${c.label}</label>
+          <input type="number" min="0" placeholder="০.০০" id="opCancel_${c.key}" value="${getPrev(c.key)}" oninput="updateOpCancelPreview()" style="width:110px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:right">
+        </div>`).join('')}
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="opCancel_otherLabel" placeholder="অন্যান্য (নাম লিখুন)" value="${(prevItems.find(i=>i.key==='other')||{}).label||''}" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+          <input type="number" min="0" placeholder="০.০০" id="opCancel_other" value="${getPrev('other')}" oninput="updateOpCancelPreview()" style="width:110px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:right">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>রোগী এ পর্যন্ত মোট জমা দিয়েছেন (৳) <span style="color:var(--text-light);font-size:11px">প্রয়োজনে ঠিক করে নিন</span></label>
+        <input type="number" min="0" id="opCancel_advancePaid" value="${fields.advancePaid||0}" oninput="updateOpCancelPreview()" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;font-weight:700">
+        ${fields.fromBill?'<div style="font-size:11px;color:#64748b;margin-top:3px">বিল থেকে অপারেশন ফি বাবদ পরিশোধিত টাকা হিসাব করে বসানো হয়েছে (বিলে অন্য আইটেম থাকলে তার ভাগ বাদ)</div>':''}
+      </div>
+      <div id="opCancelPreview" style="background:#eef2ff;border:1.5px solid #a5b4fc;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3730a3"></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-bottom:10px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:9px 12px">
+        <input type="checkbox" id="opCancel_settleNow" checked> ✅ ফেরত/ঘাটতি এখনই মিটিয়ে দেওয়া হয়েছে (নাহলে বাকি/পেন্ডিং হিসেবে থেকে যাবে)
+      </label>
+      <div class="field" style="margin-bottom:6px">
+        <label>বাতিলের কারণ</label>
+        <select id="opCancel_reason" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+          <option value="রোগীর সিদ্ধান্তে">রোগীর সিদ্ধান্তে</option>
+          <option value="হাসপাতাল কর্তৃপক্ষের সিদ্ধান্তে">হাসপাতাল কর্তৃপক্ষের সিদ্ধান্তে</option>
+          <option value="সার্জনের মতামতে">সার্জনের মতামতে (অপারেশন সম্ভব নয়)</option>
+          <option value="যান্ত্রিক ত্রুটি">যান্ত্রিক ত্রুটি</option>
+          <option value="অন্যান্য">অন্যান্য</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+        <button class="btn btn-outline" onclick="document.getElementById('opCancelModal').remove()">ফিরে যান</button>
+        <button class="btn btn-danger" onclick="confirmOpCancellation()">✅ নিশ্চিত করে সেভ করুন</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  updateOpCancelPreview();
+}
+function updateOpCancelPreview() {
+  const items = OP_PREOP_CATS.map(c=>({ key:c.key, label:c.label, amount: parseFloat((document.getElementById('opCancel_'+c.key)||{}).value)||0 }));
+  const otherAmt = parseFloat((document.getElementById('opCancel_other')||{}).value)||0;
+  const otherLabel = (document.getElementById('opCancel_otherLabel')||{}).value?.trim()||'অন্যান্য';
+  if (otherAmt>0) items.push({ key:'other', label:otherLabel, amount:otherAmt });
+  const preOpTotal = items.reduce((s,i)=>s+i.amount,0);
+  const advancePaid = parseFloat((document.getElementById('opCancel_advancePaid')||{}).value)||0;
+  const diff = advancePaid - preOpTotal;
+  const box = document.getElementById('opCancelPreview');
+  if (!box) return;
+  let msg;
+  if (diff > 0) msg = `রোগীকে ফেরত দিতে হবে: <strong style="color:var(--danger)">৳ ${fmt(diff)}</strong>`;
+  else if (diff < 0) msg = `রোগীর কাছ থেকে বাকি আদায় করতে হবে: <strong style="color:var(--danger)">৳ ${fmt(Math.abs(diff))}</strong>`;
+  else msg = `✅ কোনো টাকা লেনদেন হবে না (জমা = প্রি-অপ খরচ)`;
+  box.innerHTML = `প্রি-অপ মোট খরচ: ৳${fmt(preOpTotal)} &nbsp;|&nbsp; জমা: ৳${fmt(advancePaid)}<br>${msg}`;
+}
+function confirmOpCancellation() {
+  const fields = window._opCancelFields;
+  if (!fields) return;
+  const items = OP_PREOP_CATS.map(c=>({ key:c.key, label:c.label, amount: parseFloat((document.getElementById('opCancel_'+c.key)||{}).value)||0 })).filter(i=>i.amount>0);
+  const otherAmt = parseFloat((document.getElementById('opCancel_other')||{}).value)||0;
+  const otherLabel = (document.getElementById('opCancel_otherLabel')||{}).value?.trim()||'অন্যান্য';
+  if (otherAmt>0) items.push({ key:'other', label:otherLabel, amount:otherAmt });
+  const preOpTotal = items.reduce((s,i)=>s+i.amount,0);
+  const advancePaid = parseFloat((document.getElementById('opCancel_advancePaid')||{}).value)||0;
+  const settleNow = !!document.getElementById('opCancel_settleNow')?.checked;
+  const reason = (document.getElementById('opCancel_reason')||{}).value||'';
+  const refundAmount = Math.max(0, advancePaid - preOpTotal);
+  const deficitAmount = Math.max(0, preOpTotal - advancePaid);
+
+  if (!appData.operations) appData.operations=[];
+  const existing = fields.editId ? appData.operations.find(o=>o.id===fields.editId) : null;
+  const oldStatus = existing ? (existing.status||'completed') : null;
+
+  // ✅ আগে "সম্পন্ন" ছিল ও স্বয়ংক্রিয় আয় এন্ট্রি যুক্ত থাকলে (বিল থেকে না এলে) সেটা সরিয়ে ফেলা হচ্ছে —
+  // বাতিল অপারেশনের জন্য সেই আয় আর প্রযোজ্য না, তার বদলে নিচের রিফান্ড/ঘাটতি হিসাব প্রযোজ্য হবে
+  if (existing && !fields.fromBill && oldStatus==='completed' && existing.incomeId) {
+    appData.income = (appData.income||[]).filter(i=>i.id!==existing.incomeId);
+  }
+  // ✅ আগে একবার বাতিল করা এন্ট্রি আবার সম্পাদনা হলে — পুরনো রিফান্ড/ঘাটতি রেকর্ড রিসেট করে নতুন করে বসানো হচ্ছে
+  if (existing && existing.cancellation) {
+    if (existing.cancellation.refundExpenseId) appData.expense = (appData.expense||[]).filter(e=>e.id!==existing.cancellation.refundExpenseId);
+    if (existing.cancellation.deficitVisitId && !fields.fromBill) appData.visits = (appData.visits||[]).filter(v=>v.id!==existing.cancellation.deficitVisitId);
+  }
+
+  const cancellation = {
+    items, preOpTotal, advancePaid, refundAmount, deficitAmount,
+    refundPaid: refundAmount>0 && settleNow,
+    deficitCollected: deficitAmount>0 && settleNow,
+    refundExpenseId: null, deficitVisitId: fields.fromBill ? (fields.sourceVisitId?Number(fields.sourceVisitId):null) : null,
+    reason, note: fields.note, cancelledAt: new Date().toLocaleString('bn-BD'), cancelledBy: currentUser.name
+  };
+
+  // ✅ রিফান্ড — হাসপাতাল থেকে রোগীকে ফেরত। এখনই দেওয়া হলে তখনই "ব্যয়" এন্ট্রি হবে, নাহলে পেন্ডিং থেকে
+  // যাবে (টেবিল থেকে পরে "✅ ফেরত দেওয়া হয়েছে" বাটনে ক্লিক করে মেটানো যাবে)
+  if (refundAmount>0 && settleNow) {
+    const exp = { id:Date.now()+2, date:todayStr(), category:'অপারেশন বাতিল — রিফান্ড', amount:refundAmount, ref:fields.patName,
+      note:`অপারেশন বাতিল (${reason}) — প্রি-অপ খরচ ৳${fmt(preOpTotal)} বাদে ফেরত`, by:currentUser.name };
+    appData.expense.push(exp);
+    cancellation.refundExpenseId = exp.id;
+  }
+
+  // ✅ ঘাটতি — রোগীর কাছ থেকে বাকি আদায়। বিল থেকে আসা অপারেশন হলে সেই বিলের netBill/due সমন্বয় করা হয়
+  // (বিদ্যমান বাকি তালিকা/কল শিটে এমনিই দেখাবে); ম্যানুয়াল এন্ট্রি হলে একটা ছোট বিল/এন্ট্রি তৈরি হয় যাতে
+  // সেটাও একই বাকি তালিকায় ধরা পড়ে।
+  if (deficitAmount>0) {
+    if (fields.fromBill) {
+      const v = (appData.visits||[]).find(x=>x.id===Number(fields.sourceVisitId));
+      if (v) {
+        v.netBill = preOpTotal;
+        v.note = (v.note?v.note+' | ':'') + `অপারেশন বাতিল (${reason}) — প্রি-অপ খরচ অনুযায়ী বিল সমন্বয় করা হয়েছে`;
+        if (settleNow) { v.cashPaid = preOpTotal; v.due = 0; }
+        else { v.due = deficitAmount; }
+        cancellation.deficitVisitId = v.id;
+      }
+    } else {
+      const dv = { id:Date.now()+3, date:todayStr(), patName:fields.patName, patPhone:fields.patPhone,
+        total: deficitAmount, netBill: deficitAmount, cashPaid: settleNow?deficitAmount:0, due: settleNow?0:deficitAmount,
+        services:[{name:`অপারেশন বাতিল — প্রি-অপ খরচ ঘাটতি (${reason})`, type:'other', qty:1, price:deficitAmount, subtotal:deficitAmount}],
+        note:`অপারেশন বাতিল — প্রি-অপারেটিভ খরচ বাবদ ঘাটতি`, memoNo:'OPCANCEL-'+Date.now(), rcptNo:'OPCANCEL-'+Date.now(),
+        by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD'), source:'op-cancel-deficit' };
+      appData.visits.push(dv);
+      cancellation.deficitVisitId = dv.id;
+      if (settleNow) {
+        appData.income.push({ id:Date.now()+4, date:todayStr(), category:'অপারেশন বাতিল — ঘাটতি আদায়', amount:deficitAmount, ref:fields.patName,
+          note:`অপারেশন বাতিল (${reason}) — প্রি-অপ খরচ বাবদ ঘাটতি আদায়`, by:currentUser.name, visitId:dv.id });
+      }
+    }
+  }
+
+  const sg = (appData.surgeons||[]).find(s=>s.id===fields.sgId);
+  const opFields = {
+    date:fields.date, patName:fields.patName, patPhone:fields.patPhone, eye:fields.eye, status:'cancelled', opType:fields.opType,
+    surgeonId:fields.sgId, surgeonName:sg?sg.name:'—', fee:fields.fee, sgFee:0, consumableCost:fields.consumableCost,
+    advancePaid, net:0, note:fields.note,
+    source: fields.isCampRef?'camp':'reception', refCampId:null, refCampName:'', refCampLocation:'',
+    sourceVisitId: fields.fromBill?Number(fields.sourceVisitId):null, sourceMemoNo: fields.fromBill?fields.sourceMemoNo:'',
+    cancellation
+  };
+
+  if (existing) {
+    Object.assign(existing, opFields);
+    logActivity('edit', 'অপারেশন', `${fields.patName} — অপারেশন বাতিল করা হলো`);
+  } else {
+    appData.operations.push({ id:Date.now(), paid:false, by:currentUser.name, incomeId:null, ...opFields });
+    logActivity('add', 'অপারেশন', `${fields.patName} — অপারেশন বাতিল হিসেবে এন্ট্রি করা হলো`);
+  }
+
+  saveData();
+  const cm = document.getElementById('opCancelModal'); if (cm) cm.remove();
+  closeOpEntryForm();
+  renderOperationSheet();
+  refreshDashboard();
+  if (currentUser.role==='receptionist') { if (typeof renderRecDue==='function') renderRecDue(); }
+  else { if (typeof renderAdminDue==='function') renderAdminDue(); }
+  let summary = refundAmount>0
+    ? (settleNow ? `✅ অপারেশন বাতিল! রোগীকে ৳${fmt(refundAmount)} ফেরত দেওয়া হয়েছে (ব্যয় এন্ট্রি হয়েছে)।` : `✅ অপারেশন বাতিল! রোগীকে ৳${fmt(refundAmount)} ফেরত বাকি — পরে মিটিয়ে দিন।`)
+    : deficitAmount>0
+    ? (settleNow ? `✅ অপারেশন বাতিল! রোগীর কাছ থেকে ৳${fmt(deficitAmount)} ঘাটতি আদায় হয়েছে।` : `✅ অপারেশন বাতিল! রোগীর কাছ থেকে ৳${fmt(deficitAmount)} বাকি — বাকি তালিকায় যোগ হয়েছে।`)
+    : `✅ অপারেশন বাতিল! জমা ও প্রি-অপ খরচ সমান — কোনো লেনদেন নেই।`;
+  showToast(summary);
+}
+// ✅ পেন্ডিং রিফান্ড পরে দেওয়া হলে এখান থেকে মেটানো যাবে (টেবিলের অ্যাকশনে বাটন)
+function settleOpRefund(id) {
+  const op = (appData.operations||[]).find(o=>o.id===id);
+  if (!op || !op.cancellation || op.cancellation.refundPaid || !(op.cancellation.refundAmount>0)) return;
+  if (!confirm(`"${op.patName}" কে ৳${fmt(op.cancellation.refundAmount)} ফেরত দেওয়া হয়েছে?`)) return;
+  const exp = { id:Date.now(), date:todayStr(), category:'অপারেশন বাতিল — রিফান্ড', amount:op.cancellation.refundAmount, ref:op.patName,
+    note:`অপারেশন বাতিল (${op.cancellation.reason||''}) — বিলম্বিত রিফান্ড`, by:currentUser.name };
+  appData.expense.push(exp);
+  op.cancellation.refundExpenseId = exp.id;
+  op.cancellation.refundPaid = true;
+  saveData(); renderOperationSheet(); refreshDashboard();
+  showToast('✅ রিফান্ড দেওয়া হয়েছে হিসেবে চিহ্নিত হলো');
+}
+// ✅ সার্চ/স্ট্যাটাস/মাস-বছর ফিল্টার একসাথে প্রয়োগ করে বর্তমান তালিকা বের করে — টেবিল রেন্ডার, CSV ও প্রিন্ট তিনটাতেই ব্যবহৃত
+function getFilteredOperations() {
+  if (!appData.operations) appData.operations=[];
+  const q = (document.getElementById('opSearchQuery')?.value||'').toLowerCase().trim();
+  const statusFilter = document.getElementById('opStatusFilter')?.value||'';
+  let ops;
+  if (q) {
+    // ✅ সার্চ করলে মাস/বছর উপেক্ষা করে সব মাসেই খোঁজা হয় — রোগীর পুরনো অপারেশন যেকোনো মাসে থাকতে পারে
+    ops = appData.operations.filter(o => {
+      const hay = [o.patName,o.patPhone,o.surgeonName,o.opType].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  } else {
+    const month  = parseInt(document.getElementById('opMonth').value);
+    const year   = parseInt(document.getElementById('opYear').value);
+    const pad    = n=>String(n).padStart(2,'0');
+    const prefix = `${year}-${pad(month)}`;
+    ops = appData.operations.filter(o=>o.date&&o.date.startsWith(prefix));
+  }
+  if (statusFilter) ops = ops.filter(o=>(o.status||'completed')===statusFilter);
+  return ops.sort((a,b)=>b.id-a.id);
 }
 function renderOperationSheet() {
   if (!appData.operations) appData.operations=[];
-  const month  = parseInt(document.getElementById('opMonth').value);
-  const year   = parseInt(document.getElementById('opYear').value);
-  const pad    = n=>String(n).padStart(2,'0');
-  const prefix = `${year}-${pad(month)}`;
-  const ops    = appData.operations.filter(o=>o.date&&o.date.startsWith(prefix)).sort((a,b)=>b.id-a.id);
+  renderOpScheduledReminder();
+  const q = (document.getElementById('opSearchQuery')?.value||'').trim();
+  const ops = getFilteredOperations();
   const tbody  = document.getElementById('operationTable');
   const tfoot  = document.getElementById('operationFoot');
   if (!ops.length) {
-    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">এই মাসে কোনো অপারেশন নেই</td></tr>';
+    tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">${q?'কোনো ফলাফল পাওয়া যায়নি':'এই মাসে কোনো অপারেশন নেই'}</td></tr>`;
     tfoot.innerHTML=''; return;
   }
+  const statusBadge = { completed:'<span style="font-size:11px;font-weight:700;color:#166534;background:#dcfce7;padding:3px 8px;border-radius:10px">✅ সম্পন্ন</span>',
+    scheduled:'<span style="font-size:11px;font-weight:700;color:#9a3412;background:#fed7aa;padding:3px 8px;border-radius:10px">🗓️ সিডিউলড</span>',
+    cancelled:'<span style="font-size:11px;font-weight:700;color:#7f1d1d;background:#fecaca;padding:3px 8px;border-radius:10px">❌ বাতিল</span>' };
   let totalFee=0, totalSgFee=0, totalNet=0;
   tbody.innerHTML = ops.map(op=>{
-    totalFee+=op.fee; totalSgFee+=op.sgFee||0; totalNet+=op.net||0;
+    const netCalc = (op.fee||0) - (op.sgFee||0) - (op.consumableCost||0);
+    const status = op.status||'completed';
+    if (status!=='cancelled') { totalFee+=op.fee||0; totalSgFee+=op.sgFee||0; totalNet+=netCalc; }
     const isAdmin = currentUser.role==='admin';
+    const eyeBadge = op.eye ? `<span style="font-size:11px;color:#1e40af">👁️ ${op.eye}</span>` : '';
+    // ✅ বাতিল হওয়া অপারেশনে ফি/নেট লাভের বদলে রিফান্ড/ঘাটতি সমন্বয়ের সারাংশ দেখানো হয়
+    let feeCell, netCell;
+    if (status==='cancelled' && op.cancellation) {
+      const c = op.cancellation;
+      feeCell = `<div style="font-size:11px;color:#64748b">প্রি-অপ খরচ: ৳${fmt(c.preOpTotal||0)}</div><div style="font-size:11px;color:#64748b">জমা: ৳${fmt(c.advancePaid||0)}</div>`;
+      if (c.refundAmount>0) {
+        netCell = c.refundPaid
+          ? `<div style="font-size:11.5px;color:var(--success);font-weight:700">✅ ৳${fmt(c.refundAmount)} ফেরত দেওয়া হয়েছে</div>`
+          : `<div style="font-size:11.5px;color:var(--danger);font-weight:700">ফেরত বাকি: ৳${fmt(c.refundAmount)}</div><button class="btn btn-outline btn-sm" style="margin-top:3px" onclick="settleOpRefund(${op.id})">✅ ফেরত দেওয়া হলো</button>`;
+      } else if (c.deficitAmount>0) {
+        netCell = c.deficitCollected
+          ? `<div style="font-size:11.5px;color:var(--success);font-weight:700">✅ ঘাটতি ৳${fmt(c.deficitAmount)} আদায় হয়েছে</div>`
+          : `<div style="font-size:11.5px;color:var(--danger);font-weight:700">ঘাটতি বাকি: ৳${fmt(c.deficitAmount)}</div><div style="font-size:10.5px;color:#64748b">বাকি তালিকায় যোগ হয়েছে</div>`;
+      } else {
+        netCell = `<div style="font-size:11.5px;color:#64748b">লেনদেন নেই</div>`;
+      }
+    } else {
+      feeCell = `<div style="font-weight:600;color:var(--success)">৳ ${fmt(op.fee||0)}</div>
+        <div style="font-size:11px;color:var(--danger)">সার্জন: ৳${fmt(op.sgFee||0)}${op.consumableCost?' + IOL: ৳'+fmt(op.consumableCost):''}</div>`;
+      netCell = `<span style="font-weight:700;color:${netCalc>=0?'var(--primary)':'var(--danger)'}">৳ ${fmt(netCalc)}</span>`;
+    }
     return `<tr>
       <td>${formatDate(op.date)}</td>
-      <td style="font-weight:600">${op.patName}</td>
-      <td style="font-size:12px">${op.opType}</td>
+      <td>
+        <div style="font-weight:600">${op.patName}</div>
+        ${op.patPhone?`<div style="font-size:11px;color:var(--text-light)">${op.patPhone}</div>`:''}
+      </td>
+      <td style="font-size:12px">${op.opType}${eyeBadge?'<br>'+eyeBadge:''}</td>
       <td style="color:var(--text-light)">${op.surgeonName||'—'}</td>
-      <td style="font-weight:600;color:var(--success)">৳ ${fmt(op.fee)}</td>
-      <td style="color:var(--danger)">৳ ${fmt(op.sgFee||0)}</td>
-      <td style="font-weight:700;color:${(op.net||0)>=0?'var(--primary)':'var(--danger)'}">৳ ${fmt(op.net||0)}</td>
-      <td style="display:flex;gap:4px">
+      <td>${feeCell}</td>
+      <td>${netCell}</td>
+      <td>${statusBadge[status]||statusBadge.completed}${status==='cancelled'&&op.cancellation?.reason?`<div style="font-size:10.5px;color:#7f1d1d;margin-top:3px">${op.cancellation.reason}</div>`:''}${op.note?`<div title="${op.note.replace(/"/g,'&quot;')}" style="font-size:11px;color:#9a3412;margin-top:3px;cursor:help">📝 নোট</div>`:''}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-outline btn-sm" onclick="openOpEditForm(${op.id})" title="সংশোধন করুন">✏️</button>
         ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteOperation(${op.id})">🗑️</button>`:''}
       </td>
     </tr>`;
   }).join('');
   tfoot.innerHTML=`<tr style="background:#0f4c81;color:white;font-weight:700">
-    <td colspan="4">সর্বমোট (${ops.length}টি অপারেশন)</td>
+    <td colspan="4">${q?'সার্চ ফলাফল':'সর্বমোট'} (${ops.length}টি অপারেশন)</td>
     <td>৳ ${fmt(totalFee)}</td>
-    <td>৳ ${fmt(totalSgFee)}</td>
     <td>৳ ${fmt(totalNet)}</td>
-    <td></td>
+    <td colspan="2"></td>
   </tr>`;
+}
+function exportOperationSheetCSV() {
+  const ops = getFilteredOperations();
+  if (!ops.length) { showToast('⚠️ কোনো এন্ট্রি নেই'); return; }
+  const header = ['তারিখ','রোগীর নাম','ফোন','চোখ','অপারেশনের ধরন','সার্জন','অপারেশন ফি','সার্জন পারিশ্রমিক','IOL/কনজিউমেবল','নেট লাভ','স্ট্যাটাস','প্রি-অপ খরচ (বাতিল)','রিফান্ড/ঘাটতি (বাতিল)','মিটেছে?','নোট'];
+  const rows = ops.map(op=>{
+    const cancelled = op.status==='cancelled' && op.cancellation;
+    const c = cancelled ? op.cancellation : null;
+    return [op.date,op.patName,op.patPhone||'',op.eye||'',op.opType,op.surgeonName||'',
+      cancelled?0:(op.fee||0), cancelled?0:(op.sgFee||0), cancelled?0:(op.consumableCost||0), cancelled?0:((op.fee||0)-(op.sgFee||0)-(op.consumableCost||0)),
+      op.status||'completed',
+      cancelled?c.preOpTotal:'', cancelled?(c.refundAmount>0?'ফেরত ৳'+c.refundAmount:c.deficitAmount>0?'ঘাটতি ৳'+c.deficitAmount:'০'):'',
+      cancelled?(c.refundAmount>0?(c.refundPaid?'হ্যাঁ':'না'):c.deficitAmount>0?(c.deficitCollected?'হ্যাঁ':'না'):'—'):'',
+      op.note||''];
+  });
+  const csv = [header, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `operations_${todayStr()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('✅ CSV ডাউনলোড হয়ে গেছে');
+}
+function printOperationSheet() {
+  const ops = getFilteredOperations();
+  if (!ops.length) { showToast('⚠️ কোনো এন্ট্রি নেই'); return; }
+  const statusLabel = { completed:'সম্পন্ন', scheduled:'সিডিউলড', cancelled:'বাতিল' };
+  let totalFee=0, totalSgFee=0, totalNet=0;
+  const rowsHtml = ops.map((op,i)=>{
+    const cancelled = op.status==='cancelled' && op.cancellation;
+    const netCalc = cancelled ? 0 : (op.fee||0) - (op.sgFee||0) - (op.consumableCost||0);
+    if (!cancelled) { totalFee+=op.fee||0; totalSgFee+=op.sgFee||0; totalNet+=netCalc; }
+    const feeDisplay = cancelled ? `প্রি-অপ: ৳${fmt(op.cancellation.preOpTotal||0)}` : '৳ '+fmt(op.fee||0);
+    const netDisplay = cancelled
+      ? (op.cancellation.refundAmount>0 ? `ফেরত ৳${fmt(op.cancellation.refundAmount)} (${op.cancellation.refundPaid?'হয়েছে':'বাকি'})`
+        : op.cancellation.deficitAmount>0 ? `ঘাটতি ৳${fmt(op.cancellation.deficitAmount)} (${op.cancellation.deficitCollected?'আদায়':'বাকি'})`
+        : 'লেনদেন নেই')
+      : '৳ '+fmt(netCalc);
+    return `<tr>
+      <td>${i+1}</td><td>${formatDate(op.date)}</td><td>${op.patName}${op.patPhone?' — '+op.patPhone:''}</td>
+      <td>${op.opType}${op.eye?' ('+op.eye+')':''}</td><td>${op.surgeonName||'—'}</td>
+      <td style="text-align:right">${feeDisplay}</td><td style="text-align:right">৳ ${fmt(cancelled?0:op.sgFee||0)}</td>
+      <td style="text-align:right">৳ ${fmt(cancelled?0:op.consumableCost||0)}</td><td style="text-align:right">${netDisplay}</td>
+      <td>${statusLabel[op.status||'completed']}</td>
+    </tr>`;
+  }).join('');
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>অপারেশন শিট</title>
+  <style>
+    body{font-family:'Noto Sans Bengali',Arial,sans-serif;padding:24px;color:#1a2a3a}
+    h2{margin:0 0 4px;font-size:18px;color:#0f4c81}
+    p{margin:0 0 14px;font-size:12px;color:#666}
+    table{width:100%;border-collapse:collapse;font-size:11.5px}
+    th,td{padding:6px 8px;border:1px solid #d0dce8}
+    th{background:#0f4c81;color:#fff}
+    tfoot td{font-weight:700;background:#eef2f7}
+    @media print{ body{padding:10px} }
+  </style></head><body>
+    <h2>🏥 অপারেশন শিট</h2>
+    <p>মোট ${ops.length}টি এন্ট্রি — তৈরি: ${formatDate(todayStr())} (বাতিল অপারেশনের ফি/নেট লাভ সর্বমোটে ধরা হয়নি)</p>
+    <table><thead><tr>
+      <th>#</th><th>তারিখ</th><th>রোগী</th><th>অপারেশন</th><th>সার্জন</th>
+      <th>ফি</th><th>সার্জন পারিশ্রমিক</th><th>IOL/কনজিউমেবল</th><th>নেট লাভ / সমন্বয়</th><th>স্ট্যাটাস</th>
+    </tr></thead><tbody>${rowsHtml}</tbody>
+    <tfoot><tr><td colspan="5">সর্বমোট (বাতিল বাদে)</td><td style="text-align:right">৳ ${fmt(totalFee)}</td><td style="text-align:right">৳ ${fmt(totalSgFee)}</td><td></td><td style="text-align:right">৳ ${fmt(totalNet)}</td><td></td></tr></tfoot>
+    </table>
+    <scr${''}ipt>window.onload=()=>window.print();</scr${''}ipt>
+  </body></html>`);
+  win.document.close();
 }
 // ===== সার্জন পারিশ্রমিক (পেমেন্ট) প্যানেল — স্যালারি শিটে, একই appData.operations থেকে ডেটা নেয়
 // কিন্তু শুধু পেমেন্ট/স্ট্যাটাস দেখায়; অপারেশন এন্ট্রি/এডিট এখানে হয় না (তার জন্য অপারেশন শিট পেজ) =====
@@ -22071,7 +22679,8 @@ function renderSurgeonPaymentPanel() {
   const year   = parseInt(yearEl.value);
   const pad    = n=>String(n).padStart(2,'0');
   const prefix = `${year}-${pad(month)}`;
-  const ops    = appData.operations.filter(o=>o.date&&o.date.startsWith(prefix)).sort((a,b)=>b.id-a.id);
+  // ✅ শুধু "সম্পন্ন" অপারেশনই সার্জন পেমেন্ট ট্র্যাকিং এ দেখানো হয় — সিডিউলড/বাতিল হলে এখনো পেমেন্টের প্রশ্ন আসে না
+  const ops    = appData.operations.filter(o=>o.date&&o.date.startsWith(prefix)&&(o.status||'completed')==='completed').sort((a,b)=>b.id-a.id);
   const tbody  = document.getElementById('surgeonPaymentTable');
   const tfoot  = document.getElementById('surgeonPaymentFoot');
   if (!tbody || !tfoot) return;
@@ -25382,7 +25991,7 @@ function saveBill() {
   const mfsAccountId = (document.getElementById('rMfsAccount')||{}).value||'';
   if (mfsPaid > cashPaid) mfsPaid = cashPaid; // নিরাপত্তা: মোট প্রদানের বেশি মোবাইল ব্যাংকিং-এ ধরা হবে না
   if (mfsPaid > 0 && !mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
-  if (!patName) { showToast('⚠️ রোগীর নাম দিন!'); return; }
+  if (!patName) { showToast(isPatronCustomer('r') ? '⚠️ ক্রেতার নাম দিন!' : '⚠️ রোগীর নাম দিন!'); return; }
   if (!services.length) { showToast('⚠️ কমপক্ষে একটি সার্ভিস ও মূল্য দিন!'); return; }
   if (!date) { showToast('⚠️ তারিখ দিন!'); return; }
   const total   = services.reduce((s,r)=>s+r.subtotal, 0);
@@ -25403,24 +26012,29 @@ function saveBill() {
   // মেমো নম্বর — ইনপুট থেকে অথবা অটো
   const memoEl = document.getElementById('rMemoNo');
   const memoNo = (memoEl&&memoEl.value.trim()) ? memoEl.value.trim() : generateNextMemoNo();
+  const isCustomer = isPatronCustomer('r');
   const visit   = {
     id:Date.now(), date, patName, patPhone, patAge, patGender, patAddress, patDoc,
     services:servicesFinal, total, discAmt:totalDiscAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
-    nextSerialDate: nextSerialDate||undefined,
+    nextSerialDate: isCustomer ? undefined : (nextSerialDate||undefined),
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
-    by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD')
+    by:currentUser.name, time:new Date().toLocaleTimeString('bn-BD'),
+    isCustomer: isCustomer||undefined
   };
   // ✅ কমিশন প্রযোজ্য না হলেও — নির্বাচিত ডাক্তার রোগীর রেকর্ডে থেকে যায়, যাতে কোন ডাক্তার দেখেছেন তা রেকর্ড থাকে
-  const _selDocR = getSelectedDoctorForPrefix('r');
-  if (_selDocR) { visit.doctorId = _selDocR.id; visit.doctorName = _selDocR.name; }
-  if (!checkDoctorCommissionAlarm('r')) return;
+  // (ক্রেতার ক্ষেত্রে ডাক্তার সিলেক্ট আগে থেকেই হাইড/ক্লিয়ার থাকে, তাই এই অংশ স্বয়ংক্রিয়ভাবে স্কিপ হয়)
+  if (!isCustomer) {
+    const _selDocR = getSelectedDoctorForPrefix('r');
+    if (_selDocR) { visit.doctorId = _selDocR.id; visit.doctorName = _selDocR.name; }
+    if (!checkDoctorCommissionAlarm('r')) return;
+  }
   appData.visits.push(visit);
-  recordDoctorCommission('r', date, memoNo, visit.id);
+  if (!isCustomer) recordDoctorCommission('r', date, memoNo, visit.id);
   // ✅ চশমার কাস্টমাইজেশন বক্সে ডেলিভারি তারিখ দেওয়া থাকলে স্বয়ংক্রিয়ভাবে ডেলিভারি শিডিউলে যোগ হয়ে যায়
   const glassDeliveryCount = (services||[]).filter(s=>s.type==='glass'&&s.glass&&s.glass.deliveryDate).length;
   recordGlassOrders(services, {date, memoNo, patName, patPhone, by:currentUser.name});
-  // ✅ বিলে দেওয়া চোখের পাওয়ার/ADD/PD স্বয়ংক্রিয়ভাবে রোগীর প্রেসক্রিপশন হিস্ট্রিতে রেকর্ড হয়
-  recordGlassPrescriptions(patName, patPhone, date, memoNo, services);
+  // ✅ বিলে দেওয়া চোখের পাওয়ার/ADD/PD স্বয়ংক্রিয়ভাবে রোগীর প্রেসক্রিপশন হিস্ট্রিতে রেকর্ড হয় (শুধু রোগীর জন্য, ক্রেতার জন্য নয়)
+  if (!isCustomer) recordGlassPrescriptions(patName, patPhone, date, memoNo, services);
   if (cashPaid > 0) {
     appData.income.push({
       id:Date.now()+1, date,
@@ -25433,13 +26047,13 @@ function saveBill() {
   saveData();
   logActivity('add', 'বিল (রিসেপশন)', `${memoNo} — ${patName}, নেট: ৳${fmt(netBill)}, পেইড: ৳${fmt(cashPaid)}`);
   showToast(`✅ বিল সেভ! মেমো: ${memoNo}` + (glassDeliveryCount?` — ${glassDeliveryCount}টি চশমা ডেলিভারি শিডিউলে যোগ হয়েছে`:''));
-  // ✅ বিলে অপারেশন আইটেম থাকলে পোস্ট-অপারেটিভ ফলোআপ সিরিয়াল যোগ করার প্রম্পট দেখানো হয়
+  // ✅ বিলে অপারেশন আইটেম থাকলে পোস্ট-অপারেটিভ ফলোআপ সিরিয়াল + অপারেশন শিটে পাঠানোর প্রম্পট দেখানো হয়
   const hasOperationItem = services.some(s => typeof classifyBillItemForCommission==='function' && classifyBillItemForCommission(s)==='operation');
   if (hasOperationItem) {
     const docSelEl = document.getElementById('rDocSelect');
     const opDoctorId = docSelEl ? docSelEl.value : '';
     const opDoctor = (appData.doctors||[]).find(d=>String(d.id)===String(opDoctorId));
-    showPostOpFollowupPrompt(patName, patPhone, date, opDoctorId, opDoctor?opDoctor.name:'');
+    showPostOpFollowupPrompt(patName, patPhone, date, opDoctorId, opDoctor?opDoctor.name:'', visit.id);
   }
   // returned draft ছিল হলে তা মুছে ফেলি যাতে নোটিফিকেশন আর না দেখায়
   if (window._returnedDraftId) {
@@ -25482,6 +26096,7 @@ function clearBillForm() {
   refreshDeliveryInfoBox('r');
   window._returnedDraftId=null;
   restoreRecDefaultDoctor();
+  resetPatronToggleUI('r');
   initServiceRows();
   updateSummary();
 }
@@ -25765,6 +26380,7 @@ function fillFromVisit(visitId, prefix) {
   set(prefix+'PatName', v.patName); set(prefix+'PatPhone', v.patPhone); set(prefix+'PatAge', v.patAge);
   set(prefix+'PatGender', v.patGender); set(prefix+'PatAddress', v.patAddress); set(prefix+'PatDoc', v.patDoc);
   var hint = document.getElementById(prefix+'PatPhoneHint'); if (hint) hint.style.display='none';
+  if (typeof setPatronType==='function') setPatronType(prefix, v.isCustomer ? 'customer' : 'patient');
   showToast('✅ আগের তথ্য থেকে ফর্ম ভরা হয়েছে');
 }
 
@@ -26370,7 +26986,7 @@ function renderRecRecallList() { renderRecallList(); }
 function renderAdminRecallList() { renderRecallList(); }
 
 // ===== পোস্ট-অপারেটিভ ফলোআপ রিমাইন্ডার — বিলে অপারেশন আইটেম থাকলে ফলোআপ সিরিয়াল সাজেস্ট করে =====
-function showPostOpFollowupPrompt(patName, patPhone, billDate, doctorId, doctorName) {
+function showPostOpFollowupPrompt(patName, patPhone, billDate, doctorId, doctorName, visitId) {
   const old = document.getElementById('postOpFollowupModal'); if (old) old.remove();
   const modal = document.createElement('div');
   modal.id = 'postOpFollowupModal';
@@ -26380,10 +26996,38 @@ function showPostOpFollowupPrompt(patName, patPhone, billDate, doctorId, doctorN
     { key:'d7', days:7, label:'১ সপ্তাহ পর' },
     { key:'d30', days:30, label:'১ মাস পর' }
   ];
+  // ✅ এই বিলে অপারেশন ফি থাকলে ও এখনো অপারেশন শিটে পাঠানো না হলে — একই প্রম্পটেই "অপারেশন শিটে পাঠান" চেকবক্স দেখানো হয়
+  const srcVisit = visitId ? (appData.visits||[]).find(v=>v.id===visitId) : null;
+  const opFee = srcVisit ? getVisitOperationFee(srcVisit) : 0;
+  const alreadySent = visitId ? isVisitSentToOperationSheet(visitId) : false;
+  const showOpSheetOption = opFee>0 && !alreadySent;
+  window._postOpBillDate = billDate; // togglePopupOpDateField() থেকে ব্যবহারের জন্য
   modal.innerHTML = `
     <div style="background:white;border-radius:16px;padding:22px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
       <h3 style="margin:0 0 6px;color:var(--primary);font-size:16px">🔁 পোস্ট-অপারেটিভ ফলোআপ</h3>
-      <p style="margin:0 0 14px;font-size:12.5px;color:var(--text-light)">"${patName}" এর বিলে অপারেশন আইটেম পাওয়া গেছে। ফলোআপ সিরিয়াল যোগ করবেন?</p>
+      <p style="margin:0 0 14px;font-size:12.5px;color:var(--text-light)">"${patName}" এর বিলে অপারেশন আইটেম পাওয়া গেছে।</p>
+      ${showOpSheetOption ? `
+      <div style="background:#eef2ff;border:1.5px solid #a5b4fc;border-radius:8px;padding:10px 12px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#3730a3;margin-bottom:8px">
+          <input type="checkbox" id="popup_opsheet" checked onchange="togglePopupOpScheduleFields()"> 🏥➡️ অপারেশন ফি (৳ ${fmt(opFee)}) অপারেশন শিটে পাঠান
+        </label>
+        <div id="popupOpScheduleFields" style="padding-left:26px">
+          <div style="display:flex;gap:14px;margin-bottom:6px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;cursor:pointer">
+              <input type="radio" name="popup_op_when" value="today" checked onchange="togglePopupOpDateField()"> ✅ আজই অপারেশন সম্পন্ন হয়েছে
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;cursor:pointer">
+              <input type="radio" name="popup_op_when" value="later" onchange="togglePopupOpDateField()"> 🗓️ পরে সিডিউল করা হবে
+            </label>
+          </div>
+          <div id="popupOpDateRow" style="display:none;margin-top:4px">
+            <label style="font-size:11.5px;color:var(--text-light)">অপারেশনের প্রকৃত তারিখ</label>
+            <input type="date" id="popup_op_date" min="${billDate}" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <div style="font-size:11px;color:#64748b;margin-top:3px">💡 আজকের পেমেন্ট এমনিতেই আয় হিসেবে জমা হয়ে গেছে — শুধু অপারেশনের প্রকৃত (ভবিষ্যতের) তারিখ দিন, ডাবল আয় গণনা হবে না</div>
+          </div>
+        </div>
+      </div>` : ''}
+      <p style="margin:0 0 8px;font-size:12.5px;color:var(--text-light)">ফলোআপ সিরিয়াল যোগ করবেন?</p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
         ${opts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px">
           <input type="checkbox" id="popup_${o.key}" checked> ${o.label} (${formatDate(addDaysToDateStr(billDate,o.days))})
@@ -26391,12 +27035,28 @@ function showPostOpFollowupPrompt(patName, patPhone, billDate, doctorId, doctorN
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-outline" onclick="document.getElementById('postOpFollowupModal').remove()">না, থাক</button>
-        <button class="btn btn-success" onclick="confirmPostOpFollowup('${patName.replace(/'/g,"\\'")}','${(patPhone||'').replace(/'/g,"\\'")}','${billDate}','${doctorId||''}','${(doctorName||'').replace(/'/g,"\\'")}')">✅ যোগ করুন</button>
+        <button class="btn btn-success" onclick="confirmPostOpFollowup('${patName.replace(/'/g,"\\'")}','${(patPhone||'').replace(/'/g,"\\'")}','${billDate}','${doctorId||''}','${(doctorName||'').replace(/'/g,"\\'")}','${visitId||''}')">✅ সম্পন্ন করুন</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
 }
-function confirmPostOpFollowup(patName, patPhone, billDate, doctorId, doctorName) {
+// ✅ "অপারেশন শিটে পাঠান" চেকবক্স আন-চেক করলে নিচের আজ/পরে অপশনও লুকিয়ে যায়
+function togglePopupOpScheduleFields() {
+  const cb = document.getElementById('popup_opsheet');
+  const fields = document.getElementById('popupOpScheduleFields');
+  if (fields) fields.style.display = (cb && cb.checked) ? '' : 'none';
+}
+// ✅ "পরে সিডিউল করা হবে" বেছে নিলে তারিখ ইনপুট দেখায়, ফাঁকা থাকলে ডিফল্ট বিলের ১ সপ্তাহ পরের তারিখ বসিয়ে দেয়
+function togglePopupOpDateField() {
+  const later = document.querySelector('input[name="popup_op_when"]:checked')?.value === 'later';
+  const row = document.getElementById('popupOpDateRow');
+  if (row) row.style.display = later ? '' : 'none';
+  if (later) {
+    const dEl = document.getElementById('popup_op_date');
+    if (dEl && !dEl.value) dEl.value = addDaysToDateStr(window._postOpBillDate||todayStr(), 7);
+  }
+}
+function confirmPostOpFollowup(patName, patPhone, billDate, doctorId, doctorName, visitId) {
   const opts = [
     { key:'d1', days:1, label:'পোস্ট-অপারেটিভ ফলোআপ (১ দিন)' },
     { key:'d7', days:7, label:'পোস্ট-অপারেটিভ ফলোআপ (১ সপ্তাহ)' },
@@ -26417,7 +27077,24 @@ function confirmPostOpFollowup(patName, patPhone, billDate, doctorId, doctorName
     if (typeof renderRecApptBadge==='function') renderRecApptBadge();
     if (typeof renderRecCallSheet==='function') renderRecCallSheet();
   }
+  const opCb = document.getElementById('popup_opsheet');
+  const sendToOpSheet = opCb && opCb.checked;
+  // ✅ "পরে সিডিউল করা হবে" বেছে নিলে — অপারেশনের প্রকৃত (ভবিষ্যতের) তারিখ ও status='scheduled' পাঠানো হয়;
+  // "আজই সম্পন্ন" হলে বিলের তারিখেই status='completed' হিসেবে পাঠানো হয় (আগের আচরণ অপরিবর্তিত)
+  let presetStatus = 'completed', presetDate = billDate;
+  if (sendToOpSheet) {
+    const whenLater = document.querySelector('input[name="popup_op_when"]:checked')?.value === 'later';
+    if (whenLater) {
+      presetStatus = 'scheduled';
+      const dEl = document.getElementById('popup_op_date');
+      presetDate = (dEl && dEl.value) ? dEl.value : addDaysToDateStr(billDate,7);
+    }
+  }
   const m = document.getElementById('postOpFollowupModal'); if (m) m.remove();
+  // ✅ "অপারেশন শিটে পাঠান" পেজ পাল্টে দেয়, তাই সবার শেষে কল করা হয় (আগে ফলোআপ সেভ হয়ে যাক)
+  if (sendToOpSheet && visitId) {
+    sendBillToOperationSheet(Number(visitId), presetDate, presetStatus);
+  }
 }
 
 // ===== তথ্য কেন্দ্র: ডাক্তার ডিরেক্টরি, রেফারেল হাসপাতাল, ক্যাম্প শিডিউল =====
@@ -27180,8 +27857,9 @@ function buildPatientList() {
     if(isCamp) map[key].isCampPatient=true;
   };
   // ✅ ডাক্তার হিসেবে আগে vDocSelect থেকে সিলেক্ট করা প্রকৃত ডাক্তার (doctorName) দেখানো হবে — patDoc আসলে "রেফারেন্স" (পরিচিত ব্যক্তির নাম) ফিল্ড, ডাক্তার না; শুধু doctorName না থাকলেই patDoc ফলব্যাক হিসেবে ব্যবহৃত হবে
-  (appData.visits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,v.doctorName||v.patDoc,v.date,v.netBill||v.total,v.cashPaid,v.due,false,v.patGender,v.patAddress,v.nextSerialDate));
-  (appData.adminBills||[]).forEach(b=>addVisit(b.patName,b.patPhone,b.patAge,b.patDoc,b.date,b.netBill,b.cashPaid,b.due,false,b.patGender,b.patAddress,b.nextSerialDate));
+  // ✅ "ক্রেতা" হিসেবে চিহ্নিত বিল (ডাক্তার দেখাননি, শুধু পণ্য/সার্ভিস কিনেছেন) রোগীর ডেটাবেজে দেখানো হয় না
+  (appData.visits||[]).filter(v=>!v.isCustomer).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,v.doctorName||v.patDoc,v.date,v.netBill||v.total,v.cashPaid,v.due,false,v.patGender,v.patAddress,v.nextSerialDate));
+  (appData.adminBills||[]).filter(b=>!b.isCustomer).forEach(b=>addVisit(b.patName,b.patPhone,b.patAge,b.patDoc,b.date,b.netBill,b.cashPaid,b.due,false,b.patGender,b.patAddress,b.nextSerialDate));
   // ✅ ক্যাম্পের রোগীরাও এখন প্যাশেন্ট ডেটাবেজে যুক্ত হবে (আগে বাদ পড়ে যেত)
   (appData.campVisits||[]).forEach(v=>addVisit(v.patName,v.patPhone,v.patAge,'',v.date,v.netTotal,v.paid,v.due,true));
   const list = Object.entries(map).map(([key,p])=>{
@@ -28485,6 +29163,7 @@ function initNewBillPage() {
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   if (typeof populateDoctorSelect==='function') populateDoctorSelect('nb_DocSelect');
   if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor('nb_');
+  resetPatronToggleUI('nb_');
   // ✅ ভিজিট ফি বাই ডিফল্ট বিলে উঠে থাকে — ডাক্তার রিস্টোরের পরে যোগ হচ্ছে যাতে সঠিক ফি বসে
   addRow('visitfee','nb_');
   if (typeof renderNbRecentPatients==='function') renderNbRecentPatients();
@@ -28521,6 +29200,7 @@ function nbClearForm() {
   window._adminDraftId=null;
   // ✅ ডাক্তার সিলেকশন ক্লিয়ার করা হয় না — আজকের ডিফল্ট ডাক্তার (থাকলে) পরের বিলেও থেকে যাবে
   if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor('nb_'); else clearDocSelectUI('nb_');
+  resetPatronToggleUI('nb_');
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   refreshDeliveryInfoBox('nb_');
   document.getElementById('nb_serviceRows').innerHTML='';
@@ -29362,7 +30042,7 @@ function _applyOverallPct(p) {
 function _billSave(p) {
   const nb=p==='nb_';
   const patName=(document.getElementById(p+'PatName')||{}).value?.trim();
-  if(!patName){showToast('⚠️ রোগীর নাম দিন!');return;}
+  if(!patName){showToast(isPatronCustomer(nb?'nb_':'r')?'⚠️ ক্রেতার নাম দিন!':'⚠️ রোগীর নাম দিন!');return;}
   const items=_getItems(p);
   if(!items.length){showToast('⚠️ কমপক্ষে একটি আইটেম ও মূল্য দিন!');return;}
   const date=(document.getElementById(nb?'nb_BillDate':'rBillDate')||{}).value;
@@ -29380,7 +30060,7 @@ function _billSave(p) {
   const total=items.reduce((s,i)=>s+i.subtotal,0);
   const netBill=Math.max(0,total-totalDiscAmt);
   const due=Math.max(0,netBill-cashPaid);
-  if (nb && !checkDoctorCommissionAlarm('nb_')) return;
+  if (nb && !isPatronCustomer('nb_') && !checkDoctorCommissionAlarm('nb_')) return;
   // ✅ প্রতিটা সার্ভিস লাইনে কতটা ডিসকাউন্ট কাটা হলো তা বসানো হচ্ছে (পাই চার্ট/রিপোর্টে প্রকৃত নেট অ্যামাউন্ট
   // দেখানোর জন্য) — চশমার ডিসকাউন্ট আনুপাতিক ভাগে চশমা আইটেমে, আর ওভারঅল ডিসকাউন্ট cascade অনুযায়ী
   const glassBaseTotal=items.filter(i=>i.type==='glass').reduce((s,i)=>s+Math.max(0,(i.price*i.qty)-((i.sellMin||0)*i.qty)),0);
@@ -29421,20 +30101,25 @@ function _billSave(p) {
   const patAddress=(document.getElementById(p+'PatAddress')||{}).value?.trim()||'';
   const patDoc=(document.getElementById(p+'PatDoc')||{}).value?.trim()||'';
 
+  const isCustomer = isPatronCustomer(nb?'nb_':'r');
   const _newVisit = {id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:itemsFinal,total,discAmt:totalDiscAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
-    nextSerialDate: nextSerialDate||undefined,
+    nextSerialDate: isCustomer ? undefined : (nextSerialDate||undefined),
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
-    by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved};
+    by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved,
+    isCustomer: isCustomer||undefined};
   // ✅ কমিশন প্রযোজ্য না হলেও — নির্বাচিত ডাক্তার রোগীর রেকর্ডে থেকে যায়, যাতে কোন ডাক্তার দেখেছেন তা রেকর্ড থাকে
-  const _selDocNb = getSelectedDoctorForPrefix(p);
-  if (_selDocNb) { _newVisit.doctorId = _selDocNb.id; _newVisit.doctorName = _selDocNb.name; }
+  // (ক্রেতার ক্ষেত্রে ডাক্তার সিলেক্ট আগে থেকেই হাইড/ক্লিয়ার থাকে, তাই এই অংশ স্বয়ংক্রিয়ভাবে স্কিপ হয়)
+  if (!isCustomer) {
+    const _selDocNb = getSelectedDoctorForPrefix(p);
+    if (_selDocNb) { _newVisit.doctorId = _selDocNb.id; _newVisit.doctorName = _selDocNb.name; }
+  }
   appData.visits.push(_newVisit);
-  if (nb) recordDoctorCommission('nb_', date, memoNo, null);
+  if (nb && !isCustomer) recordDoctorCommission('nb_', date, memoNo, null);
   // ✅ চশমার কাস্টমাইজেশন বক্সে ডেলিভারি তারিখ দেওয়া থাকলে স্বয়ংক্রিয়ভাবে ডেলিভারি শিডিউলে যোগ হয়ে যায়
   const glassDeliveryCount = (items||[]).filter(i=>i.type==='glass'&&i.glass&&i.glass.deliveryDate).length;
   recordGlassOrders(items, {date, memoNo, patName, patPhone, by:byLabel});
-  // ✅ বিলে দেওয়া চোখের পাওয়ার/ADD/PD স্বয়ংক্রিয়ভাবে রোগীর প্রেসক্রিপশন হিস্ট্রিতে রেকর্ড হয়
-  recordGlassPrescriptions(patName, patPhone, date, memoNo, items);
+  // ✅ বিলে দেওয়া চোখের পাওয়ার/ADD/PD স্বয়ংক্রিয়ভাবে রোগীর প্রেসক্রিপশন হিস্ট্রিতে রেকর্ড হয় (শুধু রোগীর জন্য, ক্রেতার জন্য নয়)
+  if (!isCustomer) recordGlassPrescriptions(patName, patPhone, date, memoNo, items);
   // ✅ income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই মোট আয়/রেভিনিউ হিসাবে ডাবল-কাউন্ট হবে না)
   if(cashPaid>0) appData.income.push({id:Date.now()+1,date,category:'রিসেপশন আয়',amount:cashPaid,memo:memoNo,ref:patName,note:`${memoNo} — ${patName}`,by:byLabel,visitId:_billVisitId});
 
@@ -29446,6 +30131,11 @@ function _billSave(p) {
   }
 
   saveData(); showToast(`✅ বিল সেভ! মেমো: ${memoNo}` + (glassDeliveryCount?` — ${glassDeliveryCount}টি চশমা ডেলিভারি শিডিউলে যোগ হয়েছে`:''));
+  // ✅ বিলে অপারেশন আইটেম থাকলে পোস্ট-অপারেটিভ ফলোআপ সিরিয়াল + অপারেশন শিটে পাঠানোর প্রম্পট দেখানো হয়
+  const hasOperationItem = items.some(i => typeof classifyBillItemForCommission==='function' && classifyBillItemForCommission(i)==='operation');
+  if (hasOperationItem) {
+    showPostOpFollowupPrompt(patName, patPhone, date, _newVisit.doctorId||'', _newVisit.doctorName||'', _billVisitId);
+  }
   if(nb) {nbClearForm();renderNewBillHistory();renderNewBillDrafts();}
   else {clearBillForm();renderRecDue();renderRecHistory();}
   updateDraftBadge(); refreshDashboard();
