@@ -4068,23 +4068,66 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
     </div>
     <div class="modal-overlay" id="opItemsQuickModal">
-      <div class="modal" style="width:480px">
+      <div class="modal" style="width:520px;max-height:88vh;overflow-y:auto">
         <div class="modal-title">🔪 সার্জিক্যাল আইটেম ও অন্যান্য খরচ</div>
         <div id="opQuickModalInfo" style="font-size:12.5px;color:var(--text-light);margin-bottom:10px"></div>
-        <div style="margin-bottom:10px">
+
+        <div style="margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <label style="margin:0">🔪 ব্যবহৃত সার্জিক্যাল আইটেম</label>
+            <label style="margin:0">🔪 ব্যবহৃত সার্জিক্যাল আইটেম <span style="color:var(--text-light);font-size:10.5px;font-weight:400">স্টক থেকে — ইনজেকশন/এনেস্থেসিয়া ইত্যাদিও এখানে</span></label>
             <button type="button" class="btn btn-outline btn-sm" onclick="openOpItemPicker('quick')">➕ আইটেম যোগ</button>
           </div>
           <div id="opQuickItemsList" style="font-size:12.5px;color:#94a3b8">কোনো আইটেম যোগ করা হয়নি</div>
         </div>
-        <div style="margin-bottom:6px">
-          <label style="margin-bottom:6px;display:block">🧾 অন্যান্য খরচ</label>
-          <div class="field" style="margin-bottom:8px"><label style="font-size:11.5px">🍽️ খাবার খরচ (৳)</label><input type="number" id="opQuickFoodCost" min="0" placeholder="০.০০" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;box-sizing:border-box"></div>
-          <div class="field" style="margin-bottom:8px"><label style="font-size:11.5px">🧪 আউট টেস্ট খরচ (৳) <span style="color:var(--text-light);font-weight:400">বাহিরে করাতে হয়েছে</span></label><input type="number" id="opQuickOutTestCost" min="0" placeholder="০.০০" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;box-sizing:border-box"></div>
-          <div class="field" style="margin-bottom:0"><label style="font-size:11.5px">🏥 হাসপাতাল টেস্ট খরচ (৳) <span style="color:var(--text-light);font-weight:400">হাসপাতাল থেকেই করা হয়েছে</span></label><input type="number" id="opQuickHospitalTestCost" min="0" placeholder="০.০০" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;box-sizing:border-box"></div>
-          <div style="font-size:10px;color:var(--text-light);margin-top:4px">ℹ️ ইনজেকশন/এনেস্থেসিয়া/অন্যান্য কনজিউমেবল — উপরে "ব্যবহৃত সার্জিক্যাল আইটেম"-এ যোগ করুন</div>
+
+        <div style="margin-bottom:12px">
+          <label style="margin-bottom:6px;display:block">🛒 বাহির থেকে কেনা সার্জিক্যাল আইটেম <span style="color:var(--text-light);font-size:10.5px;font-weight:400">স্টকে নেই এমন কিছু</span></label>
+          <div id="opQuick_outsideSurgical_list"></div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <input type="text" id="opQuick_outsideSurgical_name" placeholder="আইটেমের নাম" style="flex:2;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <input type="number" id="opQuick_outsideSurgical_cost" placeholder="খরচ ৳" min="0" style="flex:1;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOpNameCostItem('outsideSurgical')">➕</button>
+          </div>
         </div>
+
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="margin:0">🏥 হাসপাতাল টেস্ট <span style="color:var(--text-light);font-size:10.5px;font-weight:400">টেস্ট ফি তালিকা থেকে</span></label>
+            <button type="button" class="btn btn-outline btn-sm" onclick="openOpHospTestPicker()">➕ টেস্ট যোগ</button>
+          </div>
+          <div id="opQuickHospTestsList" style="font-size:12.5px;color:#94a3b8">কোনো টেস্ট যোগ করা হয়নি</div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="margin-bottom:6px;display:block">🧪 আউট টেস্ট <span style="color:var(--text-light);font-size:10.5px;font-weight:400">যা বাহিরে করাতে হয়েছে</span></label>
+          <div id="opQuick_outTest_list"></div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <input type="text" id="opQuick_outTest_name" placeholder="টেস্টের নাম" style="flex:2;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <input type="number" id="opQuick_outTest_cost" placeholder="খরচ ৳" min="0" style="flex:1;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOpNameCostItem('outTest')">➕</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="margin-bottom:6px;display:block">🍽️ খাবার</label>
+          <div id="opQuick_food_list"></div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <input type="text" id="opQuick_food_name" placeholder="বিবরণ (যেমন: রোগীর খাবার)" style="flex:2;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <input type="number" id="opQuick_food_cost" placeholder="খরচ ৳" min="0" style="flex:1;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOpNameCostItem('food')">➕</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:6px">
+          <label style="margin-bottom:6px;display:block">📝 অন্যান্য</label>
+          <div id="opQuick_other_list"></div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <input type="text" id="opQuick_other_name" placeholder="বিবরণ" style="flex:2;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <input type="number" id="opQuick_other_cost" placeholder="খরচ ৳" min="0" style="flex:1;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOpNameCostItem('other')">➕</button>
+          </div>
+        </div>
+
         <div class="modal-footer">
           <button class="btn btn-outline" onclick="closeOpItemsQuickModal()">বাতিল</button>
           <button class="btn btn-success" onclick="saveOpItemsQuickModal()">✅ সেভ করুন</button>
@@ -7950,6 +7993,7 @@ let serviceCount = 0;
 function init() {
   loadData();
   migrateCogsSystem();
+  migrateOpRefundExpenseNotes();
   const today = todayStr();
   ['incDate','expDate','rBillDate','recHistDate','fbBackupDate'].forEach(id => {
     const el = document.getElementById(id);
@@ -9285,6 +9329,48 @@ function migrateCogsSystem() {
   appData.settings.cogsCutoverDate = todayStr();
   console.log('[HMS] Inventory/COGS সিস্টেম চালু হলো — কাটওভার তারিখ:', appData.settings.cogsCutoverDate);
   // ✅ সাথে সাথেই সেভ করা হচ্ছে, নাহলে পরের সেশনে আবার migrate করার চেষ্টা করবে (লোকালস্টোরেজ/Firebase-এ কখনো লেখাই হবে না)
+  saveData();
+}
+// ✅ এককালীন মাইগ্রেশন: পুরনো "অপারেশন বাতিল — রিফান্ড" ব্যয় এন্ট্রি (যেগুলো op.cancellation.refundExpenseId
+// দিয়ে অপারেশনের সাথে লিংকড, কিন্তু তখনকার কোডে বিবরণে রোগির নাম বসতো না ও ভাউচার নম্বরও সেট হতো না) —
+// প্রতিটার নোটে রোগির নাম বসিয়ে দেওয়া হচ্ছে এবং ভাউচার ফাঁকা থাকলে অটো ভাউচার নম্বর বসিয়ে দেওয়া হচ্ছে।
+// ✅ এককালীন মাইগ্রেশন: অপারেশনের সাথে লিংকড পুরনো ব্যয় এন্ট্রি (op.testExpenseId → "অপারেশন — টেস্ট/অন্যান্য
+// খরচ" এবং op.cancellation.refundExpenseId → "অপারেশন বাতিল — রিফান্ড") — এগুলোর কোনোটাই তখনকার কোডে বিবরণে
+// রোগির নাম বসাতো না, আর ভাউচার নম্বরও সেট হতো না। প্রতিটার opId/payPerson/voucher সেট করে দেওয়া হচ্ছে এবং
+// নোটের শুরুতে রোগির নাম না থাকলে যোগ করে দেওয়া হচ্ছে।
+function fixOpLinkedExpenseEntry(exp, op) {
+  let changed = false;
+  if (!exp.opId) { exp.opId = op.id; changed = true; }
+  if (!exp.payPerson) { exp.payPerson = op.patName; changed = true; }
+  if (!exp.voucher) { exp.voucher = ensureUniqueVoucher('', exp.date); changed = true; }
+  if (exp.note && op.patName && !exp.note.startsWith(op.patName + ' — ')) {
+    exp.note = `${op.patName} — ${exp.note}`;
+    changed = true;
+  }
+  return changed;
+}
+function migrateOpRefundExpenseNotes() {
+  // ✅ ফ্ল্যাগের নাম v2 — আগের সংস্করণে শুধু রিফান্ড এন্ট্রি ঠিক হতো (টেস্ট/অন্যান্য খরচ এন্ট্রি বাদ পড়ে
+  // গিয়েছিল); যাদের ডিভাইসে আগের ফ্ল্যাগ ইতিমধ্যে সেট হয়ে গেছে তাদের ক্ষেত্রেও যাতে এই সম্পূর্ণ মাইগ্রেশনটা
+  // আবার চলে, তাই নতুন আলাদা ফ্ল্যাগ ব্যবহার করা হচ্ছে।
+  if (appData.settings && appData.settings.opLinkedExpenseMigrationV2Done) return; // ইতিমধ্যে migrate হয়ে গেছে
+  if (!appData.operations || !appData.expense) return;
+  let changed = false;
+  appData.operations.forEach(op => {
+    if (op.testExpenseId) {
+      const exp = appData.expense.find(e => e.id === op.testExpenseId);
+      if (exp && fixOpLinkedExpenseEntry(exp, op)) changed = true;
+    }
+    if (op.cancellation && op.cancellation.refundExpenseId) {
+      const exp = appData.expense.find(e => e.id === op.cancellation.refundExpenseId);
+      if (exp && fixOpLinkedExpenseEntry(exp, op)) changed = true;
+    }
+  });
+  if (!appData.settings) appData.settings = {};
+  appData.settings.opLinkedExpenseMigrationV2Done = true;
+  if (changed) {
+    console.log('[HMS] পুরনো অপারেশন-লিংকড ব্যয় এন্ট্রিতে রোগির নাম ও ভাউচার নম্বর যোগ করা হলো');
+  }
   saveData();
 }
 // ===== DATA INTEGRITY CHECK =====
@@ -12039,25 +12125,44 @@ function renderDashRecentEntries() {
   // ক্যাম্প নাম lookup (campId → campName)
   const campMap = {};
   (appData.camps||[]).forEach(c => { campMap[c.id] = c.name || c.location || '—'; });
+  // অপারেশন নাম lookup (opId → রোগীর নাম (অপারেশনের ধরন)) + রিভার্স লুকআপ (incomeId/testExpenseId/
+  // refundExpenseId → opId) — পুরনো এন্ট্রিতে opId ফিল্ড সরাসরি সেভ করা নাও থাকতে পারে, কিন্তু অপারেশন
+  // অবজেক্টে ঠিকই লিংকড আইডি (op.incomeId/op.testExpenseId/op.cancellation.refundExpenseId) সেভ আছে —
+  // তাই পুরনো সব এন্ট্রিও এই রিভার্স ম্যাপ দিয়ে সঠিকভাবে গ্রুপ হয়ে যায়, কোনো ডেটা মাইগ্রেশন ছাড়াই
+  const opMap = {};
+  const incomeIdToOpId = {};
+  const expenseIdToOpId = {};
+  (appData.operations||[]).forEach(o => {
+    opMap[o.id] = `${o.patName||'—'} (${o.opType||'অপারেশন'})`;
+    if (o.incomeId) incomeIdToOpId[o.incomeId] = o.id;
+    if (o.testExpenseId) expenseIdToOpId[o.testExpenseId] = o.id;
+    if (o.cancellation && o.cancellation.refundExpenseId) expenseIdToOpId[o.cancellation.refundExpenseId] = o.id;
+  });
 
   const allRows = [
-    ...(appData.income||[]).map(e=>({
+    ...(appData.income||[]).map(e=>{
+      const opId = e.campId ? null : (e.opId || incomeIdToOpId[e.id] || null);
+      return {
       id:e.id, date:e.date, type:'আয়',
       vouchRef: e.memo||e.note||'—',
       cat: e.category,
       ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.ref||'—'),
       campId: e.campId||null,
+      opId,
       visitId: e.visitId||null,
       amt: e.amount, by: e.by||'—', cls:'badge-income'
-    })),
-    ...(appData.expense||[]).map(e=>({
+    };}),
+    ...(appData.expense||[]).map(e=>{
+      const opId = e.campId ? null : (e.opId || expenseIdToOpId[e.id] || null);
+      return {
       id:e.id, date:e.date, type:'ব্যয়',
       vouchRef: e.voucher||'—',
       cat: e.category,
       ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.ref||'—'),
       campId: e.campId||null,
+      opId,
       amt: e.amount, by: e.by||'—', cls:'badge-expense'
-    })),
+    };}),
     // ⚠️ রিসেপশনিস্ট ডিউটি-সাবমিট bankTx (ref:'duty-submit') এখানে বাদ — নিচে recDeposits থেকে
     // একই জমার জন্য আলাদা "রিসেপ জমা" row ইতিমধ্যে দেখানো হচ্ছে, ডুপ্লিকেট এড়াতে date+amount মিলিয়ে বাদ দেওয়া হয়
     ...(function(){
@@ -12161,18 +12266,21 @@ function renderDashRecentEntries() {
       </td>
     </tr>`;
 
-    // ক্যাম্প entries গুলো campId অনুযায়ী আলাদা sub-group করো
+    // ক্যাম্প entries গুলো campId অনুযায়ী, আর অপারেশন entries গুলো opId অনুযায়ী আলাদা sub-group করো
     const campItems = {};
+    const opItems = {};
     const nonCampItems = [];
     items.forEach(e => {
       if (e.campId) {
         (campItems[e.campId] = campItems[e.campId]||[]).push(e);
+      } else if (e.opId) {
+        (opItems[e.opId] = opItems[e.opId]||[]).push(e);
       } else {
         nonCampItems.push(e);
       }
     });
 
-    // non-camp rows (income, expense, transfer, deposit)
+    // non-camp/non-op rows (income, expense, transfer, deposit)
     nonCampItems.forEach(e => {
       const amtColor = e.cls==='badge-expense'?'var(--danger)':e.cls==='badge-transfer'?'#1e40af':e.cls==='badge-deposit'?'#7c3aed':e.cls==='badge-cheque'?'#9a3412':e.cls==='badge-waive'?'#d97706':'var(--success)';
       html += `<tr class="dash-grp-row" data-grp="${gid}" style="">
@@ -12211,6 +12319,34 @@ function renderDashRecentEntries() {
       cRows.forEach(e => {
         const amtColor = e.cls==='badge-expense'?'var(--danger)':'var(--success)';
         html += `<tr class="dash-grp-row" data-grp="${gid} ${cgid}" style="background:#f0faf0">
+          <td style="white-space:nowrap;padding-left:36px">${formatDate(e.date)}</td>
+          <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${formatVoucherRefDisplay(e.vouchRef)}</td>
+          <td><span class="badge ${e.cls}">${e.type}</span></td>
+          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
+          <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
+          <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
+          <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
+        </tr>`;
+      });
+    });
+
+    // অপারেশন sub-groups — হালকা ইয়োলিশ ব্যাকগ্রাউন্ডে, ক্যাম্প গ্রুপের মতোই ফরম্যাট
+    Object.entries(opItems).forEach(([oid, oRows]) => {
+      const opLabel = opMap[oid] || 'অপারেশন';
+      const oInc = oRows.filter(r=>r.cls==='badge-income').reduce((s,r)=>s+r.amt,0);
+      const oExp = oRows.filter(r=>r.cls==='badge-expense').reduce((s,r)=>s+r.amt,0);
+      const oNet = oInc - oExp;
+      const ogid = gid + '_o' + oid;
+
+      html += `<tr class="dash-grp-row" data-grp="${gid}" data-dash-hdr="${ogid}" data-open="1" style="background:#fefce8;border-top:1px solid #fde68a;cursor:pointer" onclick="toggleDashGroup('${ogid}')">
+        <td colspan="5" style="color:#92400e;font-weight:700;padding:6px 12px 6px 28px;font-size:12px">
+          🔪 ${opLabel} &nbsp;—&nbsp; আয়: ৳ ${fmt(oInc)} &nbsp;|&nbsp; ব্যয়: ৳ ${fmt(oExp)} &nbsp;|&nbsp; নেট: ৳ ${fmt(oNet)}
+        </td>
+        <td colspan="2" style="color:#64748b;text-align:right;padding:6px 12px"><span id="dashGrpIcon-${ogid}">▼</span></td>
+      </tr>`;
+      oRows.forEach(e => {
+        const amtColor = e.cls==='badge-expense'?'var(--danger)':'var(--success)';
+        html += `<tr class="dash-grp-row" data-grp="${gid} ${ogid}" style="background:#fffbeb">
           <td style="white-space:nowrap;padding-left:36px">${formatDate(e.date)}</td>
           <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${formatVoucherRefDisplay(e.vouchRef)}</td>
           <td><span class="badge ${e.cls}">${e.type}</span></td>
@@ -22065,11 +22201,12 @@ function populateSurgeonSelect() {
 // ===== OPERATION MODULE =====
 // ✅ অপারেশনে ব্যবহৃত সার্জিক্যাল আইটেম ও বাইরের টেস্ট — এন্ট্রি ফর্ম ও কুইক-এডিট মোডাল, দুই জায়গা থেকেই
 // এই একই টেম্প-স্টেট ও ফাংশনগুলো পুনর্ব্যবহার করা হয় (opItemsTarget দিয়ে ঠিক করা হয় কোথায় রেন্ডার হবে)
-let opItemsTemp = [];   // [{stockId, name, qty}]
-let opTestsTemp = [];   // [{name, cost}]
+let opItemsTemp = [];   // [{stockId, name, qty}] — স্টক থেকে সার্জিক্যাল আইটেম
+let opHospTestsTemp = []; // [{testId, name, cost}] — টেস্ট ফি তালিকা থেকে বাছাই করা হাসপাতাল টেস্ট
+// [name+cost] ফরম্যাটের ৪টা "যোগ-করা যায়" তালিকা — আউট টেস্ট, খাবার, অন্যান্য, বাহির থেকে কেনা সার্জিক্যাল আইটেম
+let opNameCostTemp = { outTest:[], food:[], other:[], outsideSurgical:[] };
 let opItemsTarget = 'form'; // 'form' (অপারেশন এন্ট্রি ফর্ম) | 'quick' (কুইক-এডিট মোডাল)
 function opItemsListElId() { return opItemsTarget==='quick' ? 'opQuickItemsList' : 'opItemsList'; }
-function opTestsListElId() { return opItemsTarget==='quick' ? 'opQuickTestsList' : 'opTestsList'; }
 function renderOpItemsList() {
   const wrap = document.getElementById(opItemsListElId());
   if (!wrap) return;
@@ -22090,27 +22227,44 @@ function openOpItemPicker(target) {
   opItemsTarget = target || 'form';
   openStockPicker('op-item');
 }
-function renderOpTestsList() {
-  const wrap = document.getElementById(opTestsListElId());
+// ✅ হাসপাতাল টেস্ট — "টেস্ট ফি" পেজে (অ্যাডমিন সেটিংস) আগে থেকে সেট করা নাম/মূল্য থেকে বাছাই করা হয়,
+// ম্যানুয়ালি নাম/দাম লিখতে হয় না — একই স্টক-পিকার মোডাল শেল পুনর্ব্যবহার করা হয়েছে ('op-hosp-test' অ্যাকশন)
+function renderOpHospTestsList() {
+  const wrap = document.getElementById('opQuickHospTestsList');
   if (!wrap) return;
-  if (!opTestsTemp.length) { wrap.innerHTML=''; return; }
-  wrap.innerHTML = opTestsTemp.map((t,idx)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;font-size:12.5px">
+  if (!opHospTestsTemp.length) { wrap.innerHTML = '<div style="font-size:12.5px;color:#94a3b8">কোনো টেস্ট যোগ করা হয়নি</div>'; return; }
+  wrap.innerHTML = opHospTestsTemp.map((t,idx)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;font-size:12.5px">
     <div style="flex:1">${t.name}</div><div style="color:#64748b">৳${fmt(t.cost)}</div>
-    <button type="button" onclick="removeOpTest(${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0 2px">✕</button>
+    <button type="button" onclick="removeOpHospTest(${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0 2px">✕</button>
   </div>`).join('');
 }
-function addOpTest(target) {
-  opItemsTarget = target || 'form';
-  const nameEl = document.getElementById(target==='quick' ? 'opQuickTestNameInput' : 'opTestNameInput');
-  const costEl = document.getElementById(target==='quick' ? 'opQuickTestCostInput' : 'opTestCostInput');
+function removeOpHospTest(idx) { opHospTestsTemp.splice(idx,1); renderOpHospTestsList(); }
+function openOpHospTestPicker() { openStockPicker('op-hosp-test'); }
+// ✅ আউট টেস্ট / খাবার / অন্যান্য / বাহির থেকে কেনা সার্জিক্যাল আইটেম — এই ৪টাই "নাম + খরচ" ফরম্যাটের
+// যোগ-করা-যায় তালিকা, তাই একটাই জেনেরিক ফাংশন সেট দিয়ে চালানো হচ্ছে (kind: 'outTest'|'food'|'other'|'outsideSurgical')
+function renderOpNameCostList(kind) {
+  const wrap = document.getElementById('opQuick_'+kind+'_list');
+  if (!wrap) return;
+  const arr = opNameCostTemp[kind]||[];
+  if (!arr.length) { wrap.innerHTML=''; return; }
+  wrap.innerHTML = arr.map((t,idx)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;font-size:12.5px">
+    <div style="flex:1">${t.name}</div><div style="color:#64748b">৳${fmt(t.cost)}</div>
+    <button type="button" onclick="removeOpNameCostItem('${kind}',${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0 2px">✕</button>
+  </div>`).join('');
+}
+function addOpNameCostItem(kind) {
+  const nameEl = document.getElementById('opQuick_'+kind+'_name');
+  const costEl = document.getElementById('opQuick_'+kind+'_cost');
   const name = (nameEl?.value||'').trim();
   const cost = parseFloat(costEl?.value)||0;
-  if (!name) { showToast('⚠️ খরচের বিবরণ দিন'); return; }
-  opTestsTemp.push({ name, cost });
+  if (!name) { showToast('⚠️ নাম লিখুন'); return; }
+  if (cost<=0) { showToast('⚠️ সঠিক খরচ দিন'); return; }
+  if (!opNameCostTemp[kind]) opNameCostTemp[kind]=[];
+  opNameCostTemp[kind].push({ name, cost });
   if (nameEl) nameEl.value=''; if (costEl) costEl.value='';
-  renderOpTestsList();
+  renderOpNameCostList(kind);
 }
-function removeOpTest(idx) { opTestsTemp.splice(idx,1); renderOpTestsList(); }
+function removeOpNameCostItem(kind, idx) { opNameCostTemp[kind].splice(idx,1); renderOpNameCostList(kind); }
 
 // ✅ কুইক-এডিট মোডাল — অপারেশন শিট টেবিল ও লাভ-ক্ষতি পেজ, দুই জায়গা থেকেই একটা নির্দিষ্ট অপারেশনের
 // আইটেম/টেস্ট সরাসরি এডিট করা যায়, পুরো ফর্ম না খুলেই। সেভ করলেই সাথে সাথে স্টক রিভার্স+ডিডাক্ট হয়ে যায়।
@@ -22121,12 +22275,23 @@ function openOpItemsQuickModal(opId) {
   opQuickEditId = opId;
   opItemsTarget = 'quick';
   opItemsTemp = (op.surgicalItems||[]).map(i=>({...i}));
+  // ✅ নতুন অ্যারে-ভিত্তিক ফিল্ড থাকলে সেটাই নেওয়া হয়; না থাকলে আগের ফিচারের সিঙ্গেল-নাম্বার ফিল্ড
+  // (থাকলে) "(পুরনো এন্ট্রি)" লেবেল দিয়ে দেখানো হয়, যাতে আগের ডেটা হারিয়ে না যায়
+  opHospTestsTemp = (op.hospitalTests && op.hospitalTests.length) ? op.hospitalTests.map(t=>({...t}))
+    : (op.hospitalTestCost ? [{testId:null, name:'হাসপাতাল টেস্ট (পুরনো এন্ট্রি)', cost:op.hospitalTestCost}] : []);
+  opNameCostTemp = {
+    outTest: (op.outTests && op.outTests.length) ? op.outTests.map(t=>({...t}))
+      : (op.outTestCost ? [{name:'আউট টেস্ট (পুরনো এন্ট্রি)', cost:op.outTestCost}] : []),
+    food: (op.foodItems && op.foodItems.length) ? op.foodItems.map(t=>({...t}))
+      : (op.foodCost ? [{name:'খাবার (পুরনো এন্ট্রি)', cost:op.foodCost}] : []),
+    other: (op.otherCosts||[]).map(t=>({...t})),
+    outsideSurgical: (op.outsideSurgicalItems||[]).map(t=>({...t}))
+  };
   const infoEl = document.getElementById('opQuickModalInfo');
   if (infoEl) infoEl.textContent = `${op.patName} — ${op.opType} (${formatDate(op.date)})`;
-  const foodEl = document.getElementById('opQuickFoodCost'); if (foodEl) foodEl.value = op.foodCost||'';
-  const outTestEl = document.getElementById('opQuickOutTestCost'); if (outTestEl) outTestEl.value = op.outTestCost||'';
-  const hospTestEl = document.getElementById('opQuickHospitalTestCost'); if (hospTestEl) hospTestEl.value = op.hospitalTestCost||'';
   renderOpItemsList();
+  renderOpHospTestsList();
+  ['outTest','food','other','outsideSurgical'].forEach(renderOpNameCostList);
   document.getElementById('opItemsQuickModal').classList.add('open');
 }
 function closeOpItemsQuickModal() {
@@ -22143,29 +22308,40 @@ function saveOpItemsQuickModal() {
     savedItems.push({ stockId: it.stockId, name: it.name, qty: it.qty });
   });
   op.surgicalItems = savedItems;
-  op.foodCost         = parseFloat(document.getElementById('opQuickFoodCost')?.value)||0;
-  op.outTestCost       = parseFloat(document.getElementById('opQuickOutTestCost')?.value)||0;
-  op.hospitalTestCost  = parseFloat(document.getElementById('opQuickHospitalTestCost')?.value)||0;
+  op.outsideSurgicalItems = opNameCostTemp.outsideSurgical.map(t=>({ name:t.name, cost:t.cost }));
+  op.hospitalTests = opHospTestsTemp.map(t=>({ testId:t.testId, name:t.name, cost:t.cost }));
+  op.outTests = opNameCostTemp.outTest.map(t=>({ name:t.name, cost:t.cost }));
+  op.foodItems = opNameCostTemp.food.map(t=>({ name:t.name, cost:t.cost }));
+  op.otherCosts = opNameCostTemp.other.map(t=>({ name:t.name, cost:t.cost }));
+  // ✅ নতুন অ্যারে ফিল্ডগুলোই এখন একমাত্র উৎস — পুরনো সিঙ্গেল-নাম্বার ফিল্ড ও পুরনো ফরম্যাটের এন্ট্রি খালি
+  // করে দেওয়া হচ্ছে, যাতে ডাবল-কাউন্ট না হয় (উপরে ওপেন করার সময়ই সেগুলো নতুন লিস্টে "(পুরনো এন্ট্রি)" হিসেবে টেনে আনা হয়েছিল)
+  op.foodCost = 0; op.outTestCost = 0; op.hospitalTestCost = 0; op.externalTests = [];
 
-  // ✅ খাবার/আউট-টেস্ট/হাসপাতাল-টেস্ট শুধু অপারেশনের নেট লাভ-ক্ষতি হিসাবেই বাদ যেত, হাসপাতালের সামগ্রিক
-  // "ব্যয়" এন্ট্রি হিসেবে কোথাও রেকর্ড হতো না। এখন একটা লিংকড ব্যয় এন্ট্রি (op.testExpenseId দিয়ে ট্র্যাক
-  // করা) অটো তৈরি/আপডেট/মুছে ফেলা হয় — সার্জিক্যাল আইটেমের খরচ এখানে ধরা হয় না, সেটা স্টক থেকে ডিডাক্ট
-  // হয়ে ইতিমধ্যেই COGS হিসেবে গণনা হয়।
-  const testsTotal = op.foodCost + op.outTestCost + op.hospitalTestCost;
+  // ✅ বাহির থেকে কেনা সার্জিক্যাল আইটেম/হাসপাতাল টেস্ট/আউট টেস্ট/খাবার/অন্যান্য — এগুলো শুধু অপারেশনের নেট
+  // লাভ-ক্ষতি হিসাবেই বাদ যেত, হাসপাতালের সামগ্রিক "ব্যয়" এন্ট্রি হিসেবে কোথাও রেকর্ড হতো না। এখন একটা
+  // লিংকড ব্যয় এন্ট্রি (op.testExpenseId দিয়ে ট্র্যাক করা) অটো তৈরি/আপডেট/মুছে ফেলা হয় — স্টক থেকে নেওয়া
+  // সার্জিক্যাল আইটেমের খরচ এখানে ধরা হয় না, সেটা স্টক ডিডাক্টের মাধ্যমে ইতিমধ্যেই COGS হিসেবে গণনা হয়।
+  const testsTotal = [op.outsideSurgicalItems, op.hospitalTests, op.outTests, op.foodItems, op.otherCosts]
+    .reduce((s,arr)=>s+arr.reduce((s2,t)=>s2+(t.cost||0),0), 0);
   if (testsTotal > 0) {
     const parts = [];
-    if (op.foodCost) parts.push(`খাবার (৳${fmt(op.foodCost)})`);
-    if (op.outTestCost) parts.push(`আউট টেস্ট (৳${fmt(op.outTestCost)})`);
-    if (op.hospitalTestCost) parts.push(`হাসপাতাল টেস্ট (৳${fmt(op.hospitalTestCost)})`);
+    op.outsideSurgicalItems.forEach(t=>parts.push(`${t.name} (বাহির-সার্জিক্যাল, ৳${fmt(t.cost)})`));
+    op.hospitalTests.forEach(t=>parts.push(`${t.name} (হাসপাতাল টেস্ট, ৳${fmt(t.cost)})`));
+    op.outTests.forEach(t=>parts.push(`${t.name} (আউট টেস্ট, ৳${fmt(t.cost)})`));
+    op.foodItems.forEach(t=>parts.push(`${t.name} (খাবার, ৳${fmt(t.cost)})`));
+    op.otherCosts.forEach(t=>parts.push(`${t.name} (৳${fmt(t.cost)})`));
     const testsNote = parts.join(', ');
     const existingExp = op.testExpenseId ? (appData.expense||[]).find(e=>e.id===op.testExpenseId) : null;
     if (existingExp) {
       existingExp.date = op.date; existingExp.amount = testsTotal;
-      existingExp.note = `${op.opType} — টেস্ট/অন্যান্য খরচ: ${testsNote} (অটো)`;
+      existingExp.note = `${op.patName} — ${op.opType} খরচ: ${testsNote} (অটো)`;
+      existingExp.payPerson = op.patName;
+      // ভাউচার নম্বর অপরিবর্তিত থাকে — শুধু নতুন এন্ট্রি তৈরির সময়ই নতুন ভাউচার বসে
     } else {
       if (!appData.expense) appData.expense = [];
       const newExp = { id:Date.now()+1, date:op.date, category:'অপারেশন — টেস্ট/অন্যান্য খরচ', amount:testsTotal, ref:op.patName,
-        note:`${op.opType} — টেস্ট/অন্যান্য খরচ: ${testsNote} (অটো)`, by:currentUser.name };
+        voucher: ensureUniqueVoucher('', op.date), payPerson: op.patName, opId: op.id,
+        note:`${op.patName} — ${op.opType} খরচ: ${testsNote} (অটো)`, by:currentUser.name };
       appData.expense.push(newExp);
       op.testExpenseId = newExp.id;
     }
@@ -22228,17 +22404,24 @@ function openOpProfitDetailModal(opId) {
   const visitId = 'op_'+op.id;
   const itemLogs = (appData.stockLog||[]).filter(l=>l.visitId===visitId && l.move==='out' && !l.reversed);
   document.getElementById('opDetailModalTitle').textContent = `🧮 ${op.patName} — ${op.opType}`;
-  const itemsRows = (op.surgicalItems||[]).map(i=>{
-    const log = itemLogs.find(l=>String(l.itemId)===String(i.stockId));
-    const cost = log ? (log.cogsAmount||0) : 0;
-    return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
-      <span>${i.name} × ${i.qty}</span><span style="color:var(--danger)">৳${fmt(cost)}</span>
-    </div>`;
-  }).join('') || '<div style="color:#94a3b8;font-size:12.5px">কোনো আইটেম নেই</div>';
+  const itemsRows = (()=>{
+    const stockRows = (op.surgicalItems||[]).map(i=>{
+      const log = itemLogs.find(l=>String(l.itemId)===String(i.stockId));
+      const cost = log ? (log.cogsAmount||0) : 0;
+      return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+        <span>${i.name} × ${i.qty}</span><span style="color:var(--danger)">৳${fmt(cost)}</span>
+      </div>`;
+    });
+    const outsideRows = (op.outsideSurgicalItems||[]).map(t=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9">
+      <span>🛒 ${t.name} <span style="color:#94a3b8;font-size:10.5px">(বাহির থেকে কেনা)</span></span><span style="color:var(--danger)">৳${fmt(t.cost)}</span>
+    </div>`);
+    const all = stockRows.concat(outsideRows);
+    return all.length ? all.join('') : '<div style="color:#94a3b8;font-size:12.5px">কোনো আইটেম নেই</div>';
+  })();
   const otherRows = (()=>{ const rows = getOpOtherCostRows(op); return rows.length
     ? rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f1f5f9"><span>${r.label}</span><span style="color:var(--danger)">৳${fmt(r.amount)}</span></div>`).join('')
     : '<div style="color:#94a3b8;font-size:12.5px">কোনো খরচ নেই</div>'; })();
-  const itemsCost = getOpItemsCost(op.id);
+  const itemsCost = getOpItemsCost(op);
   const otherCost = getOpOtherCost(op);
   const sg = (appData.surgeons||[]).find(s=>s.id===op.surgeonId);
   const sgFeeShare = getOpSurgeonFeeShare(op);
@@ -22557,7 +22740,7 @@ function saveOperation() {
         // এতদিন আয় জমা হয়নি (সিডিউলড/বাতিল ছিল) — এখন সম্পন্ন হলো, তাই আয় এন্ট্রি তৈরি হচ্ছে
         const inc = { id:Date.now()+1, date, category:'অপারেশন ফি', amount:fee, ref:patName,
           note:`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো)`,
-          by:currentUser.name, source: opSource, refCampId: refCamp?refCamp.id:null };
+          by:currentUser.name, source: opSource, refCampId: refCamp?refCamp.id:null, opId: existing.id };
         appData.income.push(inc);
         existing.incomeId = inc.id;
       } else if (oldStatus==='completed' && status!=='completed') {
@@ -22584,7 +22767,7 @@ function saveOperation() {
     if (!fromBill && status==='completed') {
       const inc = { id:Date.now()+1, date, category:'অপারেশন ফি', amount:fee, ref:patName,
         note:`${opType} — সার্জন: ${sg?sg.name:'—'}${refCamp?` (ক্যাম্প-রেফার্ড: ${refCamp.name})`:''} (অটো)`,
-        by:currentUser.name, source: opSource, refCampId: refCamp?refCamp.id:null };
+        by:currentUser.name, source: opSource, refCampId: refCamp?refCamp.id:null, opId: opId };
       appData.income.push(inc);
       op.incomeId = inc.id;
     }
@@ -22605,7 +22788,7 @@ function saveOperation() {
   const editingNoteElReset=document.getElementById('opEditingNote'); if(editingNoteElReset) editingNoteElReset.style.display='none';
   const opChk = document.getElementById('opIsCampRef'); if (opChk) opChk.checked=false;
   const opCampFields = document.getElementById('opCampRefFields'); if (opCampFields) opCampFields.style.display='none';
-  opItemsTemp = []; opTestsTemp = [];
+  opItemsTemp = [];
   renderOperationSheet();
   refreshDashboard();
   if (typeof renderSurgeonPaymentPanel==='function' && document.getElementById('surgeonPaymentTable')) renderSurgeonPaymentPanel();
@@ -22697,14 +22880,16 @@ function deleteOperation(id) {
   showToast('🗑️ মুছে ফেলা হয়েছে' + (op&&op.incomeId?' (যুক্ত আয় এন্ট্রিসহ)':''));
 }
 // ===== অপারেশন বাতিল — রিফান্ড / ঘাটতি সমন্বয় =====
-// ✅ প্রি-অপারেটিভ (মেডিসিন/ইনজেকশন/এনেস্থেসিয়া/খাবার/বেড চার্জ ইত্যাদি) খরচ ইতিমধ্যে হয়ে থাকলে সেটা মূল
-// অপারেশন ফি-র মধ্যেই ছিল — তাই বাতিলের সময় সেই খরচ বাদ দিয়ে বাকিটা রোগীকে ফেরত, বা ঘাটতি থাকলে রোগীর
-// কাছ থেকে বাকিটা আদায়ের রেকর্ড তৈরি হয়। শূন্য পার্থক্য হলেও (জমা == প্রি-অপ খরচ) একটা অডিট রেকর্ড থাকে।
+// ✅ প্রি-অপারেটিভ (মেডিসিন/খাবার/টেস্ট/বেড চার্জ ইত্যাদি) খরচ ইতিমধ্যে হয়ে থাকলে সেটা মূল অপারেশন ফি-র
+// মধ্যেই ছিল — তাই বাতিলের সময় সেই খরচ বাদ দিয়ে বাকিটা রোগীকে ফেরত, বা ঘাটতি থাকলে রোগীর কাছ থেকে
+// বাকিটা আদায়ের রেকর্ড তৈরি হয়। শূন্য পার্থক্য হলেও (জমা == প্রি-অপ খরচ) একটা অডিট রেকর্ড থাকে।
+// ইনজেকশন/এনেস্থেসিয়া/অন্যান্য কনজিউমেবল এখানে নেই — সেগুলো "সার্জিক্যাল আইটেম" হিসেবে স্টক থেকে ট্র্যাক
+// হয়। খাবার/আউট-টেস্ট/হাসপাতাল-টেস্ট "যোগ/এডিট" মোডালে আগেই সেট করা থাকলে এখানে অটো বসে যায়।
 var OP_PREOP_CATS = [
   { key:'medicine', label:'মেডিসিন' },
-  { key:'injection', label:'ইনজেকশন' },
-  { key:'anesthesia', label:'এনেস্থেসিয়া' },
-  { key:'food', label:'খাবার' },
+  { key:'food', label:'খাবার', auto:'foodCost' },
+  { key:'outTest', label:'আউট টেস্ট (বাহিরে করানো)', auto:'outTestCost' },
+  { key:'hospitalTest', label:'হাসপাতাল টেস্ট', auto:'hospitalTestCost' },
   { key:'bed', label:'বেড চার্জ' }
 ];
 function openOpCancelModal(fields) {
@@ -22712,6 +22897,9 @@ function openOpCancelModal(fields) {
   const existing = fields.editId ? (appData.operations||[]).find(o=>o.id===fields.editId) : null;
   const prevItems = existing?.cancellation?.items || [];
   const getPrev = key => (prevItems.find(i=>i.key===key)||{}).amount || '';
+  // ✅ খাবার/আউট-টেস্ট/হাসপাতাল-টেস্ট — "যোগ/এডিট" মোডালে আগেই সেট করা থাকলে এখানে অটো বসে যায়
+  // (আগের বাতিল-এন্ট্রি এডিট করা হলে সেই পুরনো মান অগ্রাধিকার পায়, প্রয়োজনে বদলানো যাবে)
+  const getDefault = c => { const prev = getPrev(c.key); if (prev!=='') return prev; return (c.auto && fields[c.auto]) ? fields[c.auto] : ''; };
   const old = document.getElementById('opCancelModal'); if (old) old.remove();
   const modal = document.createElement('div');
   modal.id = 'opCancelModal';
@@ -22723,8 +22911,8 @@ function openOpCancelModal(fields) {
       <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
         <div style="font-size:12.5px;font-weight:700;color:#334155;margin-bottom:8px">প্রি-অপারেটিভ খরচ (যা প্রয়োগ হয়েছে তা লিখুন, বাকি ০ রাখুন)</div>
         ${OP_PREOP_CATS.map(c=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <label style="flex:1;font-size:12.5px;color:#475569">${c.label}</label>
-          <input type="number" min="0" placeholder="০.০০" id="opCancel_${c.key}" value="${getPrev(c.key)}" oninput="updateOpCancelPreview()" style="width:110px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:right">
+          <label style="flex:1;font-size:12.5px;color:#475569">${c.label}${c.auto?' <span style="color:#94a3b8;font-size:10px">(অটো)</span>':''}</label>
+          <input type="number" min="0" placeholder="০.০০" id="opCancel_${c.key}" value="${getDefault(c)}" oninput="updateOpCancelPreview()" style="width:110px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:right">
         </div>`).join('')}
         <div style="display:flex;align-items:center;gap:8px">
           <input type="text" id="opCancel_otherLabel" placeholder="অন্যান্য (নাম লিখুন)" value="${(prevItems.find(i=>i.key==='other')||{}).label||''}" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
@@ -22815,7 +23003,8 @@ function confirmOpCancellation() {
   // যাবে (টেবিল থেকে পরে "✅ ফেরত দেওয়া হয়েছে" বাটনে ক্লিক করে মেটানো যাবে)
   if (refundAmount>0 && settleNow) {
     const exp = { id:Date.now()+2, date:todayStr(), category:'অপারেশন বাতিল — রিফান্ড', amount:refundAmount, ref:fields.patName,
-      note:`অপারেশন বাতিল (${reason}) — প্রি-অপ খরচ ৳${fmt(preOpTotal)} বাদে ফেরত`, by:currentUser.name };
+      voucher: ensureUniqueVoucher('', todayStr()), payPerson: fields.patName,
+      note:`${fields.patName} — অপারেশন বাতিল (${reason}) — প্রি-অপ খরচ ৳${fmt(preOpTotal)} বাদে ফেরত`, by:currentUser.name, opId: fields.editId||null };
     appData.expense.push(exp);
     cancellation.refundExpenseId = exp.id;
   }
@@ -22843,7 +23032,7 @@ function confirmOpCancellation() {
       cancellation.deficitVisitId = dv.id;
       if (settleNow) {
         appData.income.push({ id:Date.now()+4, date:todayStr(), category:'অপারেশন বাতিল — ঘাটতি আদায়', amount:deficitAmount, ref:fields.patName,
-          note:`অপারেশন বাতিল (${reason}) — প্রি-অপ খরচ বাবদ ঘাটতি আদায়`, by:currentUser.name, visitId:dv.id });
+          note:`অপারেশন বাতিল (${reason}) — প্রি-অপ খরচ বাবদ ঘাটতি আদায়`, by:currentUser.name, visitId:dv.id, opId: fields.editId||null });
       }
     }
   }
@@ -22876,7 +23065,7 @@ function confirmOpCancellation() {
   saveData();
   const cm = document.getElementById('opCancelModal'); if (cm) cm.remove();
   closeOpEntryForm();
-  opItemsTemp = []; opTestsTemp = [];
+  opItemsTemp = [];
   renderOperationSheet();
   refreshDashboard();
   if (typeof renderOpProfitPage==='function' && document.getElementById('pg-opprofit')?.classList.contains('active')) renderOpProfitPage();
@@ -22895,7 +23084,8 @@ function settleOpRefund(id) {
   if (!op || !op.cancellation || op.cancellation.refundPaid || !(op.cancellation.refundAmount>0)) return;
   if (!confirm(`"${op.patName}" কে ৳${fmt(op.cancellation.refundAmount)} ফেরত দেওয়া হয়েছে?`)) return;
   const exp = { id:Date.now(), date:todayStr(), category:'অপারেশন বাতিল — রিফান্ড', amount:op.cancellation.refundAmount, ref:op.patName,
-    note:`অপারেশন বাতিল (${op.cancellation.reason||''}) — বিলম্বিত রিফান্ড`, by:currentUser.name };
+    voucher: ensureUniqueVoucher('', todayStr()), payPerson: op.patName,
+    note:`${op.patName} — অপারেশন বাতিল (${op.cancellation.reason||''}) — বিলম্বিত রিফান্ড`, by:currentUser.name, opId: op.id };
   appData.expense.push(exp);
   op.cancellation.refundExpenseId = exp.id;
   op.cancellation.refundPaid = true;
@@ -23069,26 +23259,36 @@ function printOperationSheet() {
 // ক্রয়মূল্য (স্টকলগ থেকে, avgCost-এর স্ন্যাপশট) + অন্যান্য খরচ (টেস্ট/খাবার/বাইরে থেকে কেনা আইটেম) বাদ দিয়ে
 // প্রকৃত নেট লাভ/ক্ষতি হিসাব করা হয়। বাতিল অপারেশন এখানে দেখানো হয় না (আয়ই জমা হয়নি)। =====
 // ✅ একটা অপারেশনের সার্জিক্যাল আইটেম খরচ — stockLog-এ সেভের সময় হিসাব হওয়া cogsAmount (ক্রয়মূল্যের
-// স্ন্যাপশট) যোগ করে বের করা হয়, স্টকের বর্তমান avgCost দিয়ে না (তাতে পুরনো এন্ট্রির হিসাব বদলে যেত)
-function getOpItemsCost(opId) {
-  const visitId = 'op_'+opId;
-  return (appData.stockLog||[]).filter(l=>l.visitId===visitId && l.move==='out' && !l.reversed)
+// স্ন্যাপশট) + বাহির থেকে কেনা সার্জিক্যাল আইটেম (op.outsideSurgicalItems) যোগ করে বের করা হয়
+function getOpItemsCost(op) {
+  const visitId = 'op_'+op.id;
+  const stockCost = (appData.stockLog||[]).filter(l=>l.visitId===visitId && l.move==='out' && !l.reversed)
     .reduce((s,l)=>s+(l.cogsAmount||0), 0);
+  const outsideCost = (op.outsideSurgicalItems||[]).reduce((s,t)=>s+(t.cost||0),0);
+  return stockCost + outsideCost;
 }
-// ✅ অপারেশনের "অন্যান্য খরচ" — খাবার/আউট-টেস্ট/হাসপাতাল-টেস্ট এখন "যোগ/এডিট" মোডালে নির্দিষ্ট ফিল্ড
-// (foodCost/outTestCost/hospitalTestCost) হিসেবে সেট হয় — ইনজেকশন/এনেস্থেসিয়া এখানে নেই, কারণ সেগুলো
-// সার্জিক্যাল আইটেম (স্টক থেকে) হিসেবেই যোগ হয়। পুরনো ফরম্যাটে (এই ফিচার আসার আগে) সেভ হওয়া
-// externalTests অ্যারেও (থাকলে) হিসাবে ধরা হয়, যাতে পুরনো এন্ট্রির লাভ-ক্ষতি হিসাব না বদলায়।
+// ✅ অপারেশনের "অন্যান্য খরচ" — হাসপাতাল টেস্ট (টেস্ট ফি তালিকা থেকে সিলেক্ট করা)/আউট টেস্ট/খাবার/অন্যান্য
+// এখন "যোগ/এডিট" মোডালে নাম+খরচসহ তালিকা আকারে সেট হয় (op.hospitalTests/outTests/foodItems/otherCosts)।
+// পুরনো ফরম্যাটে (এই ফিচার আসার আগে) সেভ হওয়া সিঙ্গেল-নাম্বার ফিল্ড বা externalTests অ্যারে থাকলে
+// (নতুন অ্যারে খালি থাকা অবস্থায়) সেটাও হিসাবে ধরা হয়, যাতে পুরনো এন্ট্রির লাভ-ক্ষতি হিসাব না বদলায়।
 function getOpOtherCost(op) {
+  const foodTotal = (op.foodItems && op.foodItems.length) ? op.foodItems.reduce((s,t)=>s+(t.cost||0),0) : (op.foodCost||0);
+  const outTestTotal = (op.outTests && op.outTests.length) ? op.outTests.reduce((s,t)=>s+(t.cost||0),0) : (op.outTestCost||0);
+  const hospTestTotal = (op.hospitalTests && op.hospitalTests.length) ? op.hospitalTests.reduce((s,t)=>s+(t.cost||0),0) : (op.hospitalTestCost||0);
+  const otherTotal = (op.otherCosts||[]).reduce((s,t)=>s+(t.cost||0),0);
   const legacy = (op.externalTests||[]).reduce((s,t)=>s+(t.cost||0),0);
-  return (op.foodCost||0) + (op.outTestCost||0) + (op.hospitalTestCost||0) + (op.consumableCost||0) + legacy;
+  return foodTotal + outTestTotal + hospTestTotal + otherTotal + (op.consumableCost||0) + legacy;
 }
 function getOpOtherCostRows(op) {
   const rows = [];
-  if (op.foodCost)         rows.push({label:'🍽️ খাবার', amount:op.foodCost});
-  if (op.outTestCost)      rows.push({label:'🧪 আউট টেস্ট (বাহিরে করানো)', amount:op.outTestCost});
-  if (op.hospitalTestCost) rows.push({label:'🏥 হাসপাতাল টেস্ট', amount:op.hospitalTestCost});
-  if (op.consumableCost)   rows.push({label:'কনজিউমেবল/IOL', amount:op.consumableCost});
+  const foodItems = (op.foodItems && op.foodItems.length) ? op.foodItems : (op.foodCost ? [{name:'খাবার', cost:op.foodCost}] : []);
+  foodItems.forEach(t=>rows.push({label:'🍽️ '+t.name, amount:t.cost||0}));
+  const outTests = (op.outTests && op.outTests.length) ? op.outTests : (op.outTestCost ? [{name:'আউট টেস্ট', cost:op.outTestCost}] : []);
+  outTests.forEach(t=>rows.push({label:'🧪 '+t.name, amount:t.cost||0}));
+  const hospTests = (op.hospitalTests && op.hospitalTests.length) ? op.hospitalTests : (op.hospitalTestCost ? [{name:'হাসপাতাল টেস্ট', cost:op.hospitalTestCost}] : []);
+  hospTests.forEach(t=>rows.push({label:'🏥 '+t.name, amount:t.cost||0}));
+  (op.otherCosts||[]).forEach(t=>rows.push({label:'📝 '+t.name, amount:t.cost||0}));
+  if (op.consumableCost) rows.push({label:'কনজিউমেবল/IOL', amount:op.consumableCost});
   (op.externalTests||[]).forEach(t=>rows.push({label:t.name, amount:t.cost||0}));
   return rows;
 }
@@ -23122,7 +23322,7 @@ function getFilteredOpProfitRows() {
   if (to)   ops = ops.filter(o=>o.date<=to);
   if (sgId) ops = ops.filter(o=>String(o.surgeonId)===String(sgId));
   let rows = ops.map(op=>{
-    const itemsCost = getOpItemsCost(op.id);
+    const itemsCost = getOpItemsCost(op);
     const otherCost = getOpOtherCost(op);
     const sgFeeShare = getOpSurgeonFeeShare(op);
     const net = (op.fee||0) - sgFeeShare - itemsCost - otherCost;
@@ -23162,7 +23362,7 @@ function renderOpProfitPage() {
   tbody.innerHTML = rows.map(r=>{
     const op=r.op;
     totFee+=op.fee||0; totSg+=r.sgFeeShare; totItems+=r.itemsCost; totOther+=r.otherCost; totNet+=r.net;
-    const itemsList = (op.surgicalItems||[]).map(i=>`${i.name}×${i.qty}`).join(', ') || '—';
+    const itemsList = [...(op.surgicalItems||[]).map(i=>`${i.name}×${i.qty}`), ...(op.outsideSurgicalItems||[]).map(t=>`🛒${t.name}`)].join(', ') || '—';
     const otherList = getOpOtherCostRows(op).map(r=>`${r.label} (৳${fmt(r.amount)})`).join(', ') || '—';
     return `<tr onclick="openOpProfitDetailModal(${op.id})" style="cursor:pointer" title="সম্পূর্ণ হিসাব দেখতে ক্লিক করুন">
       <td>${formatDate(op.date)}</td>
@@ -23433,7 +23633,7 @@ function saveEditStockModal() {
 let stockPickerAction = null; // 'adjust' | 'edit' | 'history' | 'delete'
 function openStockPicker(action) {
   stockPickerAction = action;
-  const titles = { adjust:'🔧 কোন পণ্য সমন্বয় করবেন?', edit:'✏️ কোন পণ্য এডিট করবেন?', history:'🕐 কোন পণ্যের হিস্ট্রি দেখবেন?', delete:'🗑️ কোন পণ্য মুছে ফেলবেন?', 'op-item':'🔪 সার্জিক্যাল আইটেম নির্বাচন করুন' };
+  const titles = { adjust:'🔧 কোন পণ্য সমন্বয় করবেন?', edit:'✏️ কোন পণ্য এডিট করবেন?', history:'🕐 কোন পণ্যের হিস্ট্রি দেখবেন?', delete:'🗑️ কোন পণ্য মুছে ফেলবেন?', 'op-item':'🔪 সার্জিক্যাল আইটেম নির্বাচন করুন', 'op-hosp-test':'🏥 হাসপাতাল টেস্ট নির্বাচন করুন' };
   document.getElementById('stockPickerTitle').textContent = titles[action] || 'পণ্য নির্বাচন করুন';
   document.getElementById('stockPickerSearch').value = '';
   renderStockPickerList('');
@@ -23445,6 +23645,18 @@ function renderStockPickerList(q) {
   q = (q||'').toLowerCase().trim();
   const wrap = document.getElementById('stockPickerList');
   if (!wrap) return;
+  // ✅ হাসপাতাল টেস্ট পিক করার সময় স্টক না, "টেস্ট ফি" তালিকা (appData.testFees, ক্যাটাগরি "টেস্ট / পরীক্ষা")
+  // থেকে দেখানো হয় — নাম ও মূল্য দুটোই এখান থেকে অটো আসে, ম্যানুয়াল লেখার দরকার হয় না
+  if (stockPickerAction === 'op-hosp-test') {
+    const items = (appData.testFees||[]).filter(t=>t.status==='active' && t.cat==='টেস্ট / পরীক্ষা' && (!q || t.name.toLowerCase().includes(q)))
+      .sort((a,b)=>(a.name||'').localeCompare(b.name||'','bn'));
+    if (!items.length) { wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">কোনো টেস্ট পাওয়া যায়নি — "টেস্ট ফি" পেজ থেকে যোগ করুন</div>'; return; }
+    wrap.innerHTML = items.map(t=>`<div onclick="selectStockPickerItem(${t.id})" style="padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <div><div style="font-weight:600;font-size:13.5px">${t.name}</div>${t.note?`<div style="font-size:11px;color:var(--text-light)">${t.note}</div>`:''}</div>
+      <div style="font-size:12.5px;color:var(--text-light)">৳ <strong>${fmt(t.fee)}</strong></div>
+    </div>`).join('');
+    return;
+  }
   const items = (appData.stock||[]).filter(s => !q || s.name.toLowerCase().includes(q) || (s.code&&s.code.toLowerCase().includes(q)))
     .sort((a,b)=> (a.cat||'').localeCompare(b.cat||'','bn') || (a.name||'').localeCompare(b.name||'','bn'));
   if (!items.length) { wrap.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">কোনো পণ্য পাওয়া যায়নি</div>'; return; }
@@ -23456,6 +23668,15 @@ function renderStockPickerList(q) {
 function selectStockPickerItem(id) {
   const action = stockPickerAction;
   closeStockPicker();
+  if (action === 'op-hosp-test') {
+    const t = (appData.testFees||[]).find(x=>x.id===id);
+    if (!t) return;
+    if (opHospTestsTemp.find(i=>i.testId===t.id)) { showToast('⚠️ এই টেস্টটি ইতিমধ্যে যোগ করা আছে'); return; }
+    opHospTestsTemp.push({ testId:t.id, name:t.name, cost:t.fee });
+    renderOpHospTestsList();
+    showToast(`✅ ${t.name} যোগ হলো`);
+    return;
+  }
   const s = appData.stock.find(x=>x.id===id);
   if (!s) return;
   if (action === 'adjust') openStockModal(id);
@@ -30985,12 +31206,16 @@ function canonicalCat(raw) {
   const r = raw.trim().toLowerCase();
   if (r.includes('চশমা') || r.includes('glass') || r.includes('frame') || r.includes('lens')) return 'চশমা';
   if (r.includes('মেডিসিন') || r.includes('ওষুধ') || r.includes('medicine') || r.includes('drug') || r.includes('ওষু') || r==='med') return 'মেডিসিন';
-  if (r.includes('টেস্ট') || r.includes('রিপোর্ট') || r.includes('test') || r.includes('report') || r.includes('pathology') || r==='lab') return 'টেস্ট';
   // ✅ ফিক্স: সার্জিক্যাল (স্টক থেকে বিক্রিত সার্জারির সরঞ্জাম/কনজিউমেবল, "🩺 সার্জিক্যাল" বাটন) আগে ভুলবশত
   // "অপারেশন" খাতের সাথে মিশে যেত (দুটোই একই if-এ ছিল) — এখন থেকে এটা নিজস্ব আলাদা খাত, অপারেশন ফি থেকে
   // ভিন্ন (এই চেকটা অপারেশনের আগে থাকা জরুরি, নাহলে "সার্জিক্যাল" শব্দটা অপারেশনের চেকেও ম্যাচ করত)।
   if (r.includes('সার্জিক্যাল') || r.includes('surgical')) return 'সার্জিক্যাল';
+  // ✅ ফিক্স: "অপারেশন — টেস্ট/অন্যান্য খরচ" ক্যাটাগরির (অপারেশনের সাথে যুক্ত আউট-টেস্ট/হাসপাতাল-টেস্ট/খাবার
+  // ইত্যাদি খরচ) এন্ট্রিতে "টেস্ট" শব্দটাও থাকে বলে আগে এটা ভুলবশত নিচের "টেস্ট" চেকে ধরা পড়ে পাই চার্টে
+  // "টেস্ট" খাতে চলে যেত, "অপারেশন" খাতে না — তাই এই চেকটা এখন টেস্ট-চেকের আগে বসানো হলো, যেকোনো ক্যাটাগরিতে
+  // "অপারেশন"/"সার্জারি" শব্দ থাকলে সেটা সবসময় "অপারেশন" খাতেই যাবে, ভেতরে "টেস্ট" শব্দ থাকলেও।
   if (r.includes('অপারেশন') || r.includes('সার্জারি') || r.includes('operation') || r.includes('surgery') || (r.includes('ফি') && r.includes('অপ'))) return 'অপারেশন';
+  if (r.includes('টেস্ট') || r.includes('রিপোর্ট') || r.includes('test') || r.includes('report') || r.includes('pathology') || r==='lab') return 'টেস্ট';
   if (r.includes('opd') || r.includes('ভিজিট') || r.includes('visit') || r.includes('consultation') || r.includes('চেকআপ') || (r.includes('ফি') && !r.includes('অপ'))) return 'ভিজিট ফি';
   if (r.includes('ভর্তি') || r.includes('admit') || r.includes('bed') || r.includes('ward')) return 'ভর্তি ফি';
   if (r.includes('বেতন') || r.includes('salary') || r.includes('স্যালারি')) return 'বেতন/বোনাস';
