@@ -2512,6 +2512,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               </div>
             </div>
             <div id="dashPieWidget" class="lcw-embed"></div>
+            <div id="dashPieOpexNote" style="display:none;font-size:11.5px;color:var(--text-light);text-align:center;padding:4px 6px 0;line-height:1.6"></div>
             <!-- Pie segment detail panel -->
             <div id="dashPieDetail" class="pie-detail-panel">
               <div class="pie-detail-header">
@@ -2666,7 +2667,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <div id="pg-expense" class="page-view">
       <div class="panel">
         <div class="panel-header" style="cursor:pointer" onclick="toggleFormPanel('expFormBody','expFormIcon')"><div class="panel-title">💸 নতুন ব্যয় এন্ট্রি</div>
-          <span id="expFormIcon" style="color:var(--text-light);font-size:16px">▶</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openPreCampExpModal()">⛺ প্রি-ক্যাম্প খরচ</button>
+            <span id="expFormIcon" style="color:var(--text-light);font-size:16px">▶</span>
+          </div>
         </div>
         <div class="panel-body" id="expFormBody" style="display:none">
           <div class="form-row">
@@ -2757,6 +2761,16 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
         </div>
       </div>
+
+      <!-- রিসেপশনিস্ট-সাবমিটেড ব্যয়/প্রি-ক্যাম্প খরচ এন্ট্রি (status:'pending', needsApproval:true) —
+           যতক্ষণ না এখান থেকে অনুমোদন হচ্ছে ততক্ষণ কোনো হিসাবেই (ক্যাশ/রিপোর্ট/ক্যাম্প P&L) ধরা হবে না -->
+      <div class="panel" id="recExpApprovalPanel" style="display:none">
+        <div class="panel-header"><div class="panel-title">⏳ অনুমোদনের অপেক্ষায় (রিসেপশন)</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>খাত</th><th>বিবরণ</th><th>পেমেন্ট</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+          <tbody id="recExpApprovalTable"></tbody>
+        </table></div></div>
+      </div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 ব্যয়ের তালিকা</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -2791,6 +2805,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 
     <!-- CAMP -->
     <div id="pg-camp" class="page-view">
+      <!-- আসন্ন ক্যাম্প শিডিউল (এডমিন সেটিংস/ড্যাশবোর্ড ও রিসেপশন প্যানেলের সাথে একই শেয়ার্ড ডেটা — renderRecCampSchedule) -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">⛺ আসন্ন ক্যাম্প শিডিউল</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>স্ট্যাটাস</th></tr></thead>
+          <tbody id="campPageCampScheduleTable"></tbody>
+        </table></div></div>
+      </div>
       <!-- ক্যাম্প ROI লিডারবোর্ড -->
       <div class="panel">
         <div class="panel-header">
@@ -3193,7 +3215,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel">
         <div class="panel-header"><div class="panel-title">⛺ আসন্ন ক্যাম্প শিডিউল</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>স্ট্যাটাস</th><th>কার্যক্রম</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>স্ট্যাটাস</th></tr></thead>
           <tbody id="admCampScheduleTable"></tbody>
         </table></div></div>
       </div>
@@ -6572,6 +6594,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </div>
           </div>
           <div id="ownerPieWidget" class="lcw-embed" style="min-height:190px"></div>
+          <div id="ownerPieOpexNote" style="display:none;font-size:11px;color:#6B7280;text-align:center;padding:4px 6px 0;line-height:1.6"></div>
           <!-- Owner Pie Detail Panel -->
           <div id="ownerPieDetail" style="display:none;position:absolute;inset:0;background:white;border-radius:10px;z-index:10;flex-direction:column;padding:10px;overflow-y:auto">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0">
@@ -7054,6 +7077,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="rp-nav-item" id="rtab-appointment" onclick="switchRecTab('appointment',this)"><span class="nav-icon">📅</span> সিরিয়াল<span id="recApptBadge" class="nbadge" style="display:none"></span></div>
         <div class="rp-nav-item" id="rtab-callsheet" onclick="switchRecTab('callsheet',this)"><span class="nav-icon">📞</span> আজকের কল লিস্ট<span id="recCallBadge" class="nbadge" style="display:none"></span></div>
         <div class="rp-nav-item" id="rtab-recall" onclick="switchRecTab('recall',this)"><span class="nav-icon">🔁</span> রিকল লিস্ট<span id="recRecallBadge" class="nbadge" style="display:none"></span></div>
+        <div class="rp-nav-item" id="rtab-expense" onclick="switchRecTab('expense',this)"><span class="nav-icon">💸</span> ব্যয় এন্ট্রি<span id="recExpApprovalBadgeRec" class="nbadge" style="display:none"></span></div>
         <div class="rp-nav-item" id="rtab-directory" onclick="switchRecTab('directory',this)"><span class="nav-icon">📇</span> তথ্য কেন্দ্র</div>
         <div class="rp-nav-item" id="rtab-inquiry" onclick="switchRecTab('inquiry',this)"><span class="nav-icon">📝</span> ইনকোয়ারি</div>
         <div class="rp-nav-item" id="rtab-lookup" onclick="switchRecTab('lookup',this)"><span class="nav-icon">🔍</span> দাম খুঁজুন</div>
@@ -7278,6 +7302,65 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <tbody id="recRecallTable"></tbody>
           </table></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ব্যয় এন্ট্রি (রিসেপশনিস্ট) — হালকা ভার্সন, সবসময় অ্যাডমিনের অনুমোদনের অপেক্ষায় থাকে -->
+    <div id="rec-expense" class="rec-tab-view">
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">💸 ব্যয় এন্ট্রি</div>
+          <button class="btn btn-primary btn-sm" onclick="openPreCampExpModal()">⛺ প্রি-ক্যাম্প খরচ</button>
+        </div>
+        <div class="panel-body">
+          <input type="hidden" id="recExpEditId" value="">
+          <div class="form-row three">
+            <div class="field" id="recExpFormNote" style="background:#f0f9ff;border:1.5px solid var(--accent);border-radius:8px;padding:8px 10px;font-size:12.5px;color:#0369a1;display:flex;align-items:center">
+              ℹ️ এখানে দেওয়া এন্ট্রি সরাসরি হিসাবে যাবে না — অ্যাডমিনের অনুমোদনের পর হিসাবে যুক্ত হবে।
+            </div>
+            <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+              <input type="text" id="recExpVoucher" readonly style="font-weight:600;color:var(--warning);background:#f8fafc">
+            </div>
+            <div class="field"><label>তারিখ *</label><input type="date" id="recExpDate" onchange="updateRecExpVoucherPreview()"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>খাত *</label>
+              <select id="recExpCategory" onchange="updateRecExpSubCats()"><option value="">-- খাত নির্বাচন করুন --</option></select>
+            </div>
+            <div class="field"><label>সাব-ক্যাটাগরি</label><select id="recExpSubCategory"><option value="">-- (ঐচ্ছিক) --</option></select></div>
+          </div>
+          <div class="form-row-amt">
+            <div class="field-stack">
+              <div class="field"><label>পেমেন্ট মাধ্যম</label>
+                <select id="recExpPayMode" onchange="toggleRecExpMfsField()">
+                  <option value="cash">💵 ক্যাশ</option>
+                  <option value="mfs">📱 মোবাইল ব্যাংকিং</option>
+                </select>
+              </div>
+              <div class="field" id="recExpNoteField"><label>বিবরণ (ঐচ্ছিক)</label><input type="text" id="recExpNote" placeholder="সংক্ষিপ্ত বিবরণ"></div>
+            </div>
+            <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="recExpAmount" placeholder="০.০০" min="0"></div>
+          </div>
+          <div class="form-row" id="recExpMfsField" style="display:none">
+            <div class="field"><label>একাউন্ট *</label><select id="recExpMfsAccount"><option value="">-- নির্বাচন করুন --</option></select></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+            <button class="btn btn-outline" onclick="clearRecExpenseForm()">🔄 রিসেট</button>
+            <button class="btn btn-danger" id="recExpSubmitBtn" onclick="saveRecExpense()">✅ সাবমিট করুন</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📋 আমার এন্ট্রি</div>
+          <select id="recExpRange" onchange="renderRecExpenseList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+            <option value="today">আজ</option>
+            <option value="week">এই সপ্তাহ</option>
+            <option value="month">এই মাস</option>
+          </select>
+        </div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>খাত</th><th>বিবরণ</th><th>পেমেন্ট</th><th>পরিমাণ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+          <tbody id="recExpMyTable"></tbody>
+        </table></div></div>
       </div>
     </div>
 
@@ -7507,7 +7590,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel">
         <div class="panel-header"><div class="panel-title">⛺ আসন্ন ক্যাম্প শিডিউল</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>স্ট্যাটাস</th><th>কার্যক্রম</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>স্ট্যাটাস</th></tr></thead>
           <tbody id="recCampScheduleTable"></tbody>
         </table></div></div>
       </div>
@@ -7684,11 +7767,21 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
      লাভ-ক্ষতি হিসাবে এটা যোগ করে নেয় (দ্রষ্টব্য savePreCampExpense/renderPreCampExpenseList নিচে) -->
 <div class="modal-overlay" id="preCampExpModal">
   <div class="modal" style="width:540px">
-    <div class="modal-title">⛺ প্রি-ক্যাম্প খরচ — <span id="pceCampName" style="color:var(--primary)"></span></div>
+    <div class="modal-title">⛺ প্রি-ক্যাম্প খরচ</div>
     <input type="hidden" id="pceScheduleId">
+    <input type="hidden" id="pceEditId" value="">
     <div class="form-row">
-      <div class="field"><label>তারিখ *</label><input type="date" id="pceDate"></div>
-      <div class="field"><label>পরিমাণ (৳) *</label><input type="number" id="pceAmount" placeholder="০" min="0"></div>
+      <div class="field" id="pceCampNameField">
+        <label>ক্যাম্প</label>
+        <input type="text" id="pceCampNameDisplay" readonly style="background:#f8fafc;font-weight:600;color:var(--primary)">
+      </div>
+      <div class="field" id="pceCampSelectField" style="display:none">
+        <label>কোন ক্যাম্পের জন্য? *</label>
+        <select id="pceCampSelect" onchange="onPceCampSelectChange()">
+          <option value="">-- ক্যাম্প নির্বাচন করুন --</option>
+        </select>
+      </div>
+      <div class="field"><label>তারিখ *</label><input type="date" id="pceDate" onchange="updatePceVoucherPreview()"></div>
     </div>
     <div class="form-row">
       <div class="field"><label>খাত *</label>
@@ -7699,6 +7792,12 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="field"><label>সাব-ক্যাটাগরি</label>
         <select id="pceSubCategory"><option value="">-- (ঐচ্ছিক) --</option></select>
       </div>
+    </div>
+    <div class="form-row-amt">
+      <div class="field"><label>ভাউচার নং <span style="font-size:11px;color:var(--accent)">(অটো)</span></label>
+        <input type="text" id="pceVoucher" readonly style="font-weight:600;color:var(--warning);background:#f8fafc">
+      </div>
+      <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="pceAmount" placeholder="০.০০" min="0"></div>
     </div>
     <div class="form-row three">
       <div class="field"><label>পেমেন্ট মাধ্যম</label>
@@ -7716,7 +7815,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <div style="margin:12px 0 4px" id="pceListWrap"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closePreCampExpModal()">বন্ধ করুন</button>
-      <button class="btn btn-success" onclick="savePreCampExpense()">✅ খরচ যোগ করুন</button>
+      <button class="btn btn-success" id="pceSubmitBtn" onclick="savePreCampExpense()">✅ খরচ যোগ করুন</button>
     </div>
   </div>
 </div>
@@ -9301,6 +9400,7 @@ function startApp() {
     document.getElementById('userRole').textContent = role==='admin'?'অ্যাডমিন':'মডারেটর';
     document.getElementById('userAvatar').textContent = currentUser.name[0];
     renderSidebarNav(); // ✅ কাস্টম গ্রুপ অনুযায়ী সাইডবার তৈরি (এরপরের রোল-ভিত্তিক দৃশ্যমানতা লজিক নিচে প্রযোজ্য হবে)
+    if (typeof renderRecExpApprovalPanel === 'function') renderRecExpApprovalPanel();
     document.querySelectorAll('.admin-only').forEach(el=>{
       el.style.display = role==='admin' ? '' : 'none';
     });
@@ -10120,7 +10220,7 @@ function showPage(name) {
   if (name === 'expense') {
     const evm=document.getElementById('expViewMode'), efm=document.getElementById('expFilterMonth'), efd=document.getElementById('expFilterDate');
     if (evm && efm && efd && !efm.value && !efd.value) { evm.value='month'; efm.value=todayStr().substring(0,7); efd.style.display='none'; efm.style.display=''; }
-    renderExpenseTable(); clearExpenseForm();
+    renderExpenseTable(); clearExpenseForm(); renderRecExpApprovalPanel();
     const efb=document.getElementById('expFormBody'); if(efb) efb.style.display='none';
     const efi=document.getElementById('expFormIcon'); if(efi) efi.textContent='▶';
     makeTableResizable('expenseTable');
@@ -10137,7 +10237,7 @@ function showPage(name) {
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); }
-  if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); }
+  if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); if (typeof renderRecCampSchedule==='function') renderRecCampSchedule(); }
   if (name === 'demand')       { initDemandForm();
     const dmm=document.getElementById('dmFilterMonth'); if (dmm && !dmm.value) dmm.value=todayStr().substring(0,7);
     renderDemandList();
@@ -10468,7 +10568,7 @@ function refreshDashboard() {
 
   // Today expense (manual, Operating Expense only) — cash-basis: cash entries always count; bank entries count only when actually cleared today
   // ✅ isFundExpense/isInventoryPurchase বাদ (আগে এখানে ফিল্টার করা হতো না, ফলে ইনভেন্টরি ক্রয়ও "আজকের ব্যয়/লোকসান" এ ভুলভাবে ধরা পড়ত)
-  const exp      = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase);
+  const exp      = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase && !isFixedCostExpenseCategory(e.category));
   const totalExp = exp.reduce((s,e)=>s+e.amount,0);
   const todayCOGS = getCOGSForPrefix(today);
 
@@ -10513,6 +10613,7 @@ function refreshDashboard() {
   document.getElementById('dueCount').textContent = dueVisits.length;
   const dueNavBadgeEl = document.getElementById('dueNavBadge');
   if (dueNavBadgeEl) dueNavBadgeEl.style.display = dueVisits.length>0 ? 'inline' : 'none';
+  if (typeof renderRecExpApprovalPanel === 'function') renderRecExpApprovalPanel();
 
   // দেনা = লোন বাকি + সরবরাহকারী বাকি ভাউচার
   const loanIn = (appData.loans||[]).filter(l=>l.type==='received').reduce((s,l)=>s+l.amount,0);
@@ -10604,7 +10705,7 @@ function showDashCardModal(cardId, modalId) {
     ) + row('<strong>মোট</strong>', '<strong>৳ '+fmt(manualSum+visSum)+'</strong>', '#16a34a');
 
   } else if (cardId === 'todayExpense') {
-    const exp = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase);
+    const exp = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase && !isFixedCostExpenseCategory(e.category));
     const expSum = exp.reduce((s,e)=>s+e.amount,0);
     icon='💸'; title='আজকের ব্যয়'; sub=formatDate(today);
     amtText='৳ '+fmt(expSum+dailyFixed); amtColor='#e74c3c';
@@ -10619,7 +10720,7 @@ function showDashCardModal(cardId, modalId) {
     const manualInc = appData.income.filter(e=>e.date===today && (!e.visitId || e.category==='বাকি আদায়'));
     const vis       = appData.visits.filter(v=>v.date===today);
     const totalInc  = manualInc.reduce((s,e)=>s+e.amount,0)+vis.reduce((s,v)=>s+v.cashPaid,0);
-    const exp       = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase);
+    const exp       = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase && !isFixedCostExpenseCategory(e.category));
     const totalExp  = exp.reduce((s,e)=>s+e.amount,0);
     const todayCOGS = getCOGSForPrefix(today);
     const profit    = totalInc - todayCOGS - totalExp - dailyFixed;
@@ -11177,21 +11278,58 @@ function clearExpenseForm() {
 // দ্রষ্টব্য finalizeCampClose), (খ) মাসিক রিপোর্টের খাতভিত্তিক বিশ্লেষণে এই টাকা "ক্যাম্প" কলামে যোগ হয়,
 // বাকি হাসপাতাল-সরাসরি খরচ "হাসপাতাল" কলামে (দ্রষ্টব্য renderReport-এর expCat হিসাব)।
 function openPreCampExpModal(scheduleId) {
+  const selectField = document.getElementById('pceCampSelectField');
+  const nameField = document.getElementById('pceCampNameField');
+  if (scheduleId == null) {
+    // ব্যয় পেজের "প্রি-ক্যাম্প খরচ" বাটন থেকে খোলা হলে — নির্দিষ্ট কোনো ক্যাম্প প্রি-সিলেক্টেড থাকে না,
+    // তাই এখনও ক্লোজ হয়নি এমন সব শিডিউল করা ক্যাম্প দেখিয়ে বেছে নিতে দিতে হবে
+    const sel = document.getElementById('pceCampSelect');
+    const list = (appData.campSchedules||[]).filter(s => s.status !== 'closed').sort((a,b)=>a.date.localeCompare(b.date));
+    if (!list.length) { showToast('⚠️ কোনো শিডিউল করা ক্যাম্প (যা এখনো ক্লোজ হয়নি) নেই!'); return; }
+    sel.innerHTML = '<option value="">-- ক্যাম্প নির্বাচন করুন --</option>' + list.map(s => `<option value="${s.id}">${formatDate(s.date)} — ${s.name} (${s.location})</option>`).join('');
+    selectField.style.display = '';
+    nameField.style.display = 'none';
+    document.getElementById('pceScheduleId').value = '';
+    resetPceFormFields();
+    document.getElementById('pceListWrap').innerHTML = '';
+    document.getElementById('preCampExpModal').classList.add('open');
+    return;
+  }
   const s = (appData.campSchedules||[]).find(x => x.id === scheduleId);
   if (!s) { showToast('⚠️ ক্যাম্প শিডিউল খুঁজে পাওয়া যায়নি!'); return; }
+  selectField.style.display = 'none';
+  nameField.style.display = '';
   document.getElementById('pceScheduleId').value = scheduleId;
-  document.getElementById('pceCampName').textContent = `${s.name} — ${s.location} (${formatDate(s.date)})`;
+  document.getElementById('pceCampNameDisplay').value = `${s.name} — ${s.location} (${formatDate(s.date)})`;
+  resetPceFormFields();
+  renderPreCampExpenseList(scheduleId);
+  document.getElementById('preCampExpModal').classList.add('open');
+}
+function onPceCampSelectChange() {
+  const scheduleId = parseInt(document.getElementById('pceCampSelect').value);
+  document.getElementById('pceScheduleId').value = isNaN(scheduleId) ? '' : scheduleId;
+  if (!isNaN(scheduleId)) renderPreCampExpenseList(scheduleId);
+  else document.getElementById('pceListWrap').innerHTML = '';
+}
+function updatePceVoucherPreview() {
+  const dateEl = document.getElementById('pceDate');
+  const vEl = document.getElementById('pceVoucher');
+  if (dateEl && vEl) vEl.value = generateNextVoucherNo(dateEl.value || todayStr());
+}
+function resetPceFormFields() {
+  const catSel = document.getElementById('pceCategory');
+  const cats = getExpCats();
+  document.getElementById('pceEditId').value = '';
   document.getElementById('pceDate').value = todayStr();
   document.getElementById('pceAmount').value = '';
   document.getElementById('pceNote').value = '';
   document.getElementById('pcePayMode').value = 'cash';
   togglePceMfsField();
-  const catSel = document.getElementById('pceCategory');
-  const cats = getExpCats();
   catSel.innerHTML = '<option value="">-- খাত নির্বাচন করুন --</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
   updatePceSubCats();
-  renderPreCampExpenseList(scheduleId);
-  document.getElementById('preCampExpModal').classList.add('open');
+  updatePceVoucherPreview();
+  const btn = document.getElementById('pceSubmitBtn');
+  if (btn) btn.textContent = '✅ খরচ যোগ করুন';
 }
 function closePreCampExpModal() {
   document.getElementById('preCampExpModal').classList.remove('open');
@@ -11229,24 +11367,74 @@ function savePreCampExpense() {
     mfsAccountId = document.getElementById('pceMfsAccount').value || '';
     if (!mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
   }
+  const editId = parseInt(document.getElementById('pceEditId').value);
+  const fullNote = (note ? note + ' — ' : '') + `প্রি-ক্যাম্প খরচ: ${s.name}, ${s.location}`;
+  if (!isNaN(editId)) {
+    // ✏️ বাতিল হওয়া প্রি-ক্যাম্প খরচ এন্ট্রি সংশোধন করে আবার পাঠানো — একই এন্ট্রি আপডেট হবে
+    const e = (appData.expense || []).find(x => x.id === editId);
+    if (!e) { showToast('⚠️ এন্ট্রি খুঁজে পাওয়া যায়নি!'); resetPceFormFields(); return; }
+    const voucher = (e.date === date) ? e.voucher : ensureUniqueVoucher(generateNextVoucherNo(date), date);
+    Object.assign(e, {
+      date, category: cat, subCategory: subCat, amount: amt, voucher, note: fullNote, payMode, mfsAccountId,
+      status: 'pending', needsApproval: true, rejected: false, rejectionReason: '', rejectedBy: '', rejectedAt: '',
+      clearDate: date, actualClearedDate: ''
+    });
+    logActivity('edit', 'প্রি-ক্যাম্প খরচ সংশোধন', `${s.name} — ${cat}: ৳${fmt(amt)} (${voucher}) — পুনরায় অনুমোদনের অপেক্ষায়`);
+    saveData();
+    showToast('✅ সংশোধিত প্রি-ক্যাম্প খরচ আবার অনুমোদনের জন্য পাঠানো হয়েছে');
+    resetPceFormFields();
+    renderPreCampExpenseList(scheduleId);
+    if (typeof renderExpenseTable === 'function') renderExpenseTable();
+    if (typeof refreshDashboard === 'function') refreshDashboard();
+    if (typeof renderRecExpApprovalPanel === 'function') renderRecExpApprovalPanel();
+    if (typeof renderRecExpenseList === 'function') renderRecExpenseList();
+    return;
+  }
   const voucher = ensureUniqueVoucher(generateNextVoucherNo(date), date);
   const expId = Date.now();
   if (!appData.expense) appData.expense = [];
+  // ✅ রিসেপশনিস্ট নিজে প্রি-ক্যাম্প খরচ এন্ট্রি দিলে সেটা সরাসরি হিসাবে না গিয়ে অ্যাডমিনের অনুমোদনের
+  // অপেক্ষায় থাকবে (status:'pending', needsApproval:true) — অ্যাডমিন/ক্যাম্পেইনার নিজে দিলে আগের মতোই
+  // সাথে সাথে 'cleared' হয়ে যাবে। দ্রষ্টব্য renderRecExpApprovalPanel/approveRecExpense।
+  const isReception = currentUser.role === 'receptionist';
   appData.expense.push({
     id: expId, date, category: cat, subCategory: subCat, amount: amt, voucher,
-    note: (note ? note + ' — ' : '') + `প্রি-ক্যাম্প খরচ: ${s.name}, ${s.location}`,
+    note: fullNote,
     payMode, payPerson: '', checkNo: '', checkbookId: '', clearDate: date,
-    status: 'cleared', actualClearedDate: date, mfsAccountId,
-    by: currentUser.name, campId: scheduleId, preCamp: true
+    status: isReception ? 'pending' : 'cleared', actualClearedDate: isReception ? '' : date, mfsAccountId,
+    by: currentUser.name, campId: scheduleId, preCamp: true,
+    needsApproval: isReception, rejected: false, rejectionReason: ''
   });
-  logActivity('add', 'প্রি-ক্যাম্প খরচ', `${s.name} — ${cat}: ৳${fmt(amt)} (${voucher})`);
+  logActivity('add', 'প্রি-ক্যাম্প খরচ', `${s.name} — ${cat}: ৳${fmt(amt)} (${voucher})${isReception?' — অনুমোদনের অপেক্ষায়':''}`);
   saveData();
   document.getElementById('pceAmount').value = '';
   document.getElementById('pceNote').value = '';
   renderPreCampExpenseList(scheduleId);
   if (typeof renderExpenseTable === 'function') renderExpenseTable();
   if (typeof refreshDashboard === 'function') refreshDashboard();
-  showToast('✅ প্রি-ক্যাম্প খরচ যোগ হয়েছে! ভাউচার: ' + voucher);
+  if (typeof renderRecExpApprovalPanel === 'function') renderRecExpApprovalPanel();
+  if (typeof renderRecExpenseList === 'function') renderRecExpenseList();
+  showToast(isReception ? '✅ প্রি-ক্যাম্প খরচ পাঠানো হয়েছে — অ্যাডমিনের অনুমোদনের অপেক্ষায়! ভাউচার: ' + voucher : '✅ প্রি-ক্যাম্প খরচ যোগ হয়েছে! ভাউচার: ' + voucher);
+}
+function editPreCampExpense(id) {
+  const e = (appData.expense || []).find(x => x.id === id);
+  if (!e) return;
+  openPreCampExpModal(e.campId);
+  document.getElementById('pceEditId').value = id;
+  document.getElementById('pceDate').value = e.date;
+  document.getElementById('pceCategory').value = e.category;
+  updatePceSubCats();
+  document.getElementById('pceSubCategory').value = e.subCategory || '';
+  document.getElementById('pceAmount').value = e.amount;
+  const rawNote = (e.note || '').split(' — প্রি-ক্যাম্প খরচ:')[0];
+  document.getElementById('pceNote').value = rawNote || '';
+  document.getElementById('pcePayMode').value = e.payMode || 'cash';
+  togglePceMfsField();
+  if (e.payMode === 'mfs') document.getElementById('pceMfsAccount').value = e.mfsAccountId || '';
+  document.getElementById('pceVoucher').value = e.voucher || generateNextVoucherNo(e.date);
+  const btn = document.getElementById('pceSubmitBtn');
+  if (btn) btn.textContent = '✅ সংশোধন করে আবার পাঠান';
+  showToast('✏️ এন্ট্রিটা ফর্মে লোড হয়েছে, ঠিক করে আবার সাবমিট করুন');
 }
 function renderPreCampExpenseList(scheduleId) {
   const wrap = document.getElementById('pceListWrap');
@@ -11256,26 +11444,258 @@ function renderPreCampExpenseList(scheduleId) {
     wrap.innerHTML = '<div style="color:#aaa;font-size:12.5px;padding:6px 2px">এই ক্যাম্পের জন্য এখনো কোনো প্রি-ক্যাম্প খরচ যোগ করা হয়নি</div>';
     return;
   }
-  const total = items.reduce((s, e) => s + e.amount, 0);
-  wrap.innerHTML = `<div style="font-size:12.5px;color:var(--text-light);margin-bottom:6px">এই ক্যাম্পের প্রি-ক্যাম্প খরচ — মোট: <strong style="color:var(--danger)">৳ ${fmt(total)}</strong></div>` +
-    items.map(e => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#fef2f2;border-radius:6px;margin-bottom:5px;font-size:12.5px">
-      <span>${formatDate(e.date)} — ${e.category}${e.subCategory ? ' / ' + e.subCategory : ''} <span style="color:var(--text-light)">(${e.voucher || '—'})</span></span>
+  const total = items.filter(e=>e.status!=='pending').reduce((s, e) => s + e.amount, 0);
+  const pendingCount = items.filter(e=>e.status==='pending' && !e.rejected).length;
+  wrap.innerHTML = `<div style="font-size:12.5px;color:var(--text-light);margin-bottom:6px">এই ক্যাম্পের প্রি-ক্যাম্প খরচ (অনুমোদিত) — মোট: <strong style="color:var(--danger)">৳ ${fmt(total)}</strong>${pendingCount?` <span style="color:#92400e">(⏳ ${pendingCount}টি অনুমোদনের অপেক্ষায়)</span>`:''}</div>` +
+    items.map(e => {
+      const statusBadge = e.rejected
+        ? `<span class="badge" style="background:#fee2e2;color:#991b1b">❌ বাতিল</span>`
+        : e.status==='pending'
+          ? `<span class="badge" style="background:#fef3c7;color:#92400e">⏳ পেন্ডিং</span>`
+          : `<span class="badge badge-income">✅ অনুমোদিত</span>`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#fef2f2;border-radius:6px;margin-bottom:5px;font-size:12.5px">
+      <span>${formatDate(e.date)} — ${e.category}${e.subCategory ? ' / ' + e.subCategory : ''} <span style="color:var(--text-light)">(${e.voucher || '—'})</span> ${statusBadge}${e.rejected?`<div style="font-size:11px;color:#991b1b;margin-top:2px">কারণ: ${e.rejectionReason||'—'}</div>`:''}</span>
       <span style="display:flex;align-items:center;gap:8px">
         <strong style="color:var(--danger)">৳ ${fmt(e.amount)}</strong>
+        ${e.rejected ? `<button class="btn btn-outline btn-sm" onclick="editPreCampExpense(${e.id})">✏️</button>` : ''}
         <button class="btn-icon-del" onclick="deletePreCampExpense(${e.id},${scheduleId})">✕</button>
       </span>
-    </div>`).join('');
+    </div>`;
+    }).join('');
 }
 function deletePreCampExpense(id, scheduleId) {
-  if (!confirm('এই প্রি-ক্যাম্প খরচ এন্ট্রি মুছবেন?')) return;
   const e = (appData.expense || []).find(x => x.id === id);
+  if (!e) return;
+  // ✅ রিসেপশনিস্ট শুধু নিজের এন্ট্রি (এবং অ্যাডমিন এখনো অনুমোদন করেনি এমন) মুছতে পারবে —
+  // অ্যাডমিন-অনুমোদিত (status:'cleared') কোনো এন্ট্রি রিসেপশনিস্ট মুছতে পারবে না, শুধু অ্যাডমিনই পারবে।
+  if (currentUser.role === 'receptionist' && (e.by !== currentUser.name || e.status !== 'pending')) {
+    showToast('⚠️ শুধু নিজের এখনো অনুমোদন না-হওয়া এন্ট্রিই মুছতে পারবেন!');
+    return;
+  }
+  if (!confirm('এই প্রি-ক্যাম্প খরচ এন্ট্রি মুছবেন?')) return;
   appData.expense = (appData.expense || []).filter(x => x.id !== id);
-  if (e) logActivity('delete', 'প্রি-ক্যাম্প খরচ', `${e.category} — ৳${fmt(e.amount)}`);
+  logActivity('delete', 'প্রি-ক্যাম্প খরচ', `${e.category} — ৳${fmt(e.amount)}`);
   saveData();
   renderPreCampExpenseList(scheduleId);
   if (typeof renderExpenseTable === 'function') renderExpenseTable();
   if (typeof refreshDashboard === 'function') refreshDashboard();
+  if (typeof renderRecExpenseList === 'function') renderRecExpenseList();
   showToast('🗑️ মুছে ফেলা হয়েছে');
+}
+
+// ===== রিসেপশনিস্ট-সাবমিটেড ব্যয় এন্ট্রি — অ্যাডমিন অনুমোদন/বাতিল =====
+// রিসেপশনিস্টের এন্ট্রি (সাধারণ ব্যয় ও প্রি-ক্যাম্প খরচ — উভয়ই) সবসময় status:'pending', needsApproval:true
+// দিয়ে সেভ হয় (দ্রষ্টব্য saveRecExpense/savePreCampExpense) — expenseEffectiveDate() ইতিমধ্যেই pending
+// এন্ট্রিকে সব হিসাব (ক্যাশ/রিপোর্ট/ক্যাম্প P&L) থেকে বাদ রাখে, তাই এখানে শুধু status বদলালেই যথেষ্ট।
+function renderRecExpApprovalPanel() {
+  const panel = document.getElementById('recExpApprovalPanel');
+  const tbody = document.getElementById('recExpApprovalTable');
+  const badge = document.getElementById('admExpApprovalBadge');
+  if (!panel || !tbody) return;
+  const list = (appData.expense || []).filter(e => e.needsApproval && e.status === 'pending' && !e.rejected).sort((a, b) => b.id - a.id);
+  if (badge) badge.style.display = list.length ? 'inline' : 'none';
+  if (!list.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  tbody.innerHTML = list.map(e => {
+    const payLabel = e.payMode === 'mfs' ? '📱 মোবাইল ব্যাংকিং' : '💵 ক্যাশ';
+    const campTag = e.preCamp ? ` <span class="badge badge-info" style="margin-left:4px">⛺ প্রি-ক্যাম্প</span>` : '';
+    return `<tr>
+      <td>${formatDate(e.date)}</td>
+      <td>${e.category}${e.subCategory ? ' / ' + e.subCategory : ''}${campTag}</td>
+      <td style="color:var(--text-light)">${e.note || '—'}</td>
+      <td>${payLabel}</td>
+      <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
+      <td style="font-size:12px;color:var(--text-light)">${e.by || '—'}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-success btn-sm" onclick="approveRecExpense(${e.id})">✅ অনুমোদন</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectRecExpense(${e.id})">❌ বাতিল</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function approveRecExpense(id) {
+  const e = (appData.expense || []).find(x => x.id === id);
+  if (!e) return;
+  e.status = 'cleared';
+  e.clearDate = e.date;
+  e.actualClearedDate = e.date;
+  e.approvedBy = currentUser.name;
+  e.approvedAt = todayStr();
+  logActivity('approve', 'ব্যয় অনুমোদন', `${e.category} — ৳${fmt(e.amount)} (এন্ট্রিকারী: ${e.by || '—'})`);
+  saveData();
+  renderRecExpApprovalPanel();
+  if (typeof renderExpenseTable === 'function') renderExpenseTable();
+  if (typeof refreshDashboard === 'function') refreshDashboard();
+  if (e.preCamp && typeof renderPreCampExpenseList === 'function' && e.campId) renderPreCampExpenseList(e.campId);
+  showToast('✅ ব্যয় এন্ট্রি অনুমোদিত হয়েছে');
+}
+function rejectRecExpense(id) {
+  const e = (appData.expense || []).find(x => x.id === id);
+  if (!e) return;
+  const reason = prompt('বাতিলের কারণ লিখুন (রিসেপশনিস্ট এটা দেখতে পাবে এবং সংশোধন করে আবার পাঠাতে পারবে):');
+  if (reason === null) return;
+  e.rejected = true;
+  e.rejectionReason = reason.trim() || 'কারণ উল্লেখ করা হয়নি';
+  e.rejectedBy = currentUser.name;
+  e.rejectedAt = todayStr();
+  logActivity('reject', 'ব্যয় বাতিল', `${e.category} — ৳${fmt(e.amount)} (এন্ট্রিকারী: ${e.by || '—'}) — কারণ: ${e.rejectionReason}`);
+  saveData();
+  renderRecExpApprovalPanel();
+  if (e.preCamp && typeof renderPreCampExpenseList === 'function' && e.campId) renderPreCampExpenseList(e.campId);
+  showToast('❌ এন্ট্রি বাতিল করা হয়েছে');
+}
+
+// ===== রিসেপশন প্যানেল — "ব্যয় এন্ট্রি" ট্যাব (হালকা ভার্সন, সবসময় অ্যাডমিনের অনুমোদনের অপেক্ষায়) =====
+function initRecExpenseForm() {
+  const catSel = document.getElementById('recExpCategory');
+  if (!catSel) return;
+  const cats = getExpCats();
+  catSel.innerHTML = '<option value="">-- খাত নির্বাচন করুন --</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (!document.getElementById('recExpEditId').value) {
+    document.getElementById('recExpDate').value = todayStr();
+  }
+  updateRecExpSubCats();
+  toggleRecExpMfsField();
+  updateRecExpVoucherPreview();
+}
+function updateRecExpVoucherPreview() {
+  const dateEl = document.getElementById('recExpDate');
+  const vEl = document.getElementById('recExpVoucher');
+  if (dateEl && vEl) vEl.value = generateNextVoucherNo(dateEl.value || todayStr());
+}
+function updateRecExpSubCats() {
+  const cat = document.getElementById('recExpCategory').value;
+  const sel = document.getElementById('recExpSubCategory');
+  const subs = (appData.settings.expSubCats || {})[fbSafeKey(cat)] || [];
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- (ঐচ্ছিক) --</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('');
+  if (subs.includes(cur)) sel.value = cur;
+}
+function toggleRecExpMfsField() {
+  const mode = document.getElementById('recExpPayMode').value;
+  const mfsField = document.getElementById('recExpMfsField');
+  if (!mfsField) return;
+  mfsField.style.display = mode === 'mfs' ? '' : 'none';
+  if (mode === 'mfs') {
+    const sel = document.getElementById('recExpMfsAccount');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">-- একাউন্ট নির্বাচন করুন --</option>' +
+      (appData.mfsAccounts || []).map(a => `<option value="${a.id}">${a.name} (৳ ${fmt(calcMfsAccountBalance(a.id))})</option>`).join('');
+    if (cur) sel.value = cur;
+  }
+}
+function clearRecExpenseForm() {
+  document.getElementById('recExpEditId').value = '';
+  document.getElementById('recExpDate').value = todayStr();
+  document.getElementById('recExpCategory').value = '';
+  updateRecExpSubCats();
+  document.getElementById('recExpAmount').value = '';
+  document.getElementById('recExpNote').value = '';
+  document.getElementById('recExpPayMode').value = 'cash';
+  toggleRecExpMfsField();
+  updateRecExpVoucherPreview();
+  const btn = document.getElementById('recExpSubmitBtn');
+  if (btn) btn.textContent = '✅ সাবমিট করুন';
+  const note = document.getElementById('recExpFormNote');
+  if (note) note.innerHTML = 'ℹ️ এখানে দেওয়া এন্ট্রি সরাসরি হিসাবে যাবে না — অ্যাডমিনের অনুমোদনের পর হিসাবে যুক্ত হবে।';
+}
+function saveRecExpense() {
+  const editId = parseInt(document.getElementById('recExpEditId').value);
+  const date = document.getElementById('recExpDate').value;
+  const cat = document.getElementById('recExpCategory').value;
+  const subCat = document.getElementById('recExpSubCategory').value;
+  const amt = parseFloat(document.getElementById('recExpAmount').value);
+  const payMode = document.getElementById('recExpPayMode').value;
+  const note = document.getElementById('recExpNote').value.trim();
+  if (!date || !cat || isNaN(amt) || amt <= 0) { showToast('⚠️ তারিখ, খাত ও পরিমাণ আবশ্যক!'); return; }
+  let mfsAccountId = '';
+  if (payMode === 'mfs') {
+    mfsAccountId = document.getElementById('recExpMfsAccount').value || '';
+    if (!mfsAccountId) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট নির্বাচন করুন!'); return; }
+  }
+  if (!isNaN(editId)) {
+    // ✏️ বাতিল হওয়া এন্ট্রি সংশোধন করে আবার পাঠানো — একই এন্ট্রি আপডেট হবে, id/এন্ট্রিকারী অপরিবর্তিত থাকবে
+    const e = (appData.expense || []).find(x => x.id === editId);
+    if (!e) { showToast('⚠️ এন্ট্রি খুঁজে পাওয়া যায়নি!'); clearRecExpenseForm(); return; }
+    const voucher = (e.date === date) ? e.voucher : ensureUniqueVoucher(generateNextVoucherNo(date), date);
+    Object.assign(e, {
+      date, category: cat, subCategory: subCat, amount: amt, voucher, note, payMode, mfsAccountId,
+      status: 'pending', needsApproval: true, rejected: false, rejectionReason: '', rejectedBy: '', rejectedAt: '',
+      clearDate: date, actualClearedDate: ''
+    });
+    logActivity('edit', 'ব্যয় সংশোধন', `${cat} — ৳${fmt(amt)} (${voucher}) — পুনরায় অনুমোদনের অপেক্ষায়`);
+    saveData();
+    showToast('✅ সংশোধিত এন্ট্রি আবার অনুমোদনের জন্য পাঠানো হয়েছে');
+  } else {
+    const voucher = ensureUniqueVoucher(generateNextVoucherNo(date), date);
+    if (!appData.expense) appData.expense = [];
+    appData.expense.push({
+      id: Date.now(), date, category: cat, subCategory: subCat, amount: amt, voucher, note,
+      payMode, payPerson: '', checkNo: '', checkbookId: '', clearDate: date,
+      status: 'pending', actualClearedDate: '', mfsAccountId,
+      by: currentUser.name, needsApproval: true, rejected: false, rejectionReason: ''
+    });
+    logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher}) — অনুমোদনের অপেক্ষায়`);
+    saveData();
+    showToast('✅ এন্ট্রি পাঠানো হয়েছে — অ্যাডমিনের অনুমোদনের অপেক্ষায়! ভাউচার: ' + voucher);
+  }
+  clearRecExpenseForm();
+  renderRecExpenseList();
+  if (typeof renderRecExpApprovalPanel === 'function') renderRecExpApprovalPanel();
+}
+function editRecExpense(id) {
+  const e = (appData.expense || []).find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('recExpEditId').value = id;
+  document.getElementById('recExpDate').value = e.date;
+  initRecExpenseForm();
+  document.getElementById('recExpCategory').value = e.category;
+  updateRecExpSubCats();
+  document.getElementById('recExpSubCategory').value = e.subCategory || '';
+  document.getElementById('recExpAmount').value = e.amount;
+  document.getElementById('recExpNote').value = e.note || '';
+  document.getElementById('recExpPayMode').value = e.payMode === 'mfs' ? 'mfs' : 'cash';
+  toggleRecExpMfsField();
+  if (e.payMode === 'mfs') document.getElementById('recExpMfsAccount').value = e.mfsAccountId || '';
+  document.getElementById('recExpVoucher').value = e.voucher || generateNextVoucherNo(e.date);
+  const btn = document.getElementById('recExpSubmitBtn');
+  if (btn) btn.textContent = '✅ সংশোধন করে আবার পাঠান';
+  const note = document.getElementById('recExpFormNote');
+  if (note) note.innerHTML = `✏️ বাতিল হওয়া এন্ট্রি সংশোধন করছেন — কারণ ছিল: <strong>${e.rejectionReason || '—'}</strong>`;
+  showToast('✏️ এন্ট্রিটা ফর্মে লোড হয়েছে, ঠিক করে আবার সাবমিট করুন');
+}
+function renderRecExpenseList() {
+  const tbody = document.getElementById('recExpMyTable');
+  if (!tbody) return;
+  const range = document.getElementById('recExpRange')?.value || 'today';
+  const today = todayStr();
+  let fromDate = today;
+  if (range === 'week') { const d = new Date(); d.setDate(d.getDate() - 6); fromDate = d.toISOString().substring(0, 10); }
+  else if (range === 'month') { fromDate = today.substring(0, 7) + '-01'; }
+  const list = (appData.expense || []).filter(e => e.by === currentUser.name && e.needsApproval && e.date >= fromDate && e.date <= today).sort((a, b) => b.id - a.id);
+  const rejectedCount = list.filter(e => e.rejected).length;
+  const badge = document.getElementById('recExpApprovalBadgeRec');
+  if (badge) badge.style.display = rejectedCount ? 'inline' : 'none';
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+  tbody.innerHTML = list.map(e => {
+    const payLabel = e.payMode === 'mfs' ? '📱 মোবাইল ব্যাংকিং' : '💵 ক্যাশ';
+    const campTag = e.preCamp ? ` <span class="badge badge-info">⛺ প্রি-ক্যাম্প</span>` : '';
+    const statusBadge = e.rejected
+      ? `<span class="badge" style="background:#fee2e2;color:#991b1b">❌ বাতিল</span><div style="font-size:11px;color:#991b1b;margin-top:2px">কারণ: ${e.rejectionReason || '—'}</div>`
+      : e.status === 'pending'
+        ? `<span class="badge" style="background:#fef3c7;color:#92400e">⏳ পেন্ডিং</span>`
+        : `<span class="badge badge-income">✅ অনুমোদিত</span>`;
+    return `<tr>
+      <td>${formatDate(e.date)}</td>
+      <td style="font-weight:600;color:var(--warning)">${e.voucher || '—'}</td>
+      <td>${e.category}${e.subCategory ? ' / ' + e.subCategory : ''}${campTag}</td>
+      <td style="color:var(--text-light)">${e.note || '—'}</td>
+      <td>${payLabel}</td>
+      <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
+      <td>${statusBadge}</td>
+      <td>${e.rejected ? (e.preCamp ? `<button class="btn btn-outline btn-sm" onclick="editPreCampExpense(${e.id})">✏️ সংশোধন</button>` : `<button class="btn btn-outline btn-sm" onclick="editRecExpense(${e.id})">✏️ সংশোধন</button>`) : '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // পেমেন্ট মাধ্যম পরিবর্তন
@@ -11724,7 +12144,7 @@ function renderExpenseTable() {
 
   // সব পেন্ডিং চেক (ফিল্টার নির্বিশেষে) — সবসময় উপরে ভেসে থাকবে, যতদিন না ভাঙ্গানো নিশ্চিত হয়
   // (এগুলো উপরের ফিল্টারেই effective date null হওয়ায় বাদ পড়ে গেছে, তাই এখানে আলাদাভাবে দেখানো হলেও কোথাও ডাবল গণনা/প্রদর্শন হচ্ছে না)
-  const allPending = [...(appData.expense||[])].filter(e=>e.status==='pending').sort((a,b)=>a.clearDate.localeCompare(b.clearDate));
+  const allPending = [...(appData.expense||[])].filter(e=>e.status==='pending' && !e.needsApproval).sort((a,b)=>a.clearDate.localeCompare(b.clearDate));
   let pendingHtml = '';
   if (allPending.length) {
     const pendingTotal = allPending.reduce((s,e)=>s+e.amount,0);
@@ -11777,21 +12197,26 @@ function renderExpenseTable() {
   let html=pendingHtml;
   sortedKeys.forEach(key => {
     const items = groups[key];
-    // ✅ ব্র্যাকেট-ভিত্তিক সাব-টোটাল: সাধারণ ব্যয় (পাই চার্ট/মাসিক তুলনার সাথে মিলে যাওয়ার কথা) + ফান্ড থেকে ব্যয়
-    // + ইনভেন্টরি ক্রয় (সম্পদ হিসেবে গণ্য, তাই P&L-এ ধরা হয় না) — আলাদা করে দেখানো হচ্ছে, আর সব মিলিয়ে "প্রকৃত মোট ব্যয়"ও দেখানো হচ্ছে
-    const normalItems = items.filter(e=>!e.isFundExpense && !e.isInventoryPurchase);
+    // ✅ ব্র্যাকেট-ভিত্তিক সাব-টোটাল: সাধারণ ব্যয় (P&L-এর opEx-এর সাথে মিলে যাওয়ার কথা) + ফিক্সড-খাত এন্ট্রি
+    // (ভাড়া/বিদ্যুৎ/পানি/বেতন — Settings-এর ফিক্সড রেট থেকে ইতিমধ্যে P&L-এ আলাদাভাবে গণনা হয়ে যায়, তাই এখানে
+    // আলাদা করে দেখানো, "সাধারণ ব্যয়"-এ যোগ না করে ডাবল-কাউন্ট এড়ানো হচ্ছে) + ফান্ড থেকে ব্যয় + ইনভেন্টরি ক্রয়
+    // (সম্পদ হিসেবে গণ্য, তাই P&L-এ ধরা হয় না) — আলাদা করে দেখানো হচ্ছে, আর সব মিলিয়ে "প্রকৃত মোট ব্যয়"ও দেখানো হচ্ছে
+    const normalItems = items.filter(e=>!e.isFundExpense && !e.isInventoryPurchase && !isFixedCostExpenseCategory(e.category));
+    const fixedItems = items.filter(e=>!e.isFundExpense && !e.isInventoryPurchase && isFixedCostExpenseCategory(e.category));
     const fundItems = items.filter(e=>e.isFundExpense);
     const invItems = items.filter(e=>e.isInventoryPurchase);
     const normalTotal = normalItems.reduce((s,e)=>s+e.amount,0);
+    const fixedTotal = fixedItems.reduce((s,e)=>s+e.amount,0);
     const fundTotal = fundItems.reduce((s,e)=>s+e.amount,0);
     const invTotal = invItems.reduce((s,e)=>s+e.amount,0);
-    const grandTotal = normalTotal + fundTotal + invTotal;
+    const grandTotal = normalTotal + fixedTotal + fundTotal + invTotal;
     const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
     let bracketsHtml = `<span style="color:${groupText}">সাধারণ ব্যয়: ৳ ${fmt(normalTotal)}</span>`;
+    if (fixedTotal) bracketsHtml += ` <span style="color:#b45309">| ফিক্সড-খাত: ৳ ${fmt(fixedTotal)}</span>`;
     if (fundTotal) bracketsHtml += ` <span style="color:#5b21b6">| ফান্ড থেকে: ৳ ${fmt(fundTotal)}</span>`;
     if (invTotal) bracketsHtml += ` <span style="color:#0369a1">| ইনভেন্টরি: ৳ ${fmt(invTotal)}</span>`;
-    if (fundTotal || invTotal) bracketsHtml += ` <span style="color:#991b1b;font-weight:800">| প্রকৃত মোট ব্যয়: ৳ ${fmt(grandTotal)}</span>`;
+    if (fixedTotal || fundTotal || invTotal) bracketsHtml += ` <span style="color:#991b1b;font-weight:800">| প্রকৃত মোট ব্যয়: ৳ ${fmt(grandTotal)}</span>`;
     html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" data-hdr-gid="exp_${gid}" data-open="1" onclick="toggleExpGroup('${gid}')">
       <td colspan="7" style="color:${groupText};font-weight:700;padding:7px 12px;font-size:12.5px">
         ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; ${bracketsHtml} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
@@ -11812,10 +12237,11 @@ function renderExpenseTable() {
         : (e.payPerson || '—');
       const fundBadge = e.isFundExpense ? `<span title="এই খরচ ফান্ড থেকে করা হয়েছে — মাসিক নিট লাভ/লোকসান হিসাবে গণনা হয় না" style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏦 P&L-নিরপেক্ষ</span>` : '';
       const invBadge = e.isInventoryPurchase ? `<span title="ইনভেন্টরি ক্রয় — সম্পদ হিসেবে গণ্য, বিক্রির সময় COGS হিসেবে গণনা হয়, তাই এখন P&L-এ ধরা হয় না" style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">📦 সম্পদ</span>` : '';
+      const fixedBadge = (!e.isFundExpense && !e.isInventoryPurchase && isFixedCostExpenseCategory(e.category)) ? `<span title="এই খাতের টাকা Settings-এর ফিক্সড খরচ রেট থেকে ইতিমধ্যে P&L-এ আলাদাভাবে গণনা হয়ে যায় — তাই এখানে ডাবল-কাউন্ট এড়াতে 'পরিচালন ব্যয়'-এ ধরা হয় না" style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏠 ফিক্সড-খাত (P&L-এ পৃথক)</span>` : '';
       html += `<tr class="exp-grp-row"${e.isFundExpense?' style="background:#faf5ff"':''} data-grp="${gid}" id="exp-row-${e.id}">
         <td>${formatDate(e.date)}</td>
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
-        <td>${e.category}${fundBadge}${invBadge}</td>
+        <td>${e.category}${fundBadge}${invBadge}${fixedBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
         <td>${payBadge}${statusBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${personOrCheck}</td>
@@ -15036,11 +15462,26 @@ function initBankPage() {
 }
 // ব্যয় এন্ট্রির প্রকৃত হিসাবভুক্তির তারিখ — ক্যাশ হলে এন্ট্রির তারিখ, ব্যাংক/চেক হলে যেদিন প্রকৃতপক্ষে ভাঙ্গানো হয়েছে (পেন্ডিং হলে হিসাবে গণনাই হবে না)
 function expenseEffectiveDate(e) {
+  // ✅ যেকোনো পেমেন্ট মাধ্যমের এন্ট্রি status==='pending' হলে কোনো হিসাবেই (P&L/রিপোর্ট/ক্যাশ-ব্যালেন্স)
+  // গণনা হবে না — আগে শুধু ব্যাংক চেকের ক্ষেত্রে এটা চেক হতো (ভবিষ্যতের ভাঙ্গানোর তারিখ), এখন রিসেপশনিস্ট-
+  // সাবমিটেড এন্ট্রি (needsApproval:true) অ্যাডমিনের অনুমোদনের অপেক্ষায় থাকা অবস্থাতেও একই নিয়মে বাদ যাবে,
+  // যতক্ষণ না approveRecExpense() দিয়ে status='cleared' করা হয়
+  if (e.status === 'pending') return null;
   if (e.payMode === 'bank') {
-    if (e.status === 'pending') return null;
     return e.actualClearedDate || e.clearDate || e.date;
   }
   return e.date;
+}
+// ✅ ফিক্সড খরচ (ভাড়া/বিদ্যুৎ বিল/পানির বিল) ও কর্মীর বেতন — এগুলো Settings/স্টাফ প্রোফাইল থেকে অটো
+// (getMonthlyFixedForPrefix()) মাসিক ফিক্সড হিসেবে P&L-এ যোগ হয়ে যায়। কিন্তু "ব্যয় এন্ট্রি" ফর্মের ডিফল্ট
+// খাত লিস্টেও এই একই নামের খাত আছে (রিসিট/রেকর্ড রাখার জন্য) — কেউ যদি ভুলবশত এই খাতে ম্যানুয়াল এন্ট্রি
+// দেয়, তাহলে সেই টাকা "পরিচালন ব্যয়"-এ আবার যোগ হয়ে ডাবল-কাউন্ট হয়ে যেত (একবার Settings-এর ফিক্সড রেট
+// থেকে, আরেকবার এই ম্যানুয়াল এন্ট্রি থেকে) — তাই এই খাতগুলো P&L/অপারেটিং এক্সপেন্স হিসাব থেকে বাদ রাখা হচ্ছে।
+// ⚠️ ক্যাশ/ব্যাংক ব্যালেন্স (calcCashBankBalance) থেকে এই এন্ট্রিগুলো ঠিকই বিয়োগ হবে — কারণ টাকাটা বাস্তবেই
+// খরচ হয়েছে, শুধু P&L/নিট মুনাফায় দ্বিতীয়বার গণনা আটকানো হচ্ছে।
+const FIXED_COST_EXP_CATEGORIES = ['ভাড়া', 'বিদ্যুৎ বিল', 'পানির বিল', 'কর্মীর বেতন'];
+function isFixedCostExpenseCategory(cat) {
+  return FIXED_COST_EXP_CATEGORIES.includes(cat);
 }
 function expenseCountsInPrefix(e, prefix) {
   if (e.isFundExpense) return false; // ফান্ড খরচ — নিট মুনাফা/লোকসান হিসাবে গণনা হয় না
@@ -15048,6 +15489,8 @@ function expenseCountsInPrefix(e, prefix) {
   // (calcCashBankBalance() নিচে অপরিবর্তিত থাকে, কোনো ফিল্টার ছাড়াই সব expense থেকে বিয়োগ করে) — কিন্তু P&L/নিট মুনাফায় গণনা হবে না।
   // এর বদলে বিক্রি হওয়ার সময় COGS হিসেবে হিসাব হয় (দ্রষ্টব্য: getCOGSForPrefix())
   if (e.isInventoryPurchase) return false;
+  // ✅ ফিক্সড খরচ ক্যাটাগরি — উপরের কমেন্ট দ্রষ্টব্য (ডাবল-কাউন্ট প্রতিরোধ)
+  if (isFixedCostExpenseCategory(e.category)) return false;
   const eff = expenseEffectiveDate(e);
   return !!eff && eff.startsWith(prefix);
 }
@@ -15108,7 +15551,10 @@ function calcCashBankBalance() {
     } else if (e.payMode === 'mfs') {
       // মোবাইল ব্যাংকিং (বিকাশ/নগদ ইত্যাদি) একাউন্ট থেকে বাদ — calcMfsBalances()-এ হিসাব হয়, ক্যাশ/ব্যাংক থেকে না
     } else {
-      cash -= (e.amount||0);
+      // ✅ ফিক্স: রিসেপশনিস্টের অনুমোদনের অপেক্ষায় থাকা (status:'pending', needsApproval:true) ক্যাশ-এন্ট্রি
+      // অ্যাডমিন অনুমোদন না করা পর্যন্ত ক্যাশ ব্যালেন্স থেকে বাদ যাবে না — আগে এখানে status চেক ছিল না
+      // (শুধু ব্যাংক চেকের জন্যই 'pending' ব্যবহার হতো), তাই এই চেক নতুন করে যোগ করা হলো।
+      if (e.status !== 'pending') cash -= (e.amount||0);
     }
   });
   // ✅ ফিক্স: আগে এখানে ধাপ ৫-এ camp.totalExpense/totalCOGS/regularStaffCost আবার ক্যাশ থেকে বাদ
@@ -15148,7 +15594,9 @@ function calcMfsAccountBalance(accountId) {
   let bal = Number(acc.openingBalance) || 0;
   (appData.income||[]).forEach(e => { if (!e.visitId && String(e.mfsAccountId)===String(accountId)) bal += (e.mfsPaid!=null ? e.mfsPaid : (e.payMode==='mfs'?e.amount:0)) || 0; });
   (appData.visits||[]).forEach(v => { if (String(v.mfsAccountId)===String(accountId)) bal += (v.mfsPaid||0); });
-  (appData.expense||[]).forEach(e => { if (e.payMode==='mfs' && String(e.mfsAccountId)===String(accountId)) bal -= (e.amount||0); });
+  // ✅ ফিক্স: রিসেপশনিস্টের অনুমোদনের অপেক্ষায় থাকা মোবাইল-ব্যাংকিং এন্ট্রি (status:'pending') অ্যাডমিন
+  // অনুমোদন না করা পর্যন্ত একাউন্ট ব্যালেন্স থেকে বাদ যাবে না
+  (appData.expense||[]).forEach(e => { if (e.payMode==='mfs' && e.status!=='pending' && String(e.mfsAccountId)===String(accountId)) bal -= (e.amount||0); });
   (appData.bankTx||[]).forEach(tx => {
     if (String(tx.accountId) !== String(accountId)) return;
     if (tx.type==='mfs_in') bal += tx.amount;
@@ -17992,7 +18440,7 @@ function renderRoleBottomTabs(roleKey, activeFeature) {
 const SIDEBAR_NAV_ITEMS = [
   { id:'dashboard', icon:'🏠', label:'ড্যাশবোর্ড' },
   { id:'income', icon:'💰', label:'আয়' },
-  { id:'expense', icon:'💸', label:'ব্যয়' },
+  { id:'expense', icon:'💸', label:'ব্যয়', badge:'<span class="nbadge" id="admExpApprovalBadge" style="display:none">!</span>' },
   { id:'camp', icon:'🏕️', label:'ক্যাম্প রেকর্ড' },
   { id:'recdeposit', icon:'🏦', label:'রিসেপশন রেকর্ড' },
   { id:'delivery', icon:'🚚', label:'ডেলিভারি শিডিউল' },
@@ -19097,7 +19545,7 @@ function initOwnerPage() {
 
   // Today stats
   const todayInc = getTotalRevenueForPrefix(today);
-  const todayExp = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase).reduce((s,e)=>s+e.amount,0);
+  const todayExp = appData.expense.filter(e=>expenseEffectiveDate(e)===today && !e.isFundExpense && !e.isInventoryPurchase && !isFixedCostExpenseCategory(e.category)).reduce((s,e)=>s+e.amount,0);
   const todayCOGS2 = getCOGSForPrefix(today);
   const mInc = getTotalRevenueForPrefix(prefix);
   const mExp = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix)).reduce((s,e)=>s+e.amount,0);
@@ -20761,7 +21209,7 @@ function finalizeCampClose() {
   // প্রচারণা/যাতায়াত ইত্যাদি খরচ, যা ইতিমধ্যেই appData.expense-এ নিজস্ব ভাউচার নিয়ে আলাদাভাবে এন্ট্রি
   // হয়ে আছে (campId=scheduleId, preCamp:true)। এখানে শুধু ক্যাম্পের P&L/ব্রেকডাউনে যোগ করা হচ্ছে —
   // আবার নতুন করে appData.expense-এ পুশ করা হচ্ছে না (নিচে দ্রষ্টব্য), নাহলে ডাবল-কাউন্ট হয়ে যেত।
-  const preCampExpenses = (appData.expense||[]).filter(e => e.campId === camperSession.scheduleId && e.preCamp);
+  const preCampExpenses = (appData.expense||[]).filter(e => e.campId === camperSession.scheduleId && e.preCamp && e.status !== 'pending');
   const preCampTotal = preCampExpenses.reduce((s,e) => s+e.amount, 0);
   const totalIncome  = visits.reduce((s,v) => s+v.paid, 0);
   const totalDue     = visits.reduce((s,v) => s+v.due, 0);
@@ -26558,6 +27006,7 @@ function switchRecTab(name, btn) {
   if (name==='queue') renderRecTokenQueue();
   if (name==='callsheet') renderRecCallSheet();
   if (name==='recall') renderRecRecallList();
+  if (name==='expense') { initRecExpenseForm(); renderRecExpenseList(); }
   if (name==='directory') { renderRecDoctorDirectory(); renderServiceCatalog(); renderRecCampSchedule(); }
   if (name==='inquiry') renderInquiryLog();
   if (name==='attendance') renderRecAttendancePage();
@@ -28302,19 +28751,18 @@ function renderServiceCatalog() {
 
 // ✅ আসন্ন ক্যাম্প শিডিউল — যা অ্যাডমিন/ক্যাম্পেইনার আগে থেকে তৈরি করে রাখে (appData.campSchedules), এখানে
 // রিসেপশন ও অ্যাডমিন উভয় প্যানেলেই শুধু দেখানো হয়
-var _CAMPSCHED_TABLE_IDS = ['recCampScheduleTable','admCampScheduleTable'];
+var _CAMPSCHED_TABLE_IDS = ['recCampScheduleTable','admCampScheduleTable','campPageCampScheduleTable'];
 function renderRecCampSchedule() {
   var today = todayStr();
   var list = (appData.campSchedules||[]).filter(function(s){ return s.date>=today && s.status!=='closed'; }).sort(function(a,b){ return a.date.localeCompare(b.date); });
   var statusLabels = { scheduled:'নির্ধারিত', active:'সক্রিয়', closed:'সম্পন্ন' };
-  var rowsHtml = !list.length ? '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">কোনো আসন্ন ক্যাম্প নেই</td></tr>' : list.map(function(s){
+  var rowsHtml = !list.length ? '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">কোনো আসন্ন ক্যাম্প নেই</td></tr>' : list.map(function(s){
     return '<tr>'
       +'<td>'+formatDate(s.date)+(s.date===today?' <span style="color:var(--primary);font-weight:700">(আজ)</span>':'')+'</td>'
       +'<td style="font-weight:600">'+s.name+'</td>'
       +'<td>'+s.location+'</td>'
       +'<td>'+(s.doctor||'—')+'</td>'
       +'<td>'+(statusLabels[s.status]||s.status)+'</td>'
-      +'<td><button class="btn btn-primary btn-sm" onclick="openPreCampExpModal('+s.id+')">➕ প্রি-ক্যাম্প খরচ</button></td>'
       +'</tr>';
   }).join('');
   _CAMPSCHED_TABLE_IDS.forEach(function(id){ var tbody=document.getElementById(id); if(tbody) tbody.innerHTML=rowsHtml; });
@@ -31490,6 +31938,24 @@ function canonicalCat(raw) {
   if (r.includes('সরবরাহ') || r.includes('stock') || r.includes('purchase') || r.includes('ক্রয়') || r.includes('মালামাল')) return 'মালামাল ক্রয়';
   return 'অন্যান্য';
 }
+// ✅ ফিক্স: ব্যয় (expense) এন্ট্রির ক্যাটাগরি ড্রপডাউন থেকেই (getExpCats()) নির্বাচিত হয় — অর্থাৎ
+// ইতিমধ্যেই canonical/নির্দিষ্ট। উপরের canonicalCat() মূলত আয়ের (visit/service আইটেম) ঢিলেঢালা
+// টেক্সট থেকে খাত অনুমান করার জন্য বানানো, যাতে "ভিজিট ফি" ব্র্যাঞ্চটা যেকোনো "ফি" শব্দযুক্ত টেক্সটকে
+// ধরে ফেলে (আর "চশমা"/"মেডিসিন"/"টেস্ট"/"অপারেশন"/"ভর্তি ফি" — এসব খাতও ব্যয়ের জন্য অপ্রাসঙ্গিক)। এতদিন
+// পাই চার্ট/ড্যাশবোর্ড ড্রিলডাউনে ব্যয় বাকেটিং-এও ভুলবশত এই একই canonicalCat() ব্যবহার হতো — ফলে যেকোনো
+// কাস্টম/সাধারণ ব্যয় খাতের নামে "ফি" (বা "ভিজিট"/"opd"/"visit"/"consultation"/"চেকআপ") শব্দ থাকলেই সেই
+// এন্ট্রি ভুল করে "ভিজিট ফি" (বা অন্য আয়-খাত) হিসেবে দেখাত, নিজের প্রকৃত খাতের বদলে। এখন থেকে ব্যয়ের জন্য
+// আলাদা এই ফাংশন — শুধু বেতন/ভাড়া-ইউটিলিটি/মালামাল-ক্রয়-এর মতো সত্যিকারের ব্যয়-উপযোগী গ্রুপিং রাখা হলো,
+// আর কোনো কীওয়ার্ড না মিললে (fallback) মূল ক্যাটাগরির নামটাই অপরিবর্তিত রাখা হচ্ছে — "অন্যান্য"-তে ফেলা হচ্ছে
+// না — যাতে যেই খাতে এন্ট্রি দেওয়া হয়েছে, পাই চার্টেও ঠিক সেই খাতেই দেখায়।
+function canonicalExpenseCat(raw) {
+  if (!raw) return 'অন্যান্য ব্যয়';
+  const r = raw.trim().toLowerCase();
+  if (r.includes('বেতন') || r.includes('salary') || r.includes('স্যালারি')) return 'বেতন/বোনাস';
+  if (r.includes('ভাড়া') || r.includes('rent') || r.includes('বিদ্যুৎ') || r.includes('utility') || r.includes('বিল')) return 'ইউটিলিটি/ভাড়া';
+  if (r.includes('সরবরাহ') || r.includes('stock') || r.includes('purchase') || r.includes('ক্রয়') || r.includes('মালামাল')) return 'মালামাল ক্রয়';
+  return raw.trim();
+}
 // ✅ বিলের একটা আইটেম/সার্ভিসের প্রকৃত ক্যাটাগরি-কী বের করে — canonicalCat()-এ পাঠানোর আগে এখানে ব্যবহার হয়,
 // যাতে পাই চার্ট/মাসিক রিপোর্টে টেস্ট ও অপারেশন সবসময় আলাদা খাতে দেখায়। নতুন বিলে "🔬 টেস্ট" ও "🏥 অপারেশন"
 // বাটন আলাদা হওয়ায় item.type সরাসরি 'test'/'operation' থাকে (সরাসরি canonicalCat ম্যাচ করে)। পুরনো ডেটায়
@@ -31617,7 +32083,7 @@ function buildPieData(type, period) {
     // বিক্রির সময় গণনা হয়)। আগে এই ফিল্টার এখানে না থাকায়, ফান্ড খরচ/ইনভেন্টরি ক্রয় থাকা মাসে পাই চার্টের
     // মোট ব্যয় "মাসিক তুলনা" স্ট্রিপের চেয়ে বেশি দেখাত।
     (appData.expense||[]).filter(e=>!e.isFundExpense && !e.isInventoryPurchase && expenseEffectiveDate(e)&&dateMatch(expenseEffectiveDate(e))).forEach(e=>{
-      const k = canonicalCat(e.category);
+      const k = canonicalExpenseCat(e.category);
       map[k] = (map[k]||0) + e.amount;
     });
   }
@@ -31625,6 +32091,34 @@ function buildPieData(type, period) {
   // Remove zero values
   Object.keys(map).forEach(k=>{ if(!map[k]) delete map[k]; });
   return map;
+}
+
+// ✅ পাই চার্টের নিচে "পরিচালন ব্যয় (P&L-ভুক্ত) বনাম ফিক্সড-খাত এন্ট্রি" ক্যাপশনের জন্য —
+// buildPieData()-এর মতোই একই day/month/year dateMatch লজিক ব্যবহার করে, কিন্তু ক্যাটাগরি অনুযায়ী
+// ভাগ না করে শুধু দুটো যোগফল বের করে: opexTotal (পরিচালন ব্যয়ে গণনাযোগ্য — P&L-এর mExp-এর সাথে হুবহু
+// মিলবে) ও fixedTotal (ভাড়া/বিদ্যুৎ/পানি/বেতন খাতের এন্ট্রি — Settings-এর ফিক্সড রেট থেকে ইতিমধ্যে
+// আলাদাভাবে P&L-এ গণনা হয়ে যায়)। পাই চার্টের স্লাইস/ডেটা এতে বদলায় না — শুধু ক্যাপশনের জন্য।
+function getPeriodOpexFixedSplit(period) {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const prefix = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const yearPfx = `${now.getFullYear()}`;
+  function dateMatch(d) {
+    if (!d) return false;
+    if (period === 'day')   return d === today;
+    if (period === 'month') return d.startsWith(prefix);
+    if (period === 'year')  return d.startsWith(yearPfx);
+    return false;
+  }
+  let opexTotal = 0, fixedTotal = 0;
+  (appData.expense||[]).forEach(e => {
+    if (e.isFundExpense || e.isInventoryPurchase) return;
+    const d = expenseEffectiveDate(e);
+    if (!d || !dateMatch(d)) return;
+    if (isFixedCostExpenseCategory(e.category)) fixedTotal += e.amount;
+    else opexTotal += e.amount;
+  });
+  return { opexTotal, fixedTotal };
 }
 
 // Resizes a canvas's backing pixel buffer to match its actual on-screen CSS
@@ -34239,6 +34733,22 @@ function renderDashPieChart(){
   const map=buildPieData(_dPieType,_dPiePeriod);
   widget.setConfig({ centerLabel: _dPieType==='income' ? 'মোট আয়' : 'মোট ব্যয়' });
   widget.setData(_pieMapToArray(map));
+  // ✅ ব্যয়ের ক্ষেত্রে P&L-এর "পরিচালন ব্যয়" সংখ্যার সাথে মিলিয়ে দেখানোর জন্য ক্যাপশন —
+  // স্লাইস/ডেটা অপরিবর্তিত (কোনো ক্যাটাগরি বাদ যায় না), শুধু নিচে একটা তথ্যসূচক ভাগ দেখানো হয়
+  const note=document.getElementById('dashPieOpexNote');
+  if (note) {
+    if (_dPieType==='expense') {
+      const {opexTotal, fixedTotal}=getPeriodOpexFixedSplit(_dPiePeriod);
+      if (fixedTotal>0) {
+        note.style.display='block';
+        note.innerHTML=`🟢 পরিচালন ব্যয় (P&L-ভুক্ত): ৳ ${fmt(opexTotal)} &nbsp;|&nbsp; 🏠 ফিক্সড-খাত এন্ট্রি (Settings-এ পৃথক গণনা): ৳ ${fmt(fixedTotal)}`;
+      } else {
+        note.style.display='none';
+      }
+    } else {
+      note.style.display='none';
+    }
+  }
 }
 
 function showDashPieDetailForIdx(idx){
@@ -34379,8 +34889,9 @@ function getDashPieDetailRows(catLabel, type, period){
       }
     });
   } else {
-    // ব্যয়ের ক্ষেত্রেও canonicalCat দিয়ে ম্যাচ, exact category name match এর বদলে
-    (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&inPeriod(expenseEffectiveDate(e))&&canonicalCat(e.category)===catLabel).forEach(e=>rows.push({sub:e.category||'সাধারণ ব্যয়',label:e.note||e.category,amount:e.amount,date:expenseEffectiveDate(e)}));
+    // ✅ ফিক্স: ব্যয়ের জন্য canonicalCat() (আয়-কেন্দ্রিক কীওয়ার্ড অনুমান, যেমন "ভিজিট ফি") এর বদলে
+    // canonicalExpenseCat() — যাতে buildPieData()-এ তৈরি হওয়া বাকেটের সাথে হুবহু মিলে যায়
+    (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&inPeriod(expenseEffectiveDate(e))&&canonicalExpenseCat(e.category)===catLabel).forEach(e=>rows.push({sub:e.category||'সাধারণ ব্যয়',label:e.note||e.category,amount:e.amount,date:expenseEffectiveDate(e)}));
   }
   return rows.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
@@ -34955,6 +35466,20 @@ function renderOwnerPieChart(){
   const map=buildPieData(_oPieType,_oPiePeriod);
   widget.setConfig({ centerLabel: _oPieType==='income' ? 'মোট আয়' : 'মোট ব্যয়' });
   widget.setData(_pieMapToArray(map));
+  const note=document.getElementById('ownerPieOpexNote');
+  if (note) {
+    if (_oPieType==='expense') {
+      const {opexTotal, fixedTotal}=getPeriodOpexFixedSplit(_oPiePeriod);
+      if (fixedTotal>0) {
+        note.style.display='block';
+        note.innerHTML=`🟢 পরিচালন ব্যয় (P&L-ভুক্ত): ৳ ${fmt(opexTotal)} &nbsp;|&nbsp; 🏠 ফিক্সড-খাত এন্ট্রি (Settings-এ পৃথক গণনা): ৳ ${fmt(fixedTotal)}`;
+      } else {
+        note.style.display='none';
+      }
+    } else {
+      note.style.display='none';
+    }
+  }
 }
 
 function showOwnerPieDetailForIdx(idx){
