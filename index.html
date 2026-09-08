@@ -2956,19 +2956,19 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <select id="bsViewMode" onchange="renderBalanceSheet()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="day">ডে ওয়াইজ</option>
-              <option value="month">মান্থ ওয়াইজ</option>
+              <option value="month" selected>মান্থ ওয়াইজ</option>
             </select>
             <input type="month" id="bsFilterMonth" onchange="renderBalanceSheet()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
           </div>
         </div>
         <div class="panel-body">
           <div id="bsAssetSummary" style="display:none;margin-bottom:16px"></div>
-          <div id="balanceSheetContainer">
-            <p style="color:#aaa;text-align:center;padding:30px">লোড হচ্ছে...</p>
-          </div>
+          <div id="bsPrevMonthSummary" style="display:none;margin-bottom:16px"></div>
+          <div id="balanceSheetContainer"></div>
         </div>
       </div>
     </div>
+
 
     <!-- DELIVERY SCHEDULE -->
     <div id="pg-delivery" class="page-view">
@@ -12074,7 +12074,20 @@ function getAllIssuedChequeEntries() {
     status:e.status||'cleared', linkedExpenseId:e.id,
     clearedDate: e.status==='cleared' ? (e.actualClearedDate||e.clearDate||e.date) : null
   }));
-  return [...list, ...orphanExpense];
+  // ✅ ফিক্স: bankTx-এ চেক ভাঙ্গানোর রেকর্ড (টাকা আসলেই বের হয়ে গেছে) আছে, কিন্তু appData.issuedChecks-এ
+  // মূল রেকর্ডটা কোনো কারণে হারিয়ে গেছে (উদাহরণ: চেক ৩৫/৩৬) — এমন "এতিম" bankTx-কে এখানে পুনরুদ্ধার করে
+  // যোগ করা হচ্ছে, নাহলে চেক নিষ্পত্তি স্ট্রিপে "এই মাসের নিষ্পন্ন" ভুলভাবে এই চেকগুলো বাদ দিয়ে গণনা করত
+  const linkedBankTxIds = new Set(list.filter(c=>c.linkedBankTxId).map(c=>c.linkedBankTxId));
+  (appData.issuedChecks||[]).forEach(c => { if (c.linkedBankTxId) linkedBankTxIds.add(c.linkedBankTxId); });
+  const orphanTransfer = (appData.bankTx||[]).filter(tx =>
+    (tx.type==='cash_out'||tx.type==='bank_out') && tx.checkNo && !linkedBankTxIds.has(tx.id) && /^চেক ইস্যু পরিশোধ/.test(tx.note||'')
+  ).map(tx => ({
+    source:'orphan-transfer', id:tx.id, voucher:tx.voucher||'—', checkNo:tx.checkNo||'—',
+    payee: (tx.note||'').replace(/^চেক ইস্যু পরিশোধ\s*—\s*/,'') || '—',
+    amount:tx.amount, issueDate:tx.date, dueDate:tx.date,
+    status:'cleared', linkedExpenseId:null, clearedDate: tx.date
+  }));
+  return [...list, ...orphanExpense, ...orphanTransfer];
 }
 function renderIssuedChecks() {
   const tbody=document.getElementById('issuedChecksTable'); if (!tbody) return;
@@ -12085,6 +12098,8 @@ function renderIssuedChecks() {
     ? `<span class="badge" style="background:#f1f5f9;color:#475569">ব্যয়</span>`
     : c.source==='withdrawal'
     ? `<span class="badge" style="background:#ede9fe;color:#6d28d9">শেয়ার উত্তোলন</span>`
+    : c.source==='orphan-transfer'
+    ? `<span class="badge" title="মূল ইস্যু-করা চেকের রেকর্ড খুঁজে পাওয়া যায়নি, ব্যাংক লেনদেনের ইতিহাস থেকে পুনরুদ্ধার করা হয়েছে" style="background:#ccfbf1;color:#0f766e">🔁 পুনরুদ্ধারকৃত</span>`
     : `<span class="badge badge-cheque">চেক ইস্যু</span>`;
   const statusBadge = c => {
     if (c.status==='cleared') return `<span class="badge badge-income">✅ ভাঙ্গানো হয়েছে</span>`;
@@ -12107,7 +12122,7 @@ function renderIssuedChecks() {
       ${c.status==='pending' && c.source!=='expense' ? `<button class="btn btn-success btn-sm" onclick="markCheckCleared(${c.id})">✅ ভাঙ্গানো হয়েছে</button>
       <button class="btn btn-outline btn-sm" onclick="markCheckBounced(${c.id})">❌ বাউন্স</button>` : ''}
       ${c.status==='pending' && c.source==='expense' ? `<button class="btn btn-success btn-sm" onclick="markExpenseCleared(${c.linkedExpenseId})">✅ ভাঙ্গানো হয়েছে</button>` : ''}
-      ${currentUser.role==='admin' && c.source!=='expense' ? `<button class="btn btn-danger btn-sm" onclick="deleteIssuedCheck(${c.id})">🗑️</button>` : ''}
+      ${currentUser.role==='admin' && c.source!=='expense' && c.source!=='orphan-transfer' ? `<button class="btn btn-danger btn-sm" onclick="deleteIssuedCheck(${c.id})">🗑️</button>` : ''}
       ${currentUser.role==='admin' && c.source==='expense' ? `<button class="btn btn-danger btn-sm" onclick="deleteExpense(${c.linkedExpenseId})">🗑️</button>` : ''}
     </td>
   </tr>`).join('');
@@ -12453,11 +12468,20 @@ function getMonthBankTxNet(month) {
   });
   return { cash, bank };
 }
-// নির্দিষ্ট দিন/মাসে নেট ক্যাশ পরিবর্তন (আয়-ব্যয়+bankTx)
-function getDayNetCash(date) { return getDayIncome(date) - getDayExpense(date) + getDayBankTxNet(date).cash; }
-function getMonthNetCash(month) { return getMonthIncome(month) - getMonthExpense(month) + getMonthBankTxNet(month).cash; }
-function getDayNetBank(date) { return getDayBankTxNet(date).bank; }
-function getMonthNetBank(month) { return getMonthBankTxNet(month).bank; }
+// নির্দিষ্ট দিন/মাসে নেট ক্যাশ/ব্যাংক/মোবাইল-ব্যাংকিং পরিবর্তন
+// ✅ ফিক্স: আগে এখানে getDayIncome/getDayExpense (পেমেন্ট-মাধ্যম না দেখেই সব আয়/ব্যয় যোগ) ব্যবহার হতো,
+// ফলে ব্যাংক/মোবাইল ব্যাংকিং দিয়ে পরিশোধিত আয়ও ক্যাশে যোগ হয়ে যেত, আর getDayNetBank শুধু bankTx
+// (ট্রান্সফার/অ্যাডজাস্টমেন্ট) দেখত — payMode='bank' আয়/ব্যয় ব্যাংক ব্যালেন্সে ধরাই পড়ত না।
+// এখন calcCashBankFlowForPrefix()/calcMfsFlowForPrefix() (ড্যাশবোর্ডের Cash Flow প্যানেলেও ব্যবহৃত,
+// পেমেন্ট-মাধ্যম অনুযায়ী সঠিকভাবে রুট করা হিসাব) থেকে নেট বের করা হচ্ছে, যাতে ব্যালেন্স শিটের দিন/মাস-ওয়াইজ
+// টেবিল ড্যাশবোর্ডের সাথে সামঞ্জস্যপূর্ণ ও সঠিক থাকে।
+function getDayNetCash(date) { const f = calcCashBankFlowForPrefix(date); return f.cashIn - f.cashOut; }
+function getMonthNetCash(month) { const f = calcCashBankFlowForPrefix(month); return f.cashIn - f.cashOut; }
+function getDayNetBank(date) { const f = calcCashBankFlowForPrefix(date); return f.bankIn - f.bankOut; }
+function getMonthNetBank(month) { const f = calcCashBankFlowForPrefix(month); return f.bankIn - f.bankOut; }
+// ✅ নতুন: মোবাইল ব্যাংকিং (MFS)-এর নেট পরিবর্তন — calcMfsFlowForPrefix() ব্যবহার করে
+function getDayNetMfs(date) { const f = calcMfsFlowForPrefix(date); return f.mfsIn - f.mfsOut; }
+function getMonthNetMfs(month) { const f = calcMfsFlowForPrefix(month); return f.mfsIn - f.mfsOut; }
 
 function getOpeningCash(key, vm) {
   // Opening cash = settings initial + all prior days/months net (calcCashBankBalance এর সাথে সামঞ্জস্যপূর্ণ)
@@ -12482,6 +12506,19 @@ function getOpeningBank(key, vm) {
     const allMonths = [...new Set(allDates.map(d=>d.substring(0,7)))].sort();
     const priorMonths = allMonths.filter(m => m < key);
     return priorMonths.reduce((bal, m) => bal + getMonthNetBank(m), initBank);
+  }
+}
+// ✅ নতুন: মোবাইল ব্যাংকিং (সব MFS একাউন্ট মিলিয়ে) প্রারম্ভিক ব্যালেন্স — getOpeningCash/getOpeningBank এর মতোই প্যাটার্ন
+function getOpeningMfs(key, vm) {
+  const initMfs = (appData.mfsAccounts||[]).reduce((s,a)=>s+(Number(a.openingBalance)||0),0);
+  const allDates = getAllDatesWithActivity();
+  if (vm === 'day') {
+    const priorDates = allDates.filter(d => d < key);
+    return priorDates.reduce((bal, d) => bal + getDayNetMfs(d), initMfs);
+  } else {
+    const allMonths = [...new Set(allDates.map(d=>d.substring(0,7)))].sort();
+    const priorMonths = allMonths.filter(m => m < key);
+    return priorMonths.reduce((bal, m) => bal + getMonthNetMfs(m), initMfs);
   }
 }
 
@@ -12664,11 +12701,22 @@ function showRecDepositDetail(id) {
 function renderBalanceSheet() {
   const container = document.getElementById('balanceSheetContainer');
   if (!container) return;
-  const vm = (document.getElementById('bsViewMode')||{}).value||'day';
-  const fm = (document.getElementById('bsFilterMonth')||{}).value||'';
+  const vmEl = document.getElementById('bsViewMode');
+  const fmEl = document.getElementById('bsFilterMonth');
+  // ✅ ডিফল্ট: প্রথমবার এই পেজ লোড হওয়ার সময় "মান্থ ওয়াইজ" ভিউয়ে চলতি মাস অটো-সিলেক্ট হয়ে যায় (একবারই —
+  // এরপর ব্যবহারকারী নিজে ভিউ/মাস পাল্টালে সেটা আর ওভাররাইড হবে না)
+  if (!window._bsDefaultsInitDone) {
+    window._bsDefaultsInitDone = true;
+    if (fmEl && !fmEl.value) fmEl.value = todayStr().substring(0,7);
+  }
+  const vm = (vmEl||{}).value||'month';
+  const fm = (fmEl||{}).value||'';
   const allDates = getAllDatesWithActivity();
   const initCash = parseFloat((appData.settings||{}).cashBalance)||0;
   const initBank = parseFloat((appData.settings||{}).bankBalance)||0;
+  const initMfs = (appData.mfsAccounts||[]).reduce((s,a)=>s+(Number(a.openingBalance)||0),0);
+  const todayD = todayStr();
+  const curMonthKey = todayD.substring(0,7);
 
   // ✅ বর্তমান মোট সম্পদ (Total Assets) — ক্যাশ + ব্যাংক + ইনভেন্টরি ভ্যালু (এন্ড-অফ-পিরিয়ড হিসাবের জন্য গুরুত্বপূর্ণ,
   // যেহেতু মেডিসিন/চশমা এখন "সম্পদ" হিসেবে গণ্য, খরচ না — তাই এই মূল্যটা সম্পদের হিসাবে দেখানো জরুরি)
@@ -12708,58 +12756,103 @@ function renderBalanceSheet() {
     assetDiv.style.display = 'block';
   }
 
+  // ✅ গত মাসের সমাপনি ব্যালেন্স — কার্ডের নিচে, টেবিলের উপরে, আলাদা হেডারে সবসময় দেখানো হয়।
+  // referenceMonth = এখন যে মাস দেখানো হচ্ছে (ফিল্টার করা থাকলে সেটা, নাহলে চলতি মাস)। getOpeningMfs/Cash/Bank(referenceMonth,'month')
+  // ইতিমধ্যেই referenceMonth-এর ঠিক আগের সব মাসের যোগফল রিটার্ন করে — অর্থাৎ এটাই আগের মাসের সমাপনি ব্যালেন্স,
+  // আলাদা করে হিসাব করার দরকার নেই।
+  const prevDiv = document.getElementById('bsPrevMonthSummary');
+  if (prevDiv) {
+    const referenceMonth = fm || curMonthKey;
+    const [ry, rm] = referenceMonth.split('-').map(Number);
+    const prevD = new Date(ry, (rm||1)-2, 1);
+    const bnMonthNames = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+    const prevMonthLabel = bnMonthNames[prevD.getMonth()] + ' ' + prevD.getFullYear();
+    const pMfs = getOpeningMfs(referenceMonth, 'month');
+    const pCash = getOpeningCash(referenceMonth, 'month');
+    const pBank = getOpeningBank(referenceMonth, 'month');
+    prevDiv.innerHTML = `
+      <div style="background:#f8fafc;border:1.5px dashed var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-size:12px;font-weight:700;color:var(--text-light);white-space:nowrap">📌 গত মাসের (${prevMonthLabel}) সমাপনি ব্যালেন্স</div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div style="font-size:12.5px;color:var(--text)"><span style="color:#d63384;font-weight:600">মোবাইল ব্যাংকিং:</span> <strong>৳ ${fmt(pMfs)}</strong></div>
+          <div style="font-size:12.5px;color:var(--text)"><span style="color:var(--primary);font-weight:600">ক্যাশ:</span> <strong>৳ ${fmt(pCash)}</strong></div>
+          <div style="font-size:12.5px;color:var(--text)"><span style="color:#3498db;font-weight:600">ব্যাংক:</span> <strong>৳ ${fmt(pBank)}</strong></div>
+        </div>
+      </div>`;
+    prevDiv.style.display = 'block';
+  }
+
+  // ✅ আয়/ব্যয় কলামে আগে ইমোজি (💵🏦📱) দিয়ে দেখানো হতো — এখন প্রফেশনাল লুকের জন্য ছোট ফন্টের
+  // লেবেলযুক্ত ৩টা সাব-রো (ক্যাশ/ব্যাংক/মোবাইল ব্যাঃ) দিয়ে দেখানো হচ্ছে
+  function bsBreakdownCell(cashV, bankV, mfsV, color) {
+    const subrow = (label, v) => `<div style="display:flex;justify-content:space-between;gap:8px;${v?'':'opacity:.45'}">
+      <span style="font-size:9.5px;color:var(--text-light);font-weight:600">${label}</span>
+      <span style="font-size:11px;font-weight:600;color:${v?color:'var(--text-light)'}">৳ ${fmt(v)}</span>
+    </div>`;
+    return `<div style="min-width:96px">${subrow('ক্যাশ',cashV)}${subrow('ব্যাংক',bankV)}${subrow('মোবাইল ব্যাঃ',mfsV)}</div>`;
+  }
+
+  // ✅ লাস্ট/রানিং (আজকের দিন অথবা চলতি মাস) সারি — তালিকায় যেখানেই থাকুক না কেন — সবসময় হাইলাইটেড থাকবে
+  const runningRowStyle = 'background:#eff6ff;box-shadow:inset 3px 0 0 var(--primary)';
+
   if (vm==='day') {
-    let runningCash = initCash, runningBank = initBank;
+    let runningCash = initCash, runningBank = initBank, runningMfs = initMfs;
     const rows = allDates
       .filter(d => !fm || d.startsWith(fm))
       .map(d => {
-        const inc = getDayIncome(d);
-        const exp = getDayExpense(d);
-        const bankNet = getDayNetBank(d);
-        const openingCash = runningCash, openingBank = runningBank;
-        runningCash = openingCash + getDayNetCash(d);
-        runningBank = openingBank + bankNet;
-        return { date:d, openingCash, openingBank, income:inc, expense:exp, closingCash:runningCash, closingBank:runningBank };
+        // ✅ ফিক্স: getDayIncome/getDayExpense (পেমেন্ট-মাধ্যম না দেখেই সব যোগ করত) এর বদলে
+        // calcCashBankFlowForPrefix/calcMfsFlowForPrefix থেকে সরাসরি প্রতিটি মাধ্যমের হিসাব নেওয়া হচ্ছে
+        const cf = calcCashBankFlowForPrefix(d);
+        const mf = (typeof calcMfsFlowForPrefix==='function') ? calcMfsFlowForPrefix(d) : {mfsIn:0,mfsOut:0};
+        const openingCash = runningCash, openingBank = runningBank, openingMfs = runningMfs;
+        runningCash = openingCash + (cf.cashIn - cf.cashOut);
+        runningBank = openingBank + (cf.bankIn - cf.bankOut);
+        runningMfs = openingMfs + (mf.mfsIn - mf.mfsOut);
+        return { date:d, openingCash, openingBank, openingMfs, cf, mf, closingCash:runningCash, closingBank:runningBank, closingMfs:runningMfs, isRunning: d===todayD };
       }).reverse();
 
     if (!rows.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">কোনো তথ্য নেই।</p>'; return; }
     container.innerHTML=`<div class="table-wrap"><table>
-      <thead><tr><th>তারিখ</th><th style="text-align:right">প্রারম্ভিক ক্যাশ (৳)</th><th style="text-align:right">প্রারম্ভিক ব্যাংক (৳)</th><th style="text-align:right">আয় (৳)</th><th style="text-align:right">ব্যয় (৳)</th><th style="text-align:right">সমাপনি ক্যাশ (৳)</th><th style="text-align:right">সমাপনি ব্যাংক (৳)</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr>
-        <td style="font-weight:600">${formatDate(r.date)}</td>
+      <thead><tr><th>তারিখ</th><th style="text-align:right">প্রারম্ভিক মোবাইল (৳)</th><th style="text-align:right">প্রারম্ভিক ক্যাশ (৳)</th><th style="text-align:right">প্রারম্ভিক ব্যাংক (৳)</th><th>আয়</th><th>ব্যয়</th><th style="text-align:right">সমাপনি মোবাইল (৳)</th><th style="text-align:right">সমাপনি ক্যাশ (৳)</th><th style="text-align:right">সমাপনি ব্যাংক (৳)</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr${r.isRunning?` style="${runningRowStyle}"`:''}>
+        <td style="font-weight:600">${formatDate(r.date)}${r.isRunning?' <span style="font-size:10px;color:var(--primary);font-weight:700">● আজ</span>':''}</td>
+        <td style="text-align:right">${fmt(r.openingMfs)}</td>
         <td style="text-align:right">${fmt(r.openingCash)}</td>
         <td style="text-align:right">${fmt(r.openingBank)}</td>
-        <td style="text-align:right;color:var(--success);font-weight:600">${fmt(r.income)}</td>
-        <td style="text-align:right;color:var(--danger);font-weight:600">${fmt(r.expense)}</td>
+        <td>${bsBreakdownCell(r.cf.cashIn, r.cf.bankIn, r.mf.mfsIn, '#16a34a')}</td>
+        <td>${bsBreakdownCell(r.cf.cashOut, r.cf.bankOut, r.mf.mfsOut, '#dc2626')}</td>
+        <td style="text-align:right;font-weight:700;color:${r.closingMfs>=0?'#d63384':'var(--danger)'}">${fmt(r.closingMfs)}</td>
         <td style="text-align:right;font-weight:700;color:${r.closingCash>=0?'var(--primary)':'var(--danger)'}">${fmt(r.closingCash)}</td>
         <td style="text-align:right;font-weight:700;color:${r.closingBank>=0?'#3498db':'var(--danger)'}">${fmt(r.closingBank)}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;
   } else {
     const allMonths = [...new Set(allDates.map(d=>d.substring(0,7)))].sort();
-    let runningCash = initCash, runningBank = initBank;
+    let runningCash = initCash, runningBank = initBank, runningMfs = initMfs;
     const rows = allMonths
       .filter(m => !fm || m === fm)
       .map(m => {
-        const inc = getMonthIncome(m);
-        const exp = getMonthExpense(m);
-        const bankNet = getMonthNetBank(m);
-        const openingCash = runningCash, openingBank = runningBank;
-        runningCash = openingCash + getMonthNetCash(m);
-        runningBank = openingBank + bankNet;
+        const cf = calcCashBankFlowForPrefix(m);
+        const mf = (typeof calcMfsFlowForPrefix==='function') ? calcMfsFlowForPrefix(m) : {mfsIn:0,mfsOut:0};
+        const openingCash = runningCash, openingBank = runningBank, openingMfs = runningMfs;
+        runningCash = openingCash + (cf.cashIn - cf.cashOut);
+        runningBank = openingBank + (cf.bankIn - cf.bankOut);
+        runningMfs = openingMfs + (mf.mfsIn - mf.mfsOut);
         const [y,mn] = m.split('-');
-        return { label:`${mn}/${y}`, openingCash, openingBank, income:inc, expense:exp, closingCash:runningCash, closingBank:runningBank };
+        return { key:m, label:`${mn}/${y}`, openingCash, openingBank, openingMfs, cf, mf, closingCash:runningCash, closingBank:runningBank, closingMfs:runningMfs, isRunning: m===curMonthKey };
       }).reverse();
 
     if (!rows.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">কোনো তথ্য নেই।</p>'; return; }
     container.innerHTML=`<div class="table-wrap"><table>
-      <thead><tr><th>মাস</th><th style="text-align:right">প্রারম্ভিক ক্যাশ (৳)</th><th style="text-align:right">প্রারম্ভিক ব্যাংক (৳)</th><th style="text-align:right">আয় (৳)</th><th style="text-align:right">ব্যয় (৳)</th><th style="text-align:right">সমাপনি ক্যাশ (৳)</th><th style="text-align:right">সমাপনি ব্যাংক (৳)</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr>
-        <td style="font-weight:600">${r.label}</td>
+      <thead><tr><th>মাস</th><th style="text-align:right">প্রারম্ভিক মোবাইল (৳)</th><th style="text-align:right">প্রারম্ভিক ক্যাশ (৳)</th><th style="text-align:right">প্রারম্ভিক ব্যাংক (৳)</th><th>আয়</th><th>ব্যয়</th><th style="text-align:right">সমাপনি মোবাইল (৳)</th><th style="text-align:right">সমাপনি ক্যাশ (৳)</th><th style="text-align:right">সমাপনি ব্যাংক (৳)</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr${r.isRunning?` style="${runningRowStyle}"`:''}>
+        <td style="font-weight:600">${r.label}${r.isRunning?' <span style="font-size:10px;color:var(--primary);font-weight:700">● চলতি মাস</span>':''}</td>
+        <td style="text-align:right">${fmt(r.openingMfs)}</td>
         <td style="text-align:right">${fmt(r.openingCash)}</td>
         <td style="text-align:right">${fmt(r.openingBank)}</td>
-        <td style="text-align:right;color:var(--success);font-weight:600">${fmt(r.income)}</td>
-        <td style="text-align:right;color:var(--danger);font-weight:600">${fmt(r.expense)}</td>
+        <td>${bsBreakdownCell(r.cf.cashIn, r.cf.bankIn, r.mf.mfsIn, '#16a34a')}</td>
+        <td>${bsBreakdownCell(r.cf.cashOut, r.cf.bankOut, r.mf.mfsOut, '#dc2626')}</td>
+        <td style="text-align:right;font-weight:700;color:${r.closingMfs>=0?'#d63384':'var(--danger)'}">${fmt(r.closingMfs)}</td>
         <td style="text-align:right;font-weight:700;color:${r.closingCash>=0?'var(--primary)':'var(--danger)'}">${fmt(r.closingCash)}</td>
         <td style="text-align:right;font-weight:700;color:${r.closingBank>=0?'#3498db':'var(--danger)'}">${fmt(r.closingBank)}</td>
       </tr>`).join('')}</tbody>
@@ -18089,22 +18182,40 @@ function updateDocCommissionPreview(p) {
 }
 function computeDoctorCommissionForSave(p) {
   const sel = document.getElementById(p+'DocSelect');
-  const doctorId = sel ? sel.value : '';
+  // ✅ ফিক্স: নতুন-ধরনের পেজে (রিসেপশন 'r', নতুন বিল 'nb_') আলাদা কোনো "ডিউটি পরে" চেকবক্স নেই —
+  // এটা ড্রপডাউনের ভ্যালুতেই "doctorId:ad" ফরম্যাটে এনকোড থাকে। আগে এখানে শুধু পুরনো-ধরনের চেকবক্স
+  // (p+'DocAfterDuty') খোঁজা হতো, যেটা এই পেজগুলোতে না থাকায় afterDuty সবসময় false হয়ে যেত —
+  // ফলে ওভার টাইম সিলেক্ট করা থাকলেও কমিশন কখনো সেভই হতো না। updateDocCommissionPreview()-এর
+  // মতোই এখন hasCheckbox দিয়ে দুই ধরনের UI আলাদাভাবে হ্যান্ডেল করা হচ্ছে।
+  const hasCheckbox = !!document.getElementById(p+'DocAfterDuty');
+  let doctorId;
+  if (hasCheckbox) {
+    doctorId = sel ? sel.value : '';
+  } else {
+    doctorId = parseDocSelectValue(sel ? sel.value : '').doctorId;
+  }
   const doctor = (appData.doctors||[]).find(d=>String(d.id)===String(doctorId));
   if (!doctor || !doctor.commissionEnabled) return null;
   const items = _getBillItemsForCommission(p);
   const base = getDoctorCommissionBaseAmount(items, doctor);
   let percent=0, afterDuty=false, applies=true, overridden=false;
   if (doctor.type==='salaried') {
-    const cb = document.getElementById(p+'DocAfterDuty');
-    afterDuty = !!(cb && cb.checked);
+    if (hasCheckbox) {
+      const cb = document.getElementById(p+'DocAfterDuty');
+      afterDuty = !!(cb && cb.checked);
+      // ✅ অডিট ট্রেইল: সময়-ভিত্তিক স্বয়ংক্রিয় সাজেশন থেকে কেউ ম্যানুয়ালি চেকবক্স পাল্টেছে কিনা তা রেকর্ড হচ্ছে —
+      // যাতে পরবর্তীতে অ্যাডমিন সন্দেহজনক/অস্বাভাবিক এন্ট্রি আলাদাভাবে চিহ্নিত ও যাচাই করতে পারেন।
+      if (cb && cb.dataset.suggested !== undefined) {
+        overridden = (cb.dataset.suggested === '1') !== afterDuty;
+      }
+    } else {
+      afterDuty = !!parseDocSelectValue(sel ? sel.value : '').afterDuty;
+      if (sel && sel.dataset.suggestedValue !== undefined) {
+        overridden = sel.dataset.suggestedValue !== sel.value;
+      }
+    }
     applies = afterDuty;
     percent = doctor.afterDutyPercent||0;
-    // ✅ অডিট ট্রেইল: সময়-ভিত্তিক স্বয়ংক্রিয় সাজেশন থেকে কেউ ম্যানুয়ালি চেকবক্স পাল্টেছে কিনা তা রেকর্ড হচ্ছে —
-    // যাতে পরবর্তীতে অ্যাডমিন সন্দেহজনক/অস্বাভাবিক এন্ট্রি আলাদাভাবে চিহ্নিত ও যাচাই করতে পারেন।
-    if (cb && cb.dataset.suggested !== undefined) {
-      overridden = (cb.dataset.suggested === '1') !== afterDuty;
-    }
   } else {
     percent = doctor.commissionPercent||0;
   }
@@ -20699,27 +20810,42 @@ function buildReadOnlyHTML(feature, role) {
     const initCash = parseFloat((appData.settings||{}).cashBalance)||0;
     const initBank = parseFloat((appData.settings||{}).bankBalance)||0;
     let runningCash = initCash, runningBank = initBank;
+    // ✅ ফিক্স: এখানেও getDayIncome/getDayExpense (পেমেন্ট-মাধ্যম না দেখেই সব যোগ) এর বদলে
+    // calcCashBankFlowForPrefix/calcMfsFlowForPrefix থেকে প্রতিটি মাধ্যমের হিসাব নেওয়া হচ্ছে, এবং
+    // মোবাইল ব্যাংকিং (MFS)-এর প্রারম্ভিক/সমাপনি কলাম যোগ করা হলো — মূল ব্যালেন্স শিট পেজের সাথে সামঞ্জস্যপূর্ণ
+    let runningMfs = (appData.mfsAccounts||[]).reduce((s,a)=>s+(Number(a.openingBalance)||0),0);
     const allRows = allDates.map(d => {
-      const inc = getDayIncome(d), exp = getDayExpense(d), bankNet = getDayNetBank(d);
-      const openingCash = runningCash, openingBank = runningBank;
-      runningCash = openingCash + getDayNetCash(d);
-      runningBank = openingBank + bankNet;
-      return { date:d, openingCash, openingBank, income:inc, expense:exp, closingCash:runningCash, closingBank:runningBank };
+      const cf = calcCashBankFlowForPrefix(d);
+      const mf = (typeof calcMfsFlowForPrefix==='function') ? calcMfsFlowForPrefix(d) : {mfsIn:0,mfsOut:0};
+      const openingCash = runningCash, openingBank = runningBank, openingMfs = runningMfs;
+      runningCash = openingCash + (cf.cashIn - cf.cashOut);
+      runningBank = openingBank + (cf.bankIn - cf.bankOut);
+      runningMfs = openingMfs + (mf.mfsIn - mf.mfsOut);
+      return { date:d, openingCash, openingBank, openingMfs, cf, mf, closingCash:runningCash, closingBank:runningBank, closingMfs:runningMfs };
     });
     let rows = allRows.slice().reverse();
     rows = isOwnerMonthly ? rows.filter(r=>(r.date||'').startsWith(curMonth)) : rows.slice(0,30);
+    // ✅ ইমোজির বদলে ছোট ফন্টের লেবেলযুক্ত সাব-রো — মূল ব্যালেন্স শিট পেজের সাথে সামঞ্জস্যপূর্ণ
+    const bsPrintCell = (cashV, bankV, mfsV, color) => {
+      const subrow = (label, v) => `<div style="display:flex;justify-content:space-between;gap:6px;${v?'':'opacity:.45'}">
+        <span style="font-size:9px;color:#888">${label}</span><span style="font-size:10.5px;font-weight:600;color:${v?color:'#aaa'}">৳ ${fmt2(v)}</span>
+      </div>`;
+      return `<div style="min-width:88px">${subrow('ক্যাশ',cashV)}${subrow('ব্যাংক',bankV)}${subrow('মোবাইল ব্যাঃ',mfsV)}</div>`;
+    };
     return `${monthHeader('⚖️ ব্যালেন্স শিট'+badge)}
       <div style="overflow-x:auto"><table style="${tableStyle}">
-        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">প্রারম্ভিক ক্যাশ</th><th style="${thStyle}">প্রারম্ভিক ব্যাংক</th><th style="${thStyle}">আয়</th><th style="${thStyle}">ব্যয়</th><th style="${thStyle}">সমাপনি ক্যাশ</th><th style="${thStyle}">সমাপনি ব্যাংক</th></tr>
-        ${rows.length ? rows.map(r=>`<tr>
+        <tr><th style="${thStyle}">তারিখ</th><th style="${thStyle}">প্রারম্ভিক মোবাইল</th><th style="${thStyle}">প্রারম্ভিক ক্যাশ</th><th style="${thStyle}">প্রারম্ভিক ব্যাংক</th><th style="${thStyle}">আয়</th><th style="${thStyle}">ব্যয়</th><th style="${thStyle}">সমাপনি মোবাইল</th><th style="${thStyle}">সমাপনি ক্যাশ</th><th style="${thStyle}">সমাপনি ব্যাংক</th></tr>
+        ${rows.length ? rows.map(r=>`<tr${r.date===todayStr()?' style="background:#eff6ff"':''}>
           <td style="${tdStyle};font-weight:600">${formatDate(r.date)}</td>
+          <td style="${tdStyle}">৳ ${fmt2(r.openingMfs)}</td>
           <td style="${tdStyle}">৳ ${fmt2(r.openingCash)}</td>
           <td style="${tdStyle}">৳ ${fmt2(r.openingBank)}</td>
-          <td style="${tdStyle};color:${isOwnerMonthly?'#166534':'#2ecc71'}">৳ ${fmt2(r.income)}</td>
-          <td style="${tdStyle};color:${isOwnerMonthly?'#991b1b':'#e74c3c'}">৳ ${fmt2(r.expense)}</td>
+          <td style="${tdStyle}">${bsPrintCell(r.cf.cashIn, r.cf.bankIn, r.mf.mfsIn, isOwnerMonthly?'#166534':'#2ecc71')}</td>
+          <td style="${tdStyle}">${bsPrintCell(r.cf.cashOut, r.cf.bankOut, r.mf.mfsOut, isOwnerMonthly?'#991b1b':'#e74c3c')}</td>
+          <td style="${tdStyle};font-weight:700">৳ ${fmt2(r.closingMfs)}</td>
           <td style="${tdStyle};font-weight:700">৳ ${fmt2(r.closingCash)}</td>
           <td style="${tdStyle};font-weight:700">৳ ${fmt2(r.closingBank)}</td>
-        </tr>`).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">কোনো তথ্য নেই</td></tr>`}
+        </tr>`).join('') : `<tr><td colspan="9" style="padding:20px;text-align:center;color:#aaa">কোনো তথ্য নেই</td></tr>`}
       </table></div>`;
   }
   if (feature === 'recdeposit') {
@@ -29135,7 +29261,9 @@ function rveAddItemRow(item) {
     <input type="text" id="rveName-${rid}" placeholder="নাম" value="${item&&!item.stockId?(item.name||'').replace(/"/g,'&quot;'):(item?item.name.replace(/"/g,'&quot;'):'')}" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12.5px" oninput="rveRecalc()">
     <input type="number" id="rveQty-${rid}" placeholder="পরিমাণ" value="${item?item.qty:1}" min="0.01" step="0.01" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12.5px" oninput="rveRecalc()">
     <input type="number" id="rvePrice-${rid}" placeholder="দাম" value="${item?item.price:0}" min="0" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12.5px" oninput="rveRecalc()">
-    <button type="button" class="btn-icon-del" onclick="rveRemoveRow(${rid})">✕</button>`;
+    <button type="button" class="btn-icon-del" onclick="rveRemoveRow(${rid})">✕</button>
+    <input type="hidden" id="rveType-${rid}" value="${item&&item.type?item.type:''}">
+    <input type="hidden" id="rveFeeId-${rid}" value="${item&&item.feeId!=null?item.feeId:''}">`;
   document.getElementById('rveItemsContainer').appendChild(div);
   if (item && item.stockId) document.getElementById('rveStockSel-'+rid).value = item.stockId;
   rveRecalc();
@@ -29195,7 +29323,12 @@ function saveRecVisitEdit() {
     const qty = parseFloat(document.getElementById('rveQty-'+rid)?.value)||0;
     const price = parseFloat(document.getElementById('rvePrice-'+rid)?.value)||0;
     if (!name || qty<=0) return;
-    newItems.push({ name, qty, price, subtotal: qty*price, stockId, type: stockId?'med':'manual' });
+    // ✅ ফিক্স: আগে নতুন/সংশোধিত প্রতিটা আইটেমকে স্টক থাকলে 'med', নাহলে সবসময় 'manual' ধরা হতো —
+    // ফলে বিদ্যমান ভিজিট ফি/টেস্ট/অপারেশন আইটেম সংশোধন করলে সেগুলো 'manual' এ নেমে যেত, আর ডাক্তার
+    // কমিশনের হিসাবে (classifyBillItemForCommission) ভুল শ্রেণীতে পড়ে যেত। এখন মূল টাইপ/feeId সংরক্ষিত থাকে।
+    const origType = (document.getElementById('rveType-'+rid)?.value||'').trim();
+    const origFeeIdRaw = (document.getElementById('rveFeeId-'+rid)?.value||'').trim();
+    newItems.push({ name, qty, price, subtotal: qty*price, stockId, type: stockId?'med':(origType||'manual'), feeId: origFeeIdRaw?parseInt(origFeeIdRaw):undefined });
   });
   if (!newItems.length) { showToast('⚠️ অন্তত একটা আইটেম দিন'); return; }
 
@@ -29220,6 +29353,21 @@ function saveRecVisitEdit() {
   const incMirror = (appData.income||[]).find(e => e.visitId === v.id);
   if (incMirror) incMirror.amount = cashPaid;
   else if (cashPaid > 0) appData.income.push({ id:Date.now(), date:v.date, category:'রিসেপশন আয়', amount:cashPaid, memo:v.memoNo, ref:v.patName, note:`${v.memoNo} — ${v.patName} (সংশোধিত)`, by:currentUser.name, visitId:v.id });
+  // ✅ ফিক্স: এই বিলের সাথে যুক্ত ডাক্তার কমিশন রেকর্ড থাকলে (visitId দিয়ে) — আগে বিল সংশোধন করলে কমিশন
+  // পুরনো (ভুল) বিলের হিসাবেই থেকে যেত, স্যালারি শিট/কমিশন হিস্ট্রিতে আর আপডেট হতো না। এখন সংশোধিত বিলের
+  // আইটেম অনুযায়ী কমিশন-যোগ্য বেজ অ্যামাউন্ট ও কমিশন — একই ডাক্তার/শতাংশ/ওভার-টাইম অবস্থা বজায় রেখে — পুনঃহিসাব হচ্ছে।
+  const linkedCommRec = (appData.doctorCommissions||[]).find(c => c.visitId === v.id);
+  if (linkedCommRec) {
+    const commDoctor = (appData.doctors||[]).find(d => d.id === linkedCommRec.doctorId);
+    if (commDoctor && commDoctor.commissionEnabled) {
+      const oldCommAmount = linkedCommRec.amount;
+      linkedCommRec.baseAmount = getDoctorCommissionBaseAmount(newItems, commDoctor);
+      linkedCommRec.amount = Math.round(linkedCommRec.baseAmount * (linkedCommRec.percent||0) / 100);
+      if (linkedCommRec.amount !== oldCommAmount) {
+        logActivity('edit', 'ডাক্তার কমিশন', `${commDoctor.name} — বিল সংশোধনের কারণে কমিশন ৳${fmt(oldCommAmount)} → ৳${fmt(linkedCommRec.amount)} (মেমো: ${v.memoNo||'—'})`);
+      }
+    }
+  }
 
   saveEditHistory('রোগীর বিল', v.id, `${v.patName} — ৳${fmt(v.total)}`, before, v);
   logActivity('edit', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} সংশোধিত (আইটেম/স্টক পুনঃহিসাব)`);
@@ -31773,7 +31921,7 @@ function _billSave(p) {
     if (_selDocNb) { _newVisit.doctorId = _selDocNb.id; _newVisit.doctorName = _selDocNb.name; }
   }
   appData.visits.push(_newVisit);
-  if (nb && !isCustomer) recordDoctorCommission('nb_', date, memoNo, null);
+  if (nb && !isCustomer) recordDoctorCommission('nb_', date, memoNo, _billVisitId);
   // ✅ চশমার কাস্টমাইজেশন বক্সে ডেলিভারি তারিখ দেওয়া থাকলে স্বয়ংক্রিয়ভাবে ডেলিভারি শিডিউলে যোগ হয়ে যায়
   const glassDeliveryCount = (items||[]).filter(i=>i.type==='glass'&&i.glass&&i.glass.deliveryDate).length;
   recordGlassOrders(items, {date, memoNo, patName, patPhone, by:byLabel});
