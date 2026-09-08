@@ -280,6 +280,12 @@
   .notif-bell-btn { position:relative; width:38px; height:38px; border-radius:50%; border:1.5px solid var(--border); background:white; box-shadow:var(--shadow); cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:all .2s; }
   .notif-bell-btn:hover { background:#f8fafc; transform:translateY(-1px); box-shadow:var(--shadow-lg); }
   .notif-bell-badge { position:absolute; top:-3px; right:-3px; background:var(--danger); color:#fff; font-size:10px; font-weight:700; border-radius:10px; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; padding:0 3px; line-height:1; box-shadow:0 0 0 2px white; }
+  /* ✅ নতুন/অদেখা নোটিফিকেশন থাকলে বেল আইকন ব্লিংক করবে (নতুন কিছু আসলে চোখে পড়বে); সবগুলো দেখা/সিন
+     হয়ে গেলে (badge লুকিয়ে গেলে) ব্লিংকিং বন্ধ হয়ে যাবে — দ্রষ্টব্য updateNotifBell()/updateRecNotifBell() */
+  @keyframes blink-anim { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @keyframes bellRing { 0%,100%{transform:rotate(0)} 10%,30%{transform:rotate(-14deg)} 20%,40%{transform:rotate(14deg)} 50%{transform:rotate(-8deg)} 60%{transform:rotate(8deg)} 70%,100%{transform:rotate(0)} }
+  .notif-bell-btn.notif-bell-blinking { animation: bellRing 1.8s ease-in-out infinite; }
+  .notif-bell-btn.notif-bell-blinking .notif-bell-badge { animation: blink-anim .9s ease-in-out infinite; }
   .notif-bell-panel { position:absolute; top:46px; right:0; width:330px; max-height:420px; overflow-y:auto; background:white; border:1.5px solid var(--border); border-radius:16px; box-shadow:var(--shadow-lg); z-index:80; padding:8px; animation:fadeIn 0.15s ease; }
   .notif-bell-section-title { font-size:10.5px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:.04em; padding:8px 8px 4px; }
   .notif-bell-item { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:8px 8px; border-radius:10px; cursor:pointer; font-size:12.5px; line-height:1.4; transition:background .15s; }
@@ -11406,8 +11412,8 @@ function savePreCampExpense() {
     const voucher = (e.date === date) ? e.voucher : ensureUniqueVoucher(generateNextVoucherNo(date), date);
     Object.assign(e, {
       date, category: cat, subCategory: subCat, amount: amt, voucher, note: fullNote, payMode, mfsAccountId,
-      status: 'pending', needsApproval: true, rejected: false, rejectionReason: '', rejectedBy: '', rejectedAt: '',
-      clearDate: date, actualClearedDate: ''
+      status: 'pending', needsApproval: true, rejected: false, rejectionReason: '', rejectedBy: '', rejectedAt: '', rejectedAtTs: '',
+      clearDate: date, actualClearedDate: '', approvalRequestedAt: Date.now()
     });
     logActivity('edit', 'প্রি-ক্যাম্প খরচ সংশোধন', `${s.name} — ${cat}: ৳${fmt(amt)} (${voucher}) — পুনরায় অনুমোদনের অপেক্ষায়`);
     saveData();
@@ -11433,7 +11439,7 @@ function savePreCampExpense() {
     payMode, payPerson: '', checkNo: '', checkbookId: '', clearDate: date,
     status: isReception ? 'pending' : 'cleared', actualClearedDate: isReception ? '' : date, mfsAccountId,
     by: currentUser.name, campId: scheduleId, preCamp: true,
-    needsApproval: isReception, rejected: false, rejectionReason: ''
+    needsApproval: isReception, rejected: false, rejectionReason: '', approvalRequestedAt: Date.now()
   });
   logActivity('add', 'প্রি-ক্যাম্প খরচ', `${s.name} — ${cat}: ৳${fmt(amt)} (${voucher})${isReception?' — অনুমোদনের অপেক্ষায়':''}`);
   saveData();
@@ -11529,7 +11535,7 @@ function renderRecExpApprovalPanel() {
   tbody.innerHTML = list.map(e => {
     const payLabel = e.payMode === 'mfs' ? '📱 মোবাইল ব্যাংকিং' : '💵 ক্যাশ';
     const campTag = e.preCamp ? ` <span class="badge badge-info" style="margin-left:4px">⛺ প্রি-ক্যাম্প</span>` : '';
-    return `<tr>
+    return `<tr id="exp-approval-row-${e.id}">
       <td>${formatDate(e.date)}</td>
       <td>${e.category}${e.subCategory ? ' / ' + e.subCategory : ''}${campTag}</td>
       <td style="color:var(--text-light)">${e.note || '—'}</td>
@@ -11568,6 +11574,7 @@ function rejectRecExpense(id) {
   e.rejectionReason = reason.trim() || 'কারণ উল্লেখ করা হয়নি';
   e.rejectedBy = currentUser.name;
   e.rejectedAt = todayStr();
+  e.rejectedAtTs = Date.now();
   logActivity('reject', 'ব্যয় বাতিল', `${e.category} — ৳${fmt(e.amount)} (এন্ট্রিকারী: ${e.by || '—'}) — কারণ: ${e.rejectionReason}`);
   saveData();
   renderRecExpApprovalPanel();
@@ -11650,8 +11657,8 @@ function saveRecExpense() {
     const voucher = (e.date === date) ? e.voucher : ensureUniqueVoucher(generateNextVoucherNo(date), date);
     Object.assign(e, {
       date, category: cat, subCategory: subCat, amount: amt, voucher, note, payMode, mfsAccountId,
-      status: 'pending', needsApproval: true, rejected: false, rejectionReason: '', rejectedBy: '', rejectedAt: '',
-      clearDate: date, actualClearedDate: ''
+      status: 'pending', needsApproval: true, rejected: false, rejectionReason: '', rejectedBy: '', rejectedAt: '', rejectedAtTs: '',
+      clearDate: date, actualClearedDate: '', approvalRequestedAt: Date.now()
     });
     logActivity('edit', 'ব্যয় সংশোধন', `${cat} — ৳${fmt(amt)} (${voucher}) — পুনরায় অনুমোদনের অপেক্ষায়`);
     saveData();
@@ -11663,7 +11670,7 @@ function saveRecExpense() {
       id: Date.now(), date, category: cat, subCategory: subCat, amount: amt, voucher, note,
       payMode, payPerson: '', checkNo: '', checkbookId: '', clearDate: date,
       status: 'pending', actualClearedDate: '', mfsAccountId,
-      by: currentUser.name, needsApproval: true, rejected: false, rejectionReason: ''
+      by: currentUser.name, needsApproval: true, rejected: false, rejectionReason: '', approvalRequestedAt: Date.now()
     });
     logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher}) — অনুমোদনের অপেক্ষায়`);
     saveData();
@@ -11715,7 +11722,7 @@ function renderRecExpenseList() {
       : e.status === 'pending'
         ? `<span class="badge" style="background:#fef3c7;color:#92400e">⏳ পেন্ডিং</span>`
         : `<span class="badge badge-income">✅ অনুমোদিত</span>`;
-    return `<tr>
+    return `<tr id="rec-exp-row-${e.id}">
       <td>${formatDate(e.date)}</td>
       <td style="font-weight:600;color:var(--warning)">${e.voucher || '—'}</td>
       <td>${e.category}${e.subCategory ? ' / ' + e.subCategory : ''}${campTag}</td>
@@ -22391,7 +22398,11 @@ function getNotifData() {
   const pendingDemands = (appData.demands||[]).filter(d=>d.status==='pending').sort((a,b)=>b.id-a.id);
   const dueVisits = (appData.visits||[]).filter(v=>v.due>0).sort((a,b)=>b.due-a.due);
   const checkReminders = (currentUser && currentUser.role==='admin' && typeof getCheckReminders==='function') ? getCheckReminders() : [];
-  return { pendingDemands, dueVisits, checkReminders };
+  // ✅ রিসেপশন প্যানেল থেকে দেওয়া ব্যয়/প্রি-ক্যাম্প খরচ এন্ট্রি (অ্যাডমিনের অনুমোদনের অপেক্ষায়) — নোটিফিকেশন বেলেও দেখাবে
+  const pendingExpApprovals = (currentUser && ['admin','moderator'].includes(currentUser.role))
+    ? (appData.expense||[]).filter(e=>e.needsApproval && e.status==='pending' && !e.rejected).sort((a,b)=>b.id-a.id)
+    : [];
+  return { pendingDemands, dueVisits, checkReminders, pendingExpApprovals };
 }
 // ✅ বেলে ক্লিক করে একবার নোটিফিকেশন প্যানেল খুললে সেগুলোকে "দেখা হয়ে গেছে" হিসেবে মনে রাখা হয়
 // (লোকালস্টোরেজে, ইউজারভিত্তিক) — তারপর ব্যাজে আর সংখ্যা দেখাবে না, যতক্ষণ না নতুন কোনো
@@ -22399,11 +22410,12 @@ function getNotifData() {
 function _notifSeenKey() {
   return 'hms_notif_seen_' + ((currentUser && currentUser.username) || 'anon');
 }
-function _notifIdList({ pendingDemands, dueVisits, checkReminders }) {
+function _notifIdList({ pendingDemands, dueVisits, checkReminders, pendingExpApprovals }) {
   return [
     ...pendingDemands.map(d => 'd' + d.id),
     ...dueVisits.map(v => 'v' + v.id + '_' + v.due),
-    ...checkReminders.map(r => 'c' + (r.id!==undefined ? r.id : r.text) + '_' + r.type)
+    ...checkReminders.map(r => 'c' + (r.id!==undefined ? r.id : r.text) + '_' + r.type),
+    ...(pendingExpApprovals||[]).map(e => 'e' + e.id + '_' + (e.approvalRequestedAt||''))
   ];
 }
 function _getNotifSeenSet() {
@@ -22428,6 +22440,8 @@ function updateNotifBell() {
   const unseenCount = ids.filter(id => !seen.has(id)).length;
   const badge = document.getElementById('notifBellBadge');
   if (badge) { badge.textContent = unseenCount>99?'৯৯+':unseenCount; badge.style.display = unseenCount>0?'flex':'none'; }
+  const bellBtn = wrap.querySelector('.notif-bell-btn');
+  if (bellBtn) bellBtn.classList.toggle('notif-bell-blinking', unseenCount>0);
   const panel = document.getElementById('notifBellPanel');
   if (panel && panel.style.display !== 'none') renderNotifBellPanel();
 }
@@ -22475,11 +22489,23 @@ function renderNotifBellPanel() {
   const panel = document.getElementById('notifBellPanel');
   if (!panel) return;
   const seen = _getNotifSeenSet();
-  const { pendingDemands: pd0, dueVisits: dv0, checkReminders: cr0 } = getNotifData();
+  const { pendingDemands: pd0, dueVisits: dv0, checkReminders: cr0, pendingExpApprovals: pe0 } = getNotifData();
   const pendingDemands = pd0.filter(d => !seen.has('d'+d.id));
   const dueVisits = dv0.filter(v => !seen.has('v'+v.id+'_'+v.due));
   const checkReminders = cr0.filter(r => !seen.has('c'+(r.id!==undefined?r.id:r.text)+'_'+r.type));
+  const pendingExpApprovals = (pe0||[]).filter(e => !seen.has('e'+e.id+'_'+(e.approvalRequestedAt||'')));
   let html = '';
+
+  if (pendingExpApprovals.length) {
+    const totalAmt = pendingExpApprovals.reduce((s,e)=>s+e.amount,0);
+    html += `<div class="notif-bell-section-title">💸 ব্যয় এন্ট্রি এপ্রোভাল (${pendingExpApprovals.length}টি, ৳ ${fmt(totalAmt)})</div>`;
+    pendingExpApprovals.slice(0,5).forEach(e => {
+      html += `<div class="notif-bell-item" onclick="notifBellGo('e${e.id}_${e.approvalRequestedAt||''}','expense','exp-approval-row-${e.id}')">
+        <span class="nb-dot" style="background:#e74c3c"></span>
+        <span style="flex:1"><strong>${e.category}${e.subCategory?' / '+e.subCategory:''}</strong> — ৳ ${fmt(e.amount)}<br><span style="color:var(--text-light);font-size:11px">${e.by||'—'} — ${formatDate(e.date)}</span></span>
+      </div>`;
+    });
+  }
 
   if (pendingDemands.length) {
     html += `<div class="notif-bell-section-title">📝 পেন্ডিং ডিমান্ড নোট (${pendingDemands.length})</div>`;
@@ -35209,28 +35235,54 @@ function renderMonthlyComparison(){
   const body=document.getElementById('dashMoCompBody');
   if(!body||!wrap) return;
   const now=new Date();
+  const todayDate = now.getDate();
   const curYM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const prevD = new Date(now.getFullYear(), now.getMonth()-1, 1);
   const prevYM = `${prevD.getFullYear()}-${String(prevD.getMonth()+1).padStart(2,'0')}`;
+  // ✅ ফিক্স: আগে পুরো গত মাসের সাথে চলতি মাসের এখন-পর্যন্ত হিসাব তুলনা হতো — মাসের শুরুর দিকে এতে সবসময়
+  // ভুলভাবে "কম/খারাপ" দেখাত (কারণ গত মাসের ৩০ দিনের সাথে চলতি মাসের মাত্র কয়েক দিনের তুলনা), প্রকৃত গ্রোথের
+  // সঠিক ধারণা পাওয়া যেত না। এখন "সমদিন-ভিত্তিক" তুলনা হয় — চলতি মাসের ১ তারিখ থেকে আজ পর্যন্ত বনাম গত মাসের
+  // ১ তারিখ থেকে একই তারিখ পর্যন্ত (গত মাসে সেই তারিখ না থাকলে — যেমন আজ ৩১ কিন্তু গত মাসে ২৮/৩০ দিন — গত
+  // মাসের শেষ দিন পর্যন্ত ধরা হয়)।
+  const daysInCurMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const daysInPrevMonth = new Date(prevD.getFullYear(), prevD.getMonth()+1, 0).getDate();
+  const prevCutoffDate = Math.min(todayDate, daysInPrevMonth);
+  const curStart = `${curYM}-01`;
+  const curEnd = `${curYM}-${String(todayDate).padStart(2,'0')}`;
+  const prevStart = `${prevYM}-01`;
+  const prevEnd = `${prevYM}-${String(prevCutoffDate).padStart(2,'0')}`;
+  const inRange = (d, start, end) => !!d && d>=start && d<=end;
 
-  const curInc = getTotalRevenueForPrefix(curYM);
-  const prevInc = getTotalRevenueForPrefix(prevYM);
-  const curExp = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, curYM)).reduce((s,e)=>s+(e.amount||0),0);
-  const prevExp = (appData.expense||[]).filter(e=>expenseCountsInPrefix(e, prevYM)).reduce((s,e)=>s+(e.amount||0),0);
-  const curCOGS = getCOGSForPrefix(curYM);
-  const prevCOGS = getCOGSForPrefix(prevYM);
-  // ✅ ফিক্সড খরচ (ভাড়া+ইউটিলিটি+অন্যান্য) ও স্টাফদের বেসিক বেতন — Cash Flow/P&L স্ট্রিপ ও মাসিক
-  // ক্লোজিং (computeMonthlyAutoNet)-এর মতোই নিট মুনাফা থেকে বাদ দেওয়া হচ্ছে, নাহলে একই মাসের জন্য
-  // দুইটা স্ট্রিপে দুই রকম "নিট মুনাফা" দেখাত এবং প্রকৃতপক্ষে লোকসানের মাসও লাভজনক দেখাতে পারত।
-  // প্রতিটা মাসের জন্য আলাদাভাবে হিসাব হয় — মাস ইতিমধ্যে ক্লোজ করা থাকলে ক্লোজিং-এর সময়কার স্ন্যাপশট
-  // রেট ব্যবহৃত হয় (ভাড়া/বেতন পরে বাড়লেও পুরনো মাসের হিসাব বদলায় না); খোলা মাসের জন্য বর্তমান সেটিংস।
-  const curFixed = getMonthlyFixedForPrefix(curYM).totalFixed;
-  const prevFixed = getMonthlyFixedForPrefix(prevYM).totalFixed;
+  const getTotalRevenueForRange = (start, end) => {
+    const inc = (appData.income||[]).filter(e=>inRange(e.date,start,end)&&!e.campId&&!e.campVisitId&&!(e.visitId&&e.category!=='বাকি আদায়')).reduce((s,e)=>s+(e.amount||0),0);
+    const vis = (appData.visits||[]).filter(v=>inRange(v.date,start,end)).reduce((s,v)=>s+getVisitBilledCashPaid(v),0);
+    const cmp = (appData.camps||[]).filter(c=>inRange(c.date,start,end)).reduce((s,c)=>s+(c.totalIncome||0),0);
+    return inc + vis + cmp;
+  };
+  const getCOGSForRange = (start, end) => (appData.stockLog||[]).filter(l=>l.move==='out'&&!l.reversed&&inRange(l.date,start,end)&&l.cogsAmount).reduce((s,l)=>s+(l.cogsAmount||0),0);
+  const getExpenseForRange = (start, end) => (appData.expense||[]).filter(e=>{
+    if (e.isFundExpense) return false;
+    if (e.isInventoryPurchase) return false;
+    if (isFixedCostExpenseCategory(e.category)) return false;
+    return inRange(expenseEffectiveDate(e), start, end);
+  }).reduce((s,e)=>s+(e.amount||0),0);
+
+  const curInc = getTotalRevenueForRange(curStart, curEnd);
+  const prevInc = getTotalRevenueForRange(prevStart, prevEnd);
+  const curExp = getExpenseForRange(curStart, curEnd);
+  const prevExp = getExpenseForRange(prevStart, prevEnd);
+  const curCOGS = getCOGSForRange(curStart, curEnd);
+  const prevCOGS = getCOGSForRange(prevStart, prevEnd);
+  // ✅ ফিক্সড খরচ (ভাড়া+ইউটিলিটি+অন্যান্য) ও স্টাফদের বেসিক বেতন মাসিক হারে ধার্য হয় — সমদিন-ভিত্তিক তুলনার
+  // জন্য মাসিক হার থেকে অতিবাহিত দিনের অনুপাতে ভাগ (prorate) করে নেওয়া হচ্ছে, নাহলে মাসের শুরুর দিকে পুরো
+  // মাসের ফিক্সড খরচ একবারেই যোগ হয়ে নিট মুনাফা ভুলভাবে অনেক কম/ঋণাত্মক দেখাত।
+  const curFixed = getMonthlyFixedForPrefix(curYM).totalFixed * (todayDate/daysInCurMonth);
+  const prevFixed = getMonthlyFixedForPrefix(prevYM).totalFixed * (prevCutoffDate/daysInPrevMonth);
   const curProfit = curInc - curCOGS - curExp - curFixed, prevProfit = prevInc - prevCOGS - prevExp - prevFixed;
 
   const monthNames=['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   const lbl=document.getElementById('dashMoCompLabel');
-  if(lbl) lbl.textContent = `${monthNames[now.getMonth()]} বনাম ${monthNames[prevD.getMonth()]}`;
+  if(lbl) lbl.textContent = `১-${todayDate.toLocaleString('bn-BD')} ${monthNames[now.getMonth()]} বনাম ১-${prevCutoffDate.toLocaleString('bn-BD')} ${monthNames[prevD.getMonth()]}`;
 
   function moCol(label, curVal, prevVal, accentColor, divider, bgColor, inverse) {
     let pct=0, dir='same';
@@ -35247,7 +35299,7 @@ function renderMonthlyComparison(){
       <span style="font-size:11.5px;color:var(--text-light);font-weight:600;flex-shrink:0">${label}</span>
       <span style="font-size:14px;font-weight:900;color:${accentColor};flex-shrink:0">৳ ${curVal.toLocaleString('bn-BD')}</span>
       <span style="font-size:11px;font-weight:700;color:${pctColor};flex-shrink:0">${pctTxt}</span>
-      <span style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis">(গত মাস ৳ ${prevVal.toLocaleString('bn-BD')})</span>
+      <span style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis">(গত মাস, সমদিন ৳ ${prevVal.toLocaleString('bn-BD')})</span>
     </div>`;
   }
 
