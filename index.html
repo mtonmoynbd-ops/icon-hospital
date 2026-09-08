@@ -5806,6 +5806,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <input type="checkbox" data-role="campaigner" data-feature="shareholders" style="width:14px;height:14px">
           শেয়ারহোল্ডার
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="campaigner" data-feature="testfees" checked="" style="width:14px;height:14px">
+          টেস্ট ফি তালিকা
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="campaigner" data-feature="memorandum" style="width:14px;height:14px">
           মেমোরেন্ডাম ও TOR
         </label>
@@ -8112,7 +8115,7 @@ const DEFAULT_FEATURE_ACCESS = {
   moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','inquiries'],
   receptionist:['billing'],
   owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries','funds','testfees'],
-  campaigner:  ['camp','accounting-principles','campdue'],
+  campaigner:  ['camp','accounting-principles','campdue','testfees'],
 };
 
 function canAccess(role, feature) {
@@ -9578,9 +9581,22 @@ function debounce(fn, delay) {
   };
 }
 const debouncedRealtimeDashboardRefresh = debounce(() => { if (typeof refreshDashboard==='function') refreshDashboard(); }, 500);
+// ✅ ফিক্স: আগে এখানে সবসময় getPreferredRoleFeature() (অর্থাৎ ওনার/ক্যাম্পেইনারের ডিফল্ট/প্রেফারড ফিচার —
+// বাস্তবে প্রায় সবসময় 'dashboard') দিয়ে openRoleFeature() কল হতো, বর্তমানে কোন পেজ খোলা আছে তা না দেখেই।
+// ফলে ওনার/ক্যাম্পেইনার dashboard ছাড়া অন্য যেকোনো পেজে (যেমন "টেস্ট ও অপারেশন ফি") থাকা অবস্থায়
+// অ্যাপের যেকোনো জায়গায় (রিসেপশন বিল সেভ, স্টক আপডেট ইত্যাদি) সামান্যতম রিয়েল-টাইম ডাটা পরিবর্তন হলেই
+// প্রতি ~৫০০ মিলিসেকেন্ডে নীরবে dashboard-এ ফিরিয়ে দেওয়া হতো — ব্যস্ত হাসপাতালে এটা প্রায় সবসময় ঘটত,
+// তাই dashboard ছাড়া অন্য কোনো পেজ পড়ার সময়ই পাওয়া যেত না (যেমন টেস্ট/অপারেশন ফি তালিকা "একদম দেখায় না"
+// মনে হতো)। এখন বর্তমানে সক্রিয় ফিচারই (currentOwnerActiveFeature/currentCamperActiveFeature) পুনরায়
+// রেন্ডার করা হচ্ছে — পেজ পরিবর্তন না করেই ডাটা আপডেট থাকবে, ঠিক যেভাবে অ্যাডমিন প্যানেলের
+// REALTIME_SAFE_PAGE_REFRESH প্যাটার্ন কাজ করে। এখনো কোনো পেজ খোলা না থাকলে (প্রথমবার লগইনের আগে) fallback
+// হিসেবে আগের preferred-feature লজিকই ব্যবহার হবে।
 const debouncedRealtimeOwnerRebuild = debounce(() => {
-  if (currentUser && (currentUser.role === 'owner' || currentUser.role === 'campaigner')) {
-    openRoleFeature(getPreferredRoleFeature(currentUser.role));
+  if (!currentUser) return;
+  if (currentUser.role === 'owner') {
+    openRoleFeature(currentOwnerActiveFeature || getPreferredRoleFeature('owner'));
+  } else if (currentUser.role === 'campaigner') {
+    openRoleFeature(currentCamperActiveFeature || getPreferredRoleFeature('campaigner'));
   }
 }, 500);
 // ✅ রিসেপশনিস্ট প্যানেল — ট্যাব অনুযায়ী কোন লিস্ট/ব্যাজ রিয়েল-টাইমে নিরাপদে রিফ্রেশ করা যায় (সক্রিয় "নতুন বিল"
@@ -10268,6 +10284,10 @@ function showPage(name) {
   if (name === 'recall')       { renderAdminRecallList(); }
   if (name === 'directory')    { renderRecDoctorDirectory(); renderServiceCatalog(); renderRecCampSchedule(); }
   if (name === 'inquiries')    { initInquiriesPage(); }
+  // ✅ ফিক্স: 'testfees' পেজে নেভিগেট করার সময় renderTestFeeTable() কখনোই কল হতো না — শুধু সার্চ/ফিল্টার
+  // পরিবর্তন বা সেভ/ডিলিটের পরেই কল হতো। ফলে পেজে ঢোকার সাথে সাথে তালিকা খালি দেখাত, ফিল্টার একবার বদলালেই
+  // (যেটা renderTestFeeTable() কে প্রথমবার ট্রিগার করত) ঠিকঠাক দেখাতে শুরু করত।
+  if (name === 'testfees')     { renderTestFeeTable(); }
   if (currentUser && currentUser.role === 'moderator') renderRoleBottomTabs('mod', name);
   renderQuickAccessBar(name);
   closeSidebar();
@@ -10811,8 +10831,12 @@ function showDashCardModal(cardId, modalId) {
     body = row('মাস শুরুর ব্যালেন্স', '৳ '+fmt(openingCash))
       + row('আয় (ম্যানুয়াল + ভিজিট + ক্যাম্প)', '+ ৳ '+fmt(opIncome+visitCash+campCash), '#16a34a')
       + row('ব্যাংক/মোবাইল → ক্যাশ', '+ ৳ '+fmt(b2c+mfs2cash), '#16a34a')
+      // ✅ ফিক্স: dashBankBalance কার্ডের একই কারণে — bankTx-এর সরাসরি 'cash_in'/'cash_out' টাইপও
+      // openingCash-এর হিসাবে (totalIn/totalOut) যোগ হতো কিন্তু কোনো ভিজিবল রো-তে দেখানো হতো না
+      + (cashIn>0?row('ক্যাশ ইন/অ্যাডজাস্টমেন্ট (আয় নয়)', '+ ৳ '+fmt(cashIn), '#16a34a'):'')
       + row('ব্যয় (ম্যানুয়াল + ক্যাম্প)', '- ৳ '+fmt(opExpense+campExpense), '#e74c3c')
       + row('ক্যাশ → ব্যাংক/মোবাইল', '- ৳ '+fmt(c2b+cash2mfs), '#e74c3c')
+      + (cashOut>0?row('ক্যাশ আউট/অ্যাডজাস্টমেন্ট (ব্যয় নয়)', '- ৳ '+fmt(cashOut), '#e74c3c'):'')
       + row('<strong>হাতে নগদ (বর্তমান)</strong>', '<strong>৳ '+fmt(cash)+'</strong>', '#16a34a');
 
   } else if (cardId === 'dashBankBalance') {
@@ -10837,6 +10861,12 @@ function showDashCardModal(cardId, modalId) {
       + row('ক্যাশ/মোবাইল → ব্যাংক', '+ ৳ '+fmt(c2b+mfs2bank), '#16a34a')
       + row('ব্যয় (ব্যাংক মাধ্যমে)', '- ৳ '+fmt(opExpenseBank), '#e74c3c')
       + row('ব্যাংক → ক্যাশ/মোবাইল', '- ৳ '+fmt(b2c+bank2mfs), '#e74c3c')
+      // ✅ ফিক্স: bankTx-এর সরাসরি 'bank_out' (ক্যাশ/মোবাইলে ট্রান্সফার না, শুধু ব্যাংক-সাইড
+      // অ্যাডজাস্টমেন্ট/উইথড্র) টাইপটা আগে থেকেই openingBank-এর হিসাবে (totalOut-এর ভেতর) যোগ হতো,
+      // কিন্তু কার্ডের কোনো ভিজিবল রো-তে দেখানো হতো না — Cash Flow/P&L স্ট্রিপের ব্যাংক ইন/আউট
+      // বিস্তারিতে এই একই টাকা "↳ ব্যাংক → ক্যাশ ট্রান্সফার/অ্যাডজাস্টমেন্ট" এর ভেতর দেখা যেত, অথচ এই
+      // কার্ডে সম্পূর্ণ অনুপস্থিত থাকায় ব্যালেন্স মিলত ঠিকই কিন্তু ব্রেকডাউনে টাকাটা "হারিয়ে" যেত বলে মনে হতো
+      + (bankOut>0?row('ব্যাংক আউট/অ্যাডজাস্টমেন্ট (ব্যয় নয়)', '- ৳ '+fmt(bankOut), '#e74c3c'):'')
       + row('<strong>ব্যাংক ব্যালেন্স (বর্তমান)</strong>', '<strong>৳ '+fmt(bank)+'</strong>', '#3498db');
 
   } else if (cardId === 'dashMfsBalance') {
@@ -12031,14 +12061,18 @@ function getAllIssuedChequeEntries() {
   const list = (appData.issuedChecks||[]).map(c => ({
     source: c.source||'issued', id:c.id, voucher:c.voucher||'—', checkNo:c.checkNo||'—',
     payee: c.payee||'—', amount:c.amount, issueDate:c.issueDate, dueDate:c.dueDate,
-    status:c.status||'pending', linkedExpenseId:c.linkedExpenseId||null
+    status:c.status||'pending', linkedExpenseId:c.linkedExpenseId||null,
+    // ✅ ফিক্স: আসল ভাঙ্গানোর তারিখ আগে এখান থেকে বাদ পড়ত (নিচে চেক নিষ্পত্তি স্ট্রিপের
+    // "এই মাসের নিষ্পন্ন" কলামের জন্য দরকার — issueDate/dueDate দিয়ে হিসাব করলে ভুল মাসে পড়ে যেতে পারত)
+    clearedDate: c.clearedDate||null
   }));
   const linkedExpenseIds = new Set(list.filter(c=>c.linkedExpenseId).map(c=>c.linkedExpenseId));
   const orphanExpense = (appData.expense||[]).filter(e => e.payMode==='bank' && !linkedExpenseIds.has(e.id)).map(e => ({
     source:'expense', id:e.id, voucher:e.voucher||'—', checkNo:e.checkNo||'—',
     payee: `${e.category}${e.payPerson?(' — বাহক: '+e.payPerson):''}${e.note?(' — '+e.note):''}`,
     amount:e.amount, issueDate:e.date, dueDate:e.clearDate||e.date,
-    status:e.status||'cleared', linkedExpenseId:e.id
+    status:e.status||'cleared', linkedExpenseId:e.id,
+    clearedDate: e.status==='cleared' ? (e.actualClearedDate||e.clearDate||e.date) : null
   }));
   return [...list, ...orphanExpense];
 }
@@ -12170,7 +12204,14 @@ function renderExpenseTable() {
     });
   }
 
-  if (!data.length) { tbody.innerHTML = pendingHtml || '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+  // ✅ ট্রান্সফার / মুনাফা উত্তোলন — bankTx-এর cash_out/bank_out এন্ট্রি (ম্যানুয়াল ব্যাংক লেনদেন, ভাঙ্গানো
+  // "চেক ইস্যু", ও শেয়ারহোল্ডার উত্তোলন) — টাকা বের হয় ঠিকই, কিন্তু এটা ব্যবসার "ব্যয়" নয় (appData.expense-এ
+  // নেই), তাই এখানে সম্পূর্ণ আলাদা ব্র্যাকেট/রো হিসেবে দেখানো হচ্ছে — "প্রকৃত মোট ব্যয়"-এ যোগ হবে না
+  let transferData = [...(appData.bankTx||[])].filter(tx=>tx.type==='cash_out'||tx.type==='bank_out');
+  if (vm==='day' && fd) transferData = transferData.filter(tx=>tx.date===fd);
+  else if (vm==='month' && fm) transferData = transferData.filter(tx=>(tx.date||'').startsWith(fm));
+
+  if (!data.length && !transferData.length) { tbody.innerHTML = pendingHtml || '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</td></tr>'; return; }
 
   // গ্রুপিং কী নির্ধারণ
   const getKey = e => {
@@ -12179,6 +12220,12 @@ function renderExpenseTable() {
     // date (default) — effective date অনুযায়ী গ্রুপ হয়
     const eff = expenseEffectiveDate(e)||'';
     const k = vm==='month' ? eff.substring(0,7) : eff;
+    return k;
+  };
+  const getTransferKey = tx => {
+    if (groupBy==='category') return '🔁 ট্রান্সফার / মুনাফা উত্তোলন';
+    if (groupBy==='paymode') return tx.type==='bank_out' ? '🏦 ব্যাংক' : '💵 ক্যাশ';
+    const k = vm==='month' ? (tx.date||'').substring(0,7) : (tx.date||'');
     return k;
   };
   const getGroupLabel = key => {
@@ -12192,15 +12239,19 @@ function renderExpenseTable() {
 
   const groups = {};
   data.forEach(e => { const k=getKey(e); if(!groups[k])groups[k]=[]; groups[k].push(e); });
-  const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const transferGroups = {};
+  transferData.forEach(tx => { const k=getTransferKey(tx); if(!transferGroups[k])transferGroups[k]=[]; transferGroups[k].push(tx); });
+  const sortedKeys = Array.from(new Set([...Object.keys(groups), ...Object.keys(transferGroups)])).sort((a,b)=> a<b?1:(a>b?-1:0));
 
   let html=pendingHtml;
   sortedKeys.forEach(key => {
-    const items = groups[key];
+    const items = groups[key]||[];
+    const transferItems = transferGroups[key]||[];
     // ✅ ব্র্যাকেট-ভিত্তিক সাব-টোটাল: সাধারণ ব্যয় (P&L-এর opEx-এর সাথে মিলে যাওয়ার কথা) + ফিক্সড-খাত এন্ট্রি
     // (ভাড়া/বিদ্যুৎ/পানি/বেতন — Settings-এর ফিক্সড রেট থেকে ইতিমধ্যে P&L-এ আলাদাভাবে গণনা হয়ে যায়, তাই এখানে
     // আলাদা করে দেখানো, "সাধারণ ব্যয়"-এ যোগ না করে ডাবল-কাউন্ট এড়ানো হচ্ছে) + ফান্ড থেকে ব্যয় + ইনভেন্টরি ক্রয়
     // (সম্পদ হিসেবে গণ্য, তাই P&L-এ ধরা হয় না) — আলাদা করে দেখানো হচ্ছে, আর সব মিলিয়ে "প্রকৃত মোট ব্যয়"ও দেখানো হচ্ছে
+    // ট্রান্সফার/মুনাফা উত্তোলন সম্পূর্ণ আলাদা — এটা ব্যয়ই না (appData.expense-এ নেই), তাই grandTotal-এ যোগ হয় না
     const normalItems = items.filter(e=>!e.isFundExpense && !e.isInventoryPurchase && !isFixedCostExpenseCategory(e.category));
     const fixedItems = items.filter(e=>!e.isFundExpense && !e.isInventoryPurchase && isFixedCostExpenseCategory(e.category));
     const fundItems = items.filter(e=>e.isFundExpense);
@@ -12209,6 +12260,7 @@ function renderExpenseTable() {
     const fixedTotal = fixedItems.reduce((s,e)=>s+e.amount,0);
     const fundTotal = fundItems.reduce((s,e)=>s+e.amount,0);
     const invTotal = invItems.reduce((s,e)=>s+e.amount,0);
+    const transferTotal = transferItems.reduce((s,tx)=>s+tx.amount,0);
     const grandTotal = normalTotal + fixedTotal + fundTotal + invTotal;
     const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
@@ -12217,13 +12269,22 @@ function renderExpenseTable() {
     if (fundTotal) bracketsHtml += ` <span style="color:#5b21b6">| ফান্ড থেকে: ৳ ${fmt(fundTotal)}</span>`;
     if (invTotal) bracketsHtml += ` <span style="color:#0369a1">| ইনভেন্টরি: ৳ ${fmt(invTotal)}</span>`;
     if (fixedTotal || fundTotal || invTotal) bracketsHtml += ` <span style="color:#991b1b;font-weight:800">| প্রকৃত মোট ব্যয়: ৳ ${fmt(grandTotal)}</span>`;
+    if (transferTotal) bracketsHtml += ` <span style="color:#0f766e;font-weight:700">| 🔁 ট্রান্সফার/উত্তোলন (ব্যয় নয়): ৳ ${fmt(transferTotal)}</span>`;
+    const entryCountTxt = items.length + (transferItems.length ? ` + ${transferItems.length} ট্রান্সফার` : '');
     html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" data-hdr-gid="exp_${gid}" data-open="1" onclick="toggleExpGroup('${gid}')">
       <td colspan="7" style="color:${groupText};font-weight:700;padding:7px 12px;font-size:12.5px">
-        ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; ${bracketsHtml} &nbsp;|&nbsp; এন্ট্রি: ${items.length}টি
+        ${groupBy==='date'?'📅':groupBy==='category'?'📂':'💳'} ${label} &nbsp;—&nbsp; ${bracketsHtml} &nbsp;|&nbsp; এন্ট্রি: ${entryCountTxt}টি
       </td>
       <td style="color:#64748b;text-align:right;padding:7px 12px" colspan="3"><span id="expGrpIcon-${gid}">▼</span></td>
     </tr>`;
-    items.forEach(e => {
+    const rowSeq = [
+      ...items.map(e => ({ kind:'expense', d:e, sortDate: expenseEffectiveDate(e)||e.date||'' })),
+      ...transferItems.map(tx => ({ kind:'transfer', d:tx, sortDate: tx.date||'' }))
+    ].sort((a,b)=> a.sortDate<b.sortDate?1:(a.sortDate>b.sortDate?-1:0));
+    rowSeq.forEach(row => {
+      if (row.kind==='expense') {
+      const e = row.d;
+      const effDate = expenseEffectiveDate(e)||e.date;
       const payBadge = e.payMode==='bank'
         ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক</span>`
         : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">💵 ক্যাশ</span>`;
@@ -12238,14 +12299,15 @@ function renderExpenseTable() {
       const fundBadge = e.isFundExpense ? `<span title="এই খরচ ফান্ড থেকে করা হয়েছে — মাসিক নিট লাভ/লোকসান হিসাবে গণনা হয় না" style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏦 P&L-নিরপেক্ষ</span>` : '';
       const invBadge = e.isInventoryPurchase ? `<span title="ইনভেন্টরি ক্রয় — সম্পদ হিসেবে গণ্য, বিক্রির সময় COGS হিসেবে গণনা হয়, তাই এখন P&L-এ ধরা হয় না" style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">📦 সম্পদ</span>` : '';
       const fixedBadge = (!e.isFundExpense && !e.isInventoryPurchase && isFixedCostExpenseCategory(e.category)) ? `<span title="এই খাতের টাকা Settings-এর ফিক্সড খরচ রেট থেকে ইতিমধ্যে P&L-এ আলাদাভাবে গণনা হয়ে যায় — তাই এখানে ডাবল-কাউন্ট এড়াতে 'পরিচালন ব্যয়'-এ ধরা হয় না" style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏠 ফিক্সড-খাত (P&L-এ পৃথক)</span>` : '';
+      const origDateNote = (effDate!==e.date) ? `<span style="color:#94a3b8;font-size:11px"> (মূল এন্ট্রি: ${formatDate(e.date)})</span>` : '';
       html += `<tr class="exp-grp-row"${e.isFundExpense?' style="background:#faf5ff"':''} data-grp="${gid}" id="exp-row-${e.id}">
-        <td>${formatDate(e.date)}</td>
+        <td>${formatDate(effDate)}</td>
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
         <td>${e.category}${fundBadge}${invBadge}${fixedBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
         <td>${payBadge}${statusBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${personOrCheck}</td>
-        <td style="color:var(--text-light)">${e.note||'—'}</td>
+        <td style="color:var(--text-light)">${e.note||'—'}${origDateNote}</td>
         <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
         <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
         <td style="display:flex;gap:4px;flex-wrap:wrap">
@@ -12253,6 +12315,26 @@ function renderExpenseTable() {
           ${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">🗑️</button>`:''}
         </td>
       </tr>`;
+      } else {
+      const tx = row.d;
+      const payBadge = tx.type==='bank_out'
+        ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক</span>`
+        : `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">💵 ক্যাশ</span>`;
+      const typeLabel = tx.source==='withdrawal' ? 'মুনাফা উত্তোলন' : 'ট্রান্সফার';
+      const notExpenseBadge = `<span title="এটা ব্যয় নয় — ক্যাশ/ব্যাংক থেকে ট্রান্সফার বা মুনাফা উত্তোলন, তাই 'সাধারণ ব্যয়'/'প্রকৃত মোট ব্যয়'-এ যোগ হয় না" style="background:#ccfbf1;color:#0f766e;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🔁 ব্যয় নয়</span>`;
+      html += `<tr class="exp-grp-row" style="background:#f0fdfa" data-grp="${gid}">
+        <td>${formatDate(tx.date)}</td>
+        <td style="color:var(--warning);font-weight:600;font-size:12px">${tx.voucher||'—'}</td>
+        <td>${typeLabel}${notExpenseBadge}</td>
+        <td style="color:var(--text-light);font-size:12px">—</td>
+        <td>${payBadge}</td>
+        <td style="color:var(--text-light);font-size:12px">${tx.checkNo?`চেক: ${tx.checkNo}`:'—'}</td>
+        <td style="color:var(--text-light)">${tx.note||'—'}</td>
+        <td style="font-weight:700;color:#0f766e">৳ ${fmt(tx.amount)}</td>
+        <td style="font-size:12px;color:var(--text-light)">${tx.by||'—'}</td>
+        <td></td>
+      </tr>`;
+      }
     });
   });
   tbody.innerHTML=html;
@@ -12593,8 +12675,13 @@ function renderBalanceSheet() {
   const assetDiv = document.getElementById('bsAssetSummary');
   if (assetDiv) {
     const { cash: liveCash, bank: liveBank } = calcCashBankBalance();
+    // ✅ ফিক্স: এই ব্যালেন্স শিট পেজটা মোবাইল ব্যাংকিং (বিকাশ/নগদ/রকেট) ফিচার যোগ হওয়ার আগে বানানো হয়েছিল,
+    // তাই এতদিন মোট সম্পদের হিসাবে MFS ব্যালেন্স ধরাই হতো না — যদিও এটাও হাসপাতালের নগদ-জাতীয় সম্পদ।
+    // calcTotalMfsBalance() (ড্যাশবোর্ডেই ব্যবহৃত ফাংশন) দিয়ে যোগ করা হলো।
+    const liveMfs = (typeof calcTotalMfsBalance==='function') ? calcTotalMfsBalance() : 0;
+    const mfsAccCount = (appData.mfsAccounts||[]).length;
     const inventoryValue = (appData.stock||[]).reduce((s,i) => s + (i.avgCost!=null?i.avgCost:(i.buyPrice||0)) * (i.qty||0), 0);
-    const totalAssets = liveCash + liveBank + inventoryValue;
+    const totalAssets = liveCash + liveBank + liveMfs + inventoryValue;
     assetDiv.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
@@ -12604,6 +12691,10 @@ function renderBalanceSheet() {
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
           <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">ব্যাংক ব্যালেন্স</div>
           <div style="font-size:17px;font-weight:800;color:#3498db">৳ ${fmt(liveBank)}</div>
+        </div>
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">মোবাইল ব্যাংকিং ব্যালেন্স${mfsAccCount?' ('+mfsAccCount+'টি একাউন্ট)':''}</div>
+          <div style="font-size:17px;font-weight:800;color:#d63384">৳ ${fmt(liveMfs)}</div>
         </div>
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;text-align:center">
           <div style="font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;margin-bottom:4px">ইনভেন্টরি ভ্যালু (ওষুধ+চশমা)</div>
@@ -12769,7 +12860,10 @@ function renderDashRecentEntries() {
     })().map(tx=>({
       id: tx.id||('btx_'+tx.date+tx.amount), date:tx.date,
       type: tx.source==='withdrawal' ? 'মুনাফা উত্তোলন' : 'ট্রান্সফার',
-      vouchRef: tx.ref||'—', cat: tx.source==='withdrawal' ? (tx.type==='cash_out'?'ক্যাশ':'ব্যাংক') : (bankTxLabels[tx.type]||tx.type),
+      // ✅ ফিক্স: আগে vouchRef হিসেবে tx.ref (যেটা আসলে চেক নম্বর) ব্যবহার হতো — formatVoucherRefDisplay
+      // যেকোনো কাঁচা সংখ্যাকে রিসিট নম্বর ধরে নেয় (যেটা শুধু ক্যাম্প রোগিদের ক্ষেত্রে প্রযোজ্য), তাই ভাঙ্গানো
+      // চেকের নম্বর ভুলভাবে "Receipt-XX" দেখাতো। এখন প্রকৃত ভাউচার (VN-সিরিজ) দেখানো হচ্ছে, চেক নম্বর নিচে "cat"-এ যোগ করা হলো
+      vouchRef: tx.voucher||tx.ref||'—', cat: (tx.source==='withdrawal' ? (tx.type==='cash_out'?'ক্যাশ':'ব্যাংক') : (bankTxLabels[tx.type]||tx.type)) + (tx.checkNo?` (চেক: ${tx.checkNo})`:''),
       ref: tx.note||'—', campId: null,
       amt: tx.amount, by: tx.by||'—', cls: tx.source==='withdrawal' ? 'badge-expense' : 'badge-transfer'
     })),
@@ -18312,7 +18406,7 @@ const OWNER_FEATURES = ['dashboard','report','shareholders'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
   owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees'],
-  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','campdue']
+  campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','campdue','testfees']
 };
 const FEATURE_ICONS = {
   dashboard:'🏠', income:'💰', expense:'🧾', camp:'⛺', due:'⏳', stock:'📦',
@@ -35023,7 +35117,7 @@ function getAllCheckEntries() {
   return getAllIssuedChequeEntries().map(c => ({
     source:c.source, date:c.issueDate, amount:c.amount, status:c.status,
     label:c.payee||'—', checkNo:c.checkNo||'—', voucher:c.voucher||'—',
-    refDate:c.dueDate||c.issueDate
+    refDate:c.dueDate||c.issueDate, clearedDate:c.clearedDate||null
   }));
 }
 function _checkStatusCol(label, count, amount, accentColor, divider, bgColor, onClickFn, countSuffix) {
@@ -35281,6 +35375,10 @@ function renderDashCheckStatus(){
   const prevPending      = allChecks.filter(e => e.status==='pending' && !(e.date && e.date.startsWith(curYM)));
   const thisMonthPendingAmt = thisMonthPending.reduce((s,e)=>s+e.amount,0);
   const prevPendingAmt      = prevPending.reduce((s,e)=>s+e.amount,0);
+  // ✅ নতুন: এই মাসে যেসব চেক/বিলম্বিত-পরিশোধ প্রকৃতপক্ষে ভাঙ্গানো হয়েছে (status==='cleared', ভাঙ্গানোর
+  // প্রকৃত তারিখ অনুযায়ী — ইস্যু-তারিখ অনুযায়ী না, কারণ আগের মাসে ইস্যু হওয়া চেকও এই মাসে ভাঙ্গানো হতে পারে)
+  const thisMonthCleared    = allChecks.filter(e => e.status==='cleared' && e.clearedDate && e.clearedDate.startsWith(curYM));
+  const thisMonthClearedAmt = thisMonthCleared.reduce((s,e)=>s+e.amount,0);
 
   // চেক বইয়ের পাতা — মোট বনাম ব্যবহৃত (সব চেকবই মিলিয়ে)
   const books = appData.checkbooks||[];
@@ -35291,7 +35389,9 @@ function renderDashCheckStatus(){
   const lbl=document.getElementById('dashCheckStatusLabel');
   if(lbl) lbl.textContent = monthNames[now.getMonth()];
 
+  // ✅ "এই মাসের নিষ্পন্ন" সর্ব বামে যোগ করা হলো (ব্যবহারকারীর অনুরোধ অনুযায়ী)
   body.innerHTML =
+    _checkStatusCol('এই মাসের নিষ্পন্ন', thisMonthCleared.length, '৳ '+fmt(thisMonthClearedAmt), '#16a34a', true, 'rgba(22,163,74,0.07)', "showCheckStatusDetail('thisMonthCleared')") +
     _checkStatusCol('এই মাসের অনিষ্পন্ন', thisMonthPending.length, '৳ '+fmt(thisMonthPendingAmt), '#f59e0b', true, 'rgba(245,158,11,0.08)', "showCheckStatusDetail('thisMonth')") +
     _checkStatusCol('পূর্বের অনিষ্পন্ন', prevPending.length, '৳ '+fmt(prevPendingAmt), '#ea580c', true, 'rgba(234,88,12,0.07)', "showCheckStatusDetail('prev')") +
     _checkStatusCol('চেক বইয়ের পাতা (ব্যবহৃত/মোট)', totalPages, `${usedPages.toLocaleString('bn-BD')}/${totalPages.toLocaleString('bn-BD')}`, '#7c3aed', false, 'rgba(124,58,237,0.06)', "showChequeBookPagesDetail()", ' পাতা');
@@ -35331,6 +35431,7 @@ function showCheckStatusDetail(mode){
   const thisMonthPending = allChecks.filter(e => e.status==='pending' && e.date && e.date.startsWith(curYM));
   const prevPending      = allChecks.filter(e => e.status==='pending' && !(e.date && e.date.startsWith(curYM)));
   const cleared          = allChecks.filter(e => e.status!=='pending');
+  const thisMonthCleared = allChecks.filter(e => e.status==='cleared' && e.clearedDate && e.clearedDate.startsWith(curYM));
 
   const section = (title, list, color) => !list.length ? `<div style="text-align:center;color:#aaa;padding:24px">কোনো এন্ট্রি নেই</div>` : `
     <div style="margin-bottom:16px">
@@ -35344,6 +35445,7 @@ function showCheckStatusDetail(mode){
   let title = '📒 চেক নিষ্পত্তি — বিস্তারিত', body;
   if (mode==='thisMonth') { title = '⏳ এই মাসের অনিষ্পন্ন চেক'; body = section('⏳ এই মাসের অনিষ্পন্ন', thisMonthPending, '#f59e0b'); }
   else if (mode==='prev') { title = '⏳ পূর্বের সকল অনিষ্পন্ন চেক'; body = section('⏳ পূর্বের অনিষ্পন্ন', prevPending, '#ea580c'); }
+  else if (mode==='thisMonthCleared') { title = '✅ এই মাসের নিষ্পন্ন চেক'; body = section('✅ এই মাসের নিষ্পন্ন', thisMonthCleared, '#16a34a'); }
   else {
     body = section('⏳ এই মাসের অনিষ্পন্ন', thisMonthPending, '#f59e0b')
          + section('⏳ পূর্বের অনিষ্পন্ন', prevPending, '#ea580c')
