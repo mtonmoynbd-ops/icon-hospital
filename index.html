@@ -9624,6 +9624,7 @@ const RECEPTIONIST_SAFE_TAB_REFRESH = {
   inquiry:     () => { if (typeof renderInquiryLog==='function') renderInquiryLog(); },
   attendance:  () => { if (typeof renderRecAttendancePage==='function') renderRecAttendancePage(); },
   lookup:      () => { if (typeof renderPriceCatalog==='function') renderPriceCatalog(); },
+  expense:     () => { if (typeof renderRecExpenseList==='function') renderRecExpenseList(); },
 };
 const debouncedRealtimeReceptionistRefresh = debounce(() => {
   if (!currentUser || currentUser.role !== 'receptionist') return;
@@ -11578,6 +11579,7 @@ function rejectRecExpense(id) {
   logActivity('reject', 'ব্যয় বাতিল', `${e.category} — ৳${fmt(e.amount)} (এন্ট্রিকারী: ${e.by || '—'}) — কারণ: ${e.rejectionReason}`);
   saveData();
   renderRecExpApprovalPanel();
+  if (typeof refreshDashboard === 'function') refreshDashboard();
   if (e.preCamp && typeof renderPreCampExpenseList === 'function' && e.campId) renderPreCampExpenseList(e.campId);
   showToast('❌ এন্ট্রি বাতিল করা হয়েছে');
 }
@@ -12803,9 +12805,20 @@ function renderBalanceSheet() {
   const runningRowStyle = 'background:#eff6ff;box-shadow:inset 3px 0 0 var(--primary)';
 
   if (vm==='day') {
-    let runningCash = initCash, runningBank = initBank, runningMfs = initMfs;
-    const rows = allDates
-      .filter(d => !fm || d.startsWith(fm))
+    // ✅ ফিক্স: আগে এখানে সবসময় runningCash/Bank/Mfs শুরু হতো raw initCash/initBank/initMfs
+    // (সেটিংসে দেওয়া একেবারে শুরুর ব্যালেন্স) দিয়ে — allDates ফিল্টার হওয়ার পরেও (fm দিয়ে নির্দিষ্ট
+    // মাস বেছে নিলে)। ফলে নির্দিষ্ট মাস সিলেক্ট করলে সেই মাসের ১ তারিখের প্রারম্ভিক ব্যালেন্স আগের
+    // মাস(গুলো)-এর সমাপনি ব্যালেন্স না ধরে সরাসরি ০ (বা সেটিংসের শুরুর ব্যালেন্স) থেকে শুরু হতো —
+    // আগের সব মাসের আয়-ব্যয় সম্পূর্ণ উপেক্ষিত হয়ে যেত। এখন getOpeningCash/Bank/Mfs() (যেটা "গত মাসের
+    // সমাপনি ব্যালেন্স" কার্ডেও ব্যবহৃত হয়) দিয়ে ফিল্টার করা তালিকার প্রথম তারিখের প্রকৃত প্রারম্ভিক ব্যালেন্স
+    // বের করে সেখান থেকে শুরু করা হচ্ছে — ফিল্টার না থাকলে (সব তারিখ) এটা আগের মতোই initCash/Bank/Mfs
+    // এর সমান থাকবে (কারণ তার আগে কোনো তারিখ নেই), তাই কোনো পুরনো আচরণ ভাঙবে না।
+    const filteredDates = allDates.filter(d => !fm || d.startsWith(fm));
+    if (!filteredDates.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">কোনো তথ্য নেই।</p>'; return; }
+    let runningCash = getOpeningCash(filteredDates[0], 'day');
+    let runningBank = getOpeningBank(filteredDates[0], 'day');
+    let runningMfs = getOpeningMfs(filteredDates[0], 'day');
+    const rows = filteredDates
       .map(d => {
         // ✅ ফিক্স: getDayIncome/getDayExpense (পেমেন্ট-মাধ্যম না দেখেই সব যোগ করত) এর বদলে
         // calcCashBankFlowForPrefix/calcMfsFlowForPrefix থেকে সরাসরি প্রতিটি মাধ্যমের হিসাব নেওয়া হচ্ছে
@@ -12834,10 +12847,17 @@ function renderBalanceSheet() {
       </tr>`).join('')}</tbody>
     </table></div>`;
   } else {
+    // ✅ ফিক্স: day-view এর মতোই একই বাগ — নির্দিষ্ট মাস ফিল্টার করা থাকলে runningCash/Bank/Mfs
+    // raw initCash/initBank/initMfs থেকে শুরু হতো, আগের মাস(গুলো)-এর প্রকৃত সমাপনি ব্যালেন্স উপেক্ষা
+    // করে। এখন getOpeningCash/Bank/Mfs() দিয়ে ফিল্টার করা তালিকার প্রথম মাসের প্রকৃত প্রারম্ভিক ব্যালেন্স
+    // থেকে শুরু হচ্ছে (ফিল্টার না থাকলে ফলাফল আগের মতোই অপরিবর্তিত থাকবে)।
     const allMonths = [...new Set(allDates.map(d=>d.substring(0,7)))].sort();
-    let runningCash = initCash, runningBank = initBank, runningMfs = initMfs;
-    const rows = allMonths
-      .filter(m => !fm || m === fm)
+    const filteredMonths = allMonths.filter(m => !fm || m === fm);
+    if (!filteredMonths.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">কোনো তথ্য নেই।</p>'; return; }
+    let runningCash = getOpeningCash(filteredMonths[0], 'month');
+    let runningBank = getOpeningBank(filteredMonths[0], 'month');
+    let runningMfs = getOpeningMfs(filteredMonths[0], 'month');
+    const rows = filteredMonths
       .map(m => {
         const cf = calcCashBankFlowForPrefix(m);
         const mf = (typeof calcMfsFlowForPrefix==='function') ? calcMfsFlowForPrefix(m) : {mfsIn:0,mfsOut:0};
@@ -20762,7 +20782,11 @@ function buildReadOnlyHTML(feature, role) {
             </div>
             <button class="btn btn-outline btn-sm" onclick="toggleMemoExpand(${d.id})" id="memoToggleBtn-${d.id}">👁️ দেখুন</button>
           </div>
-          <div id="memoBody-${d.id}" style="display:none;padding:14px;white-space:pre-wrap;font-size:12px;line-height:1.8;color:#1a2a3a;border-top:1px solid #e2e8f0;max-height:320px;overflow-y:auto">${d.text.replace(/</g,'&lt;')}</div>
+          <!-- ✅ ফিক্স: আগে এখানে max-height:320px;overflow-y:auto থাকায় "দেখুন" চাপলে পুরো কন্টেন্ট এরিয়া
+               জুড়ে না এসে ছোট্ট একটা ফিক্সড-হাইট বক্সে ভেতরে-ভেতরে স্ক্রল করতে হতো (পড়তে অসুবিধা, বেশি
+               স্ক্রল) — এখন max-height/overflow-y সরিয়ে দেওয়া হলো, তাই এখন পুরো ডকুমেন্টটা স্বাভাবিকভাবে
+               নিচে বিস্তৃত হবে এবং পুরো পেজের সাধারণ স্ক্রলেই পড়া যাবে, আলাদা ভেতরের ছোট স্ক্রলবার লাগবে না -->
+          <div id="memoBody-${d.id}" style="display:none;padding:14px;white-space:pre-wrap;font-size:13px;line-height:1.9;color:#1a2a3a;border-top:1px solid #e2e8f0;width:100%;box-sizing:border-box">${d.text.replace(/</g,'&lt;')}</div>
         </div>`).join('')}
       </div>`;
   }
@@ -29138,9 +29162,19 @@ function updateRecNotifBell() {
   var today = todayStr();
   var todayAppts = (appData.appointments||[]).filter(function(a){ return a.date===today && a.status==='pending'; });
   var overdueDlv = (appData.deliveryOrders||[]).filter(function(d){ return d.status==='pending' && d.deliveryDate && d.deliveryDate<=today; });
-  var count = returned.length + todayAppts.length + overdueDlv.length;
+  // ✅ অ্যাডমিন বাতিল করে দেওয়া নিজের ব্যয়/প্রি-ক্যাম্প খরচ এন্ট্রি — একবার বেল থেকে দেখলে (ক্লিক করলে) আর
+  // বেলে দেখাবে না, তবে অ্যাপ্রুভাল টেবিলে/ট্যাবে ঠিকই "❌ বাতিল" ব্যাজসহ থেকে যাবে, যতক্ষণ না সংশোধন করে
+  // আবার পাঠানো হয়
+  var seen = _getNotifSeenSet();
+  var myRejectedExp = (currentUser && currentUser.role==='receptionist')
+    ? (appData.expense||[]).filter(function(e){ return e.needsApproval && e.rejected && e.by===currentUser.name; })
+    : [];
+  var unseenRejectedExp = myRejectedExp.filter(function(e){ return !seen.has('rj'+e.id+'_'+(e.rejectedAtTs||e.rejectedAt||'')); });
+  var count = returned.length + todayAppts.length + overdueDlv.length + unseenRejectedExp.length;
   var badge = document.getElementById('recNotifBellBadge');
   if (badge) { badge.textContent = count>99?'৯৯+':count; badge.style.display = count>0?'flex':'none'; }
+  var bellBtn = wrap.querySelector('.notif-bell-btn');
+  if (bellBtn) bellBtn.classList.toggle('notif-bell-blinking', count>0);
   var panel = document.getElementById('recNotifBellPanel');
   if (panel && panel.style.display !== 'none') renderRecNotifBellPanel();
 }
@@ -29162,6 +29196,28 @@ function recNotifBellGo(tabName, btnEl) {
   var btn = document.getElementById('rtab-'+tabName);
   if (btn) switchRecTab(tabName, btn);
 }
+// ✅ বাতিল হওয়া ব্যয় এন্ট্রির নোটিফিকেশনে ক্লিক করলে: "সিন" হিসেবে মার্ক হবে (বেল থেকে মুছে যাবে,
+// ব্যাজ কমবে), "ব্যয় এন্ট্রি" ট্যাবে নিয়ে যাবে, তারিখ-রেঞ্জ ফিল্টার প্রয়োজনে "মাস" করে দিয়ে (এন্ট্রিটা
+// আজকের বাইরে হলেও যেন দেখা যায়) নির্দিষ্ট রো-টা স্ক্রল করে হাইলাইট করবে
+function recNotifBellGoRejectedExp(id) {
+  var e = (appData.expense||[]).find(function(x){ return x.id===id; });
+  if (e) _addNotifSeen('rj'+id+'_'+(e.rejectedAtTs||e.rejectedAt||''));
+  updateRecNotifBell();
+  var panel = document.getElementById('recNotifBellPanel'); if (panel) panel.style.display='none';
+  var btn = document.getElementById('rtab-expense');
+  if (btn) switchRecTab('expense', btn);
+  var rangeSel = document.getElementById('recExpRange');
+  if (rangeSel && rangeSel.value === 'today' && e && e.date !== todayStr()) { rangeSel.value = 'month'; }
+  renderRecExpenseList();
+  setTimeout(function(){
+    var row = document.getElementById('rec-exp-row-'+id);
+    if (row) {
+      row.scrollIntoView({behavior:'smooth', block:'center'});
+      row.classList.add('notif-row-highlight');
+      setTimeout(function(){ row.classList.remove('notif-row-highlight'); }, 2600);
+    }
+  }, 350);
+}
 function renderRecNotifBellPanel() {
   var panel = document.getElementById('recNotifBellPanel');
   if (!panel) return;
@@ -29169,7 +29225,18 @@ function renderRecNotifBellPanel() {
   var today = todayStr();
   var todayAppts = (appData.appointments||[]).filter(function(a){ return a.date===today && a.status==='pending'; }).sort(function(a,b){ return (a.time||'').localeCompare(b.time||''); });
   var overdueDlv = (appData.deliveryOrders||[]).filter(function(d){ return d.status==='pending' && d.deliveryDate && d.deliveryDate<=today; });
+  var seen = _getNotifSeenSet();
+  var myRejectedExp = (currentUser && currentUser.role==='receptionist')
+    ? (appData.expense||[]).filter(function(e){ return e.needsApproval && e.rejected && e.by===currentUser.name; })
+    : [];
+  var unseenRejectedExp = myRejectedExp.filter(function(e){ return !seen.has('rj'+e.id+'_'+(e.rejectedAtTs||e.rejectedAt||'')); }).sort(function(a,b){ return b.id-a.id; });
   var html = '';
+  if (unseenRejectedExp.length) {
+    html += '<div class="notif-bell-section-title">❌ ব্যয় এন্ট্রি বাতিল হয়েছে (' + unseenRejectedExp.length + ')</div>';
+    unseenRejectedExp.slice(0,5).forEach(function(e){
+      html += '<div class="notif-bell-item" onclick="recNotifBellGoRejectedExp('+e.id+')"><span class="nb-dot" style="background:#e74c3c"></span><span style="flex:1"><strong>'+e.category+(e.subCategory?' / '+e.subCategory:'')+'</strong> — ৳ '+fmt(e.amount)+'<br><span style="color:var(--text-light);font-size:11px">কারণ: '+(e.rejectionReason||'—')+'</span></span></div>';
+    });
+  }
   if (returned.length) {
     html += '<div class="notif-bell-section-title">↩️ অ্যাডমিন থেকে ফেরত (' + returned.length + ')</div>';
     html += '<div class="notif-bell-item" onclick="recNotifBellGo(\'new\')"><span class="nb-dot" style="background:#f59e0b"></span><span style="flex:1">'+returned.length+'টি বিল ফেরত এসেছে — পেমেন্ট নিয়ে সেভ করুন</span></div>';
