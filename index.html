@@ -8217,7 +8217,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInAnonymously, setPersistence, browserSessionPersistence, inMemoryPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDp7p042YlfRS8VZ5EVJnLhExJTOSmbD2o",
@@ -8234,9 +8234,27 @@ const db = getDatabase(firebaseApp);
 const auth = getAuth(firebaseApp);
 
 // Anonymous auth — কোনো password কোডে নেই, Firebase Rules এ auth != null দিয়ে সুরক্ষিত
-signInAnonymously(auth)
-  .then(() => { console.log('[HMS] Firebase Anonymous Auth সফল'); })
-  .catch(e => { console.warn('[HMS] Firebase Auth ব্যর্থ:', e.message); });
+// ✅ ফিক্স: Firebase Auth ডিফল্টভাবে IndexedDB-তে লগইন-স্টেট সংরক্ষণ করতে চায় (browserLocalPersistence)।
+// কিছু ব্রাউজার/এনভায়রনমেন্টে (কড়া প্রাইভেসি সেটিংস, অ্যান্টিভাইরাস ওয়েব-প্রোটেকশন, নীতি দিয়ে ব্লক করা
+// এন্টারপ্রাইজ ল্যাপটপ, ইত্যাদি) IndexedDB ভাঙা/আংশিক থাকলে Firebase SDK-এর ভেতরের persistence-চেক কোড
+// ক্র্যাশ করে (Uncaught TypeError: objectStoreNames.contains is not a function) এবং signInAnonymously()
+// কখনো সফল হয় না — ফলে auth token তৈরি হয় না, auth!=null শর্তে আটকানো Database rules ডাটা রিড করতে দেয়
+// না, আর অ্যাপ সম্পূর্ণ খালি দেখায় (যদিও নেটওয়ার্ক সংযোগ ও অন্য ডিভাইসের ডাটা সবই ঠিক আছে)। এখন প্রথমে
+// সাধারণভাবে সাইন-ইন চেষ্টা করা হয়; ব্যর্থ হলে session/in-memory persistence (যেগুলো IndexedDB লাগে না)
+// দিয়ে আবার চেষ্টা করা হয়, যাতে ওই ব্রাউজারেও অন্তত সেশন চলাকালীন ডাটা লোড হতে পারে (রিফ্রেশে আবার লগইন
+// লাগবে, কিন্তু অ্যাপ পুরোপুরি অচল হবে না)।
+function attemptFirebaseAuth(fallbackTried) {
+  signInAnonymously(auth)
+    .then(() => { console.log('[HMS] Firebase Anonymous Auth সফল' + (fallbackTried?' (fallback persistence)':'')); })
+    .catch(e => {
+      if (fallbackTried) { console.warn('[HMS] Firebase Auth সম্পূর্ণ ব্যর্থ (fallback persistence দিয়েও):', e.message); return; }
+      console.warn('[HMS] Firebase Auth ব্যর্থ — সম্ভবত IndexedDB সমস্যা (ব্রাউজার প্রাইভেসি সেটিংস/এক্সটেনশন/এন্টারপ্রাইজ নীতি), session/in-memory persistence দিয়ে আবার চেষ্টা করা হচ্ছে:', e.message);
+      setPersistence(auth, browserSessionPersistence)
+        .catch(() => setPersistence(auth, inMemoryPersistence))
+        .finally(() => attemptFirebaseAuth(true));
+    });
+}
+attemptFirebaseAuth(false);
 
 window._fbDb = db;
 window._fbRef = ref;
