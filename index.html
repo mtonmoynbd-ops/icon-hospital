@@ -4867,17 +4867,21 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         ℹ️ ইনভেস্টররা প্রতিষ্ঠানের শেয়ারহোল্ডার/মালিক নন — তবে তাদের বিনিয়োগ অনুযায়ি নির্ধারিত <strong>ইনভেস্টর পুল %</strong> মাস ক্লোজের সময় নিট মুনাফা (ফান্ড বরাদ্দের মতোই) থেকে আলাদা করে কেটে রাখা হয়, তারপর প্রতিটা ইনভেস্টরের <strong>ইনভেস্টমেন্ট ইউনিট-অনুপাতে (pro-rata)</strong> স্বয়ংক্রিয়ভাবে বন্টন হয়ে তাদের নামে ব্যালেন্সে জমা হয় — ঠিক শেয়ারহোল্ডার বন্টনের মতোই, শুধু শেয়ারহোল্ডার পুল থেকে আলাদা একটা পুল হিসেবে।
       </div>
 
-      <!-- ইনভেস্টর পুল % সেটিংস -->
+      <!-- ইনভেস্টর পুল % ও ইউনিট মূল্য সেটিংস -->
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">⚙️ ইনভেস্টর পুল বরাদ্দ</div></div>
+        <div class="panel-header"><div class="panel-title">⚙️ ইনভেস্টর সেটিংস</div></div>
         <div class="panel-body">
           <div class="form-row">
             <div class="field"><label>নিট মুনাফা থেকে ইনভেস্টর পুলের জন্য বরাদ্দকৃত শতাংশ (%) *</label>
               <input type="number" id="invPoolPercent" placeholder="০" min="0" max="100" step="0.1">
             </div>
+            <div class="field"><label>বর্তমান প্রতি ইউনিট মূল্য (৳) *</label>
+              <input type="number" id="invUnitPrice" placeholder="০" min="0" step="0.01">
+            </div>
           </div>
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:8px">এই দরটাই "নতুন ইনভেস্টমেন্ট গ্রহণ" ফর্মে ডিফল্ট হিসেবে বসবে (প্রতিটা লেনদেনে চাইলে পাল্টানো যাবে)।</div>
           <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-success" onclick="saveInvestorPoolPercent()">✅ সেভ করুন</button>
+            <button class="btn btn-success" onclick="saveInvestorSettings()">✅ সেভ করুন</button>
           </div>
         </div>
       </div>
@@ -4886,9 +4890,15 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">💼 ইনভেস্টর তালিকা</div>
-          <button class="btn btn-primary btn-sm" onclick="toggleInvestorForm()">➕ যোগ করুন</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="toggleInvestorForm()">➕ শুধু রেজিস্টার (নন-ক্যাশ)</button>
+            <button class="btn btn-success btn-sm" onclick="toggleInvestmentForm()">💰 নতুন ইনভেস্টমেন্ট গ্রহণ</button>
+          </div>
         </div>
         <div class="panel-body" id="investorFormBody" style="display:none">
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:10px">
+            ℹ️ এই ফর্মটা শুধু তথ্য/ইউনিট রেকর্ড বা সংশোধনের জন্য — এখানে ইউনিট যোগ/পরিবর্তন করলে ক্যাশ বা ব্যাংক ব্যালেন্সে কোনো প্রভাব পড়বে না (ধরে নেওয়া হচ্ছে এই টাকা আগে থেকেই ব্যবসায় মেশানো আছে)। নতুন করে টাকা আসলে "💰 নতুন ইনভেস্টমেন্ট গ্রহণ" বাটন ব্যবহার করুন।
+          </div>
           <div class="form-row three">
             <div class="field"><label>নাম *</label><input type="text" id="invName" placeholder="ইনভেস্টরের নাম"></div>
             <div class="field"><label>ইনভেস্টমেন্ট ইউনিট *</label><input type="number" id="invUnits" placeholder="১" min="1"></div>
@@ -4896,7 +4906,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
           <div class="form-row three">
             <div class="field"><label>যোগদানের তারিখ</label><input type="date" id="invJoinDate"></div>
-            <div class="field" style="grid-column:span 2"><label>বিবরণ</label><input type="text" id="invNote" placeholder="ঐচ্ছিক"></div>
+            <div class="field"><label>ইউনিট-প্রতি দর (৳, রেফারেন্সের জন্য)</label><input type="number" id="invUnitPriceRef" placeholder="০" min="0" step="0.01"></div>
+            <div class="field"><label>বিবরণ</label><input type="text" id="invNote" placeholder="ঐচ্ছিক"></div>
           </div>
           <input type="hidden" id="invEditId">
           <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -4906,11 +4917,58 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
 
+      <!-- নতুন ইনভেস্টমেন্ট গ্রহণ (প্রকৃত নতুন ক্যাশ ইনফ্লো) -->
+      <div class="panel" id="investmentFormPanel" style="display:none">
+        <div class="panel-header"><div class="panel-title">💰 নতুন ইনভেস্টমেন্ট গ্রহণ</div></div>
+        <div class="panel-body">
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 12px;font-size:12px;color:#166534;margin-bottom:10px">
+            ℹ️ এটা প্রকৃত নতুন টাকা গ্রহণ — সেভ করলে ইনভেস্টরের ইউনিট বাড়বে এবং এই পরিমাণ টাকা ক্যাশ/ব্যাংক ব্যালেন্সে (ব্যালেন্স শিটে "ইন" হিসেবে) যোগ হয়ে যাবে। এটা আয় (income) হিসেবে গণ্য হবে না — এটা মূলধন।
+          </div>
+          <div class="form-row">
+            <div class="field"><label>ইনভেস্টর *</label>
+              <select id="invmInvestor" onchange="toggleInvmNewName()">
+                <option value="">-- বিদ্যমান ইনভেস্টর সিলেক্ট করুন --</option>
+                <option value="__new__">➕ নতুন ইনভেস্টর</option>
+              </select>
+            </div>
+            <div class="field" id="invmNewNameField" style="display:none"><label>নতুন ইনভেস্টরের নাম *</label><input type="text" id="invmNewName" placeholder="নাম লিখুন"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>ইউনিট সংখ্যা *</label><input type="number" id="invmUnits" placeholder="১" min="1" oninput="calcInvmTotal()"></div>
+            <div class="field"><label>প্রতি ইউনিট দর (৳) *</label><input type="number" id="invmUnitPrice" placeholder="০" min="0" step="0.01" oninput="calcInvmTotal()"></div>
+            <div class="field"><label>মোট পরিমাণ (৳)</label><input type="text" id="invmTotal" readonly style="background:#f4f4f5;font-weight:700"></div>
+          </div>
+          <div class="form-row three">
+            <div class="field"><label>তারিখ *</label><input type="date" id="invmDate"></div>
+            <div class="field"><label>মাধ্যম *</label>
+              <select id="invmMethod">
+                <option value="cash">💵 ক্যাশ</option>
+                <option value="bank">🏦 ব্যাংক</option>
+              </select>
+            </div>
+            <div class="field"><label>বিবরণ</label><input type="text" id="invmNote" placeholder="ঐচ্ছিক"></div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="toggleInvestmentForm()">🔄 বাতিল</button>
+            <button class="btn btn-success" onclick="saveInvestmentInflow()">✅ ইনভেস্টমেন্ট সেভ করুন</button>
+          </div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 ইনভেস্টর তালিকা</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>নাম</th><th>ইউনিট</th><th>ইউনিট %</th><th>ফোন</th><th>যোগদান</th><th>চলতি ব্যালেন্স</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>#</th><th>নাম</th><th>ইউনিট</th><th>ইউনিট %</th><th>সর্বশেষ দর/ইউনিট</th><th>মোট বিনিয়োগ</th><th>ফোন</th><th>যোগদান</th><th>লভ্যাংশ ব্যালেন্স</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="investorTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- ইনভেস্টমেন্ট গ্রহণের ইতিহাস -->
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📥 ইনভেস্টমেন্ট গ্রহণের ইতিহাস</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>ভাউচার</th><th>তারিখ</th><th>ইনভেস্টর</th><th>ইউনিট</th><th>দর/ইউনিট</th><th>মোট পরিমাণ</th><th>মাধ্যম</th><th>বিবরণ</th><th>এন্ট্রিকারী</th></tr></thead>
+          <tbody id="invCapitalInflowHistTable"></tbody>
         </table></div></div>
       </div>
 
@@ -8245,7 +8303,7 @@ function changeOwnerReadOnlyMonth(val) {
 }
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
 let activeDueId = null;
 let activeDueSource = 'visit'; // 'visit' | 'camp'
 let serviceCount = 0;
@@ -8688,7 +8746,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -9547,7 +9605,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -9757,7 +9815,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90 } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -10031,7 +10089,7 @@ const PATH_SYNCED_MODULES = [
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
   'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox', 'tgOutbox',
-  'dueHistory', 'investors', 'investorWithdrawals'
+  'dueHistory', 'investors', 'investorWithdrawals', 'investorCapitalInflows'
 ];
 
 function updateSyncStatusUI() {
@@ -10376,7 +10434,7 @@ function showPage(name) {
   if (name === 'checkbook')    { initCheckbookPage(); }
   if (name === 'loan')         { initLoanPage(); }
   if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); }
-  if (name === 'investors') { renderInvestorTable(); renderInvestorWithdrawalHistory(); if (typeof clearInvestorWithdrawalForm==='function') clearInvestorWithdrawalForm(); }
+  if (name === 'investors') { renderInvestorTable(); renderInvestorWithdrawalHistory(); renderInvestmentInflowHistory(); if (typeof clearInvestorWithdrawalForm==='function') clearInvestorWithdrawalForm(); }
   if (name === 'notifications') { renderBcOwnerCheckboxes(); updateBcPreview(); renderTgBcOwnerCheckboxes(); updateTgBcPreview(); renderWaOutboxTable(); renderTgOutboxTable(); loadTriggerSettings(); startRemoteQrPolling(); } else { stopRemoteQrPolling(); }
   if (name === 'funds')        { renderFundsPage(); }
   if (name === 'doctors')      { renderDoctorsPage(); }
@@ -13795,7 +13853,7 @@ function confirmDueWaive(id) {
 // ===== SETTINGS =====
 function clearAllData() {
   if (!confirm('সত্যিই সব ডেটা মুছে ফেলবেন?')) return;
-  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], settings:appData.settings, passwords:appData.passwords||{} };
+  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], settings:appData.settings, passwords:appData.passwords||{} };
   saveData(); refreshDashboard(); showToast('🗑️ সব ডেটা মুছে ফেলা হয়েছে');
 }
 
@@ -16954,26 +17012,34 @@ function renderShareholderTable() {
 }
 
 // ===== ইনভেস্টর মডিউল (শেয়ারহোল্ডার মডিউলের সমান্তরাল — ইউনিট-ভিত্তিক, শেয়ারহোল্ডার/মালিকানা থেকে সম্পূর্ণ আলাদা পুল) =====
-function saveInvestorPoolPercent() {
-  const val = parseFloat(document.getElementById('invPoolPercent').value) || 0;
+function saveInvestorSettings() {
+  const percent = parseFloat(document.getElementById('invPoolPercent').value) || 0;
+  const unitPrice = parseFloat(document.getElementById('invUnitPrice').value) || 0;
   if (!appData.settings) appData.settings = {};
-  appData.settings.investorPoolPercent = val;
+  appData.settings.investorPoolPercent = percent;
+  appData.settings.investorUnitPrice = unitPrice;
   saveData();
-  showToast('✅ ইনভেস্টর পুল % সেভ হয়েছে');
+  showToast('✅ ইনভেস্টর সেটিংস সেভ হয়েছে');
 }
-function loadInvestorPoolPercent() {
-  const el = document.getElementById('invPoolPercent');
-  if (el) el.value = (appData.settings && appData.settings.investorPoolPercent) || 0;
+function loadInvestorSettings() {
+  const pEl = document.getElementById('invPoolPercent');
+  if (pEl) pEl.value = (appData.settings && appData.settings.investorPoolPercent) || 0;
+  const uEl = document.getElementById('invUnitPrice');
+  if (uEl) uEl.value = (appData.settings && appData.settings.investorUnitPrice) || 0;
 }
 function toggleInvestorForm() {
   const b=document.getElementById('investorFormBody');
   b.style.display=b.style.display==='none'?'block':'none';
+  document.getElementById('investmentFormPanel').style.display='none';
 }
+// ✅ এই ফর্ম শুধু তথ্য/ইউনিট রেকর্ড বা সংশোধনের জন্য — এখানে কোনো cash/bankTx এন্ট্রি তৈরি হয় না,
+// কারণ ধরে নেওয়া হয় এই টাকা আগে থেকেই ব্যবসার মূলধনে মেশানো আছে (রেট্রোঅ্যাক্টিভ রেজিস্ট্রেশন)।
 function saveInvestor() {
   const name=document.getElementById('invName').value.trim();
   const units=parseFloat(document.getElementById('invUnits').value)||0;
   const phone=document.getElementById('invPhone').value.trim();
   const joinDate=document.getElementById('invJoinDate').value;
+  const unitPrice=parseFloat(document.getElementById('invUnitPriceRef').value)||0;
   const note=document.getElementById('invNote').value.trim();
   const editId=document.getElementById('invEditId').value;
   if(!name||!units){showToast('⚠️ নাম ও ইনভেস্টমেন্ট ইউনিট আবশ্যক!');return;}
@@ -16981,19 +17047,21 @@ function saveInvestor() {
   if(editId){
     const inv=appData.investors.find(i=>i.id===parseInt(editId));
     if(inv){
-      const before=`${inv.name} — ${inv.units} ইউনিট`;
+      const before={name:inv.name,units:inv.units,phone:inv.phone,joinDate:inv.joinDate,unitPrice:inv.unitPrice,note:inv.note};
+      const after={name,units,phone,joinDate,unitPrice,note};
+      saveEditHistory('ইনভেস্টর', inv.id, name, before, after);
       inv.name=name; inv.units=units; inv.phone=phone; inv.joinDate=joinDate; inv.note=note;
-      saveEditHistory('ইনভেস্টর', inv.id, name, before, `${name} — ${units} ইউনিট`);
+      if (unitPrice) inv.unitPrice = unitPrice;
     }
     showToast('✅ আপডেট হয়েছে!');
   } else {
-    appData.investors.push({id:Date.now(),name,units,phone,joinDate,note,balance:0});
-    showToast('✅ ইনভেস্টর যোগ হয়েছে!');
+    appData.investors.push({id:Date.now(),name,units,phone,joinDate,unitPrice,note,balance:0});
+    showToast('✅ ইনভেস্টর যোগ হয়েছে! (কোনো ক্যাশ/ব্যাংক ব্যালেন্স পরিবর্তন হয়নি)');
   }
   saveData(); clearInvestorForm(); renderInvestorTable();
 }
 function clearInvestorForm() {
-  ['invName','invUnits','invPhone','invJoinDate','invNote','invEditId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['invName','invUnits','invPhone','invJoinDate','invUnitPriceRef','invNote','invEditId'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('investorFormBody').style.display='none';
 }
 function editInvestor(id) {
@@ -17002,8 +17070,10 @@ function editInvestor(id) {
   document.getElementById('invUnits').value=inv.units;
   document.getElementById('invPhone').value=inv.phone||'';
   document.getElementById('invJoinDate').value=inv.joinDate||'';
+  document.getElementById('invUnitPriceRef').value=inv.unitPrice||'';
   document.getElementById('invNote').value=inv.note||'';
   document.getElementById('invEditId').value=inv.id;
+  document.getElementById('investmentFormPanel').style.display='none';
   document.getElementById('investorFormBody').style.display='block';
 }
 function deleteInvestor(id) {
@@ -17017,15 +17087,17 @@ function deleteInvestor(id) {
   saveData(); renderInvestorTable(); showToast('🗑️ মুছে ফেলা হয়েছে');
 }
 function renderInvestorTable() {
-  loadInvestorPoolPercent();
+  loadInvestorSettings();
   const investors=appData.investors||[];
   const totalUnits=investors.reduce((s,inv)=>s+inv.units,0)||1;
   const tbody=document.getElementById('investorTable');
   if(!tbody) return;
-  if(!investors.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">কোনো ইনভেস্টর নেই</td></tr>';renderWithdrawalInvestorSelect();return;}
+  if(!investors.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#aaa;padding:24px">কোনো ইনভেস্টর নেই</td></tr>';renderWithdrawalInvestorSelect();renderInvestmentInvestorSelect();return;}
   tbody.innerHTML=investors.map((inv,i)=>{
     const pct=((inv.units/totalUnits)*100).toFixed(1);
     const bal=inv.balance||0;
+    const unitPrice=inv.unitPrice||0;
+    const totalInvestment=inv.units*unitPrice;
     return `<tr>
       <td style="color:var(--text-light)">${i+1}</td>
       <td style="font-weight:600">${inv.name}</td>
@@ -17036,6 +17108,8 @@ function renderInvestorTable() {
         </div>
         <span style="font-size:12px;color:var(--text-light)">${pct}%</span>
       </div></td>
+      <td style="color:var(--text-light)">${unitPrice?('৳ '+fmt(unitPrice.toFixed(2))):'—'}</td>
+      <td style="font-weight:600">${totalInvestment?('৳ '+fmt(totalInvestment.toFixed(2))):'—'}</td>
       <td style="color:var(--text-light)">${inv.phone||'—'}</td>
       <td>${formatDate(inv.joinDate)}</td>
       <td style="font-weight:700;color:${bal>=0?'var(--success)':'var(--danger)'}">৳ ${fmt(bal.toFixed(2))}</td>
@@ -17048,6 +17122,97 @@ function renderInvestorTable() {
     </tr>`;
   }).join('');
   renderWithdrawalInvestorSelect();
+  renderInvestmentInvestorSelect();
+}
+
+// ===== নতুন ইনভেস্টমেন্ট গ্রহণ (প্রকৃত নতুন ক্যাশ ইনফ্লো — ইউনিট বাড়ে + ক্যাশ/ব্যাংক ব্যালেন্স বাড়ে) =====
+function toggleInvestmentForm() {
+  const b=document.getElementById('investmentFormPanel');
+  const willOpen = b.style.display==='none';
+  b.style.display=willOpen?'block':'none';
+  document.getElementById('investorFormBody').style.display='none';
+  if (willOpen) {
+    document.getElementById('invmDate').value = todayStr();
+    document.getElementById('invmUnitPrice').value = (appData.settings && appData.settings.investorUnitPrice) || 0;
+    calcInvmTotal();
+  }
+}
+function renderInvestmentInvestorSelect() {
+  const sel=document.getElementById('invmInvestor'); if(!sel) return;
+  const prev=sel.value;
+  const investors=appData.investors||[];
+  sel.innerHTML = '<option value="">-- বিদ্যমান ইনভেস্টর সিলেক্ট করুন --</option>' +
+    investors.map(inv=>`<option value="${inv.id}">${inv.name} (বর্তমান ইউনিট: ${inv.units})</option>`).join('') +
+    '<option value="__new__">➕ নতুন ইনভেস্টর</option>';
+  if (prev) sel.value = prev;
+  toggleInvmNewName();
+}
+function toggleInvmNewName() {
+  const sel=document.getElementById('invmInvestor');
+  const f=document.getElementById('invmNewNameField');
+  if (sel && f) f.style.display = sel.value==='__new__' ? 'block' : 'none';
+}
+function calcInvmTotal() {
+  const units=parseFloat(document.getElementById('invmUnits').value)||0;
+  const price=parseFloat(document.getElementById('invmUnitPrice').value)||0;
+  document.getElementById('invmTotal').value = '৳ ' + fmt((units*price).toFixed(2));
+}
+function saveInvestmentInflow() {
+  const selVal = document.getElementById('invmInvestor').value;
+  const newName = document.getElementById('invmNewName').value.trim();
+  const units = parseFloat(document.getElementById('invmUnits').value);
+  const unitPrice = parseFloat(document.getElementById('invmUnitPrice').value);
+  const date = document.getElementById('invmDate').value;
+  const method = document.getElementById('invmMethod').value;
+  const note = document.getElementById('invmNote').value.trim();
+  if (!selVal || (selVal==='__new__' && !newName) || !date || isNaN(units) || units<=0 || isNaN(unitPrice) || unitPrice<0) {
+    showToast('⚠️ ইনভেস্টর, ইউনিট, দর ও তারিখ সঠিকভাবে দিন!'); return;
+  }
+  const amount = units * unitPrice;
+  if (!appData.investors) appData.investors=[];
+  let inv;
+  if (selVal === '__new__') {
+    inv = { id: Date.now(), name:newName, units:0, phone:'', joinDate:date, unitPrice:0, note:'', balance:0 };
+    appData.investors.push(inv);
+  } else {
+    inv = appData.investors.find(i=>String(i.id)===selVal);
+    if (!inv) { showToast('⚠️ ইনভেস্টর পাওয়া যায়নি!'); return; }
+  }
+  inv.units = (inv.units||0) + units;
+  inv.unitPrice = unitPrice; // সর্বশেষ ক্রয়-মূল্য রেফারেন্স হিসেবে আপডেট হলো
+  const voucher = ensureUniqueVoucher(generateNextVoucherNo(date), date);
+  const txId = Date.now()+1;
+  if (!appData.bankTx) appData.bankTx=[];
+  appData.bankTx.push({ id:txId, voucher, type: method==='bank'?'bank_in':'cash_in', amount, date, note:`ইনভেস্টর মূলধন গ্রহণ: ${inv.name} — ${units} ইউনিট @৳${fmt(unitPrice.toFixed(2))}${note?' — '+note:''}`, ref:'', by:currentUser.name, source:'investor-capital-in' });
+  if (!appData.investorCapitalInflows) appData.investorCapitalInflows=[];
+  appData.investorCapitalInflows.push({ id:Date.now()+2, voucher, investorId:inv.id, investorName:inv.name, units, unitPrice, amount, date, method, note, by:currentUser.name });
+  logActivity('add','ইনভেস্টর',`নতুন ইনভেস্টমেন্ট গ্রহণ — ${inv.name} — ${units} ইউনিট @৳${fmt(unitPrice.toFixed(2))} = ৳${fmt(amount.toFixed(2))} (${method==='bank'?'ব্যাংক':'ক্যাশ'}) — ${voucher}`);
+  saveData();
+  ['invmUnits','invmNewName','invmNote'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  document.getElementById('invmInvestor').value='';
+  toggleInvmNewName(); calcInvmTotal();
+  document.getElementById('investmentFormPanel').style.display='none';
+  renderInvestorTable(); renderInvestmentInflowHistory();
+  if (typeof updateBankBalances==='function') updateBankBalances();
+  if (typeof renderBankTx==='function') renderBankTx();
+  showToast(`✅ ইনভেস্টমেন্ট গ্রহণ সম্পন্ন হয়েছে — ৳${fmt(amount.toFixed(2))} ব্যালেন্সে যোগ হয়েছে!`);
+}
+function renderInvestmentInflowHistory() {
+  const list=[...(appData.investorCapitalInflows||[])].sort((a,b)=>b.id-a.id);
+  const tbody=document.getElementById('invCapitalInflowHistTable');
+  if(!tbody) return;
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">কোনো ইনভেস্টমেন্ট এন্ট্রি নেই</td></tr>';return;}
+  tbody.innerHTML=list.map(c=>`<tr>
+    <td style="font-weight:600;color:var(--warning)">${c.voucher||'—'}</td>
+    <td>${formatDate(c.date)}</td>
+    <td style="font-weight:600">${c.investorName}</td>
+    <td style="text-align:center">${c.units}</td>
+    <td>৳ ${fmt(c.unitPrice.toFixed(2))}</td>
+    <td style="font-weight:700;color:#166534">৳ ${fmt(c.amount.toFixed(2))}</td>
+    <td>${c.method==='bank'?'🏦 ব্যাংক':'💵 ক্যাশ'}</td>
+    <td style="color:var(--text-light)">${c.note||'—'}</td>
+    <td style="font-size:12px;color:var(--text-light)">${c.by||'—'}</td>
+  </tr>`).join('');
 }
 // ===== ইনভেস্টর লভ্যাংশ উত্তোলন =====
 function updateInvWdVoucher() {
@@ -17082,7 +17247,7 @@ function saveInvestorWithdrawal() {
   const amount = parseFloat(document.getElementById('invWdAmount').value);
   const method = document.getElementById('invWdMethod').value;
   const note = document.getElementById('invWdNote').value.trim();
-  const voucher = document.getElementById('invWdVoucher').value.trim();
+  const voucher = ensureUniqueVoucher(document.getElementById('invWdVoucher').value.trim(), date);
   if (!invId || !date || isNaN(amount) || amount<=0) { showToast('⚠️ ইনভেস্টর, তারিখ ও সঠিক পরিমাণ দিন!'); return; }
   const inv = (appData.investors||[]).find(i=>String(i.id)===invId);
   if (!inv) { showToast('⚠️ ইনভেস্টর পাওয়া যায়নি!'); return; }
@@ -17128,14 +17293,28 @@ function viewInvestorStatement(id) {
   entries.sort((a,b)=>a.sortKey-b.sortKey);
   let running=0;
   const rows=entries.map(e=>{ running+=e.amount; return { ...e, running }; });
+  const capitalInflows = (appData.investorCapitalInflows||[]).filter(c=>c.investorId===id).sort((a,b)=>a.id-b.id);
+  const totalCapital = capitalInflows.reduce((s,c)=>s+c.amount,0);
   const modal=document.createElement('div');
   modal.className='modal-overlay'; modal.style.display='flex';
   modal.innerHTML=`<div class="modal" style="max-width:600px">
     <div class="modal-title">📄 ইনভেস্টর স্টেটমেন্ট — ${inv.name}</div>
     <div style="background:#f5f3ff;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:14px">
-      বর্তমান ব্যালেন্স: <strong style="color:#7c3aed;font-size:17px">৳ ${fmt((inv.balance||0).toFixed(2))}</strong>
+      লভ্যাংশ ব্যালেন্স: <strong style="color:#7c3aed;font-size:17px">৳ ${fmt((inv.balance||0).toFixed(2))}</strong>
+      &nbsp;|&nbsp; বর্তমান ইউনিট: <strong>${inv.units}</strong>
     </div>
-    <div style="max-height:50vh;overflow-y:auto">
+    ${capitalInflows.length?`<div style="font-weight:700;margin-bottom:4px;font-size:13px">💰 মূলধন বিনিয়োগের ইতিহাস (মোট ৳${fmt(totalCapital.toFixed(2))}) — এটা লভ্যাংশ ব্যালেন্স থেকে আলাদা</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px">
+      <thead><tr style="background:#f0fdf4"><th style="padding:5px;text-align:left">তারিখ</th><th style="padding:5px;text-align:center">ইউনিট</th><th style="padding:5px;text-align:right">দর/ইউনিট</th><th style="padding:5px;text-align:right">পরিমাণ</th></tr></thead>
+      <tbody>${capitalInflows.map(c=>`<tr>
+        <td style="padding:5px">${formatDate(c.date)}</td>
+        <td style="padding:5px;text-align:center">${c.units}</td>
+        <td style="padding:5px;text-align:right">৳ ${fmt(c.unitPrice.toFixed(2))}</td>
+        <td style="padding:5px;text-align:right;font-weight:700;color:#166534">৳ ${fmt(c.amount.toFixed(2))}</td>
+      </tr>`).join('')}</tbody>
+    </table>`:''}
+    <div style="font-weight:700;margin-bottom:4px;font-size:13px">লভ্যাংশ বন্টন ও উত্তোলনের হিসাব</div>
+    <div style="max-height:40vh;overflow-y:auto">
     <table style="width:100%;border-collapse:collapse;font-size:12.5px">
       <thead><tr style="background:#f0f4f8"><th style="padding:6px;text-align:left">তারিখ</th><th style="padding:6px;text-align:left">বিবরণ</th><th style="padding:6px;text-align:right">পরিমাণ</th><th style="padding:6px;text-align:right">ব্যালেন্স</th></tr></thead>
       <tbody>${rows.length ? rows.map(r=>`<tr>
