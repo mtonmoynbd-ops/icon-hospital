@@ -6832,6 +6832,21 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🧾 উত্তোলনের ইতিহাস</div>
       <div id="ownerShWithdrawalHistTable" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
+    <!-- ইনভেস্টর তালিকা (এডমিন প্যানেলের মতোই — শুধু দেখার জন্য, মোবাইল-ফ্রেন্ডলি কার্ড ভিউ) -->
+    <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerInvestorBlock">
+      <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">💼 ইনভেস্টর তালিকা</div>
+      <div id="ownerInvestorTable" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <!-- ইনভেস্টমেন্ট গ্রহণের ইতিহাস -->
+    <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerInvCapitalHistBlock">
+      <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📥 ইনভেস্টমেন্ট গ্রহণের ইতিহাস</div>
+      <div id="ownerInvCapitalHistTable" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <!-- ইনভেস্টর উত্তোলনের ইতিহাস -->
+    <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px" id="ownerInvWdHistBlock">
+      <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🧾 লভ্যাংশ উত্তোলনের ইতিহাস</div>
+      <div id="ownerInvWithdrawalHistTable" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
     <!-- Read-only view for other features (income, expense, stock, salary etc.) -->
     <div id="ownerReadOnlySection" style="display:none;background:white;border-radius:12px;padding:16px;margin-bottom:16px"></div>
   </div>
@@ -17928,6 +17943,10 @@ function renderOwnerMcCard(id) {
         <div style="font-size:11px;color:#1e40af;font-weight:600;margin-bottom:3px">🤝 শেয়ারহোল্ডার অংশ</div>
         <div style="font-size:15.5px;font-weight:800;color:#1e40af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</div>
       </div>
+      ${(mc.investorPoolAmt||0)>0?`<div style="background:#f5f3ff;border-radius:9px;padding:11px 13px;min-width:0;grid-column:1/-1">
+        <div style="font-size:11px;color:#5b21b6;font-weight:600;margin-bottom:3px">💼 ইনভেস্টর পুল (${mc.investorPoolPercent}%)</div>
+        <div style="font-size:15.5px;font-weight:800;color:#5b21b6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">৳ ${fmt(mc.investorPoolAmt.toFixed(2))}</div>
+      </div>`:''}
     </div>
     ${(mc.fundAllocations||[]).length ? `<div style="margin-top:11px;padding-top:11px;border-top:1px dashed #e2e8f0;display:flex;flex-direction:column;gap:4px">${mc.fundAllocations.map(f=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#666"><span>↳ ${f.name} (${f.percent}%)</span><span style="font-weight:700;color:#92400e;white-space:nowrap">৳ ${fmt(f.amount.toFixed(2))}</span></div>`).join('')}</div>` : ''}
   </div>`;
@@ -17958,6 +17977,73 @@ function renderOwnerShareholderFull() {
   renderOwnerShareholderTable();
   renderOwnerMonthClosingHistory();
   renderOwnerShareholderWithdrawalHistory();
+}
+
+// ===== ওনার প্যানেল: ইনভেস্টর তালিকা/হিস্ট্রি (এডমিন প্যানেলের ডেটা থেকেই — শুধু পড়ার জন্য, মোবাইল-ফ্রেন্ডলি কার্ড ভিউ) =====
+function renderOwnerInvestorTable() {
+  const wrap = document.getElementById('ownerInvestorTable');
+  if (!wrap) return;
+  const investors = appData.investors || [];
+  const totalUnits = investors.reduce((s,inv)=>s+inv.units,0) || 1;
+  if (!investors.length) { wrap.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">কোনো ইনভেস্টর নেই</div>'; return; }
+  wrap.innerHTML = investors.map(inv => {
+    const pct = ((inv.units/totalUnits)*100).toFixed(1);
+    const unitPrice = inv.unitPrice||0;
+    const totalInvestment = inv.units*unitPrice;
+    const bal = inv.balance||0;
+    return `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:14px;color:#1e293b">${inv.name}</div>
+        <button class="btn btn-outline btn-sm" title="স্টেটমেন্ট" onclick="viewInvestorStatement(${inv.id})">📄 স্টেটমেন্ট</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
+        <div><span style="color:#888">ইউনিট:</span> <strong>${inv.units} টি (${pct}%)</strong></div>
+        <div><span style="color:#888">যোগদান:</span> <strong>${inv.joinDate?formatDate(inv.joinDate):'—'}</strong></div>
+        <div><span style="color:#888">দর/ইউনিট:</span> <strong>${unitPrice?('৳ '+fmt(unitPrice.toFixed(2))):'—'}</strong></div>
+        <div><span style="color:#888">মোট বিনিয়োগ:</span> <strong>${totalInvestment?('৳ '+fmt(totalInvestment.toFixed(2))):'—'}</strong></div>
+        <div style="grid-column:1/-1;background:#f5f3ff;border-radius:6px;padding:6px 8px;margin-top:2px"><span style="color:#5b21b6">লভ্যাংশ ব্যালেন্স:</span> <strong style="color:#5b21b6;font-size:14px">৳ ${fmt(bal.toFixed(2))}</strong></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderOwnerInvestorCapitalHistory() {
+  const wrap = document.getElementById('ownerInvCapitalHistTable');
+  if (!wrap) return;
+  const list = [...(appData.investorCapitalInflows||[])].sort((a,b)=>b.id-a.id);
+  if (!list.length) { wrap.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">কোনো ইনভেস্টমেন্ট এন্ট্রি নেই</div>'; return; }
+  wrap.innerHTML = list.map(c => `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="font-weight:700;font-size:13.5px;color:#1e293b">${c.investorName}</div>
+      <span style="font-size:11px;color:#888">${formatDate(c.date)}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
+      <div><span style="color:#888">ইউনিট:</span> <strong>${c.units} টি</strong></div>
+      <div><span style="color:#888">দর/ইউনিট:</span> <strong>৳ ${fmt(c.unitPrice.toFixed(2))}</strong></div>
+      <div><span style="color:#888">মাধ্যম:</span> <strong>${c.method==='bank'?'🏦 ব্যাংক':'💵 ক্যাশ'}</strong></div>
+      <div style="grid-column:1/-1"><span style="color:#888">পরিমাণ:</span> <strong style="color:#166534;font-size:14px">৳ ${fmt(c.amount.toFixed(2))}</strong></div>
+    </div>
+  </div>`).join('');
+}
+function renderOwnerInvestorWithdrawalHistory() {
+  const wrap = document.getElementById('ownerInvWithdrawalHistTable');
+  if (!wrap) return;
+  const list = [...(appData.investorWithdrawals||[])].sort((a,b)=>b.id-a.id);
+  if (!list.length) { wrap.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">কোনো উত্তোলন নেই</div>'; return; }
+  wrap.innerHTML = list.map(w => `<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#fafbfc">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="font-weight:700;font-size:13.5px;color:#1e293b">${w.investorName}</div>
+      <span style="font-size:11px;color:#888">${formatDate(w.date)}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
+      <div><span style="color:#888">মাধ্যম:</span> <strong>${w.method==='bank'?'🏦 ব্যাংক':'💵 ক্যাশ'}</strong></div>
+      <div style="grid-column:1/-1"><span style="color:#888">পরিমাণ:</span> <strong style="color:#7c3aed;font-size:14px">৳ ${fmt(w.amount.toFixed(2))}</strong></div>
+    </div>
+  </div>`).join('');
+}
+function renderOwnerInvestorFull() {
+  renderOwnerInvestorTable();
+  renderOwnerInvestorCapitalHistory();
+  renderOwnerInvestorWithdrawalHistory();
 }
 
 // ===== লাভ বন্টন খাত (Profit Allocation Funds) =====
@@ -19101,10 +19187,10 @@ const ALL_FEATURES = [
   { id:'officialpad', label:'অফিসিয়াল প্যাড' },
   { id:'campdue',    label:'ক্যাম্প বাকি' },
 ];
-const OWNER_FEATURES = ['dashboard','report','shareholders'];
+const OWNER_FEATURES = ['dashboard','report','shareholders','investors'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees'],
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees'],
   campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','campdue','testfees']
 };
 const FEATURE_ICONS = {
@@ -19659,8 +19745,12 @@ function applyOwnerFeatureVisibility(activeFeature) {
   show('ownerMcHistBlock', activeFeature === 'shareholders');
   show('ownerWdHistBlock', activeFeature === 'shareholders');
   if (activeFeature === 'shareholders' && typeof renderOwnerShareholderFull === 'function') renderOwnerShareholderFull();
-  show('ownerReadOnlySection', !['dashboard','report','shareholders'].includes(activeFeature));
-  if (!['dashboard','report','shareholders'].includes(activeFeature)) {
+  show('ownerInvestorBlock', activeFeature === 'investors');
+  show('ownerInvCapitalHistBlock', activeFeature === 'investors');
+  show('ownerInvWdHistBlock', activeFeature === 'investors');
+  if (activeFeature === 'investors' && typeof renderOwnerInvestorFull === 'function') renderOwnerInvestorFull();
+  show('ownerReadOnlySection', !['dashboard','report','shareholders','investors'].includes(activeFeature));
+  if (!['dashboard','report','shareholders','investors'].includes(activeFeature)) {
     renderOwnerReadOnlySection(activeFeature);
   }
 }
