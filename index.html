@@ -198,6 +198,7 @@
     animation:boardGoldShimmer 7s linear infinite;
   }
   @keyframes boardGoldShimmer { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
+  @keyframes syncBlink { 0%,100%{opacity:1} 50%{opacity:.15} }
   .board-person-title { font-size:11px; color:#8b6914; font-weight:600; margin-top:1px; }
   .board-divider { height:1px; background:linear-gradient(90deg,transparent,#d4af37,transparent); margin:14px 0; }
   .board-group-header { font-size:11px; font-weight:800; color:#8b6914; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; text-align:center; }
@@ -2253,6 +2254,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+
+<!-- ✅ সিঙ্ক-স্ট্যাটাস ইন্ডিকেটর — শুধু Firebase সংযোগ বিচ্ছিন্ন হলে ছোট্ট ব্লিংকিং লাল ডট (সব প্যানেলে, সব সময়) -->
+<div id="syncDisconnectedDot" title="সার্ভার সংযোগ বিচ্ছিন্ন — ইন্টারনেট চেক করুন" style="display:none;position:fixed;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#ef4444;z-index:99999;animation:syncBlink 1s ease-in-out infinite;pointer-events:none"></div>
 
 <!-- LOGIN -->
 <div id="loginPage" style="display: none;">
@@ -5044,6 +5048,35 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
     </div>
 
+    <!-- COMPANY EQUITY SUMMARY — শেয়ারহোল্ডার ও ইনভেস্টর মিলিয়ে সম্পূর্ণ মূলধন কাঠামোর সারসংক্ষেপ (রিড-ওনলি) -->
+    <div id="pg-equitysummary" class="page-view">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn btn-outline btn-sm" onclick="printBoardOrgChart()">🖨️ বোর্ড অফ ডিরেক্টর'স — প্রিন্ট অর্গানোগ্রাম</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="equitySummaryCards"></div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">🤝 শেয়ারহোল্ডার — মালিকানা কাঠামো</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>নাম</th><th>শেয়ার</th><th>মালিকানা %</th><th>লভ্যাংশ ব্যালেন্স</th></tr></thead>
+          <tbody id="equitySummaryShareholderTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">💼 ইনভেস্টর — বিনিয়োগ কাঠামো</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>নাম</th><th>ইউনিট</th><th>ইউনিট %</th><th>সর্বশেষ দর/ইউনিট</th><th>মোট বিনিয়োগ</th><th>লভ্যাংশ ব্যালেন্স</th></tr></thead>
+          <tbody id="equitySummaryInvestorTable"></tbody>
+        </table></div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📊 সামগ্রিক মূলধন কাঠামো</div></div>
+        <div class="panel-body" id="equitySummaryBreakdown"></div>
+      </div>
+    </div>
+
     <!-- NOTIFICATIONS & MESSAGING (ম্যানুয়াল ট্রিগার, রিমোট QR স্ক্যান, কাস্টম বার্তা, আউটবক্স) -->
     <div id="pg-notifications" class="page-view">
 
@@ -5920,6 +5953,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <input type="checkbox" data-role="moderator" data-feature="investors" style="width:14px;height:14px">
           ইনভেস্টর
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="moderator" data-feature="equitysummary" style="width:14px;height:14px">
+          ইকুইটি সামারি
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="moderator" data-feature="memorandum" style="width:14px;height:14px">
           মেমোরেন্ডাম ও TOR
         </label>
@@ -5972,6 +6008,12 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="owner" data-feature="investors" style="width:14px;height:14px">
           ইনভেস্টর
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="owner" data-feature="equitysummary" checked="" style="width:14px;height:14px">
+          ইকুইটি সামারি
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="owner" data-feature="boardofdirectors" checked="" style="width:14px;height:14px">
+          বোর্ড অফ ডিরেক্টর'স
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="owner" data-feature="todayEntries" checked="" style="width:14px;height:14px">
           আজকের এন্ট্রি
@@ -8336,6 +8378,15 @@ function attemptFirebaseAuth(fallbackTried) {
 }
 attemptFirebaseAuth(false);
 
+// ✅ সিঙ্ক-স্ট্যাটাস ইন্ডিকেটর — Firebase-এর বিশেষ '.info/connected' পাথ রিয়েল-টাইমে সংযোগ আছে/নেই
+// জানায়। সংযোগ বিচ্ছিন্ন হলেই (auth ব্যর্থ, নেটওয়ার্ক/IndexedDB সমস্যা ইত্যাদি) শুধু তখনই ছোট্ট
+// ব্লিংকিং লাল ডট দেখানো হয় — সংযুক্ত থাকা অবস্থায় কিছুই দেখায় না।
+onValue(ref(db, '.info/connected'), (snap) => {
+  const dot = document.getElementById('syncDisconnectedDot');
+  if (!dot) return;
+  dot.style.display = snap.val() === true ? 'none' : 'block';
+});
+
 window._fbDb = db;
 window._fbRef = ref;
 window._fbSet = set;
@@ -8379,7 +8430,7 @@ function rebuildUsers() {
 const DEFAULT_FEATURE_ACCESS = {
   moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','memorandum','recdeposit','delivery','balancesheet','accounting-principles','inquiries'],
   receptionist:['billing'],
-  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries','funds','testfees'],
+  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','equitysummary','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries','funds','testfees','boardofdirectors'],
   campaigner:  ['camp','accounting-principles','campdue','testfees'],
 };
 
@@ -10436,6 +10487,7 @@ const pageMap = {
   loan:         { title:'💳 লোন ট্র্যাকিং', sub:'লোন গ্রহণ ও পরিশোধের রেকর্ড' },
   shareholders: { title:'👥 শেয়ারহোল্ডার', sub:'মালিকানা ও লাভ বন্টন' },
   investors:    { title:'💼 ইনভেস্টর', sub:'ইনভেস্টমেন্ট ইউনিট অনুযায়ি লভ্যাংশ বন্টন' },
+  equitysummary:{ title:'🏦 কোম্পানি ইকুইটি সামারি', sub:'শেয়ারহোল্ডার ও ইনভেস্টর — সম্পূর্ণ মূলধন কাঠামো এক নজরে' },
   notifications:{ title:'🔔 নোটিফিকেশন ও মেসেজিং', sub:'ম্যানুয়াল ট্রিগার, রিমোট QR স্ক্যান, কাস্টম বার্তা ও আউটবক্স স্ট্যাটাস' },
   funds:        { title:'🏦 ফান্ড', sub:'লাভ বন্টন ফান্ড খাতভিত্তিক জমা হিসাব' },
   doctors:      { title:'🩺 ডাক্তার', sub:'ডাক্তার ব্যবস্থাপনা ও কমিশন' },
@@ -10532,6 +10584,7 @@ function showPage(name) {
   if (name === 'loan')         { initLoanPage(); }
   if (name === 'shareholders') { renderShareholderTable(); renderMonthClosingHistory(); renderShareholderWithdrawalHistory(); if (typeof clearWithdrawalForm==='function') clearWithdrawalForm(); }
   if (name === 'investors') { renderInvestorTable(); renderInvestorWithdrawalHistory(); renderInvestmentInflowHistory(); if (typeof clearInvestorWithdrawalForm==='function') clearInvestorWithdrawalForm(); }
+  if (name === 'equitysummary' && typeof renderEquitySummary==='function') renderEquitySummary();
   if (name === 'notifications') { renderBcOwnerCheckboxes(); updateBcPreview(); renderTgBcOwnerCheckboxes(); updateTgBcPreview(); renderWaOutboxTable(); renderTgOutboxTable(); loadTriggerSettings(); startRemoteQrPolling(); } else { stopRemoteQrPolling(); }
   if (name === 'funds')        { renderFundsPage(); }
   if (name === 'doctors')      { renderDoctorsPage(); }
@@ -17422,9 +17475,150 @@ function viewInvestorStatement(id) {
       </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো এন্ট্রি নেই</td></tr>`}</tbody>
     </table>
     </div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="printModalContent(this,'ইনভেস্টর স্টেটমেন্ট — ${inv.name}')">🖨️ প্রিন্ট / PDF</button>
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
+    </div>
   </div>`;
   document.body.appendChild(modal);
+}
+
+// ===== প্রিন্ট/PDF — যেকোনো মোডালের ভেতরের কনটেন্ট প্রিন্ট-উইন্ডোতে খুলে দেয় (Ctrl+P করে PDF হিসেবে সেভ করা যাবে) =====
+function printModalContent(btn, title) {
+  const modal = btn.closest('.modal');
+  if (!modal) return;
+  const clone = modal.cloneNode(true);
+  clone.querySelectorAll('.modal-footer').forEach(el=>el.remove());
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (!win) { showToast('⚠️ পপ-আপ ব্লক করা আছে — ব্রাউজারের সেটিংস থেকে এই সাইটের জন্য পপ-আপ অনুমতি দিন'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title||'প্রিন্ট'}</title>
+    <style>
+      body{font-family:'Hind Siliguri',Arial,sans-serif;padding:24px;color:#1c1c2e;}
+      table{width:100%;border-collapse:collapse;margin-top:10px;}
+      th,td{border:1px solid #ccc;padding:7px;text-align:left;font-size:13px;}
+      .modal-title{font-size:17px;font-weight:800;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:14px;}
+    </style>
+  </head><body>${clone.innerHTML}
+    <div style="margin-top:24px;text-align:center"><button onclick="window.print()" style="padding:9px 22px;font-size:14px;cursor:pointer;border:1.5px solid #333;background:#fff;border-radius:8px">🖨️ প্রিন্ট করুন / PDF সেভ করুন</button></div>
+  </body></html>`);
+  win.document.close();
+}
+
+// ===== বোর্ড অফ ডিরেক্টর'স — প্রিন্টযোগ্য অর্গানোগ্রাম (অফিসিয়াল প্যাডে ব্যবহারযোগ্য) =====
+function printBoardOrgChart() {
+  const { positioned, remaining } = getBoardOfDirectorsList();
+  if (!positioned.length && !remaining.length) { showToast('⚠️ এখনো বোর্ড অফ ডিরেক্টর\'স-এ কোনো তথ্য যোগ করা হয়নি'); return; }
+  const TOP_TITLES = ['চেয়ারম্যান', 'ব্যবস্থাপনা পরিচালক'];
+  const topTier = positioned.filter(p => TOP_TITLES.includes(p.title));
+  const otherPositions = positioned.filter(p => !TOP_TITLES.includes(p.title));
+  const box = (name, title) => `<div style="display:inline-block;border:2px solid #1c1c2e;border-radius:10px;padding:10px 18px;margin:6px;text-align:center;min-width:140px">
+    <div style="font-weight:800;font-size:14px;color:#1c1c2e">${name}</div>
+    ${title?`<div style="font-size:11px;color:#8b6914;font-weight:700;margin-top:2px">${title}</div>`:''}
+  </div>`;
+  const connector = '<div style="text-align:center;color:#999;font-size:16px;margin:2px 0">│</div>';
+  let html = `<h1 style="text-align:center">${(appData.settings&&appData.settings.hospName)||'ICON Eye Hospital'} — অর্গানোগ্রাম</h1>
+    <div style="text-align:center">`;
+  if (topTier.length) {
+    html += topTier.map(p=>box(p.name,p.title)).join('');
+    html += connector;
+  }
+  if (otherPositions.length) {
+    html += otherPositions.map(p=>box(p.name,p.title)).join('');
+    html += connector;
+  }
+  if (remaining.length) {
+    html += `<div style="font-size:12px;font-weight:700;color:#8b6914;text-transform:uppercase;margin:8px 0 4px">ডিরেক্টর'স</div>`;
+    html += remaining.map(name=>box(name,'')).join('');
+  }
+  html += `</div>`;
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (!win) { showToast('⚠️ পপ-আপ ব্লক করা আছে — ব্রাউজারের সেটিংস থেকে এই সাইটের জন্য পপ-আপ অনুমতি দিন'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>বোর্ড অফ ডিরেক্টর'স — অর্গানোগ্রাম</title>
+    <style>body{font-family:'Hind Siliguri',Arial,sans-serif;padding:30px;color:#1c1c2e;}</style>
+  </head><body>${html}
+    <div style="margin-top:30px;text-align:center"><button onclick="window.print()" style="padding:9px 22px;font-size:14px;cursor:pointer;border:1.5px solid #333;background:#fff;border-radius:8px">🖨️ প্রিন্ট করুন / PDF সেভ করুন</button></div>
+  </body></html>`);
+  win.document.close();
+}
+
+// ===== কোম্পানি ইকুইটি সামারি — শেয়ারহোল্ডার ও ইনভেস্টর মিলিয়ে সম্পূর্ণ মূলধন কাঠামো এক নজরে (রিড-ওনলি) =====
+function renderEquitySummary() {
+  const shareholders = appData.shareholders || [];
+  const investors = appData.investors || [];
+  const totalShares = shareholders.reduce((s,sh)=>s+sh.shares,0) || 1;
+  const totalUnits = investors.reduce((s,inv)=>s+inv.units,0) || 1;
+  const shBalanceTotal = shareholders.reduce((s,sh)=>s+(sh.balance||0),0);
+  const invBalanceTotal = investors.reduce((s,inv)=>s+(inv.balance||0),0);
+  const invCapitalTotal = investors.reduce((s,inv)=>s+(inv.units*(inv.unitPrice||0)),0);
+  const accLoss = (appData.settings && appData.settings.accumulatedLoss) || 0;
+
+  const cardsEl = document.getElementById('equitySummaryCards');
+  if (cardsEl) {
+    const cards = [
+      { label:'মোট শেয়ারহোল্ডার', value: shareholders.length+' জন', color:'#0f4c81' },
+      { label:'মোট ইনভেস্টর', value: investors.length+' জন', color:'#7c3aed' },
+      { label:'মোট বকেয়া লভ্যাংশ', value: '৳ '+fmt((shBalanceTotal+invBalanceTotal).toFixed(2)), color:'#166534' },
+      { label:'মোট ইনভেস্টর মূলধন', value: '৳ '+fmt(invCapitalTotal.toFixed(2)), color:'#b45309' },
+      { label:'সঞ্চিত লস', value: accLoss>0 ? ('৳ '+fmt(accLoss.toFixed(2))) : '৳ ০.০০', color: accLoss>0?'#b91c1c':'#166534' },
+    ];
+    cardsEl.innerHTML = cards.map(c=>`<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid ${c.color}">
+      <div style="font-size:11.5px;color:var(--text-light);font-weight:600;margin-bottom:4px">${c.label}</div>
+      <div style="font-size:18px;font-weight:800;color:${c.color}">${c.value}</div>
+    </div>`).join('');
+  }
+
+  const shTbody = document.getElementById('equitySummaryShareholderTable');
+  if (shTbody) {
+    shTbody.innerHTML = shareholders.length ? shareholders.map(sh=>`<tr>
+      <td style="font-weight:600">${sh.name}</td>
+      <td style="text-align:center">${sh.shares}</td>
+      <td style="text-align:center">${(sh.shares/totalShares*100).toFixed(1)}%</td>
+      <td style="font-weight:700;color:var(--success)">৳ ${fmt((sh.balance||0).toFixed(2))}</td>
+    </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো শেয়ারহোল্ডার নেই</td></tr>';
+  }
+
+  const invTbody = document.getElementById('equitySummaryInvestorTable');
+  if (invTbody) {
+    invTbody.innerHTML = investors.length ? investors.map(inv=>{
+      const unitPrice = inv.unitPrice||0;
+      return `<tr>
+        <td style="font-weight:600">${inv.name}</td>
+        <td style="text-align:center">${inv.units}</td>
+        <td style="text-align:center">${(inv.units/totalUnits*100).toFixed(1)}%</td>
+        <td>${unitPrice?('৳ '+fmt(unitPrice.toFixed(2))):'—'}</td>
+        <td style="font-weight:600">${unitPrice?('৳ '+fmt((inv.units*unitPrice).toFixed(2))):'—'}</td>
+        <td style="font-weight:700;color:#7c3aed">৳ ${fmt((inv.balance||0).toFixed(2))}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">কোনো ইনভেস্টর নেই</td></tr>';
+  }
+
+  const bkEl = document.getElementById('equitySummaryBreakdown');
+  if (bkEl) {
+    const mcs = appData.monthClosings || [];
+    const lifetimeFund = mcs.reduce((s,mc)=>s+(mc.fundTotal||0),0);
+    const lifetimeInvestorPool = mcs.reduce((s,mc)=>s+(mc.investorPoolAmt||0),0);
+    const lifetimeShareholderPool = mcs.reduce((s,mc)=>s+(mc.shareholderPool||0),0);
+    const lifetimeTotal = lifetimeFund+lifetimeInvestorPool+lifetimeShareholderPool;
+    bkEl.innerHTML = `<div style="font-size:13px;color:var(--text-light);margin-bottom:12px">এখন পর্যন্ত সম্পন্ন হওয়া সব মাস-ক্লোজ মিলিয়ে (লাইফটাইম) মোট বন্টিত মুনাফার ভাগ:</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div style="background:#f0f4f8;border-radius:9px;padding:12px">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:3px">ফান্ড খাতে</div>
+          <div style="font-size:15px;font-weight:800">৳ ${fmt(lifetimeFund.toFixed(2))}</div>
+        </div>
+        <div style="background:#f5f3ff;border-radius:9px;padding:12px">
+          <div style="font-size:11px;color:#5b21b6;margin-bottom:3px">ইনভেস্টর পুলে</div>
+          <div style="font-size:15px;font-weight:800;color:#5b21b6">৳ ${fmt(lifetimeInvestorPool.toFixed(2))}</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:9px;padding:12px">
+          <div style="font-size:11px;color:#1e40af;margin-bottom:3px">শেয়ারহোল্ডার পুলে</div>
+          <div style="font-size:15px;font-weight:800;color:#1e40af">৳ ${fmt(lifetimeShareholderPool.toFixed(2))}</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:9px;padding:12px">
+          <div style="font-size:11px;color:#166534;margin-bottom:3px">সর্বমোট বিতরণকৃত</div>
+          <div style="font-size:15px;font-weight:800;color:#166534">৳ ${fmt(lifetimeTotal.toFixed(2))}</div>
+        </div>
+      </div>`;
+  }
 }
 
 // ===== মাস ক্লোজ (স্বয়ংক্রিয় মুনাফা/লস বন্টন) ইঞ্জিন =====
@@ -17937,7 +18131,10 @@ function viewShareholderStatement(id) {
       </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">কোনো এন্ট্রি নেই</td></tr>`}</tbody>
     </table>
     </div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="printModalContent(this,'শেয়ারহোল্ডার স্টেটমেন্ট — ${sh.name}')">🖨️ প্রিন্ট / PDF</button>
+      <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
+    </div>
   </div>`;
   document.body.appendChild(modal);
 }
@@ -19236,7 +19433,9 @@ const ALL_FEATURES = [
   { id:'loan',      label:'লোন ট্র্যাকিং' },
   { id:'shareholders', label:'শেয়ারহোল্ডার' },
   { id:'investors', label:'ইনভেস্টর' },
+  { id:'equitysummary', label:'কোম্পানি ইকুইটি সামারি' },
   { id:'todayEntries', label:'আজকের এন্ট্রি' },
+  { id:'boardofdirectors', label:"বোর্ড অফ ডিরেক্টর'স" },
   { id:'funds', label:'ফান্ড' },
   { id:'memorandum', label:'মেমোরেন্ডাম ও TOR' },
   { id:'accounting-principles', label:'হিসাবরক্ষণ নীতিমালা' },
@@ -19254,14 +19453,14 @@ const ALL_FEATURES = [
 const OWNER_FEATURES = ['dashboard','report','shareholders','investors'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees'],
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','equitysummary','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees','boardofdirectors'],
   campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','campdue','testfees']
 };
 const FEATURE_ICONS = {
   dashboard:'🏠', income:'💰', expense:'🧾', camp:'⛺', due:'⏳', stock:'📦',
   salary:'🧑‍💼', attendance:'🗓️', demand:'📋', report:'📈', vendor:'🚚',
-  bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', investors:'💼', memorandum:'📜', recdeposit:'🧰',
-  delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️', funds:'🏦',
+  bank:'🏦', checkbook:'📒', loan:'💳', shareholders:'🤝', investors:'💼', equitysummary:'🏦', memorandum:'📜', recdeposit:'🧰',
+  delivery:'🚛', balancesheet:'⚖️', chart:'📊', todayEntries:'🗓️', funds:'🏦', boardofdirectors:'👑',
   newbill:'🧾', billhistory:'📋', testfees:'🔬', patients:'🏥', officialpad:'📄', 'accounting-principles':'📖',
   campdue:'🏕️'
 };
@@ -19415,6 +19614,7 @@ const SIDEBAR_NAV_ITEMS = [
   { id:'loan', icon:'💳', label:'লোন ট্র্যাকিং', adminOnly:true },
   { id:'shareholders', icon:'👥', label:'শেয়ারহোল্ডার', adminOnly:true },
   { id:'investors', icon:'💼', label:'ইনভেস্টর', adminOnly:true },
+  { id:'equitysummary', icon:'🏦', label:'ইকুইটি সামারি', adminOnly:true },
   { id:'notifications', icon:'🔔', label:'নোটিফিকেশন ও মেসেজিং', adminOnly:true },
   { id:'funds', icon:'🏦', label:'ফান্ড', adminOnly:true },
   { id:'doctors', icon:'🩺', label:'ডাক্তার', adminOnly:true },
@@ -19432,7 +19632,7 @@ const DEFAULT_SIDEBAR_PAGE_GROUP = {
   testfees:'manage', newbill:'manage', billhistory:'manage', stock:'manage', salary:'manage', opprofit:'manage',
   appointletter:'manage', attendance:'manage', demand:'manage', patients:'manage',
   report:'report', inquiries:'report', officialpad:'report', memorandum:'report', 'accounting-principles':'report',
-  vendor:'accounts', bank:'accounts', checkbook:'accounts', loan:'accounts', shareholders:'accounts', investors:'accounts',
+  vendor:'accounts', bank:'accounts', checkbook:'accounts', loan:'accounts', shareholders:'accounts', investors:'accounts', equitysummary:'accounts',
   notifications:'accounts', funds:'accounts', doctors:'accounts', balancesheet:'accounts',
 };
 function getSidebarGroups() {
@@ -19586,7 +19786,7 @@ const FEATURE_GROUPS = [
   { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','todayEntries','report','chart','balancesheet','accounting-principles'] },
   { label:'💰 আয় ও ব্যয়',            ids:['income','expense','bank','checkbook','loan'] },
   { label:'🏕️ ক্যাম্প ও রোগী',        ids:['camp','due','delivery','recdeposit','demand'] },
-  { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','investors','funds','testfees','memorandum'] },
+  { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','investors','equitysummary','boardofdirectors','funds','testfees','memorandum'] },
 ];
 
 function openRoleMoreSheet(roleKey) {
@@ -19765,7 +19965,7 @@ function applySidebarAccess(role) {
     const page = el.getAttribute('data-page');
     const adminOnly = el.classList.contains('admin-only');
     if (role === 'admin') el.style.display = '';
-    else if (adminOnly && !['bank','checkbook','loan','shareholders','investors'].includes(page)) el.style.display = 'none';
+    else if (adminOnly && !['bank','checkbook','loan','shareholders','investors','equitysummary'].includes(page)) el.style.display = 'none';
     else el.style.display = canAccess(role, page) ? '' : 'none';
   });
   document.body.classList.remove('role-moderator');
@@ -20010,9 +20210,10 @@ function toggleBoardPanel() {
   const expanded = panel.classList.toggle('expanded');
   if (arrow) arrow.textContent = expanded ? '▼' : '▲';
 }
-function renderBoardToggleButton() {
-  const nameEl = document.getElementById('boardToggleTopName');
-  const titleEl = document.getElementById('boardToggleTopTitle');
+// ✅ কলাপ্সড বাটনের প্রিভিউ (নাম/পদ) বসানো — রিসেপশন ও ওনার প্যানেল দুই জায়গাতেই একই লজিক, শুধু element id ভিন্ন
+function _fillBoardToggleIds(nameId, titleId) {
+  const nameEl = document.getElementById(nameId);
+  const titleEl = document.getElementById(titleId);
   if (!nameEl || !titleEl) return;
   const { positioned, remaining } = getBoardOfDirectorsList();
   if (positioned.length) {
@@ -20026,18 +20227,16 @@ function renderBoardToggleButton() {
     titleEl.textContent = '';
   }
 }
-function renderBoardPanel() {
-  renderBoardToggleButton();
-  const wrap = document.getElementById('boardOfDirectorsPanel');
-  if (!wrap) return;
+function renderBoardToggleButton() { _fillBoardToggleIds('boardToggleTopName', 'boardToggleTopTitle'); }
+// ✅ এক্সপ্যান্ড হওয়া প্যানেলের সম্পূর্ণ HTML বানায় — চেয়ারম্যান ও ব্যবস্থাপনা পরিচালক সবার উপরে
+// আলাদা "টপ-টিয়ার" গ্রুপে (পদবিতে সোনালি মুভিং-গ্রেডিয়েন্ট শাইমার), বাকি সব কাস্টম পদ আলাদা গ্রুপে
+// (মাঝে ডিভাইডার), তারপর অবশিষ্ট শেয়ারহোল্ডাররা "ডিরেক্টর'স" গ্রুপে (আরেকটা ডিভাইডারের পর)।
+// রিসেপশন ও ওনার প্যানেল দুই জায়গাতেই এই একই HTML ব্যবহার হয়।
+function buildBoardPanelHTML() {
   const { positioned, remaining } = getBoardOfDirectorsList();
   if (!positioned.length && !remaining.length) {
-    wrap.innerHTML = '<div class="board-panel-title">🏛️ বোর্ড অফ ডিরেক্টর\'স</div><div style="text-align:center;color:#aaa;padding:10px;font-size:12.5px">এখনো কোনো তথ্য যোগ করা হয়নি</div>';
-    return;
+    return '<div class="board-panel-title">🏛️ বোর্ড অফ ডিরেক্টর\'স</div><div style="text-align:center;color:#aaa;padding:10px;font-size:12.5px">এখনো কোনো তথ্য যোগ করা হয়নি</div>';
   }
-  // ✅ চেয়ারম্যান ও ব্যবস্থাপনা পরিচালক — এই দুই পদ সবার উপরে একটা আলাদা "টপ-টিয়ার" গ্রুপে, পদবিতে
-  // সোনালি মুভিং-গ্রেডিয়েন্ট শাইমার। বাকি সব কাস্টম পদ আলাদা গ্রুপে (মাঝে ডিভাইডার), তারপর অবশিষ্ট
-  // শেয়ারহোল্ডাররা "ডিরেক্টর'স" গ্রুপে (আরেকটা ডিভাইডারের পর)।
   const TOP_TITLES = ['চেয়ারম্যান', 'ব্যবস্থাপনা পরিচালক'];
   const topTier = positioned.filter(p => TOP_TITLES.includes(p.title));
   const otherPositions = positioned.filter(p => !TOP_TITLES.includes(p.title));
@@ -20077,8 +20276,12 @@ function renderBoardPanel() {
         <div class="board-person-name-premium" style="font-size:13px">${name}</div>
       </div>`).join('') + '</div>';
   }
-
-  wrap.innerHTML = html;
+  return html;
+}
+function renderBoardPanel() {
+  renderBoardToggleButton();
+  const wrap = document.getElementById('boardOfDirectorsPanel');
+  if (wrap) wrap.innerHTML = buildBoardPanelHTML();
 }
 // ✅ সাইডবারের উপরের ব্যাজ (গোল আইকন + নাম/পদ) — অ্যাডমিনের জন্য কাস্টম নাম/পদ ও 👑 আইকন,
 // অন্য রোলের জন্য আগের মতোই (নামের প্রথম অক্ষর + রোল লেবেল)
@@ -21801,6 +22004,9 @@ function buildReadOnlyHTML(feature, role) {
         <tr><th style="${thStyle}">অর্ডার তারিখ</th><th style="${thStyle}">নাম</th><th style="${thStyle}">আইটেম</th><th style="${thStyle}">মোট</th><th style="${thStyle}">বাকি</th><th style="${thStyle}">ডেলিভারি তারিখ</th><th style="${thStyle}">স্ট্যাটাস</th></tr>
         ${rows.length ? rows.map(d=>`<tr><td style="${tdStyle}">${formatDate(d.orderDate)}</td><td style="${tdStyle};font-weight:600">${d.name}</td><td style="${tdStyle}">${d.item}</td><td style="${tdStyle}">৳ ${fmt2(d.total)}</td><td style="${tdStyle};color:${(d.due||0)>0?'#e74c3c':'inherit'}">৳ ${fmt2(d.due||0)}</td><td style="${tdStyle}">${formatDate(d.deliveryDate)}</td><td style="${tdStyle}">${statusLabel(d)}</td></tr>`).join('') : `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa">কোনো অর্ডার নেই</td></tr>`}
       </table></div>`;
+  }
+  if (feature === 'boardofdirectors') {
+    return buildBoardPanelHTML();
   }
   if (feature === 'todayEntries') {
     const today = todayStr();
