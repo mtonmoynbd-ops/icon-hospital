@@ -199,6 +199,8 @@
   }
   @keyframes boardGoldShimmer { 0%{background-position:0% 50%} 100%{background-position:300% 50%} }
   @keyframes syncBlink { 0%,100%{opacity:1} 50%{opacity:.15} }
+  /* ✅ সিঙ্ক-স্ট্যাটাস — Firebase সংযোগ বিচ্ছিন্ন হলে লগইন স্ক্রিনের পাসওয়ার্ড-প্রিভিউ চোখ আইকনটাই লাল হয়ে ব্লিংক করে (আলাদা কোনো ডট নেই) */
+  .pass-toggle.sync-disconnected { color:#ef4444 !important; animation:syncBlink 1s ease-in-out infinite; }
   .board-person-title { font-size:11px; color:#8b6914; font-weight:600; margin-top:1px; }
   .board-divider { height:1px; background:linear-gradient(90deg,transparent,#d4af37,transparent); margin:14px 0; }
   .board-group-header { font-size:11px; font-weight:800; color:#8b6914; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; text-align:center; }
@@ -2254,9 +2256,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
-
-<!-- ✅ সিঙ্ক-স্ট্যাটাস ইন্ডিকেটর — শুধু Firebase সংযোগ বিচ্ছিন্ন হলে ছোট্ট ব্লিংকিং লাল ডট (সব প্যানেলে, সব সময়) -->
-<div id="syncDisconnectedDot" title="সার্ভার সংযোগ বিচ্ছিন্ন — ইন্টারনেট চেক করুন" style="display:none;position:fixed;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#ef4444;z-index:99999;animation:syncBlink 1s ease-in-out infinite;pointer-events:none"></div>
 
 <!-- LOGIN -->
 <div id="loginPage" style="display: none;">
@@ -6015,6 +6014,12 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <input type="checkbox" data-role="owner" data-feature="boardofdirectors" checked="" style="width:14px;height:14px">
           বোর্ড অফ ডিরেক্টর'স
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="owner" data-feature="opsheet" checked="" style="width:14px;height:14px">
+          অপারেশন শিট
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
+          <input type="checkbox" data-role="owner" data-feature="opprofit" checked="" style="width:14px;height:14px">
+          অপারেশন লাভ-ক্ষতি
+        </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
           <input type="checkbox" data-role="owner" data-feature="todayEntries" checked="" style="width:14px;height:14px">
           আজকের এন্ট্রি
         </label><label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px">
@@ -8382,9 +8387,9 @@ attemptFirebaseAuth(false);
 // জানায়। সংযোগ বিচ্ছিন্ন হলেই (auth ব্যর্থ, নেটওয়ার্ক/IndexedDB সমস্যা ইত্যাদি) শুধু তখনই ছোট্ট
 // ব্লিংকিং লাল ডট দেখানো হয় — সংযুক্ত থাকা অবস্থায় কিছুই দেখায় না।
 onValue(ref(db, '.info/connected'), (snap) => {
-  const dot = document.getElementById('syncDisconnectedDot');
-  if (!dot) return;
-  dot.style.display = snap.val() === true ? 'none' : 'block';
+  const eyeBtn = document.getElementById('passToggleBtn');
+  if (!eyeBtn) return;
+  eyeBtn.classList.toggle('sync-disconnected', snap.val() !== true);
 });
 
 window._fbDb = db;
@@ -8430,7 +8435,7 @@ function rebuildUsers() {
 const DEFAULT_FEATURE_ACCESS = {
   moderator:   ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','memorandum','recdeposit','delivery','balancesheet','accounting-principles','inquiries'],
   receptionist:['billing'],
-  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','equitysummary','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries','funds','testfees','boardofdirectors'],
+  owner:       ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','equitysummary','memorandum','recdeposit','delivery','balancesheet','chart','accounting-principles','inquiries','todayEntries','funds','testfees','boardofdirectors','opsheet','opprofit'],
   campaigner:  ['camp','accounting-principles','campdue','testfees'],
 };
 
@@ -10237,7 +10242,7 @@ const PATH_SYNCED_MODULES = [
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
   'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox', 'tgOutbox',
-  'dueHistory', 'investors', 'investorWithdrawals', 'investorCapitalInflows', 'boardPositions'
+  'dueHistory', 'investors', 'investorWithdrawals', 'investorCapitalInflows', 'boardPositions', 'testFees'
 ];
 
 function updateSyncStatusUI() {
@@ -19453,7 +19458,7 @@ const ALL_FEATURES = [
 const OWNER_FEATURES = ['dashboard','report','shareholders','investors'];
 // All possible features are listed so owner/campaigner NEVER fall through to appPage/sidebar
 const ROLE_NATIVE_FEATURES = {
-  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','equitysummary','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees','boardofdirectors'],
+  owner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','investors','equitysummary','memorandum','recdeposit','delivery','balancesheet','accounting-principles','todayEntries','funds','testfees','boardofdirectors','opsheet','opprofit'],
   campaigner: ['dashboard','income','expense','camp','due','stock','salary','attendance','demand','report','vendor','bank','checkbook','loan','shareholders','memorandum','recdeposit','delivery','balancesheet','accounting-principles','campdue','testfees']
 };
 const FEATURE_ICONS = {
@@ -19784,7 +19789,7 @@ function resetSidebarGroupsToDefault() {
 
 const FEATURE_GROUPS = [
   { label:'📊 ড্যাশবোর্ড ও রিপোর্ট', ids:['dashboard','todayEntries','report','chart','balancesheet','accounting-principles'] },
-  { label:'💰 আয় ও ব্যয়',            ids:['income','expense','bank','checkbook','loan'] },
+  { label:'💰 আয় ও ব্যয়',            ids:['income','expense','bank','checkbook','loan','opsheet','opprofit'] },
   { label:'🏕️ ক্যাম্প ও রোগী',        ids:['camp','due','delivery','recdeposit','demand'] },
   { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','investors','equitysummary','boardofdirectors','funds','testfees','memorandum'] },
 ];
