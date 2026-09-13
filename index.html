@@ -22134,21 +22134,71 @@ function buildReadOnlyHTML(feature, role) {
       }).join('') : `<div style="padding:20px;text-align:center;color:#aaa">কোনো ফি আইটেম যোগ করা হয়নি</div>`}`;
   }
   if (feature === 'opsheet') {
-    // ✅ accounting-principles-এর মতোই কৌশল — বিদ্যমান pg-opsheet এলিমেন্টের init ফাংশন চালিয়ে (শুধু render
-    // না — init ফাংশনটাই চলতি মাস/বছর ডিফল্ট সেট করে ও বছরের ড্রপডাউন populate করে, যা এডমিনের নিজস্ব
-    // showPage('opsheet') রুটিং যা করে ঠিক তা-ই) তার DOM কনটেন্ট পুনরায় ব্যবহার করা হচ্ছে, যাতে owner-কে
-    // জেনেরিক "🔒 শুধু পড়ার অনুমতি" প্লেসহোল্ডার না দেখিয়ে আসল অপারেশন শিট ডাটা দেখানো যায় (এডিট/ডিলিট
-    // বাটন এমনিতেই লুকানো থাকবে, কারণ সেগুলো currentUser.role==='admin' চেক করে)
-    if (typeof initOperationSheetFilters==='function') initOperationSheetFilters();
-    else if (typeof renderOperationSheet==='function') renderOperationSheet();
-    const src = document.getElementById('pg-opsheet');
-    return src ? src.innerHTML : '<div style="text-align:center;padding:40px;color:#aaa">তথ্য পাওয়া যায়নি</div>';
+    // ✅ owner সম্পূর্ণ রিড-ওনলি — তাই অ্যাডমিনের ওয়াইড টেবিল/এডিট-স্ট্যাটাস-বাটনসহ পেজ ক্লোন না করে
+    // এখানে আলাদা মোবাইল-ফ্রেন্ডলি কার্ড ভিউ বানানো হয়েছে (shareholders/investors-এর প্যাটার্নের মতোই)
+    let rows = (appData.operations||[]).slice().sort((a,b)=>b.id-a.id);
+    rows = isOwnerMonthly ? rows.filter(o=>(o.date||'').startsWith(curMonth)) : rows.slice(0,50);
+    let totalFee = 0;
+    const statusBadge = st => {
+      if (st==='cancelled') return '<span style="background:#fee2e2;color:#b91c1c;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0">❌ বাতিল</span>';
+      if (st==='scheduled') return '<span style="background:#fef3c7;color:#92400e;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0">🗓️ সিডিউলড</span>';
+      return '<span style="background:#dcfce7;color:#166534;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0">✅ সম্পন্ন</span>';
+    };
+    const cards = rows.map(op=>{
+      const st = op.status||'completed';
+      if (st!=='cancelled') totalFee += op.fee||0;
+      return `<div style="background:white;border:1px solid #eee;border-radius:12px;padding:12px 14px;margin-bottom:9px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+          <div style="font-weight:700;font-size:14px;color:#1e293b">${op.patName||'—'}</div>
+          ${statusBadge(st)}
+        </div>
+        <div style="font-size:12.5px;color:#555;margin-bottom:6px">${op.opType||'—'}${op.eye?' · 👁️ '+op.eye:''}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#888;border-top:1px dashed #eee;padding-top:6px">
+          <span>${formatDate(op.date)} · ${op.surgeonName||'—'}</span>
+          <span style="font-weight:800;color:var(--primary);font-size:13.5px">৳ ${fmt2(op.fee||0)}</span>
+        </div>
+      </div>`;
+    }).join('') || '<div style="text-align:center;color:#aaa;padding:30px">এই মাসে কোনো অপারেশন নেই</div>';
+    return `${monthHeader('🏥 অপারেশন শিট'+badge)}
+      ${isOwnerMonthly?`<div style="font-size:12.5px;color:#166534;font-weight:700;margin-bottom:10px">এই মাসের মোট ফি: ৳ ${fmt2(totalFee)} &nbsp;|&nbsp; অপারেশন: ${rows.length}টি</div>`:''}
+      ${cards}`;
   }
   if (feature === 'opprofit') {
-    if (typeof initOpProfitFilters==='function') initOpProfitFilters();
-    else if (typeof renderOpProfitPage==='function') renderOpProfitPage();
-    const src = document.getElementById('pg-opprofit');
-    return src ? src.innerHTML : '<div style="text-align:center;padding:40px;color:#aaa">তথ্য পাওয়া যায়নি</div>';
+    // ✅ একইভাবে — DOM-নির্ভর ফিল্টার (opProfitFrom/To/Surgeon) ছাড়াই সরাসরি appData থেকে হিসাব করে
+    // মোবাইল কার্ড আকারে দেখানো হচ্ছে
+    let ops = (appData.operations||[]).filter(o=>(o.status||'completed')!=='cancelled');
+    ops = isOwnerMonthly ? ops.filter(o=>(o.date||'').startsWith(curMonth)) : ops;
+    const rows = ops.map(op=>{
+      const itemsCost = getOpItemsCost(op);
+      const otherCost = getOpOtherCost(op);
+      const sgFeeShare = getOpSurgeonFeeShare(op);
+      const net = (op.fee||0) - sgFeeShare - itemsCost - otherCost;
+      return { op, itemsCost, otherCost, sgFeeShare, net };
+    }).sort((a,b)=>b.op.id-a.op.id);
+    const totalFee = rows.reduce((s,r)=>s+(r.op.fee||0),0);
+    const totalNet = rows.reduce((s,r)=>s+r.net,0);
+    const cards = rows.map(r=>{
+      const op = r.op;
+      return `<div style="background:white;border:1px solid #eee;border-radius:12px;padding:12px 14px;margin-bottom:9px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+          <div style="font-weight:700;font-size:14px;color:#1e293b">${op.patName||'—'}</div>
+          <div style="font-weight:800;font-size:14px;color:${r.net>=0?'var(--success)':'var(--danger)'};flex-shrink:0">৳ ${fmt2(r.net)}</div>
+        </div>
+        <div style="font-size:12px;color:#555;margin-bottom:8px">${op.opType||'—'} · ${formatDate(op.date)} · ${op.surgeonName||'—'}</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px;font-size:11.5px;color:#888;border-top:1px dashed #eee;padding-top:7px">
+          <div>ফি: <strong style="color:#166534">৳${fmt2(op.fee||0)}</strong></div>
+          <div>সার্জন ভাগ: <strong>৳${fmt2(r.sgFeeShare)}</strong></div>
+          <div>আইটেম খরচ: <strong>৳${fmt2(r.itemsCost)}</strong></div>
+          <div>অন্যান্য খরচ: <strong>৳${fmt2(r.otherCost)}</strong></div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="text-align:center;color:#aaa;padding:30px">এই মাসে কোনো অপারেশন নেই</div>';
+    return `${monthHeader('🧮 অপারেশন লাভ-ক্ষতি'+badge)}
+      ${isOwnerMonthly?`<div style="background:${totalNet>=0?'#f0fdf4':'#fef2f2'};border-radius:10px;padding:10px 14px;margin-bottom:12px">
+        <div style="font-size:12px;color:#888">মোট ফি: ৳${fmt2(totalFee)} · অপারেশন: ${rows.length}টি</div>
+        <div style="font-size:16px;font-weight:800;color:${totalNet>=0?'var(--success)':'var(--danger)'}">নিট: ৳ ${fmt2(totalNet)}</div>
+      </div>`:''}
+      ${cards}`;
   }
   if (feature === 'equitysummary') {
     if (typeof renderEquitySummary==='function') renderEquitySummary();
