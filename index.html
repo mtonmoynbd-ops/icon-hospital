@@ -516,6 +516,20 @@
   .rtab-sheet-list button .osl-icon { font-size:22px; }
   .rtab-sheet-list button .osl-label { font-size:11.5px; font-weight:700; text-align:center; line-height:1.25; }
   .rtab-sheet-list button.active { background:linear-gradient(135deg,var(--primary),var(--primary-light)); border-color:var(--primary); color:#fff; box-shadow:0 4px 14px rgba(15,76,129,.3); }
+  /* ===== "সব ফিচার" শিট — প্রিমিয়াম ক্যাটাগরি-চিপ + কমপ্যাক্ট রো ডিজাইন (owner/camper) — স্ক্রল কমাতে ===== */
+  .rtab-sheet-groups { display:flex; gap:8px; overflow-x:auto; padding:12px 14px; border-bottom:1px solid var(--border); scrollbar-width:none; flex-shrink:0; }
+  .rtab-sheet-groups::-webkit-scrollbar { display:none; }
+  .rtab-sheet-group-chip { flex-shrink:0; padding:8px 15px; border-radius:20px; background:#f4f6f8; border:1.5px solid transparent; font-family:'Hind Siliguri',sans-serif; font-size:12.5px; font-weight:700; color:var(--text-light); cursor:pointer; white-space:nowrap; transition:all .15s; }
+  .rtab-sheet-group-chip.active { background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:#fff; box-shadow:0 3px 10px rgba(15,76,129,.28); }
+  .rtab-sheet-rows { padding:6px 12px 18px; overflow-y:auto; }
+  .rtab-sheet-row { display:flex; align-items:center; gap:12px; padding:11px 8px; border-bottom:1px solid #f2f4f6; cursor:pointer; transition:background .15s; border-radius:10px; }
+  .rtab-sheet-row:active { background:#f8fafc; }
+  .rtab-sheet-row .rsr-icon { width:38px; height:38px; border-radius:11px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+  .rtab-sheet-row .rsr-label { flex:1; font-size:13.5px; font-weight:600; color:var(--text); }
+  .rtab-sheet-row .rsr-chevron { color:#ccc; font-size:14px; flex-shrink:0; }
+  .rtab-sheet-row.active { background:#eff6ff; }
+  .rtab-sheet-row.active .rsr-icon { background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:#fff; }
+  .rtab-sheet-row.active .rsr-label { color:var(--primary); font-weight:800; }
   /* ওনার প্যানেলের "আরো" শীট — ছোট গ্রিড */
   #ownerMoreSheetList { grid-template-columns:repeat(4,1fr); gap:6px; }
   #ownerMoreSheetList button { padding:9px 3px; border-radius:11px; gap:3px; }
@@ -6833,7 +6847,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <button type="button" onclick="closeRoleMoreSheet('owner')" style="background:#fee2e2;color:#e74c3c;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;font-weight:700">✕</button>
       </div>
     </div>
-    <div id="ownerMoreSheetList" class="rtab-sheet-list"></div>
+    <div id="ownerMoreSheetGroups" class="rtab-sheet-groups"></div>
+    <div id="ownerMoreSheetList" class="rtab-sheet-rows"></div>
   </div>
   <div id="ownerTabCustomizerSheet" class="rtab-sheet">
     <div class="rtab-sheet-handle"></div>
@@ -7040,7 +7055,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <button type="button" onclick="closeRoleMoreSheet('camper')" style="background:#fee2e2;color:#e74c3c;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;font-weight:700">✕</button>
       </div>
     </div>
-    <div id="camperMoreSheetList" class="rtab-sheet-list"></div>
+    <div id="camperMoreSheetGroups" class="rtab-sheet-groups"></div>
+    <div id="camperMoreSheetList" class="rtab-sheet-rows"></div>
   </div>
   <div id="camperTabCustomizerSheet" class="rtab-sheet">
     <div class="rtab-sheet-handle"></div>
@@ -19794,6 +19810,7 @@ const FEATURE_GROUPS = [
   { label:'⚙️ প্রশাসন ও হিসাব',       ids:['stock','salary','attendance','vendor','shareholders','investors','equitysummary','boardofdirectors','funds','testfees','memorandum'] },
 ];
 
+let _moreSheetActiveGroup = {};
 function openRoleMoreSheet(roleKey) {
   const cfg = ROLE_TAB_CONFIG[roleKey];
   const allowed = new Set(getAllowedFeatures(cfg.accessRole));
@@ -19802,37 +19819,25 @@ function openRoleMoreSheet(roleKey) {
     : (currentActivePage || 'dashboard');
   const list = document.getElementById(roleKey + 'MoreSheetList');
   if (list) {
-    // Owner & camper: গ্রুপ ভাগে দেখাও
+    // Owner & camper: ক্যাটাগরি-চিপ + কমপ্যাক্ট রো (প্রতিটা ক্যাটাগরিতে আলাদা ট্যাপ করে দেখতে হবে —
+    // সবকিছু একসাথে স্ক্রল করে দেখতে হয় না)
     if (roleKey === 'owner' || roleKey === 'camper') {
       const groups = (appData.featureGroups && appData.featureGroups.length) ? appData.featureGroups.map(g=>({...g, ids: g.ids||[]})) : FEATURE_GROUPS;
-      let html = '';
-      groups.forEach(group => {
-        const groupItems = group.ids.filter(id => allowed.has(id));
-        if (!groupItems.length) return;
-        html += `<div style="grid-column:1/-1;padding:6px 2px 2px;font-size:11px;font-weight:700;color:var(--primary);border-bottom:1.5px solid var(--border);margin-bottom:2px;">${group.label}</div>`;
-        groupItems.forEach(id => {
-          const f = featureInfo(id);
-          const icon = FEATURE_ICONS[id] || '•';
-          html += `<button type="button" class="${id===currentActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
-        });
-      });
-      // Ungrouped fallback
+      const visibleGroups = groups.filter(g => g.ids.some(id=>allowed.has(id)));
       const grouped = new Set(groups.flatMap(g => g.ids));
       const ungrouped = [...allowed].filter(id => !grouped.has(id));
-      if (ungrouped.length) {
-        html += `<div style="grid-column:1/-1;padding:6px 2px 2px;font-size:11px;font-weight:700;color:var(--primary);border-bottom:1.5px solid var(--border);margin-bottom:2px;">🔧 অন্যান্য</div>`;
-        ungrouped.forEach(id => {
-          const f = featureInfo(id);
-          const icon = FEATURE_ICONS[id] || '•';
-          html += `<button type="button" class="${id===currentActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');"><span class="osl-icon">${icon}</span><span class="osl-label">${f.label}</span></button>`;
-        });
+      const allGroupDefs = visibleGroups.map(g=>({ label:g.label, ids:g.ids.filter(id=>allowed.has(id)) }));
+      if (ungrouped.length) allGroupDefs.push({ label:'🔧 অন্যান্য', ids: ungrouped });
+      if (roleKey === 'owner') allGroupDefs.push({ label:'📋 বোর্ড বার্তা', ids: [], isBoardNotice:true });
+
+      if (!_moreSheetActiveGroup[roleKey] || !allGroupDefs.some(g=>g.label===_moreSheetActiveGroup[roleKey])) {
+        _moreSheetActiveGroup[roleKey] = allGroupDefs.length ? allGroupDefs[0].label : null;
       }
-      // Owner-এর জন্য বোর্ড বার্তা তালিকা বাটন
-      if (roleKey === 'owner') {
-        html += `<div style="grid-column:1/-1;padding:6px 2px 2px;font-size:11px;font-weight:700;color:var(--primary);border-bottom:1.5px solid var(--border);margin-bottom:2px;">📋 বোর্ড বার্তা</div>`;
-        html += `<button type="button" onclick="openOwnerBoardNoticeList();closeRoleMoreSheet('owner');" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:10px;padding:12px 14px;text-align:left"><span class="osl-icon">📢</span><span class="osl-label" style="font-size:13px">পাবলিশ করা বোর্ড বার্তা তালিকা</span></button>`;
+      const groupsWrap = document.getElementById(roleKey + 'MoreSheetGroups');
+      if (groupsWrap) {
+        groupsWrap.innerHTML = allGroupDefs.map(g => `<button type="button" class="rtab-sheet-group-chip ${g.label===_moreSheetActiveGroup[roleKey]?'active':''}" onclick="selectMoreSheetGroup('${roleKey}',${JSON.stringify(g.label)})">${g.label}</button>`).join('');
       }
-      list.innerHTML = html;
+      renderMoreSheetRows(roleKey, allGroupDefs, currentActive);
     } else {
       list.innerHTML = [...allowed].map(id => {
         const f = featureInfo(id);
@@ -19843,6 +19848,34 @@ function openRoleMoreSheet(roleKey) {
   }
   document.getElementById(roleKey + 'SheetBackdrop').classList.add('open');
   document.getElementById(roleKey + 'MoreSheet').classList.add('open');
+}
+function selectMoreSheetGroup(roleKey, label) {
+  _moreSheetActiveGroup[roleKey] = label;
+  openRoleMoreSheet(roleKey);
+}
+function renderMoreSheetRows(roleKey, allGroupDefs, currentActive) {
+  const list = document.getElementById(roleKey + 'MoreSheetList');
+  if (!list) return;
+  const activeGroup = allGroupDefs.find(g=>g.label===_moreSheetActiveGroup[roleKey]) || allGroupDefs[0];
+  if (!activeGroup) { list.innerHTML = '<div style="text-align:center;color:#aaa;padding:30px">কোনো ফিচার নেই</div>'; return; }
+  if (activeGroup.isBoardNotice) {
+    list.innerHTML = `<div class="rtab-sheet-row" onclick="openOwnerBoardNoticeList();closeRoleMoreSheet('owner');">
+      <div class="rsr-icon">📢</div>
+      <div class="rsr-label">পাবলিশ করা বোর্ড বার্তা তালিকা</div>
+      <div class="rsr-chevron">›</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML = activeGroup.ids.length ? activeGroup.ids.map(id => {
+    const f = featureInfo(id);
+    const icon = FEATURE_ICONS[id] || '•';
+    const isActive = id===currentActive;
+    return `<div class="rtab-sheet-row ${isActive?'active':''}" onclick="ROLE_TAB_CONFIG['${roleKey}'].onSelect('${id}');closeRoleMoreSheet('${roleKey}');">
+      <div class="rsr-icon">${icon}</div>
+      <div class="rsr-label">${f.label}</div>
+      ${isActive?'<div style="color:var(--primary);font-size:13px;font-weight:800">●</div>':'<div class="rsr-chevron">›</div>'}
+    </div>`;
+  }).join('') : '<div style="text-align:center;color:#aaa;padding:30px">এই ক্যাটাগরিতে কোনো ফিচার নেই</div>';
 }
 
 function closeRoleMoreSheet(roleKey) {
