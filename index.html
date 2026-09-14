@@ -577,10 +577,38 @@
   body.owner-dark-mode #ownerPage img,
   body.owner-dark-mode #ownerPage svg,
   body.owner-dark-mode #ownerPage video,
-  body.owner-dark-mode #ownerPage canvas,
-  body.owner-dark-mode #ownerPage .rtab-fullpage,
-  body.owner-dark-mode #ownerPage .rtab-sheet-backdrop {
+  body.owner-dark-mode #ownerPage canvas {
     filter:invert(1) hue-rotate(180deg);
+  }
+  /* ---- ownerBottomTabBar / ownerMoreSheet / ownerSheetBackdrop are moved to a direct
+     child of <body> by JS (see initOwnerDarkMode) specifically so they sit OUTSIDE the
+     #ownerPage subtree above. A `filter` on an ancestor makes any `position:fixed`
+     descendant behave like `position:absolute` relative to that ancestor instead of the
+     viewport — that was why the bottom bar (and the "আরো" sheet) scrolled with the page
+     and left extra scrollable space below them in dark mode. Being outside #ownerPage now
+     also means they never receive the invert(1) hue-rotate(180deg) filter at all, which is
+     why the bottom bar's emoji icons no longer get color-shifted — they're styled by hand
+     below instead. */
+  .rtab-fullpage, .rtab-sheet-backdrop { filter:none; }
+  body.owner-dark-mode #ownerBottomTabBar { background:#0f151c; border-top-color:rgba(255,255,255,0.08); box-shadow:0 -6px 20px rgba(0,0,0,0.45); }
+  body.owner-dark-mode #ownerBottomTabBar button { color:#8fa3b8; }
+  body.owner-dark-mode #ownerBottomTabBar button.active { color:var(--primary-light); }
+  /* ---- চার্টের "আকাশ" জোরপূর্বক ডার্ক: এই SVG চার্টগুলো (LandscapeChart/LandscapeRidgeChart/
+     LandscapeDonutChart) ইচ্ছাকৃতভাবে উপরের invert ফিল্টার থেকে বাদ (counter-invert করা), যাতে
+     তাদের রঙিন ডেটা (সবুজ পাহাড়, রঙিন স্লাইস) উল্টে না যায় — কিন্তু এর ফল হিসেবে সাদা
+     "আকাশ" ব্যাকগ্রাউন্ড/হোলটাও ডার্ক মোডে সাদাই থেকে যায়। তাই সেই সাদা অংশটুকু নির্দিষ্টভাবে
+     গাঢ় রঙে force করা হলো, মূল ডেটার রঙ অক্ষত রেখে। */
+  body.owner-dark-mode #ownerPage .lc-layer-sky rect,
+  body.owner-dark-mode #ownerPage .lcr-layer-sky rect,
+  body.owner-dark-mode #ownerPage .lcd-layer-sky circle {
+    fill:#0f1720 !important;
+  }
+  body.owner-dark-mode #ownerPage .lc-sun,
+  body.owner-dark-mode #ownerPage .lc-clouds,
+  body.owner-dark-mode #ownerPage .lc-birds,
+  body.owner-dark-mode #ownerPage .lcr-layer-sky ellipse,
+  body.owner-dark-mode #ownerPage .lcd-layer-sky ellipse {
+    display:none;
   }
   .rtab-customizer-row { display:flex; align-items:center; gap:12px; padding:11px 6px; border-bottom:1px solid #eef2f6; }
   .rtab-customizer-row .otc-icon { font-size:19px; width:26px; text-align:center; }
@@ -19957,6 +19985,15 @@ function setOwnerDarkMode(on) {
   document.body.classList.toggle('owner-dark-mode', on);
 }
 (function initOwnerDarkMode(){
+  // বটম ট্যাব বার + "আরো" শিট/ব্যাকড্রপ-কে #ownerPage থেকে সরিয়ে সরাসরি <body>-এর সন্তান
+  // বানানো হলো, যাতে #ownerPage-এর ডার্ক-মোড filter (ancestor) এদের position:fixed-কে
+  // viewport-এর বদলে #ownerPage-এর box-এর সাপেক্ষে বানিয়ে না ফেলে (এটাই বটম বার স্ক্রল
+  // হওয়া আর নিচে অতিরিক্ত স্ক্রল-স্পেস দেখা দেওয়ার আসল কারণ ছিল)। বাইরে চলে যাওয়ায় এদের
+  // ইমোজি আইকনও আর invert ফিল্টারে রঙ বদলাবে না।
+  ['ownerBottomTabBar', 'ownerSheetBackdrop', 'ownerMoreSheet'].forEach(function(id){
+    const node = document.getElementById(id);
+    if (node && node.parentElement !== document.body) document.body.appendChild(node);
+  });
   const on = localStorage.getItem('iconHmsOwnerDarkMode') === '1';
   document.body.classList.toggle('owner-dark-mode', on);
   const el = document.getElementById('ownerDarkModeToggle');
