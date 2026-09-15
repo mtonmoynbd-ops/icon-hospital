@@ -21379,13 +21379,16 @@ function printFullTutorialBook(which) {
 
   win.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8">
   <title>${esc(bookTitle)} — ${esc(hospName)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     @page { size:A4; margin:16mm 15mm 18mm; }
-    *{box-sizing:border-box}
-    body{font-family:'Hind Siliguri',Arial,sans-serif;color:#1c2536;margin:0;padding:26px 30px 40px;line-height:1.85;background:#fff;}
+    *{box-sizing:border-box; font-family:'Hind Siliguri',Arial,sans-serif;}
+    body{color:#1c2536;margin:0;padding:26px 30px 40px;line-height:1.85;background:#fff;}
     .noprint{position:sticky;top:0;background:#fff;padding:10px 0 16px;text-align:center;border-bottom:1px solid #e2e8f0;margin-bottom:22px;z-index:5}
     .noprint button{padding:11px 26px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;border:none;border-radius:9px;background:#1e3a8a;color:#fff}
+    .noprint button:disabled{background:#94a3b8;cursor:wait}
     .noprint p{font-size:12px;color:#64748b;margin:9px 0 0}
 
     .cover{text-align:center;padding:60px 20px 40px;border:3px double #1e3a8a;border-radius:14px;margin-bottom:26px}
@@ -21425,9 +21428,23 @@ function printFullTutorialBook(which) {
     @media print { .noprint{display:none!important} body{padding:0} .cover{border-color:#334155} }
   </style></head><body>
   <div class="noprint">
-    <button onclick="window.print()">🖨️ প্রিন্ট করুন / PDF সেভ করুন</button>
+    <button id="tutBookPrintBtn" onclick="window.print()" disabled>⏳ ফন্ট লোড হচ্ছে...</button>
     <p>প্রিন্ট উইন্ডোতে প্রিন্টার হিসেবে "Save as PDF" বাছলে ফাইলটা সেভ হয়ে যাবে।</p>
   </div>
+  <scr` + `ipt>
+    // অ্যাপের বাকি সব PDF এক্সপোর্টের মতোই — Hind Siliguri ফন্ট সম্পূর্ণ লোড না হওয়া পর্যন্ত
+    // প্রিন্ট বাটন বন্ধ রাখা হয়, নাহলে সিস্টেম ফন্টে ছাপা হয়ে দেখতে খারাপ লাগে
+    (function () {
+      var btn = document.getElementById('tutBookPrintBtn');
+      function ready() { if (btn) { btn.disabled = false; btn.textContent = '🖨️ প্রিন্ট করুন / PDF সেভ করুন'; } }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.load('700 16px "Hind Siliguri"');
+        document.fonts.load('400 16px "Hind Siliguri"');
+        document.fonts.ready.then(ready).catch(ready);
+      }
+      setTimeout(ready, 2500); // ধীরগতির নেটওয়ার্কেও বেশিক্ষণ আটকে থাকবে না
+    })();
+  <` + `/script>
 
   <div class="cover">
     <div class="c-hosp">${esc(hospName)}</div>
