@@ -20326,6 +20326,21 @@ function openRoleFeature(feature) {
   const role = currentUser.role;
   if (!canAccess(role, feature) && role !== 'admin') return;
   if (role === 'owner') {
+    // বোর্ড বার্তা পেজ (তালিকা বা কোনো বার্তার ডিটেইল) খোলা থাকলে সেটা ফুল-স্ক্রিন ওভারলে হয়ে
+    // নিচের কনটেন্ট ঢেকে রাখে — বটম ট্যাব থেকে অন্য ফিচারে গেলে সেটা নিজে থেকে বন্ধ না হলে
+    // ফিচার আসলে পাল্টে গেলেও ওভারলের কারণে কিছুই দেখা যায় না (শুধু "ফিরুন" কাজ করতে দেখা যায়)।
+    // তাই এখানে অন্য কোনো ফিচারে যাওয়ার আগে সেটা বন্ধ করে দেওয়া হলো।
+    const bnPage = document.getElementById('ownerBoardNoticePage');
+    if (bnPage && bnPage.style.display !== 'none') {
+      bnPage.style.display = 'none';
+      const listDiv = document.getElementById('ownerBnListMode');
+      if (listDiv) listDiv.style.display = 'none';
+      const scaleInner = document.getElementById('ownerBnScaleInner');
+      const scaleWrap = scaleInner ? scaleInner.parentElement : null;
+      if (scaleWrap) scaleWrap.style.display = '';
+      if (typeof hideOwnerBnFontBar === 'function') hideOwnerBnFontBar();
+      _ownerCurrentNoticeId = null;
+    }
     // Owner সর্বদা ownerPage-এ থাকবে, কখনো sidebar/appPage-এ যাবে না
     currentOwnerActiveFeature = feature;
     setPageVisible('ownerPage');
