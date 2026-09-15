@@ -3028,6 +3028,15 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 
     <!-- CAMP -->
     <div id="pg-camp" class="page-view">
+      <!-- ⚠️ মেয়াদোত্তীর্ণ ক্যাম্প — শিডিউল করা ছিল কিন্তু তারিখ পার হয়ে গেছে, এখনো একটিভ/ক্লোজ করা হয়নি।
+           তালিকায় ডেটা থাকলেই দেখা যাবে (renderOverdueCampSchedule), না থাকলে পুরো প্যানেল লুকানো থাকবে। -->
+      <div class="panel" id="campOverduePanelWrap" style="display:none;border:1.5px solid var(--danger)">
+        <div class="panel-header"><div class="panel-title" style="color:var(--danger)">⚠️ মেয়াদোত্তীর্ণ ক্যাম্প (অ্যাকশন প্রয়োজন)</div></div>
+        <div class="panel-body"><div class="table-wrap"><table>
+          <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>ডাক্তার</th><th>অ্যাকশন</th></tr></thead>
+          <tbody id="campOverdueScheduleTable"></tbody>
+        </table></div></div>
+      </div>
       <!-- আসন্ন ক্যাম্প শিডিউল (এডমিন সেটিংস/ড্যাশবোর্ড ও রিসেপশন প্যানেলের সাথে একই শেয়ার্ড ডেটা — renderRecCampSchedule) -->
       <div class="panel">
         <div class="panel-header"><div class="panel-title">⛺ আসন্ন ক্যাম্প শিডিউল</div></div>
@@ -8299,6 +8308,40 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
   </div>
 </div>
 
+<!-- OVERDUE CAMP SCHEDULE MODAL — যেসব শিডিউল্ড ক্যাম্পের তারিখ পার হয়ে গেছে সেগুলো বাতিল বা রি-শিডিউল
+     করার জন্য (উভয় ক্ষেত্রেই সংক্ষিপ্ত কারণ বাধ্যতামূলক) — দ্রষ্টব্য openOverdueCampModal/saveOverdueCampAction -->
+<div class="modal-overlay" id="overdueCampModal">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">⚠️ মেয়াদোত্তীর্ণ ক্যাম্প — অ্যাকশন নিন</div>
+    <input type="hidden" id="ocmScheduleId">
+    <div class="field" style="margin-bottom:14px">
+      <label>ক্যাম্প</label>
+      <input type="text" id="ocmCampNameDisplay" readonly style="background:#f8fafc;font-weight:600;color:var(--primary)">
+    </div>
+    <div class="form-row">
+      <div class="field"><label>নির্ধারিত তারিখ ছিল</label><input type="text" id="ocmOldDateDisplay" readonly style="background:#f8fafc"></div>
+      <div class="field"><label>অ্যাকশন *</label>
+        <select id="ocmAction" onchange="toggleOcmNewDateField()">
+          <option value="reschedule">📅 রি-শিডিউল করুন</option>
+          <option value="cancel">❌ বাতিল করুন</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="ocmNewDateField">
+      <label>নতুন তারিখ *</label>
+      <input type="date" id="ocmNewDate">
+    </div>
+    <div class="field">
+      <label id="ocmReasonLabel">কারণ *</label>
+      <textarea id="ocmReason" rows="2" placeholder="সংক্ষিপ্ত কারণ লিখুন..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOverdueCampModal()">বন্ধ করুন</button>
+      <button class="btn btn-danger" id="ocmSubmitBtn" onclick="saveOverdueCampAction()">📅 রি-শিডিউল নিশ্চিত করুন</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRE-CAMP EXPENSE MODAL — শিডিউল করা (এখনো ক্লোজ হয়নি এমন) ক্যাম্পের বিপরীতে ক্যাম্প শুরুর আগেই
      প্রচারণা/যাতায়াত/মাইকিং ইত্যাদি খরচ এন্ট্রি দেওয়ার জন্য। এই এন্ট্রি সাথে সাথে appData.expense-এ
      নিজস্ব ভাউচারসহ ঢোকে (campId ট্যাগসহ), এবং ক্যাম্প ক্লোজ হওয়ার সময় finalizeCampClose() ঐ ক্যাম্পের
@@ -12016,7 +12059,7 @@ function openPreCampExpModal(scheduleId) {
     // ব্যয় পেজের "প্রি-ক্যাম্প খরচ" বাটন থেকে খোলা হলে — নির্দিষ্ট কোনো ক্যাম্প প্রি-সিলেক্টেড থাকে না,
     // তাই এখনও ক্লোজ হয়নি এমন সব শিডিউল করা ক্যাম্প দেখিয়ে বেছে নিতে দিতে হবে
     const sel = document.getElementById('pceCampSelect');
-    const list = (appData.campSchedules||[]).filter(s => s.status !== 'closed').sort((a,b)=>a.date.localeCompare(b.date));
+    const list = (appData.campSchedules||[]).filter(s => s.status !== 'closed' && s.status !== 'cancelled').sort((a,b)=>a.date.localeCompare(b.date));
     if (!list.length) { showToast('⚠️ কোনো শিডিউল করা ক্যাম্প (যা এখনো ক্লোজ হয়নি) নেই!'); return; }
     sel.innerHTML = '<option value="">-- ক্যাম্প নির্বাচন করুন --</option>' + list.map(s => `<option value="${s.id}">${formatDate(s.date)} — ${s.name} (${s.location})</option>`).join('');
     selectField.style.display = '';
@@ -22260,7 +22303,7 @@ function renderCampScheduleTable() {
     <td style="color:var(--success);font-weight:600">৳ ${fmt(s.visitFee||0)}</td>
     <td style="font-size:12px">${s.camper||'—'}</td>
     <td style="font-size:12px">${s.staff||'—'}</td>
-    <td><span class="badge ${s.status==='closed'?'badge-danger':s.status==='active'?'badge-success':'badge-info'}">${s.status==='closed'?'সম্পন্ন':s.status==='active'?'সক্রিয়':'নির্ধারিত'}</span></td>
+    <td><span class="badge ${s.status==='closed'?'badge-danger':s.status==='active'?'badge-success':s.status==='cancelled'?'badge-danger':'badge-info'}">${s.status==='closed'?'সম্পন্ন':s.status==='active'?'সক্রিয়':s.status==='cancelled'?'❌ বাতিল':'নির্ধারিত'}</span>${s.status==='cancelled'&&s.cancelReason?`<div style="font-size:10.5px;color:var(--text-light);margin-top:2px">কারণ: ${s.cancelReason}</div>`:''}${(s.rescheduleHistory&&s.rescheduleHistory.length)?`<div style="font-size:10.5px;color:var(--text-light);margin-top:2px">🔁 রি-শিডিউল হয়েছে ${s.rescheduleHistory.length} বার</div>`:''}</td>
     <td style="display:flex;gap:4px">
       <button class="btn btn-primary btn-sm" onclick="editCampSchedule(${s.id})">✏️</button>
       <button class="btn btn-danger btn-sm" onclick="deleteCampSchedule(${s.id})">🗑️</button>
@@ -23396,7 +23439,7 @@ function buildReadOnlyHTML(feature, role) {
 function populateCampScheduleDropdown() {
   const sel = document.getElementById('cpCampSelect');
   if (!sel) return;
-  const schedules = (appData.campSchedules||[]).filter(s => s.status !== 'closed');
+  const schedules = (appData.campSchedules||[]).filter(s => s.status !== 'closed' && s.status !== 'cancelled');
   sel.innerHTML = '<option value="">-- ক্যাম্প বেছে নিন --</option>';
   schedules.forEach(s => {
     sel.innerHTML += `<option value="${s.id}">${s.name} — ${s.location} (${formatDate(s.date)})</option>`;
@@ -24789,7 +24832,10 @@ function getNotifData() {
   const pendingExpApprovals = (currentUser && ['admin','moderator'].includes(currentUser.role))
     ? (appData.expense||[]).filter(e=>e.needsApproval && e.status==='pending' && !e.rejected).sort((a,b)=>b.id-a.id)
     : [];
-  return { pendingDemands, dueVisits, checkReminders, pendingExpApprovals };
+  // ✅ মেয়াদোত্তীর্ণ শিডিউল্ড ক্যাম্প (তারিখ পার হয়ে গেছে কিন্তু এখনো একটিভ/ক্লোজ করা হয়নি) — এডমিন/মডারেটরকে
+  // বাতিল বা রি-শিডিউল করার জন্য নোটিফাই করা হয়
+  const overdueCamps = (typeof getOverdueCampSchedules==='function') ? getOverdueCampSchedules() : [];
+  return { pendingDemands, dueVisits, checkReminders, pendingExpApprovals, overdueCamps };
 }
 // ✅ বেলে ক্লিক করে একবার নোটিফিকেশন প্যানেল খুললে সেগুলোকে "দেখা হয়ে গেছে" হিসেবে মনে রাখা হয়
 // (লোকালস্টোরেজে, ইউজারভিত্তিক) — তারপর ব্যাজে আর সংখ্যা দেখাবে না, যতক্ষণ না নতুন কোনো
@@ -24797,12 +24843,13 @@ function getNotifData() {
 function _notifSeenKey() {
   return 'hms_notif_seen_' + ((currentUser && currentUser.username) || 'anon');
 }
-function _notifIdList({ pendingDemands, dueVisits, checkReminders, pendingExpApprovals }) {
+function _notifIdList({ pendingDemands, dueVisits, checkReminders, pendingExpApprovals, overdueCamps }) {
   return [
     ...pendingDemands.map(d => 'd' + d.id),
     ...dueVisits.map(v => 'v' + v.id + '_' + v.due),
     ...checkReminders.map(r => 'c' + (r.id!==undefined ? r.id : r.text) + '_' + r.type),
-    ...(pendingExpApprovals||[]).map(e => 'e' + e.id + '_' + (e.approvalRequestedAt||''))
+    ...(pendingExpApprovals||[]).map(e => 'e' + e.id + '_' + (e.approvalRequestedAt||'')),
+    ...(overdueCamps||[]).map(s => 'o' + s.id + '_' + s.date)
   ];
 }
 function _getNotifSeenSet() {
@@ -24876,12 +24923,23 @@ function renderNotifBellPanel() {
   const panel = document.getElementById('notifBellPanel');
   if (!panel) return;
   const seen = _getNotifSeenSet();
-  const { pendingDemands: pd0, dueVisits: dv0, checkReminders: cr0, pendingExpApprovals: pe0 } = getNotifData();
+  const { pendingDemands: pd0, dueVisits: dv0, checkReminders: cr0, pendingExpApprovals: pe0, overdueCamps: oc0 } = getNotifData();
   const pendingDemands = pd0.filter(d => !seen.has('d'+d.id));
   const dueVisits = dv0.filter(v => !seen.has('v'+v.id+'_'+v.due));
   const checkReminders = cr0.filter(r => !seen.has('c'+(r.id!==undefined?r.id:r.text)+'_'+r.type));
   const pendingExpApprovals = (pe0||[]).filter(e => !seen.has('e'+e.id+'_'+(e.approvalRequestedAt||'')));
+  const overdueCamps = (oc0||[]).filter(s => !seen.has('o'+s.id+'_'+s.date));
   let html = '';
+
+  if (overdueCamps.length) {
+    html += `<div class="notif-bell-section-title">⛺ মেয়াদোত্তীর্ণ ক্যাম্প (${overdueCamps.length}টি)</div>`;
+    overdueCamps.slice(0,5).forEach(s => {
+      html += `<div class="notif-bell-item" onclick="notifBellGo('o${s.id}_${s.date}','camp','overdue-camp-row-${s.id}')">
+        <span class="nb-dot" style="background:#e74c3c"></span>
+        <span style="flex:1"><strong>${s.name}</strong> — ${s.location}<br><span style="color:var(--text-light);font-size:11px">নির্ধারিত ছিল: ${formatDate(s.date)} — বাতিল/রি-শিডিউল প্রয়োজন</span></span>
+      </div>`;
+    });
+  }
 
   if (pendingExpApprovals.length) {
     const totalAmt = pendingExpApprovals.reduce((s,e)=>s+e.amount,0);
@@ -31387,8 +31445,8 @@ function renderServiceCatalog() {
 var _CAMPSCHED_TABLE_IDS = ['recCampScheduleTable','admCampScheduleTable','campPageCampScheduleTable'];
 function renderRecCampSchedule() {
   var today = todayStr();
-  var list = (appData.campSchedules||[]).filter(function(s){ return s.date>=today && s.status!=='closed'; }).sort(function(a,b){ return a.date.localeCompare(b.date); });
-  var statusLabels = { scheduled:'নির্ধারিত', active:'সক্রিয়', closed:'সম্পন্ন' };
+  var list = (appData.campSchedules||[]).filter(function(s){ return s.date>=today && s.status!=='closed' && s.status!=='cancelled'; }).sort(function(a,b){ return a.date.localeCompare(b.date); });
+  var statusLabels = { scheduled:'নির্ধারিত', active:'সক্রিয়', closed:'সম্পন্ন', cancelled:'❌ বাতিল' };
   var rowsHtml = !list.length ? '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">কোনো আসন্ন ক্যাম্প নেই</td></tr>' : list.map(function(s){
     return '<tr>'
       +'<td>'+formatDate(s.date)+(s.date===today?' <span style="color:var(--primary);font-weight:700">(আজ)</span>':'')+'</td>'
@@ -31399,6 +31457,81 @@ function renderRecCampSchedule() {
       +'</tr>';
   }).join('');
   _CAMPSCHED_TABLE_IDS.forEach(function(id){ var tbody=document.getElementById(id); if(tbody) tbody.innerHTML=rowsHtml; });
+  if (typeof renderOverdueCampSchedule==='function') renderOverdueCampSchedule();
+}
+
+// ⚠️ মেয়াদোত্তীর্ণ ক্যাম্প — যেসব শিডিউল্ড (status==='scheduled') ক্যাম্পের তারিখ পার হয়ে গেছে কিন্তু
+// এখনো একটিভ/ক্লোজ করা হয়নি। এগুলো "আসন্ন ক্যাম্প শিডিউল" টেবিল থেকে বাদ পড়ে যায় (renderRecCampSchedule এর
+// তারিখ-ফিল্টারের কারণে), তাই এডমিন ক্যাম্প রেকর্ড পেজে আলাদাভাবে দেখিয়ে বাতিল বা রি-শিডিউল করার সুযোগ দেওয়া হয়।
+function getOverdueCampSchedules() {
+  var today = todayStr();
+  return (appData.campSchedules||[]).filter(function(s){ return s.status==='scheduled' && s.date<today; }).sort(function(a,b){ return a.date.localeCompare(b.date); });
+}
+function renderOverdueCampSchedule() {
+  var tbody = document.getElementById('campOverdueScheduleTable');
+  if (!tbody) return;
+  var list = getOverdueCampSchedules();
+  var wrap = document.getElementById('campOverduePanelWrap');
+  if (wrap) wrap.style.display = list.length ? 'block' : 'none';
+  tbody.innerHTML = list.map(function(s){
+    return '<tr id="overdue-camp-row-'+s.id+'">'
+      +'<td>'+formatDate(s.date)+' <span style="color:var(--danger);font-weight:700;font-size:11px">(মেয়াদোত্তীর্ণ)</span></td>'
+      +'<td style="font-weight:600">'+s.name+'</td>'
+      +'<td>'+s.location+'</td>'
+      +'<td>'+(s.doctor||'—')+'</td>'
+      +'<td><button class="btn btn-warning btn-sm" onclick="openOverdueCampModal('+s.id+')">⚠️ অ্যাকশন নিন</button></td>'
+      +'</tr>';
+  }).join('');
+  if (typeof updateNotifBell==='function') updateNotifBell();
+}
+// ✅ মেয়াদোত্তীর্ণ ক্যাম্প বাতিল বা রি-শিডিউল করার মডাল
+function openOverdueCampModal(id) {
+  var s = (appData.campSchedules||[]).find(function(x){ return x.id===id; });
+  if (!s) return;
+  document.getElementById('ocmScheduleId').value = id;
+  document.getElementById('ocmCampNameDisplay').value = s.name + ' — ' + s.location;
+  document.getElementById('ocmOldDateDisplay').value = formatDate(s.date);
+  document.getElementById('ocmAction').value = 'reschedule';
+  document.getElementById('ocmNewDate').value = '';
+  document.getElementById('ocmReason').value = '';
+  toggleOcmNewDateField();
+  document.getElementById('overdueCampModal').classList.add('open');
+}
+function closeOverdueCampModal() {
+  document.getElementById('overdueCampModal').classList.remove('open');
+}
+function toggleOcmNewDateField() {
+  var action = document.getElementById('ocmAction').value;
+  document.getElementById('ocmNewDateField').style.display = action==='reschedule' ? 'block' : 'none';
+  document.getElementById('ocmReasonLabel').textContent = action==='cancel' ? 'বাতিলের কারণ *' : 'রি-শিডিউলের কারণ *';
+  document.getElementById('ocmSubmitBtn').textContent = action==='cancel' ? '❌ বাতিল নিশ্চিত করুন' : '📅 রি-শিডিউল নিশ্চিত করুন';
+}
+function saveOverdueCampAction() {
+  var id = Number(document.getElementById('ocmScheduleId').value);
+  var s = (appData.campSchedules||[]).find(function(x){ return x.id===id; });
+  if (!s) return;
+  var action = document.getElementById('ocmAction').value;
+  var reason = (document.getElementById('ocmReason').value||'').trim();
+  if (!reason) { alert('অনুগ্রহ করে সংক্ষিপ্ত কারণ লিখুন।'); return; }
+  var who = (currentUser && (currentUser.name || currentUser.username)) || '';
+  if (action === 'cancel') {
+    s.status = 'cancelled';
+    s.cancelReason = reason;
+    s.cancelledAt = Date.now();
+    s.cancelledBy = who;
+  } else {
+    var newDate = document.getElementById('ocmNewDate').value;
+    var today = todayStr();
+    if (!newDate) { alert('অনুগ্রহ করে নতুন তারিখ নির্বাচন করুন।'); return; }
+    if (newDate < today) { alert('নতুন তারিখ আজ অথবা তার পরের হতে হবে।'); return; }
+    if (!s.rescheduleHistory) s.rescheduleHistory = [];
+    s.rescheduleHistory.push({ oldDate: s.date, newDate: newDate, reason: reason, by: who, at: Date.now() });
+    s.date = newDate;
+    s.status = 'scheduled';
+  }
+  saveData();
+  closeOverdueCampModal();
+  renderRecCampSchedule();
 }
 
 
