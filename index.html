@@ -957,12 +957,15 @@
   .tut-nav-btn { background:#fff; border:1.5px solid var(--border); border-radius:8px; padding:7px 13px; font-family:inherit; font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; }
   .tut-nav-btn:hover:not(:disabled) { background:#eef4ff; border-color:var(--primary); }
   .tut-nav-btn:disabled { opacity:.35; cursor:not-allowed; }
-  .tut-print-btn { margin-left:auto; background:var(--primary); color:#fff; border:none; border-radius:8px; padding:8px 15px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+  .tut-book-btn { display:inline-flex; align-items:center; gap:7px; background:linear-gradient(135deg,#1e3a8a,#3b5bdb); color:#fff; border:none; border-radius:10px; padding:10px 17px; font-family:'Hind Siliguri',sans-serif; font-size:12.5px; font-weight:700; cursor:pointer; box-shadow:0 3px 10px rgba(30,58,138,0.22); }
+  .tut-book-btn:hover { filter:brightness(1.08); }
+  .tut-book-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#f4f7fc; border:1.5px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+  .tut-book-bar .tbb-text { flex:1; min-width:170px; font-size:11.5px; color:var(--text-light); line-height:1.7; }
 
-  /* রিসেপশন হেডারের টিউটোরিয়াল বাটন */
-  .rec-user-info.rec-tut-btn { background:rgba(255,255,255,0.13); border:1.5px solid rgba(255,255,255,0.3); border-radius:11px; padding:6px 13px; cursor:pointer; font-family:'Hind Siliguri',sans-serif; text-align:right; transition:all .18s; display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
-  .rec-user-info.rec-tut-btn:hover { background:rgba(255,255,255,0.26); border-color:rgba(255,255,255,0.6); }
-  .rec-user-info.rec-tut-btn .rtb-hint { font-size:9px; opacity:.85; font-weight:700; letter-spacing:.2px; }
+  /* রিসেপশন হেডারের টিউটোরিয়াল বাটন — দেখতে আগের টেক্সট ব্লকের মতোই, কোনো বর্ডার/ব্যাকগ্রাউন্ড নেই */
+  .rec-user-info.rec-tut-btn { background:none; border:none; outline:none; box-shadow:none; padding:0; margin:0; cursor:pointer; font-family:'Hind Siliguri',sans-serif; text-align:right; display:block; -webkit-appearance:none; appearance:none; transition:opacity .15s; }
+  .rec-user-info.rec-tut-btn:hover { opacity:.72; }
+  .rec-user-info.rec-tut-btn:focus, .rec-user-info.rec-tut-btn:focus-visible, .rec-user-info.rec-tut-btn:active { outline:none; border:none; box-shadow:none; }
 
   /* রিসেপশন টিউটোরিয়াল হাব মোডাল */
   .tut-hub-modal { width:660px !important; padding:0 !important; overflow:hidden !important; display:flex; flex-direction:column; }
@@ -977,13 +980,6 @@
     .tut-modal, .tut-hub-modal { width:96vw !important; }
     .tut-modal-head { padding:14px 16px; }
     .tut-modal-body { padding:14px 16px 18px; }
-  }
-  @media print {
-    body * { visibility:hidden !important; }
-    #tutorialModal, #tutorialModal * { visibility:visible !important; }
-    #tutorialModal { position:absolute !important; inset:0 !important; background:#fff !important; display:block !important; }
-    .tut-modal { width:100% !important; max-height:none !important; box-shadow:none !important; }
-    .tut-modal-foot, .tmh-close { display:none !important; }
   }
   [data-settings-section] { display:none; }
   [data-settings-section].settings-section-active { display:block; }
@@ -5891,6 +5887,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:4px">📚 টিউটোরিয়াল</div>
             <div style="font-size:12px;color:var(--text-light)">যে পেজ বা ফিচার সম্পর্কে জানতে চান তার কার্ডে ক্লিক করুন — সহজ ভাষায় ধাপে ধাপে বোঝানো আছে। নতুন এডমিন/স্টাফকে দেখিয়ে দিলে দ্রুত শিখে যাবেন।</div>
           </div>
+          <div class="tut-book-bar">
+            <div class="tbb-text">📖 পুরো এডমিন টিউটোরিয়াল একসাথে একটা বই আকারে PDF করে নিতে পারেন — সূচিপত্রসহ, অবসরে পড়ার জন্য।</div>
+            <button type="button" class="tut-book-btn" onclick="printFullTutorialBook('admin')">📕 সম্পূর্ণ টিউটোরিয়াল PDF</button>
+          </div>
           <div class="tut-search-wrap">
             <input type="text" id="tutAdminSearch" placeholder="টিউটোরিয়াল খুঁজুন... (যেমন: বিল, স্টক, ইনভেস্টর)" oninput="renderTutorialGrid('admin','tutAdminGrid',this.value)">
           </div>
@@ -7583,10 +7583,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:14px">
-      <button type="button" class="rec-user-info rec-tut-btn" onclick="openRecTutorialHub()" title="রিসেপশন প্যানেলের টিউটোরিয়াল দেখুন — কোন পেজ কীভাবে কাজ করে">
+      <button type="button" class="rec-user-info rec-tut-btn" onclick="openRecTutorialHub()" title="টিউটোরিয়াল দেখুন">
         <div class="rec-user-name">রিসেপশনিস্ট</div>
         <div class="rec-user-role" id="recUserName"></div>
-        <div class="rtb-hint">📚 টিউটোরিয়াল দেখুন</div>
       </button>
       <div class="notif-bell-wrap" id="recNotifBellWrap">
         <button type="button" class="notif-bell-btn" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:white" onclick="toggleRecNotifBell(event)" title="নোটিফিকেশন">
@@ -8552,7 +8551,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <button type="button" class="tut-nav-btn" id="tutPrevBtn" onclick="tutStep(-1)">← আগেরটা</button>
       <span id="tutPosLabel" style="font-size:11.5px;color:var(--text-light);font-weight:700"></span>
       <button type="button" class="tut-nav-btn" id="tutNextBtn" onclick="tutStep(1)">পরেরটা →</button>
-      <button type="button" class="tut-print-btn" onclick="printTutorial()">🖨️ প্রিন্ট / PDF</button>
+      <button type="button" class="tut-nav-btn" style="margin-left:auto" onclick="closeTutorial()">বন্ধ করুন</button>
     </div>
   </div>
 </div>
@@ -8569,6 +8568,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <button class="tmh-close" onclick="closeRecTutorialHub()" title="বন্ধ করুন">✕</button>
     </div>
     <div class="tut-hub-body">
+      <div class="tut-book-bar">
+        <div class="tbb-text">📖 রিসেপশন প্যানেলের পুরো টিউটোরিয়াল একসাথে বই আকারে PDF করে নিন — বাসায় বা অবসরে পড়া যাবে।</div>
+        <button type="button" class="tut-book-btn" onclick="printFullTutorialBook('rec')">📕 সম্পূর্ণ টিউটোরিয়াল PDF</button>
+      </div>
       <div class="tut-search-wrap">
         <input type="text" id="tutRecSearch" placeholder="খুঁজুন... (যেমন: বিল, বাকি, ডেলিভারি, ক্যাশ)" oninput="renderTutorialGrid('rec','tutRecGrid',this.value)">
       </div>
@@ -21335,7 +21338,114 @@ function closeTutorial() {
   if (ov) ov.classList.remove('open');
 }
 
-function printTutorial() { window.print(); }
+// ===== 📕 সম্পূর্ণ টিউটোরিয়াল বই আকারে PDF =====
+// পেজ/ফিচার-ওয়াইজ নয় — পুরো সেট (এডমিন বা রিসেপশন) একসাথে:
+// কভার পেজ → সূচিপত্র → গ্রুপ-ওয়াইজ প্রতিটা অধ্যায় (প্রতিটা নতুন পেজে শুরু)
+function printFullTutorialBook(which) {
+  const set = tutSet(which);
+  const flat = tutFlat(which);
+  if (!flat.length) return;
+  const hospName = (typeof appData !== 'undefined' && appData.settings && appData.settings.hospName) ? appData.settings.hospName : 'ICON Eye Hospital';
+  const bookTitle = (which === 'rec') ? 'রিসেপশন প্যানেল — ব্যবহার নির্দেশিকা' : 'এডমিন প্যানেল — ব্যবহার নির্দেশিকা';
+  const esc = v => String(v == null ? '' : v);
+  const today = new Date().toLocaleDateString('bn-BD', { year:'numeric', month:'long', day:'numeric' });
+
+  let no = 0;
+  const toc = set.map(g => {
+    const rows = g.items.map(t => { no++; return `<div class="toc-row"><span class="toc-n">${no}</span><span class="toc-i">${t.icon}</span><span class="toc-l">${esc(t.label)}</span><span class="toc-d">${esc(t.desc)}</span></div>`; }).join('');
+    return `<div class="toc-group">${esc(g.group)}</div>${rows}`;
+  }).join('');
+
+  let cn = 0;
+  const chapters = set.map(g => {
+    const secs = g.items.map(t => {
+      cn++;
+      let h = `<section class="chapter">
+        <div class="ch-kicker">${esc(g.group)}</div>
+        <h2 class="ch-title"><span class="ch-num">${cn}</span> <span class="ch-ico">${t.icon}</span> ${esc(t.label)}</h2>
+        <div class="ch-desc">${esc(t.desc)}</div>
+        <div class="ch-what">${esc(t.what)}</div>`;
+      if (t.steps && t.steps.length) h += `<h3 class="ch-sec">📝 কীভাবে ব্যবহার করবেন</h3><ol class="ch-steps">${t.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`;
+      if (t.tips && t.tips.length) h += `<h3 class="ch-sec">💡 কাজে লাগবে</h3><ul class="ch-tips">${t.tips.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+      if (t.warns && t.warns.length) h += `<h3 class="ch-sec">⚠️ খেয়াল রাখুন</h3><ul class="ch-warns">${t.warns.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+      h += `</section>`;
+      return h;
+    }).join('');
+    return secs;
+  }).join('');
+
+  const win = window.open('', '_blank', 'width=900,height=1000');
+  if (!win) { if (typeof showToast === 'function') showToast('⚠️ পপ-আপ ব্লক করা আছে — ব্রাউজারের সেটিংস থেকে এই সাইটের জন্য পপ-আপ অনুমতি দিন'); return; }
+
+  win.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8">
+  <title>${esc(bookTitle)} — ${esc(hospName)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size:A4; margin:16mm 15mm 18mm; }
+    *{box-sizing:border-box}
+    body{font-family:'Hind Siliguri',Arial,sans-serif;color:#1c2536;margin:0;padding:26px 30px 40px;line-height:1.85;background:#fff;}
+    .noprint{position:sticky;top:0;background:#fff;padding:10px 0 16px;text-align:center;border-bottom:1px solid #e2e8f0;margin-bottom:22px;z-index:5}
+    .noprint button{padding:11px 26px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;border:none;border-radius:9px;background:#1e3a8a;color:#fff}
+    .noprint p{font-size:12px;color:#64748b;margin:9px 0 0}
+
+    .cover{text-align:center;padding:60px 20px 40px;border:3px double #1e3a8a;border-radius:14px;margin-bottom:26px}
+    .cover .c-hosp{font-size:13px;letter-spacing:1px;color:#64748b;font-weight:700}
+    .cover .c-ico{font-size:52px;margin:18px 0 10px}
+    .cover .c-title{font-size:27px;font-weight:700;color:#0f2346;margin-bottom:8px}
+    .cover .c-sub{font-size:13px;color:#475569}
+    .cover .c-meta{margin-top:26px;font-size:11.5px;color:#94a3b8}
+
+    h1.sec-h{font-size:19px;color:#0f2346;border-bottom:2.5px solid #1e3a8a;padding-bottom:7px;margin:0 0 14px}
+    .toc-group{font-size:13px;font-weight:700;color:#1e3a8a;margin:15px 0 7px;padding-bottom:4px;border-bottom:1px dashed #cbd5e1}
+    .toc-row{display:flex;align-items:baseline;gap:8px;font-size:12px;padding:3px 0}
+    .toc-n{min-width:22px;font-weight:700;color:#1e3a8a}
+    .toc-i{min-width:17px}
+    .toc-l{font-weight:700;min-width:145px}
+    .toc-d{color:#64748b;font-size:11px}
+
+    .chapter{page-break-before:always;break-before:page;padding-top:4px}
+    .ch-kicker{font-size:10.5px;font-weight:700;color:#94a3b8;letter-spacing:.4px;margin-bottom:4px}
+    .ch-title{font-size:19px;color:#0f2346;margin:0 0 4px;display:flex;align-items:center;gap:9px}
+    .ch-num{display:inline-flex;align-items:center;justify-content:center;min-width:27px;height:27px;border-radius:50%;background:#1e3a8a;color:#fff;font-size:13px;font-weight:700}
+    .ch-ico{font-size:21px}
+    .ch-desc{font-size:12px;color:#64748b;margin-bottom:12px;padding-bottom:9px;border-bottom:1.5px solid #e2e8f0}
+    .ch-what{background:#f1f6fd;border-left:4px solid #3b5bdb;border-radius:8px;padding:12px 15px;font-size:13px;margin-bottom:14px}
+    .ch-sec{font-size:13.5px;color:#1e3a8a;margin:16px 0 8px}
+    .ch-steps{padding-left:0;margin:0;list-style:none;counter-reset:st}
+    .ch-steps li{counter-increment:st;position:relative;padding:8px 12px 8px 38px;margin-bottom:6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;page-break-inside:avoid}
+    .ch-steps li:before{content:counter(st);position:absolute;left:10px;top:8px;width:20px;height:20px;border-radius:50%;background:#1e3a8a;color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+    .ch-tips,.ch-warns{list-style:none;padding:0;margin:0}
+    .ch-tips li,.ch-warns li{position:relative;padding:7px 12px 7px 30px;margin-bottom:5px;border-radius:7px;font-size:12.5px;page-break-inside:avoid}
+    .ch-tips li{background:#f0fdf4;border:1px solid #bbf7d0}
+    .ch-tips li:before{content:'💡';position:absolute;left:9px;top:7px}
+    .ch-warns li{background:#fff7ed;border:1px solid #fed7aa}
+    .ch-warns li:before{content:'⚠️';position:absolute;left:9px;top:7px}
+
+    .endnote{page-break-before:always;break-before:page;text-align:center;padding-top:80px;color:#94a3b8;font-size:12px}
+    @media print { .noprint{display:none!important} body{padding:0} .cover{border-color:#334155} }
+  </style></head><body>
+  <div class="noprint">
+    <button onclick="window.print()">🖨️ প্রিন্ট করুন / PDF সেভ করুন</button>
+    <p>প্রিন্ট উইন্ডোতে প্রিন্টার হিসেবে "Save as PDF" বাছলে ফাইলটা সেভ হয়ে যাবে।</p>
+  </div>
+
+  <div class="cover">
+    <div class="c-hosp">${esc(hospName)}</div>
+    <div class="c-ico">📕</div>
+    <div class="c-title">${esc(bookTitle)}</div>
+    <div class="c-sub">প্রতিটা পেজ ও ফিচার — সহজ ভাষায়, ধাপে ধাপে</div>
+    <div class="c-meta">মোট ${flat.length} টি অধ্যায় &nbsp;·&nbsp; তৈরি: ${today}</div>
+  </div>
+
+  <h1 class="sec-h">📑 সূচিপত্র</h1>
+  ${toc}
+
+  ${chapters}
+
+  <div class="endnote">— নির্দেশিকার সমাপ্তি —<br>${esc(hospName)}</div>
+  </body></html>`);
+  win.document.close();
+}
 
 // ---------- এডমিন: সেটিংস হোমের সেটিংস/টিউটোরিয়াল ট্যাব ----------
 function switchSettingsHomeTab(tab) {
