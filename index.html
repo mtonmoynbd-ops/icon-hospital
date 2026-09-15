@@ -7136,8 +7136,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
     </div>
-    <!-- ফন্ট সাইজ কন্ট্রোল — শুধু এই ফোনের জন্য, বোর্ড বার্তার ঠিক নিচে (localStorage-এ সংরক্ষিত থাকবে) -->
-    <div style="position:sticky;bottom:0;left:0;right:0;background:#ffffff;border-top:1px solid #e5e7eb;padding:9px 16px;display:flex;align-items:center;justify-content:center;gap:14px;box-shadow:0 -4px 14px rgba(0,0,0,0.08);z-index:5">
+    <!-- ফন্ট সাইজ কন্ট্রোল — শুধু বার্তা পড়ার (ডিটেইল) মোডে দেখা যাবে, বটম ট্যাব বারের ঠিক উপরে ফিক্সড
+         (bottom-এর মান JS দিয়ে বটম ট্যাব বারের প্রকৃত উচ্চতা মেপে বসানো হয় — showOwnerBnFontBar()) -->
+    <div id="ownerBnFontSizeBar" style="display:none;position:fixed;left:0;right:0;bottom:0;background:#ffffff;border-top:1px solid #e5e7eb;padding:9px 16px;align-items:center;justify-content:center;gap:14px;box-shadow:0 -4px 14px rgba(0,0,0,0.08);z-index:50">
       <span style="font-size:12px;color:#6b7280;font-weight:600">🔤 ফন্ট সাইজ (এই ফোনে সংরক্ষিত)</span>
       <button type="button" onclick="adjustOwnerBnFontSize(-1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #d0dce8;background:#f8fafc;font-size:14px;font-weight:800;color:#0f4c81;cursor:pointer">A-</button>
       <span id="ownerBnFontSizeLabel" style="font-size:13px;font-weight:700;color:#0f4c81;min-width:34px;text-align:center">14px</span>
@@ -9596,7 +9597,7 @@ function renderOwnerMemoPublishNotif() {
 
 function dismissOwnerMemoNotif() {
   (appData.padNotices||[]).forEach(n => { n.seenByOwner = true; });
-  saveData();
+  setTimeout(saveData, 0);
   renderOwnerMemoPublishNotif();
 }
 
@@ -9605,9 +9606,16 @@ let _ownerCurrentNoticeId = null;
 function ownerViewPadNotice(id) {
   const n = (appData.padNotices||[]).find(x=>x.id===id);
   if (!n) return;
-  n.seenByOwner = true;
-  saveData();
-  renderOwnerMemoPublishNotif();
+  // আগে যেকোনো বার্তা খুললেই (এমনকি আগে পড়া বার্তা আবার খুললেও) saveData() চলত — যেটা পুরো
+  // appData JSON.stringify করে, ফায়ারবেজে সিঙ্ক করে, আর মাঝেমধ্যে দৈনিক ব্যাকআপ/গুগল ড্রাইভ
+  // ব্যাকআপও ট্রিগার করে — এই ভারী কাজটাই বার্তা খুললে পুরো অ্যাপ কিছুক্ষণের জন্য স্লো/ল্যাগি
+  // হয়ে যাওয়ার আসল কারণ। এখন শুধু প্রথমবার (সত্যিকারের পরিবর্তন হলে) সেভ হবে, আর সেটাও
+  // setTimeout দিয়ে একটু পরে (ব্যাকগ্রাউন্ডে) — যাতে বার্তা খোলাটা আগে মসৃণভাবে দেখা যায়।
+  if (!n.seenByOwner) {
+    n.seenByOwner = true;
+    setTimeout(saveData, 0);
+    renderOwnerMemoPublishNotif();
+  }
 
   const s = appData.settings;
   const hospName = s.hospName||'ICON Eye Hospital';
@@ -9667,6 +9675,9 @@ function ownerViewPadNotice(id) {
 
   // স্টার আইকন আপডেট
   updateOwnerBnStarBtn(n);
+
+  // ফন্ট সাইজ বার শুধু বার্তা পড়ার (ডিটেইল) মোডে দেখাবে, বটম ট্যাবের ঠিক উপরে ফিক্সড
+  showOwnerBnFontBar();
 }
 
 // scale: প্যাড 760px → স্ক্রিন প্রস্থে ফিট (নোটিস খোলার সময় ও ফন্ট সাইজ বদলানোর পর — দুই জায়গা থেকেই ডাকা হয়)
@@ -9685,8 +9696,13 @@ function recalcOwnerBnScale() {
   inner.style.margin = '0';
   inner.style.marginLeft = centerMarginLeft + 'px';
   inner.style.transform = `scale(${scale})`;
+  // নিচের ফিক্সড বটম ট্যাব বার + (দেখানো থাকলে) ফন্ট সাইজ বার — এদের নিচে কন্টেন্টের শেষ অংশ
+  // চাপা পড়ে যাওয়া ঠেকাতে ঠিক ততটুকু বাড়তি জায়গা যোগ করা হলো, বাস্তব উচ্চতা মেপে
+  const tabBar = document.getElementById('ownerBottomTabBar');
+  const fontBar = document.getElementById('ownerBnFontSizeBar');
+  const clearance = (tabBar ? tabBar.offsetHeight : 0) + ((fontBar && fontBar.style.display !== 'none') ? fontBar.offsetHeight : 0);
   // scale-এর পর আসল উচ্চতা প্যারেন্টে বসাও, যাতে নিচে বাড়তি ফাঁকা জায়গা না থাকে
-  inner.parentElement.style.height = (inner.offsetHeight * scale + 24) + 'px';
+  inner.parentElement.style.height = (inner.offsetHeight * scale + 24 + clearance) + 'px';
 }
 
 // ===== বোর্ড বার্তার ফন্ট সাইজ — শুধু এই ফোনের জন্য, localStorage-এ সংরক্ষিত =====
@@ -9713,8 +9729,28 @@ function adjustOwnerBnFontSize(delta) {
   applyOwnerBnFontSize(next);
   requestAnimationFrame(recalcOwnerBnScale);
 }
+// ফন্ট সাইজ বার শুধু বার্তা পড়ার (ডিটেইল) মোডে দেখানো হয় — লিস্ট মোডে থাকে না, আর
+// বটম ট্যাব বারের ঠিক উপরে বসে (উচ্চতা ডিভাইস অনুযায়ী ভিন্ন হতে পারে বলে সরাসরি মেপে বসানো হয়)
+function showOwnerBnFontBar() {
+  const bar = document.getElementById('ownerBnFontSizeBar');
+  if (!bar) return;
+  const tabBar = document.getElementById('ownerBottomTabBar');
+  const h = tabBar ? tabBar.offsetHeight : 0;
+  bar.style.bottom = h + 'px';
+  bar.style.display = 'flex';
+}
+function hideOwnerBnFontBar() {
+  const bar = document.getElementById('ownerBnFontSizeBar');
+  if (bar) bar.style.display = 'none';
+}
 
 function closeOwnerBoardNoticePage() {
+  // ডিটেইল মোডে (কোনো একটা বার্তা পড়াকালীন) ফিরুন চাপলে তালিকায় ফিরে যাবে;
+  // তালিকা মোডে থাকলে ফিরুন চাপলে পুরো বোর্ড বার্তা পেজ থেকেই বেরিয়ে যাবে
+  if (_ownerCurrentNoticeId !== null) {
+    openOwnerBoardNoticeList();
+    return;
+  }
   const pg = document.getElementById('ownerBoardNoticePage');
   if (pg) pg.style.display = 'none';
   // তালিকা মোড রিসেট
@@ -9723,6 +9759,7 @@ function closeOwnerBoardNoticePage() {
   const scaleInner = document.getElementById('ownerBnScaleInner');
   const scaleWrap = scaleInner ? scaleInner.parentElement : null;
   if (scaleWrap) scaleWrap.style.display = '';
+  hideOwnerBnFontBar();
   _ownerCurrentNoticeId = null;
 }
 
@@ -9743,9 +9780,9 @@ function toggleOwnerBnStar() {
   const n = (appData.padNotices||[]).find(x=>x.id===_ownerCurrentNoticeId);
   if (!n) return;
   n.starred = !n.starred;
-  saveData();
   updateOwnerBnStarBtn(n);
   showToast(n.starred ? '⭐ স্টার মার্ক করা হয়েছে' : '☆ স্টার মার্ক তোলা হয়েছে');
+  setTimeout(saveData, 0);
 }
 
 function openOwnerBoardNoticeList() {
@@ -9765,7 +9802,9 @@ function openOwnerBoardNoticeList() {
     const hc = document.getElementById('ownerBnContact'); if(hc) hc.textContent = '';
     const meta = document.getElementById('ownerBnMeta'); if(meta) meta.innerHTML = '';
     updateOwnerBnStarBtn(null);
+    hideOwnerBnFontBar();
     pg.style.display = 'flex'; pg.scrollTop = 0;
+    _ownerCurrentNoticeId = null;
     return;
   }
 
@@ -9801,6 +9840,7 @@ function openOwnerBoardNoticeList() {
   if (titleEl) titleEl.textContent = '📢 বোর্ড বার্তা তালিকা';
 
   updateOwnerBnStarBtn(null);
+  hideOwnerBnFontBar();
   pg.style.display = 'flex'; pg.scrollTop = 0;
   _ownerCurrentNoticeId = null;
 }
