@@ -9578,7 +9578,7 @@ function printMemoDoc(id) {
 function renderOwnerMemoPublishNotif() {
   const box = document.getElementById('ownerMemoPublishNotif');
   if (!box) return;
-  const newNotices = (appData.padNotices||[]).filter(n => !n.seenByOwner);
+  const newNotices = (appData.padNotices||[]).filter(n => !isOwnerBnSeen(n.id));
   if (!newNotices.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = 'block';
   const sorted = [...newNotices].sort((a,b)=> b.id - a.id);
@@ -9596,8 +9596,7 @@ function renderOwnerMemoPublishNotif() {
 }
 
 function dismissOwnerMemoNotif() {
-  (appData.padNotices||[]).forEach(n => { n.seenByOwner = true; });
-  setTimeout(saveData, 0);
+  markAllOwnerBnSeen();
   renderOwnerMemoPublishNotif();
 }
 
@@ -9606,14 +9605,9 @@ let _ownerCurrentNoticeId = null;
 function ownerViewPadNotice(id) {
   const n = (appData.padNotices||[]).find(x=>x.id===id);
   if (!n) return;
-  // আগে যেকোনো বার্তা খুললেই (এমনকি আগে পড়া বার্তা আবার খুললেও) saveData() চলত — যেটা পুরো
-  // appData JSON.stringify করে, ফায়ারবেজে সিঙ্ক করে, আর মাঝেমধ্যে দৈনিক ব্যাকআপ/গুগল ড্রাইভ
-  // ব্যাকআপও ট্রিগার করে — এই ভারী কাজটাই বার্তা খুললে পুরো অ্যাপ কিছুক্ষণের জন্য স্লো/ল্যাগি
-  // হয়ে যাওয়ার আসল কারণ। এখন শুধু প্রথমবার (সত্যিকারের পরিবর্তন হলে) সেভ হবে, আর সেটাও
-  // setTimeout দিয়ে একটু পরে (ব্যাকগ্রাউন্ডে) — যাতে বার্তা খোলাটা আগে মসৃণভাবে দেখা যায়।
-  if (!n.seenByOwner) {
-    n.seenByOwner = true;
-    setTimeout(saveData, 0);
+  // "পড়া হয়েছে" স্ট্যাটাস এখন সম্পূর্ণ ডিভাইস-লোকাল (localStorage) — কোনো saveData()/ফায়ারবেজ
+  // সিঙ্ক ছাড়াই সাথে সাথে সেভ হয়, তাই ল্যাগ হয় না
+  if (markOwnerBnSeen(id)) {
     renderOwnerMemoPublishNotif();
   }
 
@@ -9674,7 +9668,7 @@ function ownerViewPadNotice(id) {
   requestAnimationFrame(recalcOwnerBnScale);
 
   // স্টার আইকন আপডেট
-  updateOwnerBnStarBtn(n);
+  updateOwnerBnStarBtn(id);
 
   // ফন্ট সাইজ বার শুধু বার্তা পড়ার (ডিটেইল) মোডে দেখাবে, বটম ট্যাবের ঠিক উপরে ফিক্সড
   showOwnerBnFontBar();
@@ -9729,6 +9723,44 @@ function adjustOwnerBnFontSize(delta) {
   applyOwnerBnFontSize(next);
   requestAnimationFrame(recalcOwnerBnScale);
 }
+
+// ===== বোর্ড বার্তার "পড়া হয়েছে" / "স্টার" স্ট্যাটাস — এই ডিভাইসে localStorage-এ, saveData() ছাড়াই =====
+// আগে এই স্ট্যাটাস appData.padNotices-এ রেখে প্রতিবার saveData() (পুরো appData JSON.stringify +
+// ফায়ারবেজ ফুল সিঙ্ক, মাঝেমধ্যে দৈনিক ব্যাকআপসহ) চালানো হতো — ডাটা অনেক বড় হয়ে যাওয়ায় এটাই
+// বার্তা পেজে যেকোনো ক্লিকে (এমনকি ফিরুন/ফন্ট সাইজের মতো সম্পূর্ণ স্থানীয় কাজেও) কয়েক সেকেন্ডের
+// ল্যাগ/হ্যাং-এর আসল কারণ ছিল, কারণ setTimeout দিয়ে পিছিয়ে দিলেও সেই ভারী কাজ পরে ঠিকই
+// মেইন থ্রেড ব্লক করে পরবর্তী ক্লিককে আটকে দিচ্ছিল। এখন এই দুটো স্ট্যাটাস সম্পূর্ণ ডিভাইস-লোকাল
+// (কোন ওনার/ফোনে কোনটা পড়া/স্টার করা হয়েছে তা localStorage-এ) — সাথে সাথে সেভ হয়, কোনো
+// ভারী সিঙ্ক ছাড়াই, তাই আর ল্যাগ হবে না।
+const OWNER_BN_SEEN_KEY = 'hms_owner_bn_seen_ids';
+const OWNER_BN_STARRED_KEY = 'hms_owner_bn_starred_ids';
+function _ownerBnIdSet(key) {
+  try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch(e) { return new Set(); }
+}
+function _ownerBnIdSetSave(key, set) {
+  try { localStorage.setItem(key, JSON.stringify([...set])); } catch(e) {}
+}
+function isOwnerBnSeen(id) { return _ownerBnIdSet(OWNER_BN_SEEN_KEY).has(id); }
+function markOwnerBnSeen(id) {
+  const set = _ownerBnIdSet(OWNER_BN_SEEN_KEY);
+  if (set.has(id)) return false;
+  set.add(id);
+  _ownerBnIdSetSave(OWNER_BN_SEEN_KEY, set);
+  return true;
+}
+function markAllOwnerBnSeen() {
+  const set = _ownerBnIdSet(OWNER_BN_SEEN_KEY);
+  (appData.padNotices||[]).forEach(n => set.add(n.id));
+  _ownerBnIdSetSave(OWNER_BN_SEEN_KEY, set);
+}
+function isOwnerBnStarred(id) { return id != null && _ownerBnIdSet(OWNER_BN_STARRED_KEY).has(id); }
+function toggleOwnerBnStarredLocal(id) {
+  const set = _ownerBnIdSet(OWNER_BN_STARRED_KEY);
+  let starred;
+  if (set.has(id)) { set.delete(id); starred = false; } else { set.add(id); starred = true; }
+  _ownerBnIdSetSave(OWNER_BN_STARRED_KEY, set);
+  return starred;
+}
 // ফন্ট সাইজ বার শুধু বার্তা পড়ার (ডিটেইল) মোডে দেখানো হয় — লিস্ট মোডে থাকে না, আর
 // বটম ট্যাব বারের ঠিক উপরে বসে (উচ্চতা ডিভাইস অনুযায়ী ভিন্ন হতে পারে বলে সরাসরি মেপে বসানো হয়)
 function showOwnerBnFontBar() {
@@ -9763,10 +9795,10 @@ function closeOwnerBoardNoticePage() {
   _ownerCurrentNoticeId = null;
 }
 
-function updateOwnerBnStarBtn(n) {
+function updateOwnerBnStarBtn(id) {
   const btn = document.getElementById('ownerBnStarBtn');
   if (!btn) return;
-  if (n && n.starred) {
+  if (isOwnerBnStarred(id)) {
     btn.textContent = '★';
     btn.style.color = '#fbbf24';
   } else {
@@ -9777,12 +9809,10 @@ function updateOwnerBnStarBtn(n) {
 
 function toggleOwnerBnStar() {
   if (!_ownerCurrentNoticeId) return;
-  const n = (appData.padNotices||[]).find(x=>x.id===_ownerCurrentNoticeId);
-  if (!n) return;
-  n.starred = !n.starred;
-  updateOwnerBnStarBtn(n);
-  showToast(n.starred ? '⭐ স্টার মার্ক করা হয়েছে' : '☆ স্টার মার্ক তোলা হয়েছে');
-  setTimeout(saveData, 0);
+  // স্টার স্ট্যাটাসও এখন ডিভাইস-লোকাল (localStorage) — saveData() লাগে না
+  const starred = toggleOwnerBnStarredLocal(_ownerCurrentNoticeId);
+  updateOwnerBnStarBtn(_ownerCurrentNoticeId);
+  showToast(starred ? '⭐ স্টার মার্ক করা হয়েছে' : '☆ স্টার মার্ক তোলা হয়েছে');
 }
 
 function openOwnerBoardNoticeList() {
@@ -9828,7 +9858,7 @@ function openOwnerBoardNoticeList() {
     <div onclick="ownerBnListItemClick(${n.id})" style="background:white;border-radius:10px;padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;border-left:4px solid #1a8fb5;display:flex;align-items:center;gap:12px">
       <div style="flex:1;min-width:0">
         ${n.docNo?`<div style="font-size:11px;font-weight:700;color:#0369a1;margin-bottom:3px">${n.docNo}</div>`:''}
-        <div style="font-size:14px;font-weight:700;color:#0f4c81;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.starred?'⭐ ':''}${n.to||'বোর্ড বার্তা'}</div>
+        <div style="font-size:14px;font-weight:700;color:#0f4c81;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${isOwnerBnStarred(n.id)?'⭐ ':''}${n.to||'বোর্ড বার্তা'}</div>
         <div style="font-size:12px;color:#6b7280;margin-top:3px">${n.createdBy||''} • ${n.date?(typeof formatDate==='function'?formatDate(n.date):n.date):''}</div>
         <div style="font-size:12px;color:#374151;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(n.body||'').substring(0,60)}...</div>
       </div>
