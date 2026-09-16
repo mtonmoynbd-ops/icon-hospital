@@ -6778,16 +6778,17 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <!-- hidden subject field for compatibility -->
             <input type="hidden" id="padSubject" value="">
 
-            <!-- বডি -->
-            <div style="padding:20px 32px;min-height:400px">
-              <div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:8px">
+            <!-- বডি — watermark: লোগো ইমেজ পুরো বডি জুড়ে, সোজা (owner প্যানেলের বোর্ড বার্তা ভিউয়ারের সাথে সামঞ্জস্যপূর্ণ) -->
+            <div style="padding:20px 32px;min-height:400px;position:relative">
+              <img id="padPreviewWatermark" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0.05;pointer-events:none;user-select:none;z-index:0">
+              <div style="position:relative;z-index:1;display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:8px">
                 <label style="font-size:11px;font-weight:700;color:#9ca3af">ফন্ট সাইজ:</label>
                 <button type="button" class="btn btn-outline btn-sm" onclick="adjustPadBodyFontSize(-1)" style="padding:3px 10px;font-size:13px">A−</button>
                 <span id="padBodyFontSizeLabel" style="font-size:12px;color:#6b7280;min-width:34px;text-align:center;display:inline-block">14px</span>
                 <button type="button" class="btn btn-outline btn-sm" onclick="adjustPadBodyFontSize(1)" style="padding:3px 10px;font-size:13px">A+</button>
               </div>
-              <div id="padSubjectPreview" style="display:none;text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px"></div>
-              <textarea id="padBody" placeholder="এখানে আপনার বার্তা / নোটিশ / প্রজ্ঞাপন লিখুন..." style="width:100%;min-height:360px;border:none;resize:vertical;font-family:inherit;font-size:14px;line-height:1.8;color:#1a2a3a;outline:none;background:transparent" oninput="this.style.height=&#39;auto&#39;;this.style.height=this.scrollHeight+&#39;px&#39;"></textarea>
+              <div id="padSubjectPreview" style="position:relative;z-index:1;display:none;text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px"></div>
+              <textarea id="padBody" placeholder="এখানে আপনার বার্তা / নোটিশ / প্রজ্ঞাপন লিখুন..." style="position:relative;z-index:1;width:100%;min-height:360px;border:none;resize:vertical;font-family:inherit;font-size:14px;line-height:1.8;color:#1a2a3a;outline:none;background:transparent" oninput="this.style.height=&#39;auto&#39;;this.style.height=this.scrollHeight+&#39;px&#39;"></textarea>
             </div>
 
             <!-- স্বাক্ষর -->
@@ -8828,7 +8829,7 @@ const LOGO_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABbMAAAHCCAYAAADV
 
 // ===== স্ট্যাটিক লোগো ইমেজ ইনিশিয়ালাইজ (লগইন/টপবার/প্রিভিউ) - LOGO_B64 থেকে একবারই সেট হয় =====
 function initStaticLogos() {
-  ['loginLogoImg','appTopbarLogoImg','logoPreview','padPreviewLogoImg'].forEach(function(id){
+  ['loginLogoImg','appTopbarLogoImg','logoPreview','padPreviewLogoImg','padPreviewWatermark'].forEach(function(id){
     const el = document.getElementById(id);
     if (el) el.src = LOGO_B64;
   });
@@ -9430,8 +9431,9 @@ function printOfficialPad() {
   const fontSize = _padBodyFontSize || 14;
 
   const html = `
-  <div class="a4-page" style="background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
-    <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
+  <div class="a4-page" style="background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box;position:relative">
+    <img src="${LOGO_B64}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0.05;pointer-events:none;z-index:0">
+    <div style="position:relative;z-index:1;padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
         <div style="font-size:20px;font-weight:800;color:#1a8fb5">${hospName}</div>
@@ -9439,15 +9441,15 @@ function printOfficialPad() {
         <div style="font-size:12px;color:#6b7280">${[phone,email].filter(Boolean).join(' | ')}</div>
       </div>
     </div>
-    <div style="padding:16px 32px 12px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-start;font-size:14px">
+    <div style="position:relative;z-index:1;padding:16px 32px 12px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-start;font-size:14px">
       <div>${docNo?`<strong>স্মারক নং:</strong> ${docNo}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(date)}</div>
     </div>
-    <div style="padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
+    <div style="position:relative;z-index:1;padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
       ${subject?`<div style="text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px">${subject}</div>`:''}
       ${body||'&nbsp;'}
     </div>
-    <div style="padding:16px 32px 24px;display:flex;justify-content:flex-end">
+    <div style="position:relative;z-index:1;padding:16px 32px 24px;display:flex;justify-content:flex-end">
       <div style="text-align:center;min-width:200px">
         <div style="border-top:1px solid #333;padding-top:8px;margin-top:50px">
           <div style="font-weight:700;font-size:14px">ব্যবস্থাপনা পরিচালক</div>
@@ -9455,7 +9457,7 @@ function printOfficialPad() {
         </div>
       </div>
     </div>
-    ${tagline?`<div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
+    ${tagline?`<div style="position:relative;z-index:1;background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
       <div>${tagline}</div>
     </div>`:''}
   </div>`;
@@ -9581,8 +9583,9 @@ function printPadNotice(id) {
   const bodyHtml = n.body.replace(/</g,'&lt;').replace(/\n/g,'<br>');
 
   const html = `
-  <div class="a4-page" style="background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box">
-    <div style="padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
+  <div class="a4-page" style="background:#fff;display:flex;flex-direction:column;min-height:297mm;box-sizing:border-box;position:relative">
+    <img src="${LOGO_B64}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0.05;pointer-events:none;z-index:0">
+    <div style="position:relative;z-index:1;padding:24px 32px 16px;border-bottom:3px solid #1a8fb5;display:flex;align-items:center;justify-content:space-between">
       <img src="${LOGO_B64}" alt="${hospName}" style="height:70px;object-fit:contain" />
       <div style="text-align:right">
         <div style="font-size:20px;font-weight:800;color:#1a8fb5">${hospName}</div>
@@ -9590,15 +9593,15 @@ function printPadNotice(id) {
         <div style="font-size:12px;color:#6b7280">${[phone,email].filter(Boolean).join(' | ')}</div>
       </div>
     </div>
-    <div style="padding:16px 32px 12px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-start;font-size:14px">
+    <div style="position:relative;z-index:1;padding:16px 32px 12px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-start;font-size:14px">
       <div>${n.docNo?`<strong>স্মারক নং:</strong> ${n.docNo}`:''}</div>
       <div><strong>তারিখ:</strong> ${formatDate(n.date)}</div>
     </div>
-    <div style="padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
+    <div style="position:relative;z-index:1;padding:20px 32px;flex:1 0 auto;font-size:${fontSize}px;line-height:1.8;color:#1a2a3a">
       ${n.to?`<div style="text-align:center;font-size:17px;font-weight:800;color:#1a2a3a;margin-bottom:14px">${n.to}</div>`:''}
       ${bodyHtml||'&nbsp;'}
     </div>
-    <div style="padding:16px 32px 24px;display:flex;justify-content:flex-end">
+    <div style="position:relative;z-index:1;padding:16px 32px 24px;display:flex;justify-content:flex-end">
       <div style="text-align:center;min-width:200px">
         <div style="border-top:1px solid #333;padding-top:8px;margin-top:50px">
           <div style="font-weight:700;font-size:14px">ব্যবস্থাপনা পরিচালক</div>
@@ -9606,7 +9609,7 @@ function printPadNotice(id) {
         </div>
       </div>
     </div>
-    ${tagline?`<div style="background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
+    ${tagline?`<div style="position:relative;z-index:1;background:#1a8fb5;padding:12px 32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">
       <div>${tagline}</div>
     </div>`:''}
   </div>`;
