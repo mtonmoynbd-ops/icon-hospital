@@ -665,7 +665,24 @@
   #rec-home .rhd-q { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:6px 13px 6px 6px; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700; color:#1e3a5f; box-shadow:0 1px 3px rgba(15,23,42,.05); transition:transform .15s, box-shadow .15s, border-color .15s; }
   #rec-home .rhd-q:hover { transform:translateY(-2px); border-color:#93c5fd; box-shadow:0 6px 14px rgba(15,76,129,.12); }
   #rec-home .rhd-q i { font-style:normal; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; background:linear-gradient(135deg,#e0f2fe,#dbeafe); }
-  #rec-home .rhd-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(138px,1fr)); gap:10px; }
+  #rec-home { container-type:inline-size; }
+  #rec-home .rhd-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; }
+  /* বড় স্ক্রিনে ডানে গ্রাফ কলাম (বাম কলামের সাথে একই উচ্চতা), ছোট স্ক্রিনে গ্রাফ নিচে পুরো প্রস্থে */
+  #rec-home .rhd-body { display:block; }
+  #rec-home .rhd-side { display:flex; flex-direction:column; }
+  #rec-home .rhd-chart { flex:1; }
+  @container (min-width:1060px) { #rec-home .rhd-body { display:grid; grid-template-columns:minmax(0,1fr) 270px; gap:16px; align-items:stretch; } }
+  @container (max-width:720px) { #rec-home .rhd-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  #rec-home .rhd-chart { background:#fff; border:1px solid #e8eef5; border-radius:14px; box-shadow:0 1px 6px rgba(15,23,42,.05); padding:12px 14px 10px; display:flex; flex-direction:column; min-height:190px; }
+  #rec-home .rhd-chart-sum { display:flex; justify-content:space-between; font-size:11px; color:#64748b; font-weight:700; }
+  #rec-home .rhd-chart-sum b { color:#0f4c81; font-size:15px; }
+  #rec-home .rhd-bars { flex:1; display:flex; align-items:flex-end; gap:7px; padding-top:14px; min-height:110px; }
+  #rec-home .rhd-bar { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:0; }
+  #rec-home .rhd-bar i { display:block; width:100%; max-width:30px; border-radius:7px 7px 3px 3px; background:linear-gradient(180deg,#7dd3fc,#3b82f6); min-height:3px; }
+  #rec-home .rhd-bar.today i { background:linear-gradient(180deg,#34d399,#0d9488); }
+  #rec-home .rhd-bar em { font-style:normal; font-size:10.5px; font-weight:800; color:#334155; margin-bottom:3px; }
+  #rec-home .rhd-bar span { font-size:10px; color:#94a3b8; font-weight:700; margin-top:5px; }
+  #rec-home .rhd-bar.today span { color:#0d9488; }
   #rec-home .rhd-card { position:relative; background:#fff; border:1px solid #e8eef5; border-radius:14px; padding:10px 12px 9px 14px; cursor:pointer; box-shadow:0 1px 6px rgba(15,23,42,.05); transition:transform .15s, box-shadow .15s, border-color .15s; overflow:hidden; }
   #rec-home .rhd-card:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(15,23,42,.10); border-color:var(--c); }
   #rec-home .rhd-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--c); opacity:.9; }
@@ -7701,10 +7718,18 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
       <div class="rhd-sec">⚡ দ্রুত কাজ</div>
       <div class="rhd-quick" id="recHomeQuick"></div>
-      <div class="rhd-sec">🔥 এখনই করণীয়</div>
-      <div class="rhd-grid" id="recHomeCards"></div>
-      <div class="rhd-sec">📊 তথ্য ও পর্যবেক্ষণ</div>
-      <div class="rhd-grid" id="recHomeInfo"></div>
+      <div class="rhd-body">
+        <div class="rhd-main">
+          <div class="rhd-sec">🔥 এখনই করণীয়</div>
+          <div class="rhd-grid" id="recHomeCards"></div>
+          <div class="rhd-sec">📊 তথ্য ও পর্যবেক্ষণ</div>
+          <div class="rhd-grid" id="recHomeInfo"></div>
+        </div>
+        <aside class="rhd-side">
+          <div class="rhd-sec">📈 গত ৭ দিনের বিল</div>
+          <div class="rhd-chart" id="recHomeChart"></div>
+        </aside>
+      </div>
       <div class="rhd-sec">📋 সাম্প্রতিক এন্ট্রি <span style="font-weight:600;color:#94a3b8">(শুধু আপনার দেওয়া)</span></div>
       <div class="rhd-recent" id="recHomeRecent"></div>
     </div>
@@ -31962,16 +31987,47 @@ function _recLowStockList() {
   var out = st.filter(function(s){ return (s.qty||0) <= 0; });
   return { low: low, out: out };
 }
-// ব্যবস্থাপনা পরিচালককে জানানোর জন্য টেক্সট কপি (হোয়াটসঅ্যাপ/মেসেজে পেস্ট করা যাবে)
-function recCopyLowStock() {
+// ✅ কম/শেষ স্টক "ডিমান্ড নোট" হিসেবে অ্যাডমিনে পাঠানো — অ্যাডমিনের বেলে "পেন্ডিং ডিমান্ড নোট" আসে, ক্লিকে ডিমান্ড পেজে হাইলাইট হয়,
+// অনুমোদন/প্রত্যাখ্যান সেখান থেকেই। আগের পাঠানো (এখনো পেন্ডিং) স্টক-নোট থাকলে সেটা নতুন তালিকা দিয়ে বদলে যায়, ডুপ্লিকেট হয় না।
+function _recPendingStockDemand() {
+  var me = currentUser && currentUser.name;
+  return (appData.demands||[]).find(function(d){ return d.auto==='lowstock' && d.status==='pending' && d.by===me; });
+}
+function recSendLowStockToAdmin() {
   var l = _recLowStockList();
-  var lines = ['📦 কম স্টক রিপোর্ট — ' + formatDate(todayStr())];
-  if (l.low.length) { lines.push('', '⚠️ কম স্টক:'); l.low.forEach(function(s){ lines.push('• ' + s.name + ' — ' + s.qty + ' ' + (s.unit||'') + ' (নিম্নসীমা ' + (s.minQty||5) + ')'); }); }
-  if (l.out.length) { lines.push('', '❌ স্টক নেই:'); l.out.forEach(function(s){ lines.push('• ' + s.name); }); }
-  var text = lines.join('\n');
-  var done = function(){ showToast('✅ কপি হয়েছে — ব্যবস্থাপনা পরিচালককে পাঠিয়ে দিন'); };
-  try { navigator.clipboard.writeText(text).then(done, function(){ prompt('কপি করুন:', text); }); }
-  catch(e) { prompt('কপি করুন:', text); }
+  var all = l.low.concat(l.out);
+  if (!all.length) { showToast('✅ কোনো কম স্টক পণ্য নেই'); return; }
+  var items = all.map(function(s){
+    var min = s.minQty||5, cur = s.qty||0;
+    return { name:s.name, qty:Math.max(1, min-cur), unit:s.unit||'পিস',
+      reason: cur<=0 ? ('স্টক শেষ (নিম্নসীমা '+min+')') : ('বর্তমান স্টক '+cur+', নিম্নসীমা '+min) };
+  });
+  if (!appData.demands) appData.demands = [];
+  var old = _recPendingStockDemand();
+  if (old) appData.demands = appData.demands.filter(function(d){ return d!==old; });
+  appData.demands.push({
+    id: Date.now(), date: todayStr(), cat:'স্টক', priority: l.out.length ? 'urgent' : 'normal',
+    title:'কম স্টক / শেষ হওয়া পণ্য — রিসেপশন রিপোর্ট', items:items,
+    note:'রিসেপশন ড্যাশবোর্ড থেকে স্বয়ংক্রিয়ভাবে পাঠানো — কম: '+l.low.length+' টি, শেষ: '+l.out.length+' টি',
+    status:'pending', by: currentUser.name, adminNote:'', approvedBy:'', approvedAt:'', auto:'lowstock'
+  });
+  saveData();
+  if (typeof updateDemandBadge==='function') { try { updateDemandBadge(); } catch(e){} }
+  showToast(old ? '✅ অ্যাডমিনে পাঠানো তালিকা আপডেট হয়েছে' : '✅ অ্যাডমিনে পাঠানো হয়েছে!');
+  renderRecHome();
+}
+// গত ৭ দিনের বিল সংখ্যা (শুধু গণনা — এক পাসে, হালকা)
+function _recWeekBills() {
+  var names = ['রবি','সোম','মঙ্গল','বুধ','বৃহ','শুক্র','শনি'];
+  var days = [], idx = {};
+  for (var i=6; i>=0; i--) {
+    var d = new Date(); d.setDate(d.getDate()-i);
+    var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    idx[key] = days.length; days.push({ key:key, label:names[d.getDay()], n:0 });
+  }
+  var start = days[0].key;
+  (appData.visits||[]).forEach(function(v){ if (v.date>=start && idx[v.date]!==undefined) days[idx[v.date]].n++; });
+  return days;
 }
 // এই রিসেপশনিস্টের নিজের দেওয়া সাম্প্রতিক এন্ট্রি (বিল, বাকি আদায়, ব্যয়, ক্যাশ জমা) — সর্বশেষ ১০টি
 function _recMyRecentEntries(limit) {
@@ -32042,13 +32098,24 @@ function renderRecHome() {
     var stockCard = '<div class="rhd-card rhd-stock'+(total?' urgent':' zero')+'" style="--c:'+(total?'#ea580c':'#16a34a')+';--bg:'+(total?'#ffedd5':'#dcfce7')+'">'
       +'<div class="rhd-top"><div style="display:flex;align-items:center;gap:8px"><div class="rhd-chip">📦</div><div><div class="rhd-lbl" style="margin:0">স্টক সতর্কতা</div>'
       +'<div class="rhd-sub">'+(total?('কম: '+fmt(ls.low.length)+' টি · শেষ: '+fmt(ls.out.length)+' টি'):'সব পণ্যের স্টক পর্যাপ্ত')+'</div></div></div>'
-      +(total?'<button type="button" class="rhd-copy" onclick="recCopyLowStock()" title="ব্যবস্থাপনা পরিচালককে জানানোর জন্য তালিকা কপি করুন">📋 এমডি-কে জানাতে কপি</button>':'<span class="rhd-dot" style="color:#16a34a;background:#dcfce7">✓ ঠিক</span>')+'</div>'
+      +(total?'<button type="button" class="rhd-copy" onclick="recSendLowStockToAdmin()" title="কম/শেষ পণ্যের তালিকা অ্যাডমিনের কাছে ডিমান্ড নোট হিসেবে পাঠান">'+(_recPendingStockDemand()?'✅ পাঠানো হয়েছে · আপডেট':'📨 অ্যাডমিনে পাঠান')+'</button>':'<span class="rhd-dot" style="color:#16a34a;background:#dcfce7">✓ ঠিক</span>')+'</div>'
       +(total?'<div class="rhd-stock-items">'+chips+'</div>':'')+'</div>';
     infoEl.innerHTML =
         card('⏳','বাকি তালিকা', fmt(dueVisits.length)+' জন', 'মোট ৳ '+fmt(dueTotal), '#9333ea', '#f3e8ff', 'due', false, false)
       + card('🕐','অনুমোদনের অপেক্ষায়', fmt(myPendingExp), 'ব্যয় এন্ট্রি', '#475569', '#f1f5f9', 'expense', false, myPendingExp===0)
       + card('🔁','রিকল লিস্ট', recallN, 'যোগাযোগের যোগ্য', '#0d9488', '#ccfbf1', 'recall', false, false)
       + stockCard;
+  }
+  // ২.৫) গত ৭ দিনের বিল-সংখ্যা চার্ট (হালকা CSS বার)
+  var chEl = document.getElementById('recHomeChart');
+  if (chEl) {
+    var wk = _recWeekBills();
+    var mx = Math.max.apply(null, wk.map(function(d){ return d.n; })) || 1;
+    var sum = wk.reduce(function(s,d){ return s+d.n; }, 0);
+    chEl.innerHTML = '<div class="rhd-chart-sum"><span>মোট <b>'+fmt(sum)+'</b> টি</span><span>গড় <b>'+fmt(Math.round(sum/7*10)/10)+'</b>/দিন</span></div>'
+      + '<div class="rhd-bars">' + wk.map(function(d,i){
+          return '<div class="rhd-bar'+(i===6?' today':'')+'" title="'+formatDate(d.key)+': '+d.n+' টি বিল"><em>'+fmt(d.n)+'</em><i style="height:'+Math.max(3, Math.round(d.n/mx*100))+'%"></i><span>'+(i===6?'আজ':d.label)+'</span></div>';
+        }).join('') + '</div>';
   }
   // ৩) সাম্প্রতিক এন্ট্রি — শুধু এই রিসেপশনিস্টের
   var recEl = document.getElementById('recHomeRecent');
