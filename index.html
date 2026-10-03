@@ -659,6 +659,13 @@
   #rec-home .rhd-pill { background:#fff; border:1px solid #dbe7f3; border-radius:11px; padding:4px 14px; text-align:center; min-width:96px; box-shadow:0 1px 6px rgba(15,76,129,.06); }
   #rec-home .rhd-pill b { display:block; font-size:18px; line-height:1.1; font-weight:800; color:#0f4c81; }
   #rec-home .rhd-pill span { font-size:10px; color:#64748b; font-weight:700; }
+  #rec-home .rhd-alert { margin-top:8px; background:linear-gradient(120deg,#fffbeb,#fef3c7); border:1.5px solid #fcd34d; border-radius:12px; padding:7px 12px; box-shadow:0 2px 8px rgba(245,158,11,.15); }
+  #rec-home .rhd-alert-h { font-size:12.5px; font-weight:800; color:#92400e; }
+  #rec-home .rhd-alert-h small { font-weight:600; color:#b45309; }
+  #rec-home .rhd-alert-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+  #rec-home .rhd-alert-chip { display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #fcd34d; border-radius:9px; padding:3px 10px; font-size:11.5px; font-weight:700; color:#78350f; cursor:pointer; transition:transform .12s, box-shadow .12s; }
+  #rec-home .rhd-alert-chip:hover { transform:translateY(-1px); box-shadow:0 4px 10px rgba(245,158,11,.25); }
+  #rec-home .rhd-alert-chip em { font-style:normal; font-size:10px; font-weight:800; color:#b45309; background:#fef3c7; border-radius:20px; padding:0 7px; }
   #rec-home .rhd-sec { display:flex; align-items:center; gap:8px; margin:11px 2px 6px; font-size:11.5px; font-weight:800; color:#64748b; letter-spacing:.3px; }
   #rec-home .rhd-sec::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,#dbe4ee,transparent); }
   #rec-home .rhd-quick { display:flex; flex-wrap:wrap; gap:6px; }
@@ -3108,7 +3115,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <!-- রিসেপশনিস্ট-সাবমিটেড ব্যয়/প্রি-ক্যাম্প খরচ এন্ট্রি (status:'pending', needsApproval:true) —
            যতক্ষণ না এখান থেকে অনুমোদন হচ্ছে ততক্ষণ কোনো হিসাবেই (ক্যাশ/রিপোর্ট/ক্যাম্প P&L) ধরা হবে না -->
       <div class="panel" id="recExpApprovalPanel" style="display:none">
-        <div class="panel-header"><div class="panel-title">⏳ অনুমোদনের অপেক্ষায় (রিসেপশন)</div></div>
+        <div class="panel-header"><div class="panel-title">⏳ অনুমোদনের অপেক্ষায় (রিসেপশনিস্ট)</div></div>
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>খাত</th><th>বিবরণ</th><th>পেমেন্ট</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="recExpApprovalTable"></tbody>
@@ -3283,7 +3290,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <div id="pg-recdeposit" class="page-view">
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">🏦 রিসেপশন ক্যাশ জমার রেকর্ড</div>
+          <div class="panel-title">🏦 রিসেপশনিস্ট ক্যাশ জমার রেকর্ড</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <select id="recDepViewMode" onchange="renderRecDepositList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="day">ডে ওয়াইজ</option>
@@ -3729,6 +3736,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                   <div id="nb_MfsPaidHint" style="font-size:10px;color:#9d174d;margin-top:4px"></div>
                 </div>
                 <div class="field amt-hl" style="margin-bottom:0"><label>নগদ প্রদান (৳) *</label><input type="number" id="nb_CashPaid" placeholder="০.০০" min="0" oninput="nbUpdateSummary(); onNbMfsPaidChange()"></div>
+                <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:9px 11px">
+                  <label style="font-size:11.5px;font-weight:700;color:#075985;display:block;margin-bottom:5px">🧾 অর্থ গ্রহণকারী (Received By)</label>
+                  <select id="nb_ReceivedBy" style="width:100%;padding:7px 9px;border:1.5px solid #7dd3fc;border-radius:6px;font-family:inherit;font-size:12.5px;background:#fff;box-sizing:border-box">
+                    <option value="receptionist">রিসেপশনিস্ট</option>
+                    <option value="md">ব্যবস্থাপনা পরিচালক (এমডি)</option>
+                  </select>
+                  <div id="nb_ReceivedByHint" style="font-size:10px;color:#0369a1;margin-top:4px"></div>
+                </div>
               </div>
               <!-- মোট বিল -->
               <div class="receipt-summary" style="margin-top:10px">
@@ -7763,6 +7778,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
         <div class="rhd-pill"><b id="recHomePending">০</b><span>আজ করণীয় বাকি</span></div>
       </div>
+      <div id="recHomeAlert"></div>
       <div class="rhd-sec">⚡ দ্রুত কাজ</div>
       <div class="rhd-quick" id="recHomeQuick"></div>
       <div class="rhd-body">
@@ -11089,7 +11105,7 @@ const pageMap = {
   'accounting-principles': { title:'📖 হিসাবরক্ষণ নীতিমালা', sub:'এই অ্যাপে কোন হিসাব কীভাবে ও কোন নীতির ভিত্তিতে করা হয়' },
   billhistory:{ title:'📋 বিলের ইতিহাস', sub:'সকল বিলের তালিকা, ফিল্টার ও প্রিন্ট প্রিভিউ' },
   patients: { title:'🏥 রোগীর ডেটাবেস', sub:'সকল রোগীর তথ্য ও ইতিহাস' },
-  recdeposit:   { title:'🏦 রিসেপশন ক্যাশ জমার রেকর্ড', sub:'রিসেপশনিস্টের দৈনিক ক্যাশ জমার বিস্তারিত' },
+  recdeposit:   { title:'🏦 রিসেপশনিস্ট ক্যাশ জমার রেকর্ড', sub:'রিসেপশনিস্টের দৈনিক ক্যাশ জমার বিস্তারিত' },
   balancesheet: { title:'📊 ব্যালেন্স শিট', sub:'ডে ওয়াইজ ও মান্থ ওয়াইজ ক্যাশ ব্যালেন্স' },
   delivery:     { title:'🚚 ডেলিভারি শিডিউল', sub:'চশমা ও অন্যান্য অর্ডারের ডেলিভারি ট্র্যাকিং' },
   callsheet:    { title:'📞 আজকের কল লিস্ট', sub:'ডেলিভারি রেডি/ওভারডিউ ও সিরিয়াল রিমাইন্ডার — কল লগ' },
@@ -13529,7 +13545,7 @@ function renderRecDepositList() {
   const deposits = (appData.recDeposits||[]).slice().sort((a,b)=>b.id-a.id);
 
   if (!deposits.length) {
-    container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">এখনো কোনো রিসেপশন ক্যাশ জমার রেকর্ড নেই।</p>';
+    container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">এখনো কোনো রিসেপশনিস্ট ক্যাশ জমার রেকর্ড নেই।</p>';
     return;
   }
 
@@ -13587,7 +13603,7 @@ function showRecDepositDetail(id) {
   modal.className='modal-overlay';
   modal.style.display='flex';
   modal.innerHTML=`<div class="modal" style="max-width:520px">
-    <div class="modal-title">🏦 রিসেপশন ক্যাশ জমার বিস্তারিত — ${formatDate(d.date)}</div>
+    <div class="modal-title">🏦 রিসেপশনিস্ট ক্যাশ জমার বিস্তারিত — ${formatDate(d.date)}</div>
     <div style="padding:4px 0;line-height:2">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
         <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center">
@@ -14022,7 +14038,7 @@ function renderDashRecentEntries() {
         <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
         <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
         <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
-        <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
+        <td style="font-size:12px;color:var(--text-light);padding-right:44px">${_byWithRole(e.by)}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
       </tr>`;
     });
 
@@ -14057,7 +14073,7 @@ function renderDashRecentEntries() {
           <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
           <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
           <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
-          <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
+          <td style="font-size:12px;color:var(--text-light);padding-right:44px">${_byWithRole(e.by)}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
         </tr>`;
       });
     });
@@ -14085,7 +14101,7 @@ function renderDashRecentEntries() {
           <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
           <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
           <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
-          <td style="font-size:12px;color:var(--text-light);padding-right:44px">${e.by}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
+          <td style="font-size:12px;color:var(--text-light);padding-right:44px">${_byWithRole(e.by)}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
         </tr>`;
       });
     });
@@ -16960,14 +16976,14 @@ function deleteLoan(id) {
 // ===== CASH SUBMIT MODAL (Receptionist & Campaigner) =====
 function buildCashSubmitModal(role) {
   const today = todayStr();
-  let extraDep = 0;
+  let extraDep = 0, ccBreak = null;
   // আজকের আয় হিসাব
   let todayInc = 0, todayExp = 0, label = '';
   if (role === 'receptionist') {
     // ✅ নিজের এন্ট্রি থেকে নগদ আদায়/ব্যয়, আগে আজ জমা দিয়ে থাকলে তা বাদ — যাতে জমাযোগ্য অঙ্ক ঠিক আসে
     const _cc = _recCashClosing();
-    todayInc = _cc.cashIn; todayExp = _cc.cashOut; extraDep = _cc.deposited;
-    label = 'রিসেপশন';
+    todayInc = _cc.cashIn; todayExp = _cc.cashOut; extraDep = _cc.deposited; ccBreak = _cc;
+    label = 'রিসেপশনিস্ট';
   } else if (role === 'campaigner') {
     const sess = camperSession;
     if (sess) {
@@ -16989,9 +17005,12 @@ function buildCashSubmitModal(role) {
       </div>
       <div style="background:#f0fff4;border:1.5px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px">
         <div style="display:flex;justify-content:space-between;padding:4px 0">
-          <span style="color:#666">${role==='receptionist'?'আজকের নগদ আদায়':'আজকের মোট আয়'}</span>
+          <span style="color:#666">${role==='receptionist'?'আজকের গৃহীত নগদ':'আজকের মোট আয়'}</span>
           <span style="font-weight:700;color:#2ecc71">৳ ${fmt(todayInc)}</span>
         </div>
+        ${ccBreak?`<div style="display:flex;justify-content:space-between;padding:2px 0 2px 12px;font-size:11.5px;color:#64748b"><span>└ নিজস্ব বিল ও আদায় (মোবাইল ব্যাংকিং বাদে)</span><span>৳ ${fmt(ccBreak.ownCash)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0 2px 12px;font-size:11.5px;color:#64748b"><span>└ এমডি-এন্ট্রি বিল (রিসেপশনিস্ট গৃহীত)</span><span>৳ ${fmt(ccBreak.adminCash)}</span></div>
+        ${ccBreak.mdHeld>0?`<div style="display:flex;justify-content:space-between;padding:2px 0 2px 12px;font-size:11.5px;color:#94a3b8"><span>└ এমডি-গৃহীত (এই জমার বাইরে)</span><span>৳ ${fmt(ccBreak.mdHeld)}</span></div>`:''}`:''}
         ${extraDep>0?`<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:#666">আজ আগে জমা দিয়েছেন</span><span style="font-weight:700;color:#0369a1">৳ ${fmt(extraDep)}</span></div>`:''}
         ${todayExp>0?`<div style="display:flex;justify-content:space-between;padding:4px 0">
           <span style="color:#666">আজকের মোট ব্যয়</span>
@@ -25165,7 +25184,7 @@ function renderNotifBellPanel() {
   let html = '';
 
   if (deletedVisitsUnseen.length) {
-    html += `<div class="notif-bell-section-title">🗑️ রিসেপশন বিল মুছেছে (${deletedVisitsUnseen.length}টি)</div>`;
+    html += `<div class="notif-bell-section-title">🗑️ রিসেপশনিস্ট বিল মুছেছেন (${deletedVisitsUnseen.length}টি)</div>`;
     deletedVisitsUnseen.slice(0,5).forEach(r => {
       html += `<div class="notif-bell-item" onclick="viewDeletedVisit(${r.id})">
         <span class="nb-dot" style="background:#dc2626"></span>
@@ -30712,19 +30731,28 @@ function renderRecHistory() {
     const opBtn = (opFee>0 && !isVisitSentToOperationSheet(v.id))
       ? `<button class="btn btn-outline btn-sm" onclick="sendBillToOperationSheet(${v.id})" title="এই বিলের অপারেশন ফি অপারেশন শিটে পাঠান">🏥➡️ অপারেশন শিটে পাঠান</button>`
       : (opFee>0 ? `<span style="font-size:11px;color:#94a3b8">✅ পাঠানো হয়েছে</span>` : '');
-    return `<tr>
+    // ✅ অ্যাডমিন/এমডির করা বিলে অর্থ গ্রহণকারী চিহ্ন — এমডি গ্রহণ করলে রিসেপশনিস্ট রোগীকে আর জিজ্ঞাসা না করেই হার্ড মেমো কাটতে পারবেন
+    const _isAdm = _roleOfBy(v.by)==='admin', _mdRcv = _isAdm && v.receivedBy==='md';
+    const _rcvTag = !_isAdm ? '' : (_mdRcv
+      ? `<div style="margin-top:3px"><span style="display:inline-block;font-size:10.5px;font-weight:800;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:20px;padding:1px 8px" title="টাকা ব্যবস্থাপনা পরিচালক (এমডি) গ্রহণ করেছেন — রোগীকে জিজ্ঞাসা করার প্রয়োজন নেই">💼 এমডি কর্তৃক গৃহীত</span></div>`
+      : `<div style="margin-top:3px"><span style="font-size:10.5px;color:#0369a1;font-weight:700">এমডি-এন্ট্রি · গ্রহণ: রিসেপশনিস্ট</span></div>`);
+    const _hmBtn = !_isAdm ? '' : (v.hardMemoDone===false
+      ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;font-weight:700" onclick="recMarkHardMemo(${v.id})" title="হার্ড মেমো কাটা হলে চাপুন — বেল ও ড্যাশবোর্ডের তালিকা থেকে সরে যাবে">📝 হার্ড মেমো কাটা হয়েছে</button>`
+      : (v.hardMemoDone===true ? '<span style="font-size:11px;color:#16a34a;font-weight:700">✅ হার্ড মেমো কাটা হয়েছে</span>' : ''));
+    return `<tr id="rec-hist-row-${v.id}"${_mdRcv?' style="background:#fffbeb"':''}>
     <td style="font-size:12px;color:var(--text-light)">${v.time||'—'}</td>
-    <td style="font-weight:600">${v.patName}</td>
+    <td style="font-weight:600">${v.patName}${_rcvTag}</td>
     <td style="color:var(--text-light)">${v.patPhone||'—'}</td>
     <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.services.map(s=>s.name).join(', ')}</td>
     <td style="font-weight:700">৳ ${fmt(v.total)}</td>
-    <td style="color:var(--success);font-weight:600">৳ ${fmt(v.cashPaid)}</td>
+    <td style="color:var(--success);font-weight:600">৳ ${fmt(v.cashPaid)}${_mdRcv?'<div style="font-size:10px;color:#b45309;font-weight:800">(এমডি গৃহীত)</div>':''}</td>
     <td style="color:${v.due>0?'#9b59b6':'var(--success)'};font-weight:${v.due>0?'700':'400'}">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-warning btn-sm" onclick="printVisitReceipt(${v.id})" title="প্রিন্ট">🖨️</button>
       <button class="btn btn-outline btn-sm" onclick="openRecVisitEdit(${v.id})" title="ভুল থাকলে সংশোধন করুন">✏️</button>
       <button class="btn btn-outline btn-sm" onclick="showEditHistory('রোগীর বিল',${v.id},'${(v.patName||'').replace(/'/g,"\\'")}')" title="এডিট হিস্ট্রি">🕐</button>
       ${opBtn}
+      ${_hmBtn}
     </td>
   </tr>`;
   }).join('');
@@ -32032,6 +32060,7 @@ function updateRecNotifBell() {
   returned = returned.filter(function(d){ return !seen.has('rt'+d.id+'_'+(d.returnedAt||'')); });
   todayAppts = todayAppts.filter(function(a){ return !seen.has('ra'+a.id); });
   overdueDlv = overdueDlv.filter(function(d){ return !seen.has('rd'+d.id+'_'+(d.deliveryDate||'')); });
+  var hardMemos = (currentUser && currentUser.role==='receptionist') ? _pendingHardMemos() : [];
   var myDecided = (currentUser && currentUser.role==='receptionist')
     ? (appData.demands||[]).filter(function(d){ return d.by===currentUser.name && d.status && d.status!=='pending' && !seen.has('rn'+d.id+'_'+d.status); }).sort(function(a,b){ return b.id-a.id; })
     : [];
@@ -32039,7 +32068,7 @@ function updateRecNotifBell() {
     ? (appData.expense||[]).filter(function(e){ return e.needsApproval && e.rejected && e.by===currentUser.name; })
     : [];
   var unseenRejectedExp = myRejectedExp.filter(function(e){ return !seen.has('rj'+e.id+'_'+(e.rejectedAtTs||e.rejectedAt||'')); });
-  var count = returned.length + todayAppts.length + overdueDlv.length + unseenRejectedExp.length + myDecided.length;
+  var count = returned.length + todayAppts.length + overdueDlv.length + unseenRejectedExp.length + myDecided.length + hardMemos.length;
   var badge = document.getElementById('recNotifBellBadge');
   if (badge) { badge.textContent = count>99?'৯৯+':count; badge.style.display = count>0?'flex':'none'; }
   var bellBtn = wrap.querySelector('.notif-bell-btn');
@@ -32168,6 +32197,7 @@ function renderRecNotifBellPanel() {
   returned = returned.filter(function(d){ return !seen.has('rt'+d.id+'_'+(d.returnedAt||'')); });
   todayAppts = todayAppts.filter(function(a){ return !seen.has('ra'+a.id); });
   overdueDlv = overdueDlv.filter(function(d){ return !seen.has('rd'+d.id+'_'+(d.deliveryDate||'')); });
+  var hardMemos = (currentUser && currentUser.role==='receptionist') ? _pendingHardMemos() : [];
   var myDecided = (currentUser && currentUser.role==='receptionist')
     ? (appData.demands||[]).filter(function(d){ return d.by===currentUser.name && d.status && d.status!=='pending' && !seen.has('rn'+d.id+'_'+d.status); }).sort(function(a,b){ return b.id-a.id; })
     : [];
@@ -32176,6 +32206,13 @@ function renderRecNotifBellPanel() {
     : [];
   var unseenRejectedExp = myRejectedExp.filter(function(e){ return !seen.has('rj'+e.id+'_'+(e.rejectedAtTs||e.rejectedAt||'')); }).sort(function(a,b){ return b.id-a.id; });
   var html = '';
+  if (hardMemos.length) {
+    html += '<div class="notif-bell-section-title">🧾 এমডি-এন্ট্রি বিল — হার্ড মেমো বাকি (' + hardMemos.length + ')</div>';
+    hardMemos.slice(0,6).forEach(function(v){
+      var md = v.receivedBy==='md';
+      html += '<div class="notif-bell-item" onclick="recNotifBellGoHardMemo('+v.id+')"><span class="nb-dot" style="background:#f59e0b"></span><span style="flex:1"><strong>'+String(v.patName||'—').replace(/</g,'&lt;')+'</strong>'+(v.patPhone?' <span style="color:var(--text-light);font-size:11px">· '+v.patPhone+'</span>':'')+' — ৳ '+fmt(v.cashPaid||0)+'<br><span style="color:'+(md?'#b45309':'var(--text-light)')+';font-size:11px;font-weight:'+(md?'800':'400')+'">'+(md?'💼 অর্থ গ্রহণকারী: এমডি':'অর্থ গ্রহণকারী: রিসেপশনিস্ট')+'</span></span></div>';
+    });
+  }
   if (myDecided.length) {
     var _stLbl = { approved:'✅ অনুমোদিত', rejected:'❌ প্রত্যাখ্যাত', partial:'🔄 আংশিক অনুমোদিত' };
     html += '<div class="notif-bell-section-title">📨 আপনার পাঠানো নোটের সিদ্ধান্ত (' + myDecided.length + ')</div>';
@@ -32238,20 +32275,50 @@ function recGoTab(name) {
   var btn = document.getElementById('rtab-'+name);
   if (btn) switchRecTab(name, btn);
 }
+// ✅ এন্ট্রিকারীর নাম থেকে "(অ্যাডমিন অনুমোদিত)" সাফিক্স বাদ দিয়ে আসল নাম ও ইউজার-রোল বের করা
+var _ROLE_LABEL_BN = { admin:'অ্যাডমিন', moderator:'মডারেটর', receptionist:'রিসেপশনিস্ট', owner:'মালিক', campaigner:'ক্যাম্পেইনার' };
+function _baseBy(by) { return String(by||'').replace(/\s*\(অ্যাডমিন অনুমোদিত\)\s*$/, '').trim(); }
+function _roleOfBy(by) {
+  var n = _baseBy(by); if (!n) return '';
+  var u = (appData.users||[]).find(function(x){ return x.name===n; });
+  if (u) return u.role;
+  var d = Object.keys(USERS||{}).map(function(k){ return USERS[k]; }).find(function(x){ return x && x.name===n; });
+  return d ? d.role : '';
+}
+// নাম + ছোট করে ব্রেকেটে পদ — যেমন: "রহিম (রিসেপশনিস্ট)"
+function _byWithRole(by) {
+  if (!by || by==='—') return '—';
+  var n = _baseBy(by), r = _roleOfBy(by), approved = /অ্যাডমিন অনুমোদিত/.test(by);
+  var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+  return esc(n) + (r ? ' <small style="color:#94a3b8;font-weight:500">('+(_ROLE_LABEL_BN[r]||r)+')</small>' : '') + (approved ? ' <small style="color:#16a34a;font-weight:600">· অনুমোদিত</small>' : '');
+}
 // ✅ আজকের নিজের ক্যাশ হিসাব — শুধু এই রিসেপশনিস্টের এন্ট্রি; নগদ = আয়-এন্ট্রি (নগদ মাধ্যম) − বিলে মোবাইল-ব্যাংকিং অংশ;
 // ব্যয় = বাতিল নয় এমন নগদ ব্যয়; জমা = আজ এই ইউজারের দেওয়া ক্যাশ জমা। (বাকি আদায় ও ডেলিভারির বাকি আদায়ও আয়-এন্ট্রি হিসেবে ধরা পড়ে)
 function _recCashClosing() {
   var me = currentUser && currentUser.name, today = todayStr();
   var sum = function(a, f){ return a.reduce(function(s,x){ return s + (f(x)||0); }, 0); };
   var cashMode = function(e){ return !e.payMode || e.payMode==='cash'; };
-  var inc = (appData.income||[]).filter(function(e){ return e.by===me && e.date===today && cashMode(e); });
-  var incTotal = sum(inc, function(e){ return e.amount; });
-  var dueIn = sum(inc.filter(function(e){ return e.category==='বাকি আদায়'; }), function(e){ return e.amount; });
-  var mfs = sum((appData.visits||[]).filter(function(v){ return v.by===me && v.date===today; }), function(v){ return v.mfsPaid; });
-  var cashIn = Math.max(0, incTotal - mfs);
-  var cashOut = sum((appData.expense||[]).filter(function(e){ return e.by===me && e.date===today && !e.rejected && cashMode(e); }), function(e){ return e.amount; });
-  var deposited = sum((appData.recDeposits||[]).filter(function(d){ return d.by===me && d.date===today; }), function(d){ return d.amount; });
-  return { cashIn:cashIn, cashOut:cashOut, deposited:deposited, remaining:cashIn-cashOut-deposited, mfs:mfs, dueIn:dueIn };
+  var mine = function(by){ return _baseBy(by)===me; };
+  // অ্যাডমিন/এমডির করা আজকের বিল: "অর্থ গ্রহণকারী = রিসেপশনিস্ট" হলেই এই হিসাবে (পুরনো বিলে ফিল্ড না থাকলে রিসেপশনিস্ট ধরা হয়)
+  var adminAll = (appData.visits||[]).filter(function(v){ return v.date===today && !mine(v.by) && _roleOfBy(v.by)==='admin'; });
+  var adminVis = adminAll.filter(function(v){ return v.receivedBy!=='md'; });
+  var mdVis    = adminAll.filter(function(v){ return v.receivedBy==='md'; });
+  var aId = {}; adminVis.forEach(function(v){ aId[v.id] = true; });
+  var mdId = {}; mdVis.forEach(function(v){ mdId[v.id] = true; });
+  var incAll = (appData.income||[]).filter(function(e){ return e.date===today && cashMode(e); });
+  var ownInc = incAll.filter(function(e){ return mine(e.by); });
+  var admInc = incAll.filter(function(e){ return !mine(e.by) && e.visitId && aId[e.visitId]; });
+  var mdInc  = incAll.filter(function(e){ return !mine(e.by) && e.visitId && mdId[e.visitId]; });
+  var ownMfs = sum((appData.visits||[]).filter(function(v){ return v.date===today && mine(v.by); }), function(v){ return v.mfsPaid; });
+  var admMfs = sum(adminVis, function(v){ return v.mfsPaid; });
+  var ownCash = Math.max(0, sum(ownInc, function(e){ return e.amount; }) - ownMfs);
+  var adminCash = Math.max(0, sum(admInc, function(e){ return e.amount; }) - admMfs);
+  var mdHeld = Math.max(0, sum(mdInc, function(e){ return e.amount; }) - sum(mdVis, function(v){ return v.mfsPaid; }));
+  var cashIn = ownCash + adminCash;
+  var dueIn = sum(ownInc.filter(function(e){ return e.category==='বাকি আদায়'; }), function(e){ return e.amount; });
+  var cashOut = sum((appData.expense||[]).filter(function(e){ return mine(e.by) && e.date===today && !e.rejected && cashMode(e); }), function(e){ return e.amount; });
+  var deposited = sum((appData.recDeposits||[]).filter(function(d){ return mine(d.by) && d.date===today; }), function(d){ return d.amount; });
+  return { cashIn:cashIn, ownCash:ownCash, adminCash:adminCash, mdHeld:mdHeld, cashOut:cashOut, deposited:deposited, remaining:cashIn-cashOut-deposited, mfs:ownMfs+admMfs, dueIn:dueIn };
 }
 // কম/শেষ হওয়া স্টকের তালিকা (অ্যাডমিনের "কম স্টক সতর্কতা"-র একই নিয়ম: কম = ০ এর বেশি কিন্তু নিম্নসীমা বা তার নিচে, নেই = ০)
 function _recLowStockList() {
@@ -32281,8 +32348,8 @@ function recSendLowStockToAdmin() {
   if (old) appData.demands = appData.demands.filter(function(d){ return d!==old; });
   appData.demands.push({
     id: Date.now(), date: todayStr(), cat:'স্টক', priority: l.out.length ? 'urgent' : 'normal',
-    title:'কম স্টক / শেষ হওয়া পণ্য — রিসেপশন রিপোর্ট', items:items,
-    note:'রিসেপশন ড্যাশবোর্ড থেকে স্বয়ংক্রিয়ভাবে পাঠানো — কম: '+l.low.length+' টি, শেষ: '+l.out.length+' টি',
+    title:'কম স্টক / শেষ হওয়া পণ্য — রিসেপশনিস্টের রিপোর্ট', items:items,
+    note:'রিসেপশনিস্টের ড্যাশবোর্ড থেকে স্বয়ংক্রিয়ভাবে পাঠানো — কম: '+l.low.length+' টি, শেষ: '+l.out.length+' টি',
     status:'pending', by: currentUser.name, adminNote:'', approvedBy:'', approvedAt:'', auto:'lowstock'
   });
   saveData();
@@ -32308,10 +32375,10 @@ function _recMyRecentEntries(limit) {
   var me = currentUser && currentUser.name; if (!me) return [];
   var today = todayStr(), rows = [];
   var esc = function(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
-  (appData.visits||[]).forEach(function(v){ if (v.by===me) rows.push({kind:'visit', id:v.id, k:v.id, date:v.date, time:v.time, memo:v.memoNo||v.rcptNo||'', tag:'🧾 বিল', bg:'#dbeafe', fg:'#1d4ed8', cat:'রোগীর বিল', ref:v.patName||'—', amt:v.netBill||v.total||0, st:(v.due>0?'<span style="color:#9333ea">বাকি ৳ '+fmt(v.due)+'</span>':'<span style="color:#16a34a">পরিশোধিত</span>')}); });
-  (appData.dueHistory||[]).forEach(function(h){ if (h.by===me && h.type==='collect') rows.push({kind:'due', id:h.id, k:h.ts||h.id, date:h.date, time:'', memo:h.memoNo||'', tag:'💵 বাকি আদায়', bg:'#dcfce7', fg:'#15803d', cat:'বাকি আদায়', ref:h.patName||'—', amt:h.amount||0, st:(h.remainingDue>0?'<span style="color:#9333ea">অবশিষ্ট ৳ '+fmt(h.remainingDue)+'</span>':'<span style="color:#16a34a">সম্পূর্ণ</span>')}); });
-  (appData.expense||[]).forEach(function(e){ if (e.by===me) { var st = e.rejected ? '<span style="color:#dc2626">❌ বাতিল</span>' : (e.needsApproval && e.status==='pending' ? '<span style="color:#b45309">⏳ অনুমোদনের অপেক্ষায়</span>' : '<span style="color:#16a34a">✓ গৃহীত</span>'); rows.push({kind:'exp', id:e.id, k:e.id, date:e.date, time:'', memo:e.voucher||e.memo||'', tag:'💸 ব্যয়', bg:'#ffe4e6', fg:'#be123c', cat:(e.category||'—')+(e.subCategory?(' › '+e.subCategory):''), ref:e.ref||e.note||'—', amt:e.amount||0, st:st}); } });
-  (appData.recDeposits||[]).forEach(function(d){ if (d.by===me) rows.push({kind:'dep', id:d.id, k:d.id, date:d.date, time:d.time||'', memo:(d.memoFrom&&d.memoFrom!=='—')?(d.memoFrom+'–'+d.memoTo):'', tag:'🏦 ক্যাশ জমা', bg:'#f3e8ff', fg:'#7e22ce', cat:'ডিউটি শেষে জমা', ref:(d.visitCount||0)+' জন রোগী', amt:d.amount||0, st:(d.diff===undefined||d.diff===null)?'':(d.diff===0?'<span style="color:#16a34a">✓ মিলেছে</span>':'<span style="color:'+(d.diff<0?'#dc2626':'#b45309')+'">'+(d.diff<0?'ঘাটতি':'বেশি')+' ৳ '+fmt(Math.abs(d.diff))+'</span>')}); });
+  (appData.visits||[]).forEach(function(v){ if (_baseBy(v.by)===me || _roleOfBy(v.by)==='admin') rows.push({kind:'visit', id:v.id, k:v.id, by:v.by, date:v.date, time:v.time, memo:v.memoNo||v.rcptNo||'', tag:'🧾 বিল', bg:'#dbeafe', fg:'#1d4ed8', cat:'রোগীর বিল'+(_roleOfBy(v.by)==='admin'?(v.receivedBy==='md'?' <small style="color:#b45309;font-weight:800">· 💼 এমডি গৃহীত</small>':' <small style="color:#0369a1">· গ্রহণ: রিসেপশনিস্ট</small>'):''), ref:v.patName||'—', amt:v.netBill||v.total||0, st:(v.due>0?'<span style="color:#9333ea">বাকি ৳ '+fmt(v.due)+'</span>':'<span style="color:#16a34a">পরিশোধিত</span>')}); });
+  (appData.dueHistory||[]).forEach(function(h){ if (_baseBy(h.by)===me && h.type==='collect') rows.push({kind:'due', id:h.id, k:h.ts||h.id, by:h.by, date:h.date, time:'', memo:h.memoNo||'', tag:'💵 বাকি আদায়', bg:'#dcfce7', fg:'#15803d', cat:'বাকি আদায়', ref:h.patName||'—', amt:h.amount||0, st:(h.remainingDue>0?'<span style="color:#9333ea">অবশিষ্ট ৳ '+fmt(h.remainingDue)+'</span>':'<span style="color:#16a34a">সম্পূর্ণ</span>')}); });
+  (appData.expense||[]).forEach(function(e){ if (_baseBy(e.by)===me) { var st = e.rejected ? '<span style="color:#dc2626">❌ বাতিল</span>' : (e.needsApproval && e.status==='pending' ? '<span style="color:#b45309">⏳ অনুমোদনের অপেক্ষায়</span>' : '<span style="color:#16a34a">✓ গৃহীত</span>'); rows.push({kind:'exp', id:e.id, k:e.id, by:e.by, date:e.date, time:'', memo:e.voucher||e.memo||'', tag:'💸 ব্যয়', bg:'#ffe4e6', fg:'#be123c', cat:(e.category||'—')+(e.subCategory?(' › '+e.subCategory):''), ref:e.ref||e.note||'—', amt:e.amount||0, st:st}); } });
+  (appData.recDeposits||[]).forEach(function(d){ if (_baseBy(d.by)===me) rows.push({kind:'dep', id:d.id, k:d.id, by:d.by, date:d.date, time:d.time||'', memo:(d.memoFrom&&d.memoFrom!=='—')?(d.memoFrom+'–'+d.memoTo):'', tag:'🏦 ক্যাশ জমা', bg:'#f3e8ff', fg:'#7e22ce', cat:'ডিউটি শেষে জমা', ref:(d.visitCount||0)+' জন রোগী', amt:d.amount||0, st:(d.diff===undefined||d.diff===null)?'':(d.diff===0?'<span style="color:#16a34a">✓ মিলেছে</span>':'<span style="color:'+(d.diff<0?'#dc2626':'#b45309')+'">'+(d.diff<0?'ঘাটতি':'বেশি')+' ৳ '+fmt(Math.abs(d.diff))+'</span>')}); });
   rows.sort(function(a,b){ return (b.k||0)-(a.k||0); });
   return rows.slice(0, limit||10).map(function(r){ r.today = r.date===today; return r; });
 }
@@ -32326,6 +32393,45 @@ function _recDetailModal(title, bodyHtml) {
   ov.addEventListener('click', function(e){ if (e.target===ov || (e.target.hasAttribute && e.target.hasAttribute('data-close'))) ov.remove(); });
   document.body.appendChild(ov);
 }
+// ✅ অর্থ গ্রহণকারী পরিবর্তন — অ্যাক্টিভিটি লগে (কে, কখন, কী থেকে কী)
+function recSetReceivedBy(visitId) {
+  var v = (appData.visits||[]).find(function(x){ return x.id===visitId; });
+  var sel = document.getElementById('recRcvSel');
+  if (!v || !sel) return;
+  var oldV = v.receivedBy==='md' ? 'md' : 'receptionist', newV = sel.value;
+  if (oldV===newV) { showToast('পরিবর্তন হয়নি'); return; }
+  v.receivedBy = newV;
+  logActivity('edit', 'রোগীর বিল — অর্থ গ্রহণকারী', (v.patName||'—')+' (মেমো: '+(v.memoNo||v.rcptNo||'—')+') — '+_RECEIVED_BY_LABEL[oldV]+' → '+_RECEIVED_BY_LABEL[newV]);
+  saveData();
+  var ov = sel.closest('div[style*="position:fixed"]'); if (ov) ov.remove();
+  renderRecHome();
+  showToast('✅ অর্থ গ্রহণকারী: '+_RECEIVED_BY_LABEL[newV]);
+}
+// ✅ হার্ড মেমো বাকি — অ্যাডমিন/এমডির করা বিল, যেগুলোর হার্ড মেমো রিসেপশনিস্ট এখনো কাটেননি
+function _pendingHardMemos() {
+  return (appData.visits||[]).filter(function(v){ return v.hardMemoDone===false && _roleOfBy(v.by)==='admin'; }).sort(function(a,b){ return b.id-a.id; });
+}
+function recMarkHardMemo(id) {
+  var v = (appData.visits||[]).find(function(x){ return x.id===id; });
+  if (!v) return;
+  v.hardMemoDone = true; v.hardMemoBy = currentUser.name; v.hardMemoAt = new Date().toISOString();
+  logActivity('edit', 'রোগীর বিল — হার্ড মেমো', (v.patName||'—')+' (মেমো: '+(v.memoNo||v.rcptNo||'—')+') — হার্ড মেমো কাটা হয়েছে');
+  saveData();
+  document.querySelectorAll('div[data-hm-modal]').forEach(function(m){ m.remove(); });
+  if (typeof renderRecHistory==='function') renderRecHistory();
+  updateRecNotifBell(); renderRecHome();
+  showToast('✅ হার্ড মেমো কাটা হয়েছে — তালিকা থেকে সরানো হলো');
+}
+// বেল/ড্যাশবোর্ড থেকে: আজকের এন্ট্রি পেজে বিলের তারিখে গিয়ে সারিটি হাইলাইট
+function recNotifBellGoHardMemo(id) {
+  var v = (appData.visits||[]).find(function(x){ return x.id===id; });
+  _recNotifClosePanel();
+  var btn = document.getElementById('rtab-history');
+  if (btn) switchRecTab('history', btn);
+  var di = document.getElementById('recHistDate'); if (di && v) di.value = v.date;
+  renderRecHistory();
+  _recNotifFlash('rec-hist-row-'+id);
+}
 function recEntryDetail(kind, id) {
   var esc = function(s){ return (s==null||s===''?'—':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
   var grid = function(pairs){ return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:10px">'+pairs.map(function(p){ return '<div><b>'+p[0]+':</b> '+p[1]+'</div>'; }).join('')+'</div>'; };
@@ -32334,18 +32440,26 @@ function recEntryDetail(kind, id) {
     var v = (appData.visits||[]).find(function(x){ return x.id===id; });
     if (!v) { showToast('⚠️ এন্ট্রিটি আর পাওয়া যাচ্ছে না'); return; }
     var rows = (v.services||[]).map(function(s){ return '<tr><td style="padding:5px 8px">'+esc(s.name)+'</td><td style="padding:5px 8px;text-align:center">'+(s.qty||1)+'</td><td style="padding:5px 8px;text-align:right">৳ '+fmt(s.price||0)+'</td><td style="padding:5px 8px;text-align:right;font-weight:700">৳ '+fmt(s.subtotal||0)+'</td></tr>'; }).join('');
+    var _mdBanner = (_roleOfBy(v.by)==='admin' && v.receivedBy==='md' && (v.cashPaid||0)>0)
+      ? '<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:12px;color:#92400e"><div style="font-weight:800">💼 অর্থ গ্রহণকারী: ব্যবস্থাপনা পরিচালক (এমডি)</div><div style="font-size:12.5px;margin-top:3px">৳ '+fmt(v.cashPaid||0)+' টাকা এমডি গ্রহণ করেছেন — রোগীকে পুনরায় জিজ্ঞাসা করার প্রয়োজন নেই। হার্ড মেমোতে "পরিশোধিত (এমডি কর্তৃক গৃহীত)" উল্লেখ করুন।</div></div>' : '';
     _recDetailModal('🧾 বিলের বিস্তারিত — '+esc(v.patName),
-      grid([['ফোন',esc(v.patPhone)],['মেমো',esc(v.memoNo||v.rcptNo)],['বয়স/লিঙ্গ',esc(v.patAge)+' / '+esc(v.patGender)],['তারিখ',(v.date?formatDate(v.date):'—')+(v.time?' · '+esc(v.time):'')],['ডাক্তার',esc(v.patDoc||v.doctorName)],['এন্ট্রিকারী',esc(v.by)]])
+      _mdBanner + ((_roleOfBy(v.by)==='admin' && v.hardMemoDone===false)
+        ? '<div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div style="color:#9a3412;font-weight:800;font-size:12.5px">📝 হার্ড মেমো বাকি আছে<div style="font-weight:500;font-size:11.5px;margin-top:2px">রোগীর নাম ও ফোন মিলিয়ে নিন, তারপর হার্ড মেমো কাটুন।</div></div><button type="button" class="btn btn-sm" style="background:#f59e0b;color:#fff;font-weight:700" onclick="recMarkHardMemo('+v.id+')">✅ হার্ড মেমো কাটা হয়েছে</button></div>'
+        : ((_roleOfBy(v.by)==='admin' && v.hardMemoDone===true) ? '<div style="font-size:12px;color:#16a34a;font-weight:700;margin-bottom:10px">✅ হার্ড মেমো কাটা হয়েছে'+(v.hardMemoBy?' — '+esc(v.hardMemoBy):'')+'</div>' : '')) + grid([['ফোন',esc(v.patPhone)],['মেমো',esc(v.memoNo||v.rcptNo)],['বয়স/লিঙ্গ',esc(v.patAge)+' / '+esc(v.patGender)],['তারিখ',(v.date?formatDate(v.date):'—')+(v.time?' · '+esc(v.time):'')],['ডাক্তার',esc(v.patDoc||v.doctorName)],['এন্ট্রিকারী',_byWithRole(v.by)]])
       + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px"><thead><tr style="background:#f8fafc"><th style="padding:5px 8px;text-align:left">আইটেম</th><th>পরিমাণ</th><th style="text-align:right;padding:5px 8px">দাম</th><th style="text-align:right;padding:5px 8px">মোট</th></tr></thead><tbody>'+(rows||'<tr><td colspan="4" style="padding:8px;color:#aaa">কোনো আইটেম নেই</td></tr>')+'</tbody></table>'
-      + '<div style="display:flex;gap:14px;flex-wrap:wrap;font-weight:700"><span>মোট: ৳ '+fmt(v.total||0)+'</span><span>নেট: ৳ '+fmt(v.netBill||v.total||0)+'</span><span style="color:#16a34a">পরিশোধ: ৳ '+fmt(v.cashPaid||0)+'</span>'+(v.mfsPaid?'<span style="color:#0369a1">(মোবাইল ব্যাংকিং: ৳ '+fmt(v.mfsPaid)+')</span>':'')+'<span style="color:#9333ea">বাকি: ৳ '+fmt(v.due||0)+'</span></div>'
-      + (v.note?'<div style="margin-top:8px;color:#64748b"><b>নোট:</b> '+esc(v.note)+'</div>':''));
+      + '<div style="display:flex;gap:14px;flex-wrap:wrap;font-weight:700"><span>মোট: ৳ '+fmt(v.total||0)+'</span><span style="color:#d97706">ডিসকাউন্ট: ৳ '+fmt((v.discAmt!=null?v.discAmt:Math.max(0,(v.total||0)-(v.netBill!=null?v.netBill:(v.total||0)))))+'</span><span>নেট: ৳ '+fmt(v.netBill!=null?v.netBill:(v.total||0))+'</span><span style="color:#16a34a">পরিশোধ: ৳ '+fmt(v.cashPaid||0)+'</span>'+(v.mfsPaid?'<span style="color:#0369a1">(মোবাইল ব্যাংকিং: ৳ '+fmt(v.mfsPaid)+')</span>':'')+'<span style="color:#9333ea">বাকি: ৳ '+fmt(v.due||0)+'</span></div>'
+      + (v.note?'<div style="margin-top:8px;color:#64748b"><b>নোট:</b> '+esc(v.note)+'</div>':'')
+      + (_roleOfBy(v.by)==='admin' ? '<div style="margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px"><div style="font-weight:800;color:#075985;margin-bottom:6px">🧾 অর্থ গ্রহণকারী (Received By)</div>'
+          + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="recRcvSel" style="padding:6px 9px;border:1.5px solid #7dd3fc;border-radius:6px;font-family:inherit;font-size:12.5px"><option value="receptionist"'+(v.receivedBy==='md'?'':' selected')+'>রিসেপশনিস্ট</option><option value="md"'+(v.receivedBy==='md'?' selected':'')+'>ব্যবস্থাপনা পরিচালক (এমডি)</option></select>'
+          + '<button type="button" class="btn btn-primary btn-sm" onclick="recSetReceivedBy('+v.id+')">সংরক্ষণ</button></div>'
+          + '<div style="font-size:11px;color:#64748b;margin-top:5px">পরিবর্তন করলে আজকের ক্যাশ হিসাব ও অ্যাক্টিভিটি লগে প্রতিফলিত হবে।</div></div>' : ''));
     return;
   }
   if (kind==='due') {
     var h = (appData.dueHistory||[]).find(function(x){ return x.id===id; });
     if (!h) { showToast('⚠️ এন্ট্রিটি আর পাওয়া যাচ্ছে না'); return; }
     _recDetailModal('💵 বাকি আদায়ের বিস্তারিত — '+esc(h.patName),
-      grid([['রোগী',esc(h.patName)],['মেমো',esc(h.memoNo)],['আদায়',('৳ '+fmt(h.amount||0))],['আদায়ের পর বাকি',('৳ '+fmt(h.remainingDue||0))],['তারিখ',(h.date?formatDate(h.date):'—')+(h.ts?' · '+new Date(h.ts).toLocaleTimeString('bn-BD',{hour:'2-digit',minute:'2-digit'}):'')],['আদায়কারী',esc(h.by)]])
+      grid([['রোগী',esc(h.patName)],['মেমো',esc(h.memoNo)],['আদায়',('৳ '+fmt(h.amount||0))],['আদায়ের পর বাকি',('৳ '+fmt(h.remainingDue||0))],['তারিখ',(h.date?formatDate(h.date):'—')+(h.ts?' · '+new Date(h.ts).toLocaleTimeString('bn-BD',{hour:'2-digit',minute:'2-digit'}):'')],['আদায়কারী',_byWithRole(h.by)]])
       + (h.note?'<div style="color:#64748b"><b>নোট:</b> '+esc(h.note)+'</div>':''));
     return;
   }
@@ -32354,7 +32468,7 @@ function recEntryDetail(kind, id) {
     if (!e) { showToast('⚠️ এন্ট্রিটি আর পাওয়া যাচ্ছে না'); return; }
     var stTxt = e.rejected ? '❌ বাতিল'+(e.rejectReason||e.rejectNote?(' — '+esc(e.rejectReason||e.rejectNote)):'') : (e.needsApproval && e.status==='pending' ? '⏳ অ্যাডমিনের অনুমোদনের অপেক্ষায়' : '✅ গৃহীত');
     _recDetailModal('💸 ব্যয়ের বিস্তারিত — '+esc(e.category),
-      grid([['খাত',esc(e.category)+(e.subCategory?' › '+esc(e.subCategory):'')],['পরিমাণ','৳ '+fmt(e.amount||0)],['তারিখ',e.date?formatDate(e.date):'—'],['মাধ্যম',(!e.payMode||e.payMode==='cash')?'নগদ':esc(e.payMode)],['ভাউচার/মেমো',esc(e.voucher||e.memo)],['এন্ট্রিকারী',esc(e.by)]])
+      grid([['খাত',esc(e.category)+(e.subCategory?' › '+esc(e.subCategory):'')],['পরিমাণ','৳ '+fmt(e.amount||0)],['তারিখ',e.date?formatDate(e.date):'—'],['মাধ্যম',(!e.payMode||e.payMode==='cash')?'নগদ':esc(e.payMode)],['ভাউচার/মেমো',esc(e.voucher||e.memo)],['এন্ট্রিকারী',_byWithRole(e.by)]])
       + '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-weight:700">'+stTxt+'</div>'
       + ((e.note||e.ref)?'<div style="margin-top:8px;color:#64748b"><b>বিবরণ:</b> '+esc(e.note||e.ref)+'</div>':''));
     return;
@@ -32406,7 +32520,19 @@ function renderRecHome() {
   var dueTotal = dueVisits.reduce(function(s,v){ return s+(v.due||0); }, 0);
   var recallBadge = document.getElementById('recRecallBadge');
   var recallN = (recallBadge && recallBadge.style.display!=='none') ? recallBadge.textContent : '০';
-  var pending = waitingTokens + todayAppts + callCount + dlvOver + returned + myRejected;
+  var hardMemos = _pendingHardMemos();
+  var pending = waitingTokens + todayAppts + callCount + dlvOver + returned + myRejected + hardMemos.length;
+  var alEl = document.getElementById('recHomeAlert');
+  if (alEl) {
+    if (!hardMemos.length) { alEl.innerHTML = ''; }
+    else {
+      var esc2 = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+      alEl.innerHTML = '<div class="rhd-alert"><div class="rhd-alert-h">🧾 এমডি-এন্ট্রি বিল — '+fmt(hardMemos.length)+'টির হার্ড মেমো বাকি <small>(রোগীর নাম/ফোন মিলিয়ে হার্ড মেমো কাটুন)</small></div><div class="rhd-alert-list">'
+        + hardMemos.slice(0,5).map(function(v){
+            return '<span class="rhd-alert-chip" onclick="recNotifBellGoHardMemo('+v.id+')" title="খুলতে ক্লিক করুন">'+esc2(v.patName||'—')+(v.patPhone?' · '+esc2(v.patPhone):'')+' · ৳ '+fmt(v.cashPaid||0)+' <em>'+(v.receivedBy==='md'?'💼 এমডি গৃহীত':'রিসেপশনিস্ট গৃহীত')+'</em></span>';
+          }).join('') + (hardMemos.length>5?'<span class="rhd-alert-chip" style="cursor:default">+'+fmt(hardMemos.length-5)+' টি আরও</span>':'') + '</div></div>';
+    }
+  }
   var pEl = document.getElementById('recHomePending'); if (pEl) pEl.textContent = fmt(pending);
   function card(icon, label, val, sub, color, bg, tab, urgent, zero) {
     return '<div class="rhd-card'+(urgent?' urgent':'')+(zero?' zero':'')+'" style="--c:'+color+';--bg:'+bg+'" onclick="recGoTab(\''+tab+'\')">'
@@ -32465,7 +32591,7 @@ function renderRecHome() {
     var remLbl = rem>0 ? 'জমা বাকি' : (rem===0 ? '✓ হিসাব মিলেছে' : 'বেশি জমা');
     var cashCard = '<div class="rhd-card rhd-wide4" style="--c:#0f766e;--bg:#ccfbf1">'
       +'<div class="rhd-top"><div style="display:flex;align-items:center;gap:8px"><div class="rhd-chip">💰</div><div><div class="rhd-lbl" style="margin:0">আজকের ক্যাশ হিসাব</div>'
-      +'<div class="rhd-sub">'+(cc.mfs>0?('মোবাইল ব্যাংকিং-এ এসেছে ৳ '+fmt(cc.mfs)+' (ক্যাশে ধরা হয়নি) · '):'')+'বাকি আদায় ৳ '+fmt(cc.dueIn)+' অন্তর্ভুক্ত</div></div></div>'
+      +'<div class="rhd-sub">'+(cc.mfs>0?('মোবাইল ব্যাংকিং-এ এসেছে ৳ '+fmt(cc.mfs)+' (ক্যাশে ধরা হয়নি) · '):'')+'বাকি আদায় ৳ '+fmt(cc.dueIn)+' অন্তর্ভুক্ত'+(cc.adminCash>0?(' · এমডি-এন্ট্রি বিল (রিসেপশনিস্ট গৃহীত) ৳ '+fmt(cc.adminCash)+' অন্তর্ভুক্ত'):'')+(cc.mdHeld>0?(' · এমডি-গৃহীত ৳ '+fmt(cc.mdHeld)+' এই হিসাবের বাইরে'):'')+'</div></div></div>'
       +'<button type="button" class="rhd-copy" onclick="showRecCashSubmitModal()">💵 ক্যাশ জমা দিন</button></div>'
       +'<div class="rhd-mini"><div><small>নগদ আদায়</small><b style="color:#15803d">৳ '+fmt(cc.cashIn)+'</b></div>'
       +'<div><small>নগদ ব্যয়</small><b style="color:#be123c">৳ '+fmt(cc.cashOut)+'</b></div>'
@@ -32494,16 +32620,17 @@ function renderRecHome() {
     var head = '<div class="rhd-recent-h"><span>সর্বশেষ '+fmt(rows.length)+'টি এন্ট্রি</span><a onclick="recGoTab(\'history\')">আজকের সব এন্ট্রি →</a></div>';
     if (!rows.length) { recEl.innerHTML = head + '<div style="text-align:center;color:#aaa;padding:16px;font-size:12.5px">এখনো কোনো এন্ট্রি দেননি</div>'; }
     else {
-      var colg = '<colgroup><col style="width:11%"><col style="width:12%"><col style="width:12%"><col style="width:17%"><col style="width:21%"><col style="width:11%"><col style="width:16%"></colgroup>';
-      recEl.innerHTML = head + '<table class="rhd-tbl">'+colg+'<thead><tr><th>তারিখ</th><th>মেমো/ভাউচার</th><th>ধরন</th><th>খাত</th><th>রেফ/রোগী</th><th style="text-align:right">পরিমাণ</th><th>অবস্থা</th></tr></thead><tbody>'
+      var colg = '<colgroup><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:19%"><col style="width:14%"><col style="width:9%"><col style="width:16%"><col style="width:13%"></colgroup>';
+      recEl.innerHTML = head + '<table class="rhd-tbl">'+colg+'<thead><tr><th>তারিখ</th><th>মেমো/ভাউচার</th><th>ধরন</th><th>খাত</th><th>রেফ/রোগী</th><th style="text-align:right">পরিমাণ</th><th>এন্ট্রিকারী</th><th>অবস্থা</th></tr></thead><tbody>'
         + rows.map(function(r){
             return '<tr class="rhd-r" onclick="recEntryDetail(\''+r.kind+'\','+r.id+')" title="বিস্তারিত দেখতে ক্লিক করুন">'
               +'<td>'+(r.today?'আজ':formatDate(r.date))+(r.time?' <small>'+String(r.time).replace(/:[\d০-৯]{2}(?=\s|$)/,'')+'</small>':'')+'</td>'
               +'<td>'+(r.memo||'—')+'</td>'
               +'<td><span class="rhd-tag" style="background:'+r.bg+';color:'+r.fg+'">'+r.tag+'</span></td>'
-              +'<td title="'+String(r.cat).replace(/"/g,'&quot;')+'">'+r.cat+'</td>'
+              +'<td title="'+String(r.cat).replace(/<[^>]*>/g,'').replace(/"/g,'&quot;')+'">'+r.cat+'</td>'
               +'<td title="'+String(r.ref).replace(/"/g,'&quot;')+'">'+r.ref+'</td>'
               +'<td class="num">৳ '+fmt(r.amt)+'</td>'
+              +'<td>'+_byWithRole(r.by)+'</td>'
               +'<td>'+(r.st||'')+'</td></tr>';
           }).join('') + '</tbody></table>';
     }
@@ -32778,7 +32905,7 @@ function printCurrentReceipt() {
 function printVisitReceipt(id) {
   const v=appData.visits.find(v=>v.id===id);
   if (!v) return;
-  showPrint({ patName:v.patName, services:v.services, total:v.total, discAmt:v.discAmt||0, netBill:v.netBill||v.total, cashPaid:v.cashPaid, due:v.due, date:v.date, patAge:v.patAge, patGender:v.patGender, patAddress:v.patAddress, patDoc:v.patDoc, note:v.note, billNo:v.memoNo||v.rcptNo||('REC-'+v.id.toString().slice(-6)) });
+  showPrint({ patName:v.patName, services:v.services, total:v.total, discAmt:v.discAmt||0, netBill:v.netBill||v.total, cashPaid:v.cashPaid, due:v.due, date:v.date, patAge:v.patAge, patGender:v.patGender, patAddress:v.patAddress, patDoc:v.patDoc, note:v.note, receivedBy:(_roleOfBy(v.by)==='admin' ? (v.receivedBy==='md'?'ব্যবস্থাপনা পরিচালক (এমডি)':'রিসেপশনিস্ট') : ''), billNo:v.memoNo||v.rcptNo||('REC-'+v.id.toString().slice(-6)) });
 }
 function printAdminBillReceipt(id) {
   const b=(appData.adminBills||[]).find(b=>b.id===id);
@@ -32814,6 +32941,7 @@ function showPrint(d) {
         ${d.discAmt>0?`<tr><td style="color:#f59e0b">ডিসকাউন্ট</td><td style="text-align:right;font-weight:700;color:#f59e0b">- ৳ ${fmt(d.discAmt)}</td></tr>`:''}
         ${d.discAmt>0?`<tr><td style="font-weight:600">নেট বিল</td><td style="text-align:right;font-weight:700">৳ ${fmt(d.netBill)}</td></tr>`:''}
         <tr><td style="color:#2ecc71">নগদ প্রদান</td><td style="text-align:right;font-weight:700;color:#2ecc71">৳ ${fmt(d.cashPaid)}</td></tr>
+        ${(d.receivedBy&&d.cashPaid>0)?`<tr><td style="font-size:12px;color:#555">অর্থ গ্রহণকারী</td><td style="text-align:right;font-size:12px;font-weight:700;color:#555">${d.receivedBy}</td></tr>`:''}
         ${d.due>0?`<tr><td style="color:#e74c3c">বাকি</td><td style="text-align:right;font-weight:700;color:#e74c3c">৳ ${fmt(d.due)}</td></tr>`:''}
       </table>
       ${d.note?`<div style="font-size:12px;color:#888;margin-top:8px">মন্তব্য: ${d.note}</div>`:''}
@@ -34341,6 +34469,27 @@ function editTestFee(id) {
   document.getElementById('tfEditId').value=t.id;
 }
 
+// ✅ রিসেপশনিস্ট আজ উপস্থিত কি না (স্টাফ-অ্যাটেনডেন্স থেকে): ইউজার-তালিকার রিসেপশনিস্টের নামে স্টাফ রেকর্ড মিললে আজ ইন-রেকর্ড আছে কি না দেখা হয়।
+// স্টাফ রেকর্ড না মিললে (নির্ধারণ করা যাচ্ছে না) ধরা হয় উপস্থিত — অর্থাৎ ডিফল্ট থাকে "রিসেপশনিস্ট"।
+function _receptionistPresentToday() {
+  var recNames = (appData.users||[]).filter(function(u){ return u.role==='receptionist'; }).map(function(u){ return u.name; });
+  Object.keys(USERS||{}).forEach(function(k){ var u = USERS[k]; if (u && u.role==='receptionist' && recNames.indexOf(u.name)===-1) recNames.push(u.name); });
+  var today = todayStr();
+  var staff = (appData.staff||[]).filter(function(s){ return s.status==='active' && (recNames.indexOf(s.name)>-1 || /রিসেপশন/.test(s.desig||'')); });
+  if (!staff.length) return { known:false, present:true };
+  var present = staff.some(function(s){ return getAttendanceForDate(s.id, today).some(function(r){ return r.type==='in'; }); });
+  return { known:true, present:present };
+}
+function applyNbReceivedByDefault() {
+  var sel = document.getElementById('nb_ReceivedBy'); if (!sel) return;
+  var st = _receptionistPresentToday();
+  sel.value = st.present ? 'receptionist' : 'md';
+  var hint = document.getElementById('nb_ReceivedByHint');
+  if (hint) hint.textContent = !st.known ? 'ডিফল্ট: রিসেপশনিস্ট (উপস্থিতির তথ্য পাওয়া যায়নি)'
+    : (st.present ? 'রিসেপশনিস্ট আজ উপস্থিত — ডিফল্ট: রিসেপশনিস্ট' : 'রিসেপশনিস্ট আজ অনুপস্থিত/ছুটিতে — ডিফল্ট: ব্যবস্থাপনা পরিচালক');
+}
+var _RECEIVED_BY_LABEL = { receptionist:'রিসেপশনিস্ট', md:'ব্যবস্থাপনা পরিচালক (এমডি)' };
+function _receivedByShort(v) { return v && v.receivedBy==='md' ? 'এমডি' : 'রিসেপশনিস্ট'; }
 function initNewBillPage() {
   if(document.getElementById('nb_BillDate')) document.getElementById('nb_BillDate').value=todayStr();
   if(document.getElementById('nb_MemoNo'))   document.getElementById('nb_MemoNo').value=generateNextMemoNo();
@@ -34354,6 +34503,7 @@ function initNewBillPage() {
   // ✅ ভিজিট ফি বাই ডিফল্ট বিলে উঠে থাকে — ডাক্তার রিস্টোরের পরে যোগ হচ্ছে যাতে সঠিক ফি বসে
   addRow('visitfee','nb_');
   if (typeof renderNbRecentPatients==='function') renderNbRecentPatients();
+  applyNbReceivedByDefault();
 }
 
 function nbApplyDiscAmt() { _applyAmt('nb_'); }
@@ -34388,6 +34538,7 @@ function nbClearForm() {
   // ✅ ডাক্তার সিলেকশন ক্লিয়ার করা হয় না — আজকের ডিফল্ট ডাক্তার (থাকলে) পরের বিলেও থেকে যাবে
   if (typeof restoreRecDefaultDoctor==='function') restoreRecDefaultDoctor('nb_'); else clearDocSelectUI('nb_');
   resetPatronToggleUI('nb_');
+  applyNbReceivedByDefault();
   const sbBtn=document.getElementById('nbSendBackBtn');if(sbBtn)sbBtn.style.display='none';
   refreshDeliveryInfoBox('nb_');
   document.getElementById('nb_serviceRows').innerHTML='';
@@ -35299,6 +35450,8 @@ function _billSave(p) {
     nextSerialDate: isCustomer ? undefined : (nextSerialDate||undefined),
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved,
+    hardMemoDone: (nb && currentUser && currentUser.role==='admin') ? false : undefined,   // অ্যাডমিন-এন্ট্রি বিল: রিসেপশনিস্ট হার্ড মেমো কাটলে true
+    receivedBy: nb ? ((document.getElementById('nb_ReceivedBy')||{}).value||'receptionist') : undefined,   // শুধু অ্যাডমিন-এন্ট্রি বিলে: অর্থ কার কাছে (receptionist | md)
     isCustomer: isCustomer||undefined};
   // ✅ কমিশন প্রযোজ্য না হলেও — নির্বাচিত ডাক্তার রোগীর রেকর্ডে থেকে যায়, যাতে কোন ডাক্তার দেখেছেন তা রেকর্ড থাকে
   // (ক্রেতার ক্ষেত্রে ডাক্তার সিলেক্ট আগে থেকেই হাইড/ক্লিয়ার থাকে, তাই এই অংশ স্বয়ংক্রিয়ভাবে স্কিপ হয়)
