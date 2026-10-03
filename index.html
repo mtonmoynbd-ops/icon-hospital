@@ -696,6 +696,13 @@
   #rec-home .rhd-lbl { font-size:12px; font-weight:800; color:#1e293b; margin-top:5px; line-height:1.25; }
   #rec-home .rhd-sub { font-size:10.5px; color:#94a3b8; margin-top:1px; line-height:1.25; }
   #rec-home .rhd-stock { grid-column:span 3; cursor:default; }
+  #rec-home .rhd-wide4 { grid-column:span 4; cursor:default; }
+  #rec-home .rhd-wide4:hover { transform:none; }
+  #rec-home .rhd-mini { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:10px; }
+  #rec-home .rhd-mini div { background:#f8fafc; border:1px solid #eef2f7; border-radius:10px; padding:7px 9px; }
+  #rec-home .rhd-mini small { display:block; font-size:10px; color:#94a3b8; font-weight:700; }
+  #rec-home .rhd-mini b { font-size:15px; font-weight:800; color:#1e293b; }
+  @container (max-width:720px) { #rec-home .rhd-wide4 { grid-column:span 3; } #rec-home .rhd-mini { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   #rec-home .rhd-stock:hover { transform:none; }
   #rec-home .rhd-stock-items { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
   #rec-home .rhd-si { font-size:11px; font-weight:700; border-radius:8px; padding:3px 8px; background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
@@ -3596,8 +3603,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
         <div class="panel-body">
           <div class="rn-row rn-row1">
-            <div class="field"><label id="nb_PatNameLabel">রোগীর নাম *</label><input type="text" id="nb_PatName" placeholder="পূর্ণ নাম"></div>
-            <div class="field"><label>ফোন নম্বর</label><input type="text" id="nb_PatPhone" placeholder="০১XXXXXXXXX"></div>
+            <div class="field"><label id="nb_PatNameLabel">রোগীর নাম *</label><input type="text" id="nb_PatName" placeholder="পূর্ণ নাম" onchange="onPatNameChange('nb_')"></div>
+            <div class="field"><label>ফোন নম্বর</label><input type="text" id="nb_PatPhone" placeholder="০১XXXXXXXXX" oninput="onPatPhoneInput('nb_')"></div>
             <div class="field"><label>বয়স</label><input type="text" id="nb_PatAge" placeholder="৩৫"></div>
             <div class="field"><label>লিঙ্গ</label>
               <select id="nb_PatGender">
@@ -3609,6 +3616,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </div>
             <div class="field"><label>তারিখ *</label><input type="date" id="nb_BillDate"></div>
           </div>
+          <div id="nb_PatPhoneHint" style="display:none;margin:-4px 0 10px"></div>
 
           <!-- ✅ ২য় সারি: ঠিকানা | রেফারেন্স | বিবরণ/মন্তব্য | মেমো নং -->
           <div class="rn-row rn-row2b">
@@ -7730,6 +7738,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="rhd-chart" id="recHomeChart"></div>
         </aside>
       </div>
+      <div class="rhd-sec">🗓️ আগামীকাল ও আজকের ক্যাশ</div>
+      <div class="rhd-grid" id="recHomeTomorrow"></div>
       <div class="rhd-sec">📋 সাম্প্রতিক এন্ট্রি <span style="font-weight:600;color:#94a3b8">(শুধু আপনার দেওয়া)</span></div>
       <div class="rhd-recent" id="recHomeRecent"></div>
     </div>
@@ -7752,7 +7762,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
         <div class="panel-body">
           <div class="rn-row rn-row1">
-            <div class="field"><label id="rPatNameLabel">রোগীর নাম *</label><input type="text" id="rPatName" placeholder="পূর্ণ নাম"></div>
+            <div class="field"><label id="rPatNameLabel">রোগীর নাম *</label><input type="text" id="rPatName" placeholder="পূর্ণ নাম" onchange="onPatNameChange('r')"></div>
             <div class="field"><label>ফোন নম্বর</label><input type="text" id="rPatPhone" placeholder="০১XXXXXXXXX" oninput="onRPatPhoneInput()"></div>
             <div class="field"><label>বয়স</label><input type="text" id="rPatAge" placeholder="৩৫"></div>
             <div class="field"><label>লিঙ্গ</label>
@@ -8883,7 +8893,7 @@ function changeOwnerReadOnlyMonth(val) {
 }
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
 let activeDueId = null;
 let activeDueSource = 'visit'; // 'visit' | 'camp'
 let serviceCount = 0;
@@ -9326,7 +9336,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -10285,7 +10295,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -10497,7 +10507,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -10767,7 +10777,7 @@ const PATH_SYNCED_MODULES = [
   'income', 'expense', 'bankTx', 'visits', 'camps', 'stock', 'stockLog',
   'demands', 'vouchers', 'loans', 'dividends', 'campSchedules', 'campVisits',
   'campExpenses', 'campOpPatients', 'memoDocs', 'padNotices', 'recDeposits',
-  'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory',
+  'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory', 'deletedVisits', 'notifSeen',
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
   'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox', 'tgOutbox',
@@ -13444,7 +13454,9 @@ function confirmCashSubmit(role) {
     const stockLog = (appData.stockLog||[]).filter(l=>l.date===today && l.type==='out');
     const stockSummary = stockLog.map(l=>`${l.itemName||l.itemId}: ${Math.abs(l.qty||0)}`).join(', ') || '—';
 
+    const _cc = _recCashClosing();   // জমা দেওয়ার মুহূর্তের প্রত্যাশিত নগদ (আগের জমা বাদে) — অ্যাডমিন পার্থক্য দেখতে পাবেন
     const recDeposit = {
+      expectedCash: _cc.remaining, diff: amt - _cc.remaining,
       id: Date.now()+1,
       date: today,
       time: timeStr,
@@ -13508,6 +13520,7 @@ function renderRecDepositList() {
           <div>
             <span style="font-weight:700;color:var(--success)">৳ ${fmt(d.amount||0)}</span>
             <span style="color:var(--text-light);font-size:12px;margin-left:8px">জমা দিয়েছেন: ${d.by||'—'} | সময়: ${d.time||'—'}</span>
+            ${(d.diff===undefined||d.diff===null)?'':(d.diff===0?'<span style="font-size:11px;font-weight:800;color:#16a34a;background:#dcfce7;border-radius:20px;padding:2px 8px;margin-left:6px">✓ হিসাব মিলেছে</span>':`<span style="font-size:11px;font-weight:800;color:${d.diff<0?'#b91c1c':'#b45309'};background:${d.diff<0?'#fee2e2':'#fef3c7'};border-radius:20px;padding:2px 8px;margin-left:6px">${d.diff<0?'ঘাটতি':'বেশি'} ৳ ${fmt(Math.abs(d.diff))}</span>`)}
           </div>
           <button class="btn btn-primary btn-sm">বিস্তারিত দেখুন</button>
         </div>
@@ -13550,6 +13563,7 @@ function showRecDepositDetail(id) {
       <table style="width:100%;font-size:13px;border-collapse:collapse">
         <tr><td style="padding:6px 0;color:#666;width:180px">জমা দেওয়ার সময়</td><td style="font-weight:600">${d.time||'—'}</td></tr>
         <tr><td style="padding:6px 0;color:#666">জমাদানকারী</td><td style="font-weight:600">${d.by||'—'}</td></tr>
+        ${(d.expectedCash===undefined)?'':`<tr><td style="padding:6px 0;color:#666">প্রত্যাশিত নগদ (সিস্টেম হিসাবে)</td><td style="font-weight:600">৳ ${fmt(d.expectedCash)} ${d.diff===0?'<span style="color:#16a34a">— মিলেছে</span>':`<span style="color:${d.diff<0?'#b91c1c':'#b45309'}">— ${d.diff<0?'ঘাটতি':'বেশি'} ৳ ${fmt(Math.abs(d.diff))}</span>`}</td></tr>`}
         <tr><td style="padding:6px 0;color:#666">মেমো ব্যবহার</td><td style="font-weight:600">${d.memoFrom||'—'} থেকে ${d.memoTo||'—'}</td></tr>
         <tr><td style="padding:6px 0;color:#666">মোট রিসেপশন আয়</td><td style="font-weight:600;color:var(--success)">৳ ${fmt(d.totalRecIncome||0)}</td></tr>
         <tr><td style="padding:6px 0;color:#666">মোট বাকি</td><td style="font-weight:600;color:#9b59b6">৳ ${fmt(d.totalDue||0)}</td></tr>
@@ -16907,11 +16921,13 @@ function deleteLoan(id) {
 // ===== CASH SUBMIT MODAL (Receptionist & Campaigner) =====
 function buildCashSubmitModal(role) {
   const today = todayStr();
+  let extraDep = 0;
   // আজকের আয় হিসাব
   let todayInc = 0, todayExp = 0, label = '';
   if (role === 'receptionist') {
-    todayInc = (appData.visits||[]).filter(v=>v.date===today).reduce((s,v)=>s+v.cashPaid,0);
-    todayExp = 0; // receptionist সাধারণত ব্যয় করে না
+    // ✅ নিজের এন্ট্রি থেকে নগদ আদায়/ব্যয়, আগে আজ জমা দিয়ে থাকলে তা বাদ — যাতে জমাযোগ্য অঙ্ক ঠিক আসে
+    const _cc = _recCashClosing();
+    todayInc = _cc.cashIn; todayExp = _cc.cashOut; extraDep = _cc.deposited;
     label = 'রিসেপশন';
   } else if (role === 'campaigner') {
     const sess = camperSession;
@@ -16922,7 +16938,7 @@ function buildCashSubmitModal(role) {
     }
     label = 'ক্যাম্পেইনার';
   }
-  const net = todayInc - todayExp;
+  const net = (role==='receptionist') ? Math.max(0, todayInc - todayExp - extraDep) : (todayInc - todayExp);
   const modal = document.createElement('div');
   modal.id = 'cashSubmitModalWrap';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -16934,9 +16950,10 @@ function buildCashSubmitModal(role) {
       </div>
       <div style="background:#f0fff4;border:1.5px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px">
         <div style="display:flex;justify-content:space-between;padding:4px 0">
-          <span style="color:#666">আজকের মোট আয়</span>
+          <span style="color:#666">${role==='receptionist'?'আজকের নগদ আদায়':'আজকের মোট আয়'}</span>
           <span style="font-weight:700;color:#2ecc71">৳ ${fmt(todayInc)}</span>
         </div>
+        ${extraDep>0?`<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="color:#666">আজ আগে জমা দিয়েছেন</span><span style="font-weight:700;color:#0369a1">৳ ${fmt(extraDep)}</span></div>`:''}
         ${todayExp>0?`<div style="display:flex;justify-content:space-between;padding:4px 0">
           <span style="color:#666">আজকের মোট ব্যয়</span>
           <span style="font-weight:700;color:#e74c3c">৳ ${fmt(todayExp)}</span>
@@ -24980,7 +24997,10 @@ function getNotifData() {
   // ✅ মেয়াদোত্তীর্ণ শিডিউল্ড ক্যাম্প (তারিখ পার হয়ে গেছে কিন্তু এখনো একটিভ/ক্লোজ করা হয়নি) — এডমিন/মডারেটরকে
   // বাতিল বা রি-শিডিউল করার জন্য নোটিফাই করা হয়
   const overdueCamps = (typeof getOverdueCampSchedules==='function') ? getOverdueCampSchedules() : [];
-  return { pendingDemands, dueVisits, checkReminders, pendingExpApprovals, overdueCamps };
+  // ✅ রিসেপশন যে বিল মুছেছে (কারণসহ) — অ্যাডমিন/মডারেটরকে জানানো; অ্যাডমিনের নিজের মোছা বাদ
+  const deletedVisits = (currentUser && ['admin','moderator'].includes(currentUser.role))
+    ? (appData.deletedVisits||[]).filter(r=>!r.byAdmin).sort((a,b)=>b.id-a.id) : [];
+  return { pendingDemands, dueVisits, checkReminders, pendingExpApprovals, overdueCamps, deletedVisits };
 }
 // ✅ বেলে ক্লিক করে একবার নোটিফিকেশন প্যানেল খুললে সেগুলোকে "দেখা হয়ে গেছে" হিসেবে মনে রাখা হয়
 // (লোকালস্টোরেজে, ইউজারভিত্তিক) — তারপর ব্যাজে আর সংখ্যা দেখাবে না, যতক্ষণ না নতুন কোনো
@@ -24988,25 +25008,53 @@ function getNotifData() {
 function _notifSeenKey() {
   return 'hms_notif_seen_' + ((currentUser && currentUser.username) || 'anon');
 }
-function _notifIdList({ pendingDemands, dueVisits, checkReminders, pendingExpApprovals, overdueCamps }) {
+function _notifIdList({ pendingDemands, dueVisits, checkReminders, pendingExpApprovals, overdueCamps, deletedVisits }) {
   return [
     ...pendingDemands.map(d => 'd' + d.id),
     ...dueVisits.map(v => 'v' + v.id + '_' + v.due),
     ...checkReminders.map(r => 'c' + (r.id!==undefined ? r.id : r.text) + '_' + r.type),
     ...(pendingExpApprovals||[]).map(e => 'e' + e.id + '_' + (e.approvalRequestedAt||'')),
-    ...(overdueCamps||[]).map(s => 'o' + s.id + '_' + s.date)
+    ...(overdueCamps||[]).map(s => 'o' + s.id + '_' + s.date),
+    ...(deletedVisits||[]).map(r => 'x' + r.id)
   ];
 }
-function _getNotifSeenSet() {
-  try { return new Set(JSON.parse(localStorage.getItem(_notifSeenKey())) || []); }
-  catch(e) { return new Set(); }
+// ✅ "দেখা হয়েছে" এখন সার্ভারেও জমা থাকে (প্রতি-ইউজার একটা এন্ট্রি, প্রতি-এন্ট্রি সিঙ্ক) — তাই অন্য কম্পিউটার/ব্রাউজারে
+// লগইন করলেও একই আইটেম আবার বেলে ফিরে আসে না। লোকালস্টোরেজ দ্রুত ক্যাশ হিসেবে থাকে; দুটোর ইউনিয়ন ধরা হয়।
+function _notifSeenServerEntry(create) {
+  var user = (currentUser && currentUser.username) || 'anon';
+  if (!appData.notifSeen) appData.notifSeen = [];
+  var e = appData.notifSeen.find(function(x){ return x.user === user; });
+  if (!e && create) {
+    var h = 0; for (var i=0; i<user.length; i++) h = (h*31 + user.charCodeAt(i)) >>> 0;
+    var id = 100000 + (h % 900000000);
+    while (appData.notifSeen.some(function(x){ return x.id === id; })) id++;
+    e = { id: id, user: user, ids: [] };
+    appData.notifSeen.push(e);
+  }
+  return e;
 }
+function _getNotifSeenSet() {
+  var s;
+  try { s = new Set(JSON.parse(localStorage.getItem(_notifSeenKey())) || []); } catch(e) { s = new Set(); }
+  var e = _notifSeenServerEntry(false);
+  if (e && e.ids) e.ids.forEach(function(i){ s.add(i); });
+  return s;
+}
+var _notifSeenSaveTimer = null;
 // ✅ প্যানেলের কোনো আইটেমে ক্লিক করলে শুধু সেটাই "দেখা হয়ে গেছে" হিসেবে সেভ হয় (id সেটে যোগ হয়) —
 // পুরো তালিকা একসাথে সিন হয় না, শুধু যেটায় ক্লিক করা হলো সেটাই ব্যাজ ও প্যানেল-লিস্ট থেকে বাদ যায়
 function _addNotifSeen(id) {
   const seen = _getNotifSeenSet();
   seen.add(id);
   try { localStorage.setItem(_notifSeenKey(), JSON.stringify([...seen])); } catch(e) {}
+  var se = _notifSeenServerEntry(true);
+  if (se.ids.indexOf(id) === -1) {
+    se.ids.push(id);
+    if (se.ids.length > 400) se.ids = se.ids.slice(-400);
+    se.ts = Date.now();
+    clearTimeout(_notifSeenSaveTimer);
+    _notifSeenSaveTimer = setTimeout(function(){ try { saveData(); } catch(x){} }, 1500);   // একসাথে কয়েকটা ক্লিক হলে একবারই সেভ
+  }
 }
 function updateNotifBell() {
   const wrap = document.getElementById('notifBellWrap');
@@ -25068,13 +25116,24 @@ function renderNotifBellPanel() {
   const panel = document.getElementById('notifBellPanel');
   if (!panel) return;
   const seen = _getNotifSeenSet();
-  const { pendingDemands: pd0, dueVisits: dv0, checkReminders: cr0, pendingExpApprovals: pe0, overdueCamps: oc0 } = getNotifData();
+  const { pendingDemands: pd0, dueVisits: dv0, checkReminders: cr0, pendingExpApprovals: pe0, overdueCamps: oc0, deletedVisits: xv0 } = getNotifData();
+  const deletedVisitsUnseen = (xv0||[]).filter(r => !seen.has('x'+r.id));
   const pendingDemands = pd0.filter(d => !seen.has('d'+d.id));
   const dueVisits = dv0.filter(v => !seen.has('v'+v.id+'_'+v.due));
   const checkReminders = cr0.filter(r => !seen.has('c'+(r.id!==undefined?r.id:r.text)+'_'+r.type));
   const pendingExpApprovals = (pe0||[]).filter(e => !seen.has('e'+e.id+'_'+(e.approvalRequestedAt||'')));
   const overdueCamps = (oc0||[]).filter(s => !seen.has('o'+s.id+'_'+s.date));
   let html = '';
+
+  if (deletedVisitsUnseen.length) {
+    html += `<div class="notif-bell-section-title">🗑️ রিসেপশন বিল মুছেছে (${deletedVisitsUnseen.length}টি)</div>`;
+    deletedVisitsUnseen.slice(0,5).forEach(r => {
+      html += `<div class="notif-bell-item" onclick="viewDeletedVisit(${r.id})">
+        <span class="nb-dot" style="background:#dc2626"></span>
+        <span style="flex:1"><strong>${(r.visit&&r.visit.patName)||'—'}</strong> — ৳ ${fmt((r.visit&&r.visit.total)||0)}<br><span style="color:var(--text-light);font-size:11px">${r.by} — কারণ: ${(r.reason||'').replace(/</g,'&lt;').slice(0,40)}</span></span>
+      </div>`;
+    });
+  }
 
   if (overdueCamps.length) {
     html += `<div class="notif-bell-section-title">⛺ মেয়াদোত্তীর্ণ ক্যাম্প (${overdueCamps.length}টি)</div>`;
@@ -28373,12 +28432,55 @@ function doLookup() {
         <span style="font-size:13px;color:${s.qty<=(s.minQty||5)?'var(--danger)':'var(--success)'}">স্টক: ${s.qty} ${s.unit}</span>
       </div>
       ${priceBlock}
+      ${isGlass?_lensPriceDetailsHtml():''}
     </div>`;
   }).join('');
 }
 
-// ✅ ক্যাটাগরি-ওয়াইজ পূর্ব-নির্ধারিত দামের ব্রাউজেবল তালিকা — সার্চ ছাড়াই সব দেখা যায় (স্টক আইটেম + টেস্ট/অপারেশন ফি)
+// ✅ লেন্সের প্রকারভেদ অনুযায়ী দামের সারি — নতুন বিলের একই সোর্স (_lensOptsActive/_lensCombosActive + _coatingPriceFor/_comboPriceFor)
+// থেকে, তাই দাম সবসময় নতুন বিলের সাথে মিলবে। কোটিংয়ের দাম কোয়ালিটি (প্লাস্টিক/কাচ) অনুযায়ী আলাদা; খালি থাকলে সেই কোয়ালিটিতে প্রযোজ্য নয়।
+function _lookupLensRows() {
+  const rows = [];
+  if (typeof _lensOptsActive!=='function') return rows;
+  const opts = _lensOptsActive();
+  const money = v => (v==null) ? null : (parseFloat(v)||0);
+  opts.filter(o=>o.type==='lenstype').forEach(o=>{
+    const pr = money(o.price);
+    rows.push({ name:o.name, kind:'লেন্সের ধরন', plastic: pr||0, glass: pr||0, plain:true });
+  });
+  opts.filter(o=>o.type==='material').forEach(o=>{
+    const pr = money(o.price)||0, key = _materialKeyForName(o.name);
+    rows.push({ name:o.name, kind:'কোয়ালিটি', plastic: key==='plastic'?pr:undefined, glass: key==='glass'?pr:undefined, plain:true });
+  });
+  opts.filter(o=>o.type!=='lenstype' && o.type!=='material').forEach(o=>{
+    rows.push({ name:o.name, kind:'কোটিং', plastic:_coatingPriceFor(o,'plastic'), glass:_coatingPriceFor(o,'glass') });
+  });
+  (_lensCombosActive()||[]).forEach(c=>{
+    rows.push({ name:(c.coatings||[]).join(' + '), kind:'কম্বো (একসাথে)', plastic:_comboPriceFor(c,'plastic'), glass:_comboPriceFor(c,'glass') });
+  });
+  return rows;
+}
+function _lensCellHtml(v, plain) {
+  if (v===undefined) return '<span style="color:#cbd5e1">—</span>';
+  if (v===null) return '<span style="color:#cbd5e1;font-size:11px">প্রযোজ্য নয়</span>';
+  if (!v) return '<span style="color:var(--text-light);font-size:12px">'+(plain?'অতিরিক্ত নেই':'বিনামূল্যে')+'</span>';
+  return '<span style="color:var(--success);font-weight:700">+ ৳ '+fmt(v)+'</span>';
+}
+// সার্চ রেজাল্টে চশমা/লেন্স কার্ডের নিচে ভাঁজ করা অবস্থায় দেখানোর জন্য ছোট ভার্সন
+function _lensPriceDetailsHtml() {
+  const rows = _lookupLensRows().filter(r=>r.kind==='কোটিং' || r.kind.indexOf('কম্বো')===0 || (r.plastic||r.glass));
+  if (!rows.length) return '';
+  return `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:#92400e">🕶️ লেন্সের প্রকারভেদ অনুযায়ী দাম (ফ্রেমের দামের সাথে যোগ হবে)</summary>
+    <table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:12.5px;margin-top:6px">
+      <colgroup><col style="width:46%"><col style="width:27%"><col style="width:27%"></colgroup>
+      <thead><tr style="background:#fff7ed"><th style="padding:5px 8px;text-align:left">নাম</th><th style="padding:5px 8px;text-align:left">প্লাস্টিক</th><th style="padding:5px 8px;text-align:left">কাচ</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr style="border-top:1px solid #f1f5f9"><td style="padding:5px 8px;font-weight:600;word-break:break-word">${r.name}<div style="font-weight:400;color:var(--text-light);font-size:10.5px">${r.kind}</div></td><td style="padding:5px 8px">${_lensCellHtml(r.plastic,r.plain)}</td><td style="padding:5px 8px">${_lensCellHtml(r.glass,r.plain)}</td></tr>`).join('')}</tbody>
+    </table></details>`;
+}
+
+// ✅ ক্যাটাগরি-ওয়াইজ পূর্ব-নির্ধারিত দামের ব্রাউজেবল তালিকা — সার্চ ছাড়াই সব দেখা যায় (স্টক আইটেম + টেস্ট/অপারেশন ফি + লেন্সের প্রকারভেদ)
 var _lookupActiveCat = 'all';
+var _LOOKUP_LENS_CAT = 'লেন্স প্রকারভেদ';
 function _lookupCatalogGroups() {
   const groups = {};
   (appData.stock||[]).filter(s=>s.cat && s.cat!=='অফিস সামগ্রী').forEach(s=>{
@@ -28389,8 +28491,13 @@ function _lookupCatalogGroups() {
   if (testItems.length) {
     groups['টেস্ট/অপারেশন'] = testItems.map(t=>({ name:t.name, code:'', price:t.fee, sub:t.cat, hasStock:false }));
   }
+  const lensRows = _lookupLensRows();
+  if (lensRows.length) groups[_LOOKUP_LENS_CAT] = lensRows;
   return groups;
 }
+// সব ক্যাটাগরির টেবিলে একই কলাম-প্রস্থ (table-layout:fixed + একই colgroup) — তাই টেবিলগুলো একই এলাইনমেন্টে মিলে থাকে
+const _LOOKUP_COLS = '<colgroup><col style="width:38%"><col style="width:17%"><col style="width:25%"><col style="width:20%"></colgroup>';
+const _LOOKUP_TBL = 'style="width:100%;table-layout:fixed"';
 function renderPriceCatalog() {
   const tabsEl = document.getElementById('lookupCatTabs');
   const bodyEl = document.getElementById('lookupCatalog');
@@ -28400,22 +28507,38 @@ function renderPriceCatalog() {
   if (!cats.length) { tabsEl.innerHTML=''; bodyEl.innerHTML='<div style="text-align:center;color:#aaa;padding:24px">কোনো দাম সেট করা নেই</div>'; return; }
   if (_lookupActiveCat!=='all' && !cats.includes(_lookupActiveCat)) _lookupActiveCat='all';
   tabsEl.innerHTML = ['all',...cats].map(c=>{
-    const label = c==='all' ? 'সব' : c;
+    const label = c==='all' ? 'সব' : (c===_LOOKUP_LENS_CAT ? '🕶️ '+c : c);
     const active = _lookupActiveCat===c;
     return `<button type="button" onclick="_lookupSetCat('${c.replace(/'/g,"\\'")}')" class="btn btn-sm ${active?'btn-primary':'btn-outline'}">${label}</button>`;
   }).join('');
   const showCats = _lookupActiveCat==='all' ? cats : [_lookupActiveCat];
   bodyEl.innerHTML = showCats.map(c=>{
+    if (c===_LOOKUP_LENS_CAT) {
+      const rows = groups[c];
+      return `<div style="margin-bottom:18px">
+        <div style="font-weight:700;font-size:13.5px;color:var(--primary);margin-bottom:8px">🕶️ লেন্সের প্রকারভেদ অনুযায়ী দাম <span style="font-weight:400;color:var(--text-light);font-size:12px">(ফ্রেমের দামের সাথে যোগ হয়)</span></div>
+        <div class="table-wrap"><table ${_LOOKUP_TBL}>${_LOOKUP_COLS}
+          <thead><tr><th>নাম</th><th>ধরন</th><th>প্লাস্টিক</th><th>কাচ</th></tr></thead>
+          <tbody>${rows.map(r=>`<tr>
+            <td style="font-weight:600;word-break:break-word">${r.name}</td>
+            <td style="color:var(--text-light)">${r.kind}</td>
+            <td>${_lensCellHtml(r.plastic,r.plain)}</td>
+            <td>${_lensCellHtml(r.glass,r.plain)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>`;
+    }
     const items = groups[c].slice().sort((a,b)=>a.name.localeCompare(b.name,'bn'));
+    const noStock = items.length && items.every(it=>!it.hasStock);   // টেস্ট/অপারেশন — স্টক নেই, তাই শেষ কলামে "সক্রিয়"
     return `<div style="margin-bottom:18px">
       <div style="font-weight:700;font-size:13.5px;color:var(--primary);margin-bottom:8px">${c} <span style="font-weight:400;color:var(--text-light);font-size:12px">(${items.length}টি)</span></div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>নাম</th><th>কোড</th><th>দাম</th><th>স্টক</th></tr></thead>
+      <div class="table-wrap"><table ${_LOOKUP_TBL}>${_LOOKUP_COLS}
+        <thead><tr><th>নাম</th><th>কোড</th><th>দাম</th><th>${noStock?'অবস্থা':'স্টক'}</th></tr></thead>
         <tbody>${items.map(it=>`<tr>
-          <td style="font-weight:600">${it.name}${it.sub?` <span style="font-weight:400;color:var(--text-light);font-size:11px">(${it.sub})</span>`:''}</td>
+          <td style="font-weight:600;word-break:break-word">${it.name}${it.sub?` <span style="font-weight:400;color:var(--text-light);font-size:11px">(${it.sub})</span>`:''}</td>
           <td style="color:var(--text-light)">${it.code||'—'}</td>
           <td style="color:var(--success);font-weight:700">${it.isGlass?`৳${fmt(it.min||0)} – ৳${fmt(it.max||0)}`:'৳ '+fmt(it.price||0)}</td>
-          <td style="color:${it.hasStock?(it.qty<=(it.minQty||5)?'var(--danger)':'var(--success)'):'#ccc'}">${it.hasStock?`${it.qty} ${it.unit||''}`:'—'}</td>
+          <td style="color:${it.hasStock?(it.qty<=(it.minQty||5)?'var(--danger)':'var(--success)'):'#16a34a'};${it.hasStock?'':'font-weight:700'}">${it.hasStock?`${it.qty} ${it.unit||''}`:'✅ সক্রিয়'}</td>
         </tr>`).join('')}</tbody>
       </table></div>
     </div>`;
@@ -30344,6 +30467,7 @@ function saveBill() {
   if (!patName) { showToast(isPatronCustomer('r') ? '⚠️ ক্রেতার নাম দিন!' : '⚠️ রোগীর নাম দিন!'); return; }
   if (!services.length) { showToast('⚠️ কমপক্ষে একটি সার্ভিস ও মূল্য দিন!'); return; }
   if (!date) { showToast('⚠️ তারিখ দিন!'); return; }
+  if (!_patDupConfirm('r')) return;   // ✅ ডুপ্লিকেট রোগীর সম্ভাবনা থাকলে একবার জিজ্ঞাসা
   const total   = services.reduce((s,r)=>s+r.subtotal, 0);
   const netBill = Math.max(0, total - totalDiscAmt);
   const due     = Math.max(0, netBill - cashPaid);
@@ -30694,10 +30818,13 @@ function toggleRecAmountsVisibility() {
 }
 
 // ✅ ফোন নম্বর ফরম্যাট চেক + ডুপ্লিকেট রোগী সতর্কতা — টাইপ করার সাথে সাথেই
-function onRPatPhoneInput() {
-  var el = document.getElementById('rPatPhone');
-  var hint = document.getElementById('rPatPhoneHint');
+function onRPatPhoneInput() { onPatPhoneInput('r'); }
+function onPatPhoneInput(prefix) {
+  prefix = prefix || 'r';
+  var el = document.getElementById(prefix+'PatPhone');
+  var hint = document.getElementById(prefix+'PatPhoneHint');
   if (!el || !hint) return;
+  hint.dataset.kind = 'phone';
   var val = el.value.trim();
   if (!val) { hint.style.display='none'; el.style.borderColor=''; return; }
   // ফরম্যাট চেক — ১১ ডিজিট বাংলাদেশি নম্বর
@@ -30713,12 +30840,66 @@ function onRPatPhoneInput() {
     hint.style.display = 'block';
     hint.innerHTML = '<div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#1e40af;display:flex;justify-content:space-between;align-items:center;gap:8px">'
       +'<span>ℹ️ এই নম্বরে আগে <b>'+matches.length+'</b> বার এসেছেন — শেষ ভিজিট: <b>'+formatDate(last.date)+'</b> ('+last.patName+')'+(last.due>0?' — বাকি ছিল ৳'+fmt(last.due):'')+'</span>'
-      +'<button type="button" class="btn btn-outline btn-sm" onclick="fillFromVisit('+last.id+')">এই তথ্য ভরুন</button>'
+      +'<button type="button" class="btn btn-outline btn-sm" onclick="fillFromVisit('+last.id+',\''+prefix+'\')">এই তথ্য ভরুন</button>'
       +'</div>';
   } else {
     hint.style.display = !validFormat ? 'block' : 'none';
     if (!validFormat) hint.innerHTML = '<div style="font-size:12px;color:#b45309">⚠️ নম্বরটি ১১ ডিজিটের সঠিক ফরম্যাটে মনে হচ্ছে না</div>';
   }
+}
+
+
+// ✅ নামের বানান-ভুল/সামান্য পার্থক্য ধরার জন্য ছোট এডিট-ডিসট্যান্স (শুধু অল্প কয়েকটা নামের মধ্যে চলে)
+function _nameLev(a, b) {
+  if (a===b) return 0;
+  var m=a.length, n=b.length; if (!m) return n; if (!n) return m;
+  var prev=[], cur=[], i, j;
+  for (j=0;j<=n;j++) prev[j]=j;
+  for (i=1;i<=m;i++) { cur[0]=i; for (j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1)); var t=prev; prev=cur; cur=t; }
+  return prev[n];
+}
+// ✅ ডুপ্লিকেট-সম্ভাবনা: (১) একই ফোনে প্রায় একই নাম (বানান-ভুল) (২) ফোন ছাড়া, কিন্তু এই নামে ফোনসহ আগের রোগী আছেন।
+// একই ফোনে সম্পূর্ণ আলাদা নাম = পরিবারের সদস্য ধরা হয়, তাই সেটা বাধা/সতর্কতা দেয় না।
+function _patDupInfo(prefix) {
+  var name = ((document.getElementById(prefix+'PatName')||{}).value||'').trim();
+  var phone = ((document.getElementById(prefix+'PatPhone')||{}).value||'').trim();
+  var nn = normalizeName(name), np = normalizePhone(phone);
+  var visits = appData.visits||[], out = { typo:null, noPhone:null };
+  if (!nn) return out;
+  if (np && np.length>=11) {
+    var same = visits.filter(function(v){ return normalizePhone(v.patPhone)===np; });
+    if (same.length && !same.some(function(v){ return normalizeName(v.patName)===nn; })) {
+      var near = same.filter(function(v){ var o=normalizeName(v.patName); return o && (o.indexOf(nn)>-1 || nn.indexOf(o)>-1 || _nameLev(o,nn)<=2); })
+                     .sort(function(a,b){ return b.id-a.id; });
+      if (near.length) out.typo = near[0];
+    }
+  } else if (!np) {
+    var cand = visits.filter(function(v){ return normalizePhone(v.patPhone) && normalizeName(v.patName)===nn; }).sort(function(a,b){ return b.id-a.id; });
+    if (cand.length) out.noPhone = cand[0];
+  }
+  return out;
+}
+// নাম লেখা শেষে (blur) একই হিন্ট-বক্সে সতর্কতা + "এই তথ্য ভরুন"; ফোনের নিজস্ব বার্তা থাকলে সেটা ঢাকা পড়ে না
+function onPatNameChange(prefix) {
+  prefix = prefix || 'r';
+  if (typeof isPatronCustomer==='function' && isPatronCustomer(prefix)) return;
+  var hint = document.getElementById(prefix+'PatPhoneHint'); if (!hint) return;
+  var info = _patDupInfo(prefix), v = info.typo || info.noPhone;
+  if (v && (hint.style.display==='none' || hint.dataset.kind==='name')) {
+    hint.dataset.kind = 'name'; hint.style.display = 'block';
+    hint.innerHTML = '<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#92400e;display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      + '<span>⚠️ ' + (info.typo ? 'এই নম্বরে আগে <b>'+v.patName+'</b> নামে রোগী আছেন — বানান মিলিয়ে নিন' : '<b>'+v.patName+'</b> নামে আগের রোগী আছেন (ফোন: '+v.patPhone+') — একই ব্যক্তি হলে তথ্য ভরে নিন') + '</span>'
+      + '<button type="button" class="btn btn-outline btn-sm" onclick="fillFromVisit('+v.id+',\''+prefix+'\')">এই তথ্য ভরুন</button></div>';
+  } else if (!v && hint.dataset.kind==='name') { hint.style.display = 'none'; }
+}
+// সেভের সময় শেষ চেক — সত্যিই সন্দেহজনক হলে একবার জিজ্ঞেস করে (ক্রেতা বিলে প্রযোজ্য নয়)
+function _patDupConfirm(prefix) {
+  if (typeof isPatronCustomer==='function' && isPatronCustomer(prefix)) return true;
+  var info = _patDupInfo(prefix);
+  var name = ((document.getElementById(prefix+'PatName')||{}).value||'').trim();
+  if (info.typo) return confirm('এই ফোন নম্বরে আগে "'+info.typo.patName+'" নামে রোগী আছেন, আপনি লিখেছেন "'+name+'"।\n\nএকই রোগী হলে নামটা মিলিয়ে নিন (ঠিক না করলে আলাদা রোগী হিসেবে গণ্য হবে)।\n\nতবুও এই নামেই সেভ করবেন?');
+  if (info.noPhone) return confirm('"'+info.noPhone.patName+'" নামে আগের রোগী আছেন (ফোন: '+info.noPhone.patPhone+')।\n\nফোন নম্বর ছাড়া সেভ করলে আলাদা রোগী হিসেবে গণ্য হতে পারে।\n\nতবুও ফোন ছাড়াই সেভ করবেন?');
+  return true;
 }
 
 // ✅ পুরনো ভিজিট থেকে নাম/বয়স/লিঙ্গ/ঠিকানা এক ক্লিকে বিল ফর্মে ভরে দেয় (নতুন বিলের জন্য, শুধু তথ্য কপি — বিল কপি না)
@@ -31812,11 +31993,14 @@ function updateRecNotifBell() {
   returned = returned.filter(function(d){ return !seen.has('rt'+d.id+'_'+(d.returnedAt||'')); });
   todayAppts = todayAppts.filter(function(a){ return !seen.has('ra'+a.id); });
   overdueDlv = overdueDlv.filter(function(d){ return !seen.has('rd'+d.id+'_'+(d.deliveryDate||'')); });
+  var myDecided = (currentUser && currentUser.role==='receptionist')
+    ? (appData.demands||[]).filter(function(d){ return d.by===currentUser.name && d.status && d.status!=='pending' && !seen.has('rn'+d.id+'_'+d.status); }).sort(function(a,b){ return b.id-a.id; })
+    : [];
   var myRejectedExp = (currentUser && currentUser.role==='receptionist')
     ? (appData.expense||[]).filter(function(e){ return e.needsApproval && e.rejected && e.by===currentUser.name; })
     : [];
   var unseenRejectedExp = myRejectedExp.filter(function(e){ return !seen.has('rj'+e.id+'_'+(e.rejectedAtTs||e.rejectedAt||'')); });
-  var count = returned.length + todayAppts.length + overdueDlv.length + unseenRejectedExp.length;
+  var count = returned.length + todayAppts.length + overdueDlv.length + unseenRejectedExp.length + myDecided.length;
   var badge = document.getElementById('recNotifBellBadge');
   if (badge) { badge.textContent = count>99?'৯৯+':count; badge.style.display = count>0?'flex':'none'; }
   var bellBtn = wrap.querySelector('.notif-bell-btn');
@@ -31908,6 +32092,31 @@ function recNotifBellGoReturned() {
   if (n && n.firstElementChild) { n.firstElementChild.id = 'returnedDraftBanner'; }
   _recNotifFlash('returnedDraftBanner');
 }
+// ✅ রিসেপশন: অ্যাডমিন যে ডিমান্ড/স্টক নোটে সিদ্ধান্ত দিয়েছেন তার বিস্তারিত (সিন মার্ক হয়, ব্যাজ কমে)
+function recViewDemandDecision(id) {
+  var d = (appData.demands||[]).find(function(x){ return x.id===id; });
+  if (!d) return;
+  _addNotifSeen('rn'+d.id+'_'+d.status);
+  updateRecNotifBell();
+  var panel = document.getElementById('recNotifBellPanel'); if (panel) panel.style.display = 'none';
+  var esc = function(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+  var lbl = { approved:'✅ অনুমোদিত', rejected:'❌ প্রত্যাখ্যাত', partial:'🔄 আংশিক অনুমোদিত', pending:'⏳ অপেক্ষমাণ' };
+  var col = { approved:'#15803d', rejected:'#b91c1c', partial:'#b45309', pending:'#475569' };
+  var rows = (d.items||[]).map(function(it){ return '<tr><td style="padding:5px 8px">'+esc(it.name)+'</td><td style="padding:5px 8px;text-align:center">'+esc(it.qty)+' '+esc(it.unit||'')+'</td><td style="padding:5px 8px;color:#64748b;font-size:12px">'+esc(it.reason||'')+'</td></tr>'; }).join('');
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.55);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = '<div style="background:#fff;border-radius:14px;width:100%;max-width:520px;max-height:86vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);font-size:13.5px">'
+    + '<div style="padding:14px 18px;border-bottom:1px solid #eee;font-weight:800;color:#0f4c81">📨 '+esc(d.title||'ডিমান্ড নোট')+'</div>'
+    + '<div style="padding:14px 18px">'
+    + '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:12px"><div style="font-weight:800;color:'+(col[d.status]||'#475569')+'">'+(lbl[d.status]||d.status)+'</div>'
+    + '<div style="margin-top:4px;color:#475569">'+(d.approvedBy?('সিদ্ধান্ত দিয়েছেন: <b>'+esc(d.approvedBy)+'</b>'):'')+(d.approvedAt?(' — '+formatDate(d.approvedAt)):'')+'</div>'
+    + (d.adminNote?'<div style="margin-top:6px"><b>অ্যাডমিনের মন্তব্য:</b> '+esc(d.adminNote)+'</div>':'<div style="margin-top:6px;color:#94a3b8">অ্যাডমিন কোনো মন্তব্য দেননি।</div>')+'</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:#f8fafc"><th style="padding:5px 8px;text-align:left">আইটেম</th><th style="padding:5px 8px">পরিমাণ</th><th style="padding:5px 8px;text-align:left">কারণ</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    + '<div style="padding:10px 18px;border-top:1px solid #eee;text-align:right"><button type="button" class="btn btn-primary btn-sm" data-close>বন্ধ করুন</button></div></div>';
+  ov.addEventListener('click', function(e){ if (e.target===ov || (e.target.hasAttribute && e.target.hasAttribute('data-close'))) ov.remove(); });
+  document.body.appendChild(ov);
+  if (typeof renderRecHome==='function') renderRecHome();
+}
 function renderRecNotifBellPanel() {
   var panel = document.getElementById('recNotifBellPanel');
   if (!panel) return;
@@ -31920,11 +32129,21 @@ function renderRecNotifBellPanel() {
   returned = returned.filter(function(d){ return !seen.has('rt'+d.id+'_'+(d.returnedAt||'')); });
   todayAppts = todayAppts.filter(function(a){ return !seen.has('ra'+a.id); });
   overdueDlv = overdueDlv.filter(function(d){ return !seen.has('rd'+d.id+'_'+(d.deliveryDate||'')); });
+  var myDecided = (currentUser && currentUser.role==='receptionist')
+    ? (appData.demands||[]).filter(function(d){ return d.by===currentUser.name && d.status && d.status!=='pending' && !seen.has('rn'+d.id+'_'+d.status); }).sort(function(a,b){ return b.id-a.id; })
+    : [];
   var myRejectedExp = (currentUser && currentUser.role==='receptionist')
     ? (appData.expense||[]).filter(function(e){ return e.needsApproval && e.rejected && e.by===currentUser.name; })
     : [];
   var unseenRejectedExp = myRejectedExp.filter(function(e){ return !seen.has('rj'+e.id+'_'+(e.rejectedAtTs||e.rejectedAt||'')); }).sort(function(a,b){ return b.id-a.id; });
   var html = '';
+  if (myDecided.length) {
+    var _stLbl = { approved:'✅ অনুমোদিত', rejected:'❌ প্রত্যাখ্যাত', partial:'🔄 আংশিক অনুমোদিত' };
+    html += '<div class="notif-bell-section-title">📨 আপনার পাঠানো নোটের সিদ্ধান্ত (' + myDecided.length + ')</div>';
+    myDecided.slice(0,5).forEach(function(d){
+      html += '<div class="notif-bell-item" onclick="recViewDemandDecision('+d.id+')"><span class="nb-dot" style="background:'+(d.status==='rejected'?'#e74c3c':'#16a34a')+'"></span><span style="flex:1"><strong>'+(d.title||'ডিমান্ড নোট')+'</strong><br><span style="color:var(--text-light);font-size:11px">'+(_stLbl[d.status]||d.status)+(d.approvedBy?' — '+d.approvedBy:'')+'</span></span></div>';
+    });
+  }
   if (unseenRejectedExp.length) {
     html += '<div class="notif-bell-section-title">❌ ব্যয় এন্ট্রি বাতিল হয়েছে (' + unseenRejectedExp.length + ')</div>';
     unseenRejectedExp.slice(0,5).forEach(function(e){
@@ -31978,6 +32197,21 @@ function initReceptionExtras() {
 function recGoTab(name) {
   var btn = document.getElementById('rtab-'+name);
   if (btn) switchRecTab(name, btn);
+}
+// ✅ আজকের নিজের ক্যাশ হিসাব — শুধু এই রিসেপশনিস্টের এন্ট্রি; নগদ = আয়-এন্ট্রি (নগদ মাধ্যম) − বিলে মোবাইল-ব্যাংকিং অংশ;
+// ব্যয় = বাতিল নয় এমন নগদ ব্যয়; জমা = আজ এই ইউজারের দেওয়া ক্যাশ জমা। (বাকি আদায় ও ডেলিভারির বাকি আদায়ও আয়-এন্ট্রি হিসেবে ধরা পড়ে)
+function _recCashClosing() {
+  var me = currentUser && currentUser.name, today = todayStr();
+  var sum = function(a, f){ return a.reduce(function(s,x){ return s + (f(x)||0); }, 0); };
+  var cashMode = function(e){ return !e.payMode || e.payMode==='cash'; };
+  var inc = (appData.income||[]).filter(function(e){ return e.by===me && e.date===today && cashMode(e); });
+  var incTotal = sum(inc, function(e){ return e.amount; });
+  var dueIn = sum(inc.filter(function(e){ return e.category==='বাকি আদায়'; }), function(e){ return e.amount; });
+  var mfs = sum((appData.visits||[]).filter(function(v){ return v.by===me && v.date===today; }), function(v){ return v.mfsPaid; });
+  var cashIn = Math.max(0, incTotal - mfs);
+  var cashOut = sum((appData.expense||[]).filter(function(e){ return e.by===me && e.date===today && !e.rejected && cashMode(e); }), function(e){ return e.amount; });
+  var deposited = sum((appData.recDeposits||[]).filter(function(d){ return d.by===me && d.date===today; }), function(d){ return d.amount; });
+  return { cashIn:cashIn, cashOut:cashOut, deposited:deposited, remaining:cashIn-cashOut-deposited, mfs:mfs, dueIn:dueIn };
 }
 // কম/শেষ হওয়া স্টকের তালিকা (অ্যাডমিনের "কম স্টক সতর্কতা"-র একই নিয়ম: কম = ০ এর বেশি কিন্তু নিম্নসীমা বা তার নিচে, নেই = ০)
 function _recLowStockList() {
@@ -32099,12 +32333,44 @@ function renderRecHome() {
       +'<div class="rhd-top"><div style="display:flex;align-items:center;gap:8px"><div class="rhd-chip">📦</div><div><div class="rhd-lbl" style="margin:0">স্টক সতর্কতা</div>'
       +'<div class="rhd-sub">'+(total?('কম: '+fmt(ls.low.length)+' টি · শেষ: '+fmt(ls.out.length)+' টি'):'সব পণ্যের স্টক পর্যাপ্ত')+'</div></div></div>'
       +(total?'<button type="button" class="rhd-copy" onclick="recSendLowStockToAdmin()" title="কম/শেষ পণ্যের তালিকা অ্যাডমিনের কাছে ডিমান্ড নোট হিসেবে পাঠান">'+(_recPendingStockDemand()?'✅ পাঠানো হয়েছে · আপডেট':'📨 অ্যাডমিনে পাঠান')+'</button>':'<span class="rhd-dot" style="color:#16a34a;background:#dcfce7">✓ ঠিক</span>')+'</div>'
-      +(total?'<div class="rhd-stock-items">'+chips+'</div>':'')+'</div>';
+      +(total?'<div class="rhd-stock-items">'+chips+'</div>':'')
+      +(function(){
+          var me = currentUser && currentUser.name;
+          var mine = (appData.demands||[]).filter(function(d){ return d.auto==='lowstock' && d.by===me; }).sort(function(a,b){ return b.id-a.id; })[0];
+          if (!mine) return '';
+          var L = { approved:'✅ অনুমোদিত', rejected:'❌ প্রত্যাখ্যাত', partial:'🔄 আংশিক অনুমোদিত', pending:'⏳ অ্যাডমিনের সিদ্ধান্তের অপেক্ষায়' };
+          return '<div class="rhd-sub" style="margin-top:8px;font-weight:700;color:#475569;cursor:pointer" onclick="recViewDemandDecision('+mine.id+')">📬 সর্বশেষ নোট: '+(L[mine.status]||mine.status)+(mine.approvedAt?' · '+formatDate(mine.approvedAt):'')+(mine.adminNote?' — "'+String(mine.adminNote).replace(/</g,'&lt;').slice(0,50)+'"':'')+' <span style="color:#0f4c81">(বিস্তারিত)</span></div>';
+        })()
+      +'</div>';
     infoEl.innerHTML =
         card('⏳','বাকি তালিকা', fmt(dueVisits.length)+' জন', 'মোট ৳ '+fmt(dueTotal), '#9333ea', '#f3e8ff', 'due', false, false)
       + card('🕐','অনুমোদনের অপেক্ষায়', fmt(myPendingExp), 'ব্যয় এন্ট্রি', '#475569', '#f1f5f9', 'expense', false, myPendingExp===0)
       + card('🔁','রিকল লিস্ট', recallN, 'যোগাযোগের যোগ্য', '#0d9488', '#ccfbf1', 'recall', false, false)
       + stockCard;
+  }
+  // ২.২) আগামীকাল (ডেলিভারি/সিরিয়াল — আগের দিন কল করার জন্য) + আজকের নিজের ক্যাশ হিসাব
+  var tmEl = document.getElementById('recHomeTomorrow');
+  if (tmEl) {
+    var tmD = new Date(); tmD.setDate(tmD.getDate()+1);
+    var tmKey = tmD.getFullYear()+'-'+String(tmD.getMonth()+1).padStart(2,'0')+'-'+String(tmD.getDate()).padStart(2,'0');
+    var tmDlv = (appData.deliveryOrders||[]).filter(function(d){ return d.status==='pending' && d.deliveryDate===tmKey; }).length;
+    var tmAppt = (appData.appointments||[]).filter(function(a){ return a.date===tmKey && a.status==='pending'; }).length;
+    var cc = _recCashClosing();
+    var rem = cc.remaining;
+    var remCol = rem>0 ? '#b45309' : (rem===0 ? '#16a34a' : '#b91c1c');
+    var remLbl = rem>0 ? 'জমা বাকি' : (rem===0 ? '✓ হিসাব মিলেছে' : 'বেশি জমা');
+    var cashCard = '<div class="rhd-card rhd-wide4" style="--c:#0f766e;--bg:#ccfbf1">'
+      +'<div class="rhd-top"><div style="display:flex;align-items:center;gap:8px"><div class="rhd-chip">💰</div><div><div class="rhd-lbl" style="margin:0">আজকের ক্যাশ হিসাব (আপনার)</div>'
+      +'<div class="rhd-sub">'+(cc.mfs>0?('মোবাইল ব্যাংকিং-এ এসেছে ৳ '+fmt(cc.mfs)+' (ক্যাশে ধরা হয়নি) · '):'')+'বাকি আদায় ৳ '+fmt(cc.dueIn)+' অন্তর্ভুক্ত</div></div></div>'
+      +'<button type="button" class="rhd-copy" onclick="showRecCashSubmitModal()">💵 ক্যাশ জমা দিন</button></div>'
+      +'<div class="rhd-mini"><div><small>নগদ আদায়</small><b style="color:#15803d">৳ '+fmt(cc.cashIn)+'</b></div>'
+      +'<div><small>নগদ ব্যয়</small><b style="color:#be123c">৳ '+fmt(cc.cashOut)+'</b></div>'
+      +'<div><small>আজ জমা দিয়েছেন</small><b style="color:#0369a1">৳ '+fmt(cc.deposited)+'</b></div>'
+      +'<div style="background:#fff;border-color:'+remCol+'"><small style="color:'+remCol+'">'+remLbl+'</small><b style="color:'+remCol+'">'+(rem===0?'৳ ০':'৳ '+fmt(Math.abs(rem)))+'</b></div></div></div>';
+    tmEl.innerHTML =
+        card('🚚','আগামীকাল ডেলিভারি', fmt(tmDlv), 'আগের দিন কল করুন', '#ea580c', '#ffedd5', 'delivery', tmDlv>0, tmDlv===0)
+      + card('📅','আগামীকাল সিরিয়াল', fmt(tmAppt), 'অপেক্ষমান', '#4f46e5', '#e0e7ff', 'appointment', tmAppt>0, tmAppt===0)
+      + cashCard;
   }
   // ২.৫) গত ৭ দিনের বিল-সংখ্যা চার্ট (হালকা CSS বার)
   var chEl = document.getElementById('recHomeChart');
@@ -32131,16 +32397,34 @@ function renderRecHome() {
 }
 
 // ===== রিসেপশন প্যানেল: আজকের এন্ট্রি (ভিজিট) সম্পূর্ণ মুছে ফেলা =====
-function deleteVisit(id) {
+async function deleteVisit(id) {
   const v = appData.visits.find(x=>x.id===id);
   if (!v) return;
-  if (!confirm(`"${v.patName}" এর এই বিলটি সম্পূর্ণ মুছে ফেলতে চান? এই কাজ ফিরিয়ে আনা যাবে না।`)) return;
+  // ✅ কারণ লেখা বাধ্যতামূলক — একই ডায়ালগ কনফার্মেশনের কাজও করে ("ঠিক আছে" = মুছে ফেলুন)
+  const reasonRaw = await appPrompt(`"${v.patName}" এর বিলটি সম্পূর্ণ মুছে ফেলা হবে (স্টক ও আয় ফেরত যাবে)। এই কাজ ফিরিয়ে আনা যাবে না।\n\nমোছার কারণ লিখুন (আবশ্যক — অ্যাডমিন দেখতে পাবেন):`);
+  if (reasonRaw === null) return;
+  const reason = reasonRaw.trim();
+  if (reason.length < 3) { showToast('⚠️ মোছার কারণ লিখতে হবে (কমপক্ষে ৩ অক্ষর) — বিল মোছা হয়নি'); return; }
+  // ✅ পুরো বিলের স্ন্যাপশট (বিল + তার আয়-এন্ট্রি + বাকি-আদায়ের ইতিহাস) — মোছার আগেই ডিপ-কপি
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const removedIncome = (appData.income||[]).filter(e => e.visitId === id);
+  const removedDues   = (appData.dueHistory||[]).filter(h => h.visitId === id);
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  if (!appData.deletedVisits) appData.deletedVisits = [];
+  appData.deletedVisits.push({
+    id: Date.now(), ts: new Date().toISOString(),
+    by: (currentUser && currentUser.name) || 'অজানা', role: (currentUser && currentUser.role) || '',
+    reason, byAdmin: !!isAdmin,   // অ্যাডমিন নিজে মুছলে বেল-নোটিফিকেশন যাবে না, তবে স্ন্যাপশট থাকবে
+    visit: clone(v), income: clone(removedIncome), dueHistory: clone(removedDues)
+  });
+  if (appData.deletedVisits.length > 300) appData.deletedVisits = appData.deletedVisits.slice(-300);
   // ✅ এই বিলে যে স্টক কমেছিল ও COGS হিসাব হয়েছিল, সেটা ফেরত দেওয়া হচ্ছে (স্টক আবার বাড়বে, COGS বাদ যাবে)
   reverseStockForVisit(id);
-  // ✅ এই বিলের সাথে তৈরি হওয়া "আয়" এন্ট্রিও (visitId দিয়ে লিংকড) মুছে ফেলা হচ্ছে — নাহলে বিল ডিলিট হলেও তার আয় থেকে যেত
+  // ✅ এই বিলের সাথে তৈরি হওয়া "আয়" ও বাকি-আদায়ের ইতিহাসও মুছে ফেলা হচ্ছে (visitId দিয়ে লিংকড) — নাহলে বিল ডিলিট হলেও তার টাকা রিপোর্টে থেকে যেত
   appData.income = (appData.income||[]).filter(e => e.visitId !== id);
+  appData.dueHistory = (appData.dueHistory||[]).filter(h => h.visitId !== id);
   appData.visits = appData.visits.filter(x=>x.id!==id);
-  logActivity('delete', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} (মেমো: ${v.memoNo||v.rcptNo||'—'}) — স্টক/আয় ফেরত দেওয়া হয়েছে`);
+  logActivity('delete', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} (মেমো: ${v.memoNo||v.rcptNo||'—'}) — কারণ: ${reason} — স্টক/আয় ফেরত দেওয়া হয়েছে`);
   saveData();
   closeRecVisitEdit();
   renderRecHistory();
@@ -32149,7 +32433,41 @@ function deleteVisit(id) {
   if (typeof refreshDashboard==='function') refreshDashboard();
   if (typeof renderRecDaySummary==='function') renderRecDaySummary();
   if (typeof renderRecRecentPatients==='function') renderRecRecentPatients();
-  showToast('🗑️ বিল মুছে ফেলা হয়েছে — স্টক ও আয় ফেরত দেওয়া হয়েছে');
+  if (typeof renderRecHome==='function') renderRecHome();
+  showToast('🗑️ বিল মুছে ফেলা হয়েছে — অ্যাডমিন কারণসহ জানতে পারবেন');
+}
+// ✅ অ্যাডমিন বেল থেকে: রিসেপশন যে বিল মুছেছে তার পুরো স্ন্যাপশট দেখা (সিন হিসেবে মার্ক হয়, ব্যাজ কমে)
+function viewDeletedVisit(id) {
+  const rec = (appData.deletedVisits||[]).find(r=>r.id===id);
+  _addNotifSeen('x'+id);
+  if (typeof updateNotifBell==='function') updateNotifBell();
+  const panel = document.getElementById('notifBellPanel'); if (panel) panel.style.display = 'none';
+  if (!rec) return;
+  const v = rec.visit || {};
+  const esc = s => (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const rows = (v.services||[]).map(s=>`<tr><td style="padding:5px 8px">${esc(s.name)}</td><td style="padding:5px 8px;text-align:center">${s.qty||1}</td><td style="padding:5px 8px;text-align:right">৳ ${fmt(s.price||0)}</td><td style="padding:5px 8px;text-align:right;font-weight:700">৳ ${fmt(s.subtotal||0)}</td></tr>`).join('');
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.55);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);font-size:13.5px">
+    <div style="padding:14px 18px;border-bottom:1px solid #eee;font-weight:800;color:#b91c1c">🗑️ মুছে ফেলা বিল — ${esc(v.patName)}</div>
+    <div style="padding:14px 18px">
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+        <div><b>কে মুছেছেন:</b> ${esc(rec.by)} <span style="color:#94a3b8">(${new Date(rec.ts).toLocaleString('bn-BD')})</span></div>
+        <div style="margin-top:4px"><b>কারণ:</b> ${esc(rec.reason)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:10px">
+        <div><b>ফোন:</b> ${esc(v.patPhone)||'—'}</div><div><b>মেমো:</b> ${esc(v.memoNo||v.rcptNo)||'—'}</div>
+        <div><b>বয়স/লিঙ্গ:</b> ${esc(v.patAge)||'—'} / ${esc(v.patGender)||'—'}</div><div><b>বিলের তারিখ:</b> ${v.date?formatDate(v.date):'—'}</div>
+        <div><b>ডাক্তার:</b> ${esc(v.patDoc)||'—'}</div><div><b>বিল দিয়েছেন:</b> ${esc(v.by)||'—'}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px"><thead><tr style="background:#f8fafc"><th style="padding:5px 8px;text-align:left">আইটেম</th><th>পরিমাণ</th><th style="text-align:right;padding:5px 8px">দাম</th><th style="text-align:right;padding:5px 8px">মোট</th></tr></thead><tbody>${rows||'<tr><td colspan="4" style="padding:8px;color:#aaa">কোনো আইটেম নেই</td></tr>'}</tbody></table>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-weight:700"><span>মোট: ৳ ${fmt(v.total||0)}</span><span style="color:#16a34a">পরিশোধ: ৳ ${fmt(v.cashPaid||0)}</span><span style="color:#9333ea">বাকি: ৳ ${fmt(v.due||0)}</span></div>
+      <div style="font-size:11.5px;color:#94a3b8;margin-top:8px">স্টক ও আয়-এন্ট্রি ইতিমধ্যে ফেরত দেওয়া হয়েছে। প্রয়োজনে এই তথ্য দেখে বিলটি নতুন করে এন্ট্রি করা যাবে।</div>
+    </div>
+    <div style="padding:10px 18px;border-top:1px solid #eee;text-align:right"><button type="button" class="btn btn-primary btn-sm" data-close>বন্ধ করুন</button></div>
+  </div>`;
+  ov.addEventListener('click', e => { if (e.target===ov || (e.target.hasAttribute && e.target.hasAttribute('data-close'))) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 
@@ -34807,6 +35125,7 @@ function _billSave(p) {
   if(!items.length){showToast('⚠️ কমপক্ষে একটি আইটেম ও মূল্য দিন!');return;}
   const date=(document.getElementById(nb?'nb_BillDate':'rBillDate')||{}).value;
   if(!date){showToast('⚠️ তারিখ দিন!');return;}
+  if (nb && !_patDupConfirm('nb_')) return;   // ✅ ডুপ্লিকেট রোগীর সম্ভাবনা থাকলে একবার জিজ্ঞাসা
   const note=(document.getElementById(p+'Note')||{}).value?.trim()||'';
   const nextSerialDate=(document.getElementById(p+'NextSerial')||{}).value||'';
   const discAmt=parseFloat((document.getElementById(nb?'nb_DiscountAmt':'rDiscountAmt')||{}).value)||0; // চশমার ডিসকাউন্ট
