@@ -7774,7 +7774,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="rp-nav-item" id="rtab-new" onclick="switchRecTab('new',this)"><span class="nav-icon">🧾</span> নতুন বিল</div>
         <div class="rp-nav-item" id="rtab-queue" onclick="switchRecTab('queue',this)"><span class="nav-icon">🎫</span> টোকেন/কিউ<span id="recQueueBadge" class="nbadge" style="display:none"></span></div>
         <div class="rp-nav-item" id="rtab-due" onclick="switchRecTab('due',this)"><span class="nav-icon">⏳</span> বাকি তালিকা</div>
-        <div class="rp-nav-item" id="rtab-history" onclick="switchRecTab('history',this)"><span class="nav-icon">📋</span> আজকের এন্ট্রি</div>
+        <div class="rp-nav-item" id="rtab-history" onclick="switchRecTab('history',this)"><span class="nav-icon">📋</span> বিলের ইতিহাস</div>
         <div class="rp-nav-item" id="rtab-search" onclick="switchRecTab('search',this)"><span class="nav-icon">🔎</span> রোগী খুঁজুন</div>
         <div class="rp-nav-item" id="rtab-appointment" onclick="switchRecTab('appointment',this)"><span class="nav-icon">📅</span> সিরিয়াল<span id="recApptBadge" class="nbadge" style="display:none"></span></div>
         <div class="rp-nav-item" id="rtab-callsheet" onclick="switchRecTab('callsheet',this)"><span class="nav-icon">📞</span> আজকের কল লিস্ট<span id="recCallBadge" class="nbadge" style="display:none"></span></div>
@@ -8174,11 +8174,17 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <div id="rec-history" class="rec-tab-view">
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">📋 এন্ট্রির ইতিহাস</div>
-          <input type="date" id="recHistDate" onchange="renderRecHistory()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+          <div class="panel-title">📋 বিলের ইতিহাস</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="rcv-sw" id="recHistModeSw"><button type="button" data-m="day" class="on" onclick="setRecHistMode('day')">দিন</button><button type="button" data-m="month" onclick="setRecHistMode('month')">মাস</button><button type="button" data-m="year" onclick="setRecHistMode('year')">বছর</button></span>
+            <input type="date" id="recHistDate" onchange="renderRecHistory(true)" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+            <input type="month" id="recHistMonth" onchange="renderRecHistory(true)" style="display:none;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;">
+            <select id="recHistYear" onchange="renderRecHistory(true)" style="display:none;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;"></select>
+          </div>
         </div>
+        <div id="recHistSummary" style="padding:8px 18px;font-size:12.5px;font-weight:700;color:#475569;background:#f8fafc;border-bottom:1px solid #eef2f7"></div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>সময়</th><th>রোগীর নাম</th><th>ফোন</th><th>সার্ভিস</th><th>মোট</th><th>পরিশোধিত</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>তারিখ/সময়</th><th>রোগীর নাম</th><th>ফোন</th><th>সার্ভিস</th><th>মোট</th><th>পরিশোধিত</th><th>বাকি</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="recHistTable"></tbody>
         </table></div></div>
       </div>
@@ -21502,10 +21508,10 @@ const TUTORIAL_REC = [
       tips:['রোগী ফোন নম্বর বললেই খুঁজে পাওয়া সবচেয়ে সহজ।'],
       warns:['মওকুফ করার অনুমতি সাধারণত এডমিনের — নিজে থেকে মওকুফ করবেন না।'] },
 
-    { id:'rec-history', icon:'📋', label:'আজকের এন্ট্রি', desc:'আজ যা যা করেছেন',
-      what:'আজ আপনি যত বিল ও এন্ট্রি করেছেন তার তালিকা। ভুল হলে এখান থেকেই সংশোধন করা যায়।',
-      steps:['তালিকায় আজকের সব এন্ট্রি দেখুন।','ভুল পেলে রো-তে ক্লিক করে "✏️ সংশোধন" মোডাল খুলুন।','ঠিক করে সংরক্ষণ করুন — আগের মান হিস্ট্রিতে জমা থাকবে।'],
-      tips:['দিনশেষে ক্যাশ জমা দেওয়ার আগে এই তালিকার মোট টাকার সাথে হাতের ক্যাশ মিলিয়ে নিন।'],
+    { id:'rec-history', icon:'📋', label:'বিলের ইতিহাস', desc:'দিন/মাস/বছর অনুযায়ী সব বিল',
+      what:'দিন, মাস বা বছর বেছে সব বিলের তালিকা দেখুন। ভুল থাকলে এখান থেকেই সংশোধন করা যায় — দিন শেষ হয়ে গেলে বা ক্যাশ জমার পর অ্যাডমিনের অনুমতি নিয়ে।',
+      steps:['উপরে দিন / মাস / বছর বেছে তালিকা দেখুন।','আজকের জমা-না-হওয়া বিলে সরাসরি "✏️" চেপে সংশোধন করুন।','লক বিলে "🔒 অনুমতি চান" চেপে কারণ লিখে অ্যাডমিনকে অনুরোধ পাঠান।','অনুমতি এলে বেলে জানাবে — তখন "✏️ সংশোধন (অনুমতি আছে)" চেপে একবার পরিবর্তন করুন।'],
+      tips:['দিনশেষে ক্যাশ জমা দেওয়ার আগে আজকের তালিকার মোট টাকার সাথে হাতের ক্যাশ মিলিয়ে নিন।'],
       warns:['"সম্পূর্ণ মুছুন" শুধু তখনই ব্যবহার করুন যখন এন্ট্রিটা সম্পূর্ণ ভুল করে হয়েছে — সংশোধনই ভালো উপায়।'] },
 
     { id:'rec-search', icon:'🔎', label:'রোগী খুঁজুন', desc:'পুরনো রোগীর তথ্য ও ইতিহাস',
@@ -30840,11 +30846,41 @@ function openDueHistoryModal(visitId) {
   </div>`;
   document.body.appendChild(modal);
 }
-function renderRecHistory() {
-  const fd=document.getElementById('recHistDate').value||todayStr();
-  const visits=appData.visits.filter(v=>v.date===fd).sort((a,b)=>b.id-a.id);
+var _recHistMode = 'day', _recHistLimit = 150;
+function setRecHistMode(m) {
+  _recHistMode = m;
+  document.querySelectorAll('#recHistModeSw button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-m')===m); });
+  var d=document.getElementById('recHistDate'), mo=document.getElementById('recHistMonth'), y=document.getElementById('recHistYear');
+  if (d) d.style.display = m==='day' ? '' : 'none';
+  if (mo) mo.style.display = m==='month' ? '' : 'none';
+  if (y) y.style.display = m==='year' ? '' : 'none';
+  renderRecHistory(true);
+}
+function _recHistMoreRows() { _recHistLimit += 150; renderRecHistory(); }
+function renderRecHistory(resetLimit) {
+  if (resetLimit===true) _recHistLimit = 150;
+  var today = todayStr();
+  var dEl=document.getElementById('recHistDate'), mEl=document.getElementById('recHistMonth'), yEl=document.getElementById('recHistYear');
+  if (mEl && !mEl.value) mEl.value = today.slice(0,7);
+  if (yEl && !yEl.options.length) {
+    var ys = {}; ys[today.slice(0,4)] = 1; (appData.visits||[]).forEach(function(v){ if (v.date) ys[v.date.slice(0,4)] = 1; });
+    yEl.innerHTML = Object.keys(ys).sort().reverse().map(function(y){ return '<option value="'+y+'">'+y+'</option>'; }).join('');
+    yEl.value = today.slice(0,4);
+  }
+  var fd = (dEl && dEl.value) || today;
+  var match;
+  if (_recHistMode==='month') { var pm = (mEl&&mEl.value)||today.slice(0,7); match = function(v){ return v.date && v.date.slice(0,7)===pm; }; }
+  else if (_recHistMode==='year') { var py = (yEl&&yEl.value)||today.slice(0,4); match = function(v){ return v.date && v.date.slice(0,4)===py; }; }
+  else match = function(v){ return v.date===fd; };
+  const all = appData.visits.filter(match).sort(function(a,b){ return a.date===b.date ? b.id-a.id : (a.date<b.date?1:-1); });
+  var sumEl = document.getElementById('recHistSummary');
+  if (sumEl) {
+    var tot=0, paid=0, due=0; all.forEach(function(v){ tot += (v.netBill!=null?v.netBill:(v.total||0)); paid += (v.cashPaid||0); due += (v.due||0); });
+    sumEl.innerHTML = 'মোট <b style="color:#0f4c81">'+fmt(all.length)+'</b> টি বিল &nbsp;·&nbsp; নেট ৳ <b>'+fmt(tot)+'</b> &nbsp;·&nbsp; পরিশোধিত ৳ <b style="color:#16a34a">'+fmt(paid)+'</b> &nbsp;·&nbsp; বাকি ৳ <b style="color:#9333ea">'+fmt(due)+'</b>';
+  }
+  const visits = all.slice(0, _recHistLimit);
   const tbody=document.getElementById('recHistTable');
-  if (!visits.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">কোনো এন্ট্রি নেই</td></tr>'; return; }
+  if (!all.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">কোনো এন্ট্রি নেই</td></tr>'; return; }
   tbody.innerHTML=visits.map(v=>{
     const opFee = getVisitOperationFee(v);
     const opBtn = (opFee>0 && !isVisitSentToOperationSheet(v.id))
@@ -30859,7 +30895,7 @@ function renderRecHistory() {
       ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;font-weight:700" onclick="recMarkHardMemo(${v.id})" title="হার্ড মেমো কাটা হলে চাপুন — বেল ও ড্যাশবোর্ডের তালিকা থেকে সরে যাবে">📝 হার্ড মেমো কাটা হয়েছে</button>`
       : (v.hardMemoDone===true ? '<span style="font-size:11px;color:#16a34a;font-weight:700">✅ হার্ড মেমো কাটা হয়েছে</span>' : ''));
     return `<tr id="rec-hist-row-${v.id}"${_mdRcv?' style="background:#fffbeb"':''}>
-    <td style="font-size:12px;color:var(--text-light)">${v.time||'—'}${v.lockedAt?`<div title="ক্যাশ জমা হয়ে গেছে — পরিবর্তনে অ্যাডমিনের অনুমোদন লাগবে" style="font-size:11px;color:${(v.unlockGrant&&v.unlockGrant.until>Date.now())?'#16a34a':'#b91c1c'};font-weight:700">${(v.unlockGrant&&v.unlockGrant.until>Date.now())?'🔓 অনুমতি আছে':'🔒 লক'}</div>`:''}</td>
+    <td style="font-size:12px;color:var(--text-light)">${_recHistMode!=='day'?formatDate(v.date)+'<br>':''}${v.time||'—'}${(function(){ var st=_lockState(v); return st==='free'?'':(st==='granted'?'<div style="font-size:11px;color:#16a34a;font-weight:700">🔓 অনুমতি আছে</div>':'<div title="'+(v.lockedAt?'ক্যাশ জমা হয়ে গেছে':'দিন শেষ')+' — পরিবর্তনে অ্যাডমিনের অনুমতি লাগবে" style="font-size:11px;color:#b91c1c;font-weight:700">🔒 লক</div>'); })()}</td>
     <td style="font-weight:600">${v.patName}${_rcvTag}</td>
     <td style="color:var(--text-light)">${v.patPhone||'—'}</td>
     <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.services.map(s=>s.name).join(', ')}</td>
@@ -30868,13 +30904,17 @@ function renderRecHistory() {
     <td style="color:${v.due>0?'#9b59b6':'var(--success)'};font-weight:${v.due>0?'700':'400'}">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-warning btn-sm" onclick="printVisitReceipt(${v.id})" title="প্রিন্ট">🖨️</button>
-      <button class="btn btn-outline btn-sm" onclick="openRecVisitEdit(${v.id})" title="ভুল থাকলে সংশোধন করুন">✏️</button>
+      ${(function(){ var st=_lockState(v);
+        if (st==='locked') return `<button class="btn btn-outline btn-sm" style="border-color:#dc2626;color:#dc2626;font-weight:700" onclick="openRecVisitEdit(${v.id})" title="লক বিল — কারণ লিখে অ্যাডমিনের অনুমতি চান">🔒 অনুমতি চান</button>`;
+        if (st==='pending') return `<button class="btn btn-outline btn-sm" style="border-color:#f59e0b;color:#b45309;font-weight:700" onclick="openRecVisitEdit(${v.id})" title="অনুরোধ পাঠানো আছে">⏳ অনুমতির অপেক্ষায়</button>`;
+        if (st==='granted') return `<button class="btn btn-sm" style="background:#16a34a;color:#fff;font-weight:700" onclick="openRecVisitEdit(${v.id})" title="অ্যাডমিনের অনুমতি আছে — একবার সংশোধন করা যাবে">✏️ সংশোধন (অনুমতি আছে)</button>`;
+        return `<button class="btn btn-outline btn-sm" onclick="openRecVisitEdit(${v.id})" title="ভুল থাকলে সংশোধন করুন">✏️</button>`; })()}
       <button class="btn btn-outline btn-sm" onclick="showEditHistory('রোগীর বিল',${v.id},'${(v.patName||'').replace(/'/g,"\\'")}')" title="এডিট হিস্ট্রি">🕐</button>
       ${opBtn}
       ${_hmBtn}
     </td>
   </tr>`;
-  }).join('');
+  }).join('') + (all.length>visits.length ? `<tr><td colspan="8" style="text-align:center;padding:12px"><button class="btn btn-outline btn-sm" onclick="_recHistMoreRows()">আরও দেখান (${fmt(all.length-visits.length)}টি বাকি)</button></td></tr>` : '');
 }
 
 // ===================================================================
@@ -32547,40 +32587,22 @@ function _recDetailModal(title, bodyHtml) {
   document.body.appendChild(ov);
 }
 // ✅ অর্থ গ্রহণকারী পরিবর্তন — অ্যাক্টিভিটি লগে (কে, কখন, কী থেকে কী)
-async function recSetReceivedBy(visitId) {
-  var v = (appData.visits||[]).find(function(x){ return x.id===visitId; });
-  var sel = document.getElementById('recRcvSel');
-  if (!v || !sel) return;
-  var oldV = v.receivedBy==='md' ? 'md' : 'receptionist', newV = sel.value;
-  if (oldV===newV) { showToast('পরিবর্তন হয়নি'); return; }
-  if (!_lockGuard(v)) return;   // 🔒 জমার পর লক
-  var isAdmin = currentUser && currentUser.role==='admin';
-  var reason = '';
-  if (!isAdmin) {   // রিসেপশনিস্ট বদলালে কারণ আবশ্যক এবং অ্যাডমিন বেলে নোটিফিকেশন যায় (ক্যাশ ঘাটতি লুকানো ঠেকাতে)
-    var raw = await appPrompt('"'+(v.patName||'—')+'" এর বিলে অর্থ গ্রহণকারী '+_RECEIVED_BY_LABEL[oldV]+' থেকে '+_RECEIVED_BY_LABEL[newV]+' করা হচ্ছে।\n\nকারণ লিখুন (আবশ্যক — অ্যাডমিন জানতে পারবেন):');
-    if (raw === null) return;
-    reason = raw.trim();
-    if (reason.length < 3) { showToast('⚠️ কারণ লিখতে হবে (কমপক্ষে ৩ অক্ষর) — পরিবর্তন হয়নি'); return; }
-  }
-  v.receivedBy = newV;
-  _lockConsume(v);
-  if (!appData.rcvChanges) appData.rcvChanges = [];
-  appData.rcvChanges.push({ id: Date.now(), ts: new Date().toISOString(), by: currentUser.name, role: currentUser.role, byAdmin: !!isAdmin,
-    visitId: v.id, patName: v.patName||'', memoNo: v.memoNo||v.rcptNo||'', amount: v.cashPaid||0, from: oldV, to: newV, reason: reason });
-  if (appData.rcvChanges.length > 300) appData.rcvChanges = appData.rcvChanges.slice(-300);
-  logActivity('edit', 'রোগীর বিল — অর্থ গ্রহণকারী', (v.patName||'—')+' (মেমো: '+(v.memoNo||v.rcptNo||'—')+') — '+_RECEIVED_BY_LABEL[oldV]+' → '+_RECEIVED_BY_LABEL[newV]+(reason?' — কারণ: '+reason:''));
-  saveData();
-  document.querySelectorAll('div[data-rec-modal]').forEach(function(m){ m.remove(); });
-  renderRecHome();
-  showToast('✅ অর্থ গ্রহণকারী: '+_RECEIVED_BY_LABEL[newV]+(isAdmin?'':' — অ্যাডমিনকে জানানো হয়েছে'));
-}
 // ===================== ✅ দিন বন্ধ / ক্যাশ জমার পর বিল লক =====================
 // রিসেপশনিস্ট ক্যাশ জমা দিলে ওই মুহূর্তে থাকা সেদিনের সব বিল লক হয় (v.lockedAt)। লক বিলে সংশোধন/মোছা/অর্থ-গ্রহণকারী-বদল করতে
 // রিসেপশনিস্টকে কারণসহ অনুরোধ (unlockRequests) পাঠাতে হয়; অ্যাডমিন অনুমোদন দিলে বিলে একবারের অনুমতি (v.unlockGrant, ২৪ ঘণ্টা)
 // বসে — একটা পরিবর্তনের পরই সেটা শেষ হয়ে যায় ও বিল আবার লক। অ্যাডমিন নিজে সবসময় পরিবর্তন করতে পারেন।
 var _LOCK_GRANT_MS = 24*3600*1000;
 function _lockEnabled() { return !(appData.settings && appData.settings.lockAfterDeposit === false); }
-function _isVisitLocked(v) { return !!(v && v.lockedAt); }
+// লক = জমার পর লক (lockedAt) অথবা দিন শেষ (বিলের তারিখ আজকের আগের) — লক-ফিচার চালু থাকলে
+function _isVisitLocked(v) { return !!(v && (v.lockedAt || (_lockEnabled() && v.date && v.date < todayStr()))); }
+// free | locked | pending | granted — বিলের ইতিহাসের বাটন ও চিহ্নের জন্য
+function _lockState(v) {
+  if (!_isVisitLocked(v)) return 'free';
+  if (currentUser && currentUser.role==='admin') return 'free';
+  if (_lockGrantValid(v)) return 'granted';
+  if (_myUnlockReq(v,'pending')) return 'pending';
+  return 'locked';
+}
 function _lockGrantValid(v) { var g = v && v.unlockGrant; return !!(g && currentUser && g.by===currentUser.name && g.until > Date.now()); }
 function _myUnlockReq(v, status) { return (appData.unlockRequests||[]).filter(function(r){ return r.visitId===v.id && r.by===currentUser.name && r.status===status; }).sort(function(a,b){ return b.id-a.id; })[0]; }
 // পরিবর্তন এখন অনুমোদিত? না হলে অনুরোধের ডায়ালগ খোলে
@@ -32603,8 +32625,8 @@ function recShowLockDialog(visitId) {
   var v = (appData.visits||[]).find(function(x){ return x.id===visitId; }); if (!v) return;
   var esc = function(s){ return (s==null||s===''?'—':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
   var pend = _myUnlockReq(v,'pending'), rej = _myUnlockReq(v,'rejected');
-  var when = v.lockedAt ? new Date(v.lockedAt).toLocaleString('bn-BD',{dateStyle:'medium',timeStyle:'short'}) : '';
-  var body = '<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:10px 12px;margin-bottom:12px;color:#991b1b"><div style="font-weight:800">🔒 এই বিলটি লক করা আছে</div><div style="font-size:12.5px;margin-top:3px">'+esc(when)+' — ক্যাশ জমা হয়ে গেছে। এখন সংশোধন, মোছা বা অর্থ গ্রহণকারী বদলাতে অ্যাডমিনের অনুমোদন লাগবে।</div></div>'
+  var when = v.lockedAt ? new Date(v.lockedAt).toLocaleString('bn-BD',{dateStyle:'medium',timeStyle:'short'}) : formatDate(v.date);
+  var body = '<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:10px 12px;margin-bottom:12px;color:#991b1b"><div style="font-weight:800">🔒 এই বিলটি লক করা আছে</div><div style="font-size:12.5px;margin-top:3px">'+esc(when)+' — '+(v.lockedAt?'ক্যাশ জমা হয়ে গেছে':'দিন শেষ হয়ে গেছে')+'। এখন সংশোধন বা মোছার জন্য অ্যাডমিনের অনুমোদন লাগবে।</div></div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:12px"><div><b>রোগী:</b> '+esc(v.patName)+'</div><div><b>মেমো:</b> '+esc(v.memoNo||v.rcptNo)+'</div><div><b>নেট বিল:</b> ৳ '+fmt(v.netBill!=null?v.netBill:(v.total||0))+'</div><div><b>পরিশোধ:</b> ৳ '+fmt(v.cashPaid||0)+'</div></div>';
   var footer = '<button type="button" class="btn btn-outline btn-sm" data-close>বন্ধ করুন</button>';
   if (pend) {
@@ -32633,6 +32655,7 @@ function recSubmitUnlockRequest(visitId) {
   logActivity('edit', 'বিল লক — অনুমতির অনুরোধ', (v.patName||'—')+' (মেমো: '+(v.memoNo||v.rcptNo||'—')+') — কারণ: '+reason);
   saveData();
   document.querySelectorAll('div[data-lock-modal]').forEach(function(m){ m.remove(); });
+  if (typeof renderRecHistory==='function') renderRecHistory();   // বাটন "⏳ অনুমতির অপেক্ষায়" হয়ে যায়
   showToast('📨 অ্যাডমিনকে অনুরোধ পাঠানো হয়েছে');
 }
 // ✅ অ্যাডমিন: অনুরোধের বিস্তারিত ও সিদ্ধান্ত
@@ -32678,6 +32701,7 @@ function recViewUnlockDecision(id) {
   var r = (appData.unlockRequests||[]).find(function(x){ return x.id===id; }); if (!r) return;
   _addNotifSeen('ur'+r.id+'_'+r.status);
   updateRecNotifBell(); _recNotifClosePanel();
+  if (typeof renderRecHistory==='function') renderRecHistory();
   var v = (appData.visits||[]).find(function(x){ return x.id===r.visitId; });
   var esc = function(s){ return (s==null||s===''?'—':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
   var ok = r.status==='approved' || r.status==='used';
@@ -32690,6 +32714,15 @@ function recViewUnlockDecision(id) {
 }
 // ===================== (লক শেষ) =====================
 
+// সাম্প্রতিক এন্ট্রির মোডাল থেকে: বিলের ইতিহাসে ওই বিলের দিনে গিয়ে সারি হাইলাইট
+function recGoHistoryFor(id) {
+  var v = (appData.visits||[]).find(function(x){ return x.id===id; });
+  document.querySelectorAll('div[data-rec-modal]').forEach(function(m){ m.remove(); });
+  var btn = document.getElementById('rtab-history'); if (btn) switchRecTab('history', btn);
+  var di = document.getElementById('recHistDate'); if (di && v) di.value = v.date;
+  setRecHistMode('day');
+  _recNotifFlash('rec-hist-row-'+id);
+}
 // ✅ হার্ড মেমো বাকি — অ্যাডমিন/এমডির করা বিল, যেগুলোর হার্ড মেমো রিসেপশনিস্ট এখনো কাটেননি
 function _pendingHardMemos() {
   return (appData.visits||[]).filter(function(v){ return v.hardMemoDone===false && _roleOfBy(v.by)==='admin'; }).sort(function(a,b){ return b.id-a.id; });
@@ -32712,7 +32745,7 @@ function recNotifBellGoHardMemo(id) {
   var btn = document.getElementById('rtab-history');
   if (btn) switchRecTab('history', btn);
   var di = document.getElementById('recHistDate'); if (di && v) di.value = v.date;
-  renderRecHistory();
+  setRecHistMode('day');
   _recNotifFlash('rec-hist-row-'+id);
 }
 function recEntryDetail(kind, id) {
@@ -32726,16 +32759,11 @@ function recEntryDetail(kind, id) {
     var _mdBanner = (_roleOfBy(v.by)==='admin' && v.receivedBy==='md' && (v.cashPaid||0)>0)
       ? '<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:12px;color:#92400e"><div style="font-weight:800">💼 অর্থ গ্রহণকারী: '+_adm('full')+'</div><div style="font-size:12.5px;margin-top:3px">৳ '+fmt(v.cashPaid||0)+' টাকা '+_adm('short')+' গ্রহণ করেছেন — রোগীকে পুনরায় জিজ্ঞাসা করার প্রয়োজন নেই। হার্ড মেমোতে "পরিশোধিত ('+_adm('short')+' কর্তৃক গৃহীত)" উল্লেখ করুন।</div></div>' : '';
     _recDetailModal('🧾 বিলের বিস্তারিত — '+esc(v.patName),
-      (v.lockedAt ? '<div style="font-size:12px;font-weight:700;margin-bottom:10px;color:'+((v.unlockGrant&&v.unlockGrant.until>Date.now())?'#15803d':'#b91c1c')+'">'+((v.unlockGrant&&v.unlockGrant.until>Date.now())?'🔓 অ্যাডমিনের অনুমতি আছে — একবার পরিবর্তন করা যাবে':'🔒 ক্যাশ জমার পর লক করা — পরিবর্তনে অ্যাডমিনের অনুমোদন লাগবে')+'</div>' : '') + _mdBanner + ((_roleOfBy(v.by)==='admin' && v.hardMemoDone===false)
-        ? '<div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div style="color:#9a3412;font-weight:800;font-size:12.5px">📝 হার্ড মেমো বাকি আছে — পৃষ্ঠা নম্বর: '+esc(v.memoNo||v.rcptNo)+'<div style="font-weight:500;font-size:11.5px;margin-top:2px">রোগীর নাম ও ফোন মিলিয়ে নিন, বইয়ের এই নম্বরের পৃষ্ঠায় হার্ড মেমো কাটুন।</div></div><button type="button" class="btn btn-sm" style="background:#f59e0b;color:#fff;font-weight:700" onclick="recMarkHardMemo('+v.id+')">✅ হার্ড মেমো কাটা হয়েছে</button></div>'
-        : ((_roleOfBy(v.by)==='admin' && v.hardMemoDone===true) ? '<div style="font-size:12px;color:#16a34a;font-weight:700;margin-bottom:10px">✅ হার্ড মেমো কাটা হয়েছে'+(v.hardMemoBy?' — '+esc(v.hardMemoBy):'')+'</div>' : '')) + grid([['ফোন',esc(v.patPhone)],['মেমো',esc(v.memoNo||v.rcptNo)],['বয়স/লিঙ্গ',esc(v.patAge)+' / '+esc(v.patGender)],['তারিখ',(v.date?formatDate(v.date):'—')+(v.time?' · '+esc(v.time):'')],['ডাক্তার',esc(v.patDoc||v.doctorName)],['এন্ট্রিকারী',_byWithRole(v.by)]])
+      (_isVisitLocked(v) ? '<div style="font-size:12px;font-weight:700;margin-bottom:10px;color:'+((v.unlockGrant&&v.unlockGrant.until>Date.now())?'#15803d':'#b91c1c')+'">'+((v.unlockGrant&&v.unlockGrant.until>Date.now())?'🔓 অ্যাডমিনের অনুমতি আছে — একবার পরিবর্তন করা যাবে':'🔒 লক করা ('+(v.lockedAt?'ক্যাশ জমা হয়েছে':'দিন শেষ')+') — পরিবর্তনে অ্যাডমিনের অনুমোদন লাগবে')+'</div>' : '') + _mdBanner + ("" + ((_roleOfBy(v.by)==='admin' && v.hardMemoDone===false) ? "<div style='background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:9px 12px;margin-bottom:12px;color:#9a3412'><div style='font-weight:800;font-size:12.5px'>📝 হার্ড মেমো বাকি আছে — পৃষ্ঠা নম্বর: "+esc(v.memoNo||v.rcptNo)+"</div><div style='font-size:11.5px;margin-top:2px'>রোগীর নাম ও ফোন মিলিয়ে নিন; বইয়ের এই নম্বরের পৃষ্ঠায় হার্ড মেমো কাটার পর বিলের ইতিহাস থেকে চিহ্ন দিন।</div></div>" : ((_roleOfBy(v.by)==='admin' && v.hardMemoDone===true) ? "<div style='font-size:12px;color:#16a34a;font-weight:700;margin-bottom:10px'>✅ হার্ড মেমো কাটা হয়েছে"+(v.hardMemoBy?" — "+esc(v.hardMemoBy):"")+"</div>" : ""))) + grid([['ফোন',esc(v.patPhone)],['মেমো',esc(v.memoNo||v.rcptNo)],['বয়স/লিঙ্গ',esc(v.patAge)+' / '+esc(v.patGender)],['তারিখ',(v.date?formatDate(v.date):'—')+(v.time?' · '+esc(v.time):'')],['ডাক্তার',esc(v.patDoc||v.doctorName)],['এন্ট্রিকারী',_byWithRole(v.by)]].concat(_roleOfBy(v.by)==='admin'?[['অর্থ গ্রহণকারী','<b>'+(v.receivedBy==='md'?_adm('full'):'রিসেপশনিস্ট')+'</b>']]:[]))
       + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px"><thead><tr style="background:#f8fafc"><th style="padding:5px 8px;text-align:left">আইটেম</th><th>পরিমাণ</th><th style="text-align:right;padding:5px 8px">দাম</th><th style="text-align:right;padding:5px 8px">মোট</th></tr></thead><tbody>'+(rows||'<tr><td colspan="4" style="padding:8px;color:#aaa">কোনো আইটেম নেই</td></tr>')+'</tbody></table>'
       + '<div style="display:flex;gap:14px;flex-wrap:wrap;font-weight:700"><span>মোট: ৳ '+fmt(v.total||0)+'</span><span style="color:#d97706">ডিসকাউন্ট: ৳ '+fmt((v.discAmt!=null?v.discAmt:Math.max(0,(v.total||0)-(v.netBill!=null?v.netBill:(v.total||0)))))+'</span><span>নেট: ৳ '+fmt(v.netBill!=null?v.netBill:(v.total||0))+'</span><span style="color:#16a34a">পরিশোধ: ৳ '+fmt(v.cashPaid||0)+'</span>'+(v.mfsPaid?'<span style="color:#0369a1">(মোবাইল ব্যাংকিং: ৳ '+fmt(v.mfsPaid)+')</span>':'')+'<span style="color:#9333ea">বাকি: ৳ '+fmt(v.due||0)+'</span></div>'
       + (v.note?'<div style="margin-top:8px;color:#64748b"><b>নোট:</b> '+esc(v.note)+'</div>':'')
-      + (_roleOfBy(v.by)==='admin' ? '<div style="margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px"><div style="font-weight:800;color:#075985;margin-bottom:6px">🧾 অর্থ গ্রহণকারী (Received By)</div>'
-          + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="recRcvSel" style="padding:6px 9px;border:1.5px solid #7dd3fc;border-radius:6px;font-family:inherit;font-size:12.5px"><option value="receptionist"'+(v.receivedBy==='md'?'':' selected')+'>রিসেপশনিস্ট</option><option value="md"'+(v.receivedBy==='md'?' selected':'')+'>'+_adm('full')+'</option></select>'
-          + '<button type="button" class="btn btn-primary btn-sm" onclick="recSetReceivedBy('+v.id+')">সংরক্ষণ</button></div>'
-          + '<div style="font-size:11px;color:#64748b;margin-top:5px">পরিবর্তন করলে আজকের ক্যাশ হিসাব ও অ্যাক্টিভিটি লগে প্রতিফলিত হবে।</div></div>' : ''));
+      + ("" + "<div style='margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#64748b'><span>সংশোধনের প্রয়োজন হলে বিলের ইতিহাস থেকে করুন"+(_isVisitLocked(v)?" (লক বিলে অ্যাডমিনের অনুমতি লাগবে)":"")+"।</span><button type='button' class='btn btn-outline btn-sm' onclick='recGoHistoryFor("+v.id+")'>📋 বিলের ইতিহাসে যান</button></div>" ));
     return;
   }
   if (kind==='due') {
@@ -32900,7 +32928,7 @@ function renderRecHome() {
   var recEl = document.getElementById('recHomeRecent');
   if (recEl) {
     var rows = _recMyRecentEntries(10);
-    var head = '<div class="rhd-recent-h"><span>সর্বশেষ '+fmt(rows.length)+'টি এন্ট্রি</span><a onclick="recGoTab(\'history\')">আজকের সব এন্ট্রি →</a></div>';
+    var head = '<div class="rhd-recent-h"><span>সর্বশেষ '+fmt(rows.length)+'টি এন্ট্রি</span><a onclick="recGoTab(\'history\')">বিলের ইতিহাস →</a></div>';
     if (!rows.length) { recEl.innerHTML = head + '<div style="text-align:center;color:#aaa;padding:16px;font-size:12.5px">এখনো কোনো এন্ট্রি দেননি</div>'; }
     else {
       var colg = '<colgroup><col style="width:9%"><col style="width:10%"><col style="width:10%"><col style="width:19%"><col style="width:14%"><col style="width:9%"><col style="width:16%"><col style="width:13%"></colgroup>';
@@ -33107,6 +33135,9 @@ function openRecVisitEdit(id) {
       <div class="field amt-hl"><label>পরিশোধিত (৳)</label><input type="number" id="rvePaid" value="${v.cashPaid||0}" min="0"></div>
     </div>
     <div class="field"><label>নোট</label><input type="text" id="rveNote" value="${esc(v.note)}"></div>
+    ${_roleOfBy(v.by)==='admin' ? `<div class="field" style="margin-top:6px"><label>🧾 অর্থ গ্রহণকারী (Received By)</label>
+      <select id="rveRcv" onchange="document.getElementById('rveRcvWrap').style.display=(this.value!=='${v.receivedBy==='md'?'md':'receptionist'}')?'block':'none'"><option value="receptionist" ${v.receivedBy==='md'?'':'selected'}>রিসেপশনিস্ট</option><option value="md" ${v.receivedBy==='md'?'selected':''}>${_adm('full')}</option></select>
+      <div id="rveRcvWrap" style="display:none;margin-top:6px"><input type="text" id="rveRcvReason" placeholder="বদলের কারণ লিখুন (আবশ্যক — অ্যাডমিন জানতে পারবেন)"></div></div>` : ''}
     <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">⚠️ আইটেম তালিকা পরিবর্তন করলে স্টক ও COGS স্বয়ংক্রিয়ভাবে পুনঃহিসাব হবে (আগের হিসাব বাতিল করে নতুন করে হবে)।</div>`;
   (v.services||[]).forEach(it => rveAddItemRow(it));
   if (!(v.services||[]).length) rveAddItemRow();
@@ -33199,6 +33230,11 @@ function saveRecVisitEdit() {
     newItems.push({ name, qty, price, subtotal: qty*price, stockId, type: stockId?'med':(origType||'manual'), feeId: origFeeIdRaw?parseInt(origFeeIdRaw):undefined });
   });
   if (!newItems.length) { showToast('⚠️ অন্তত একটা আইটেম দিন'); return; }
+  // অর্থ গ্রহণকারী বদলালে কারণ আবশ্যক (সেভের আগেই যাচাই)
+  let _rcvNew = null, _rcvReason = '';
+  { const _rs = document.getElementById('rveRcv');
+    if (_rs) { const _old = v.receivedBy==='md' ? 'md' : 'receptionist';
+      if (_rs.value !== _old) { _rcvReason = gv('rveRcvReason'); if (_rcvReason.length < 3) { showToast('⚠️ অর্থ গ্রহণকারী বদলের কারণ লিখুন (কমপক্ষে ৩ অক্ষর)'); return; } _rcvNew = _rs.value; } } }
 
   const before = {...v, services: JSON.parse(JSON.stringify(v.services||[]))};
   const total = newItems.reduce((s,i)=>s+i.subtotal,0);
@@ -33237,6 +33273,13 @@ function saveRecVisitEdit() {
     }
   }
 
+  if (_rcvNew) {
+    const _oldR = v.receivedBy==='md' ? 'md' : 'receptionist'; v.receivedBy = _rcvNew;
+    if (!appData.rcvChanges) appData.rcvChanges = [];
+    appData.rcvChanges.push({ id: Date.now(), ts: new Date().toISOString(), by: currentUser.name, role: currentUser.role, byAdmin: currentUser.role==='admin',
+      visitId: v.id, patName: v.patName||'', memoNo: v.memoNo||v.rcptNo||'', amount: v.cashPaid||0, from: _oldR, to: _rcvNew, reason: _rcvReason });
+    logActivity('edit', 'রোগীর বিল — অর্থ গ্রহণকারী', (v.patName||'—')+' (মেমো: '+(v.memoNo||v.rcptNo||'—')+') — '+_RECEIVED_BY_LABEL[_oldR]+' → '+_RECEIVED_BY_LABEL[_rcvNew]+' — কারণ: '+_rcvReason);
+  }
   saveEditHistory('রোগীর বিল', v.id, `${v.patName} — ৳${fmt(v.total)}`, before, v);
   logActivity('edit', 'রোগীর বিল', `${v.patName} — ৳${fmt(v.total)} সংশোধিত (আইটেম/স্টক পুনঃহিসাব)`+(_isVisitLocked(v)?' [লক বিল — '+(currentUser.role==='admin'?'অ্যাডমিন':'অ্যাডমিনের অনুমতিতে')+']':''));
   _lockConsume(v);
