@@ -7250,6 +7250,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
   </div>
   <div style="padding:10px 10px 84px;max-width:600px;margin:0 auto;width:100%">
     <!-- নতুন পাবলিশ করা মেমোরেন্ডাম/TOR notification -->
+    <div id="ownerClosingNotif" style="display:none"></div>
     <div id="ownerMemoPublishNotif" style="display:none"></div>
     <!-- Summary Cards -->
     <div style="position:relative;margin-bottom:10px">
@@ -9956,6 +9957,39 @@ function printMemoDoc(id) {
     </div>`, d.title);
 }
 
+// ===== OWNER PANEL — মাস ক্লোজের বার্তা + বোর্ড রিপোর্ট PDF (এক ক্লিকে নিজের ডিভাইসে ডাউনলোড) =====
+// "দেখা হয়েছে" প্রতিটা ডিভাইসে আলাদা (localStorage) — অ্যাডমিন মাস ক্লোজ করলেই সব ওনার ডিভাইসে বার্তা আসে, কেউ ডাউনলোড বা ✕ চাপলে শুধু তার ডিভাইস থেকে সরে।
+const OWNER_CLOSE_SEEN_KEY = 'hms_owner_close_seen_ids';
+function renderOwnerClosingNotif() {
+  const box = document.getElementById('ownerClosingNotif');
+  if (!box) return;
+  const seen = _ownerBnIdSet(OWNER_CLOSE_SEEN_KEY);
+  const fresh = (appData.monthClosings||[]).filter(mc => !seen.has(mc.id)).sort((a,b)=>b.id-a.id).slice(0,3);
+  if (!fresh.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'block';
+  box.innerHTML = fresh.map(mc => `
+    <div style="background:linear-gradient(120deg,#ecfdf5,#d1fae5);border:1.5px solid #34d399;border-radius:12px;padding:11px 13px;margin-bottom:12px">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:20px">📊</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:13.5px;color:#065f46">${mc.label} মাস ক্লোজ হয়েছে</div>
+          <div style="font-size:12px;color:#047857;margin-top:2px">${mc.isLoss?'নিট লোকসান':'নিট মুনাফা'}: <strong>৳ ${fmt(Math.abs(mc.finalNet||0).toFixed(2))}</strong> · বোর্ড রিপোর্ট প্রস্তুত</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="ownerDismissClosing(${mc.id})" style="border-color:#34d399;color:#065f46" title="বন্ধ করুন">✕</button>
+      </div>
+      <div style="margin-top:9px"><button class="btn btn-success btn-sm" style="width:100%;font-weight:700" onclick="ownerDownloadClosingReport(${mc.id})">📄 বোর্ড রিপোর্ট (PDF) ডাউনলোড করুন</button></div>
+    </div>`).join('');
+}
+function ownerDismissClosing(id) {
+  const set = _ownerBnIdSet(OWNER_CLOSE_SEEN_KEY); set.add(id); _ownerBnIdSetSave(OWNER_CLOSE_SEEN_KEY, set);
+  renderOwnerClosingNotif();
+}
+function ownerDownloadClosingReport(id) {
+  const mc = (appData.monthClosings||[]).find(m => m.id===id); if (!mc) return;
+  downloadBoardReportPdf(mc.month, mc.year);
+  const set = _ownerBnIdSet(OWNER_CLOSE_SEEN_KEY); set.add(id); _ownerBnIdSetSave(OWNER_CLOSE_SEEN_KEY, set);
+  setTimeout(renderOwnerClosingNotif, 400);
+}
 // ===== OWNER PANEL — পাবলিশ করা বোর্ড বার্তা (অফিসিয়াল প্যাড) নোটিফিকেশন =====
 function renderOwnerMemoPublishNotif() {
   const box = document.getElementById('ownerMemoPublishNotif');
@@ -11341,7 +11375,16 @@ function dashEditEntry(cls, id) {
         <div class="field"><label>রেফারেন্স</label><input type="text" id="deeRef" value="${esc(e.ref)}"></div>
         <div class="field amt-hl"><label>পরিমাণ (৳)</label><input type="number" id="deeAmount" value="${e.amount||0}" min="0"></div>
       </div>
-      <div class="field"><label>নোট</label><input type="text" id="deeNote" value="${esc(e.note)}"></div>`;
+      <div class="field"><label>নোট</label><input type="text" id="deeNote" value="${esc(e.note)}"></div>
+      ${(function(){
+        if (!e.visitId || !currentUser || currentUser.role!=='admin') return '';
+        const lv = (appData.visits||[]).find(x => x.id===e.visitId);
+        if (!lv || _roleOfBy(lv.by)!=='admin') return '';
+        const md = lv.receivedBy==='md';
+        return `<div class="field" style="margin-top:6px"><label>🧾 অর্থ গ্রহণকারী (Received By)</label>
+          <select id="deeRcv"><option value="receptionist" ${md?'':'selected'}>রিসেপশনিস্ট</option><option value="md" ${md?'selected':''}>${_adm('full')}</option></select>
+          <div style="font-size:11px;color:#94a3b8;margin-top:3px">বিলের টাকা কে নিয়েছেন — বদলালে রিসেপশনিস্টের ক্যাশ হিসাব ও হার্ড মেমোর চিহ্ন বদলে যাবে (অ্যাক্টিভিটি লগে থাকবে)।</div></div>`;
+      })()}`;
   } else if (cls === 'badge-expense') {
     const e = appData.expense.find(x => String(x.id)===String(id));
     if (!e) return;
@@ -11421,6 +11464,16 @@ function saveDashEntryEdit() {
     e.date=date; e.category=gv('deeCategory'); e.ref=gv('deeRef'); e.amount=amount; e.note=note;
     saveEditHistory('আয়', e.id, `${e.category||'—'} — ৳${fmt(e.amount)}`, before, e);
     logActivity('edit', 'আয়', `${e.category||'—'} — ৳${fmt(e.amount)} সংশোধিত`);
+    // ✅ অ্যাডমিন-এন্ট্রি বিলে অর্থ গ্রহণকারী বদল (শুধু অ্যাডমিন; বেল-নোটিফিকেশন যায় না, তবে রেকর্ড ও লগ থাকে)
+    { const rs = document.getElementById('deeRcv'), lv = e.visitId && (appData.visits||[]).find(x => x.id===e.visitId);
+      if (rs && lv) { const oldR = lv.receivedBy==='md' ? 'md' : 'receptionist';
+        if (rs.value !== oldR) {
+          lv.receivedBy = rs.value;
+          if (!appData.rcvChanges) appData.rcvChanges = [];
+          appData.rcvChanges.push({ id: Date.now(), ts: new Date().toISOString(), by: currentUser.name, role: currentUser.role, byAdmin: true,
+            visitId: lv.id, patName: lv.patName||'', memoNo: lv.memoNo||lv.rcptNo||'', amount: lv.cashPaid||0, from: oldR, to: rs.value, reason: 'অ্যাডমিন কর্তৃক সংশোধন' });
+          logActivity('edit', 'রোগীর বিল — অর্থ গ্রহণকারী', (lv.patName||'—')+' (মেমো: '+(lv.memoNo||lv.rcptNo||'—')+') — '+_RECEIVED_BY_LABEL[oldR]+' → '+_RECEIVED_BY_LABEL[rs.value]+' (অ্যাডমিন)');
+        } } }
     if (typeof renderIncomeTable==='function') renderIncomeTable();
   } else if (cls === 'badge-expense') {
     const e = appData.expense.find(x => String(x.id)===String(id));
@@ -14685,8 +14738,42 @@ function clearAllData() {
 }
 
 function printBoardReport() {
-  const month    = parseInt(document.getElementById('rpMonth').value);
-  const year     = parseInt(document.getElementById('rpYear').value);
+  const r = buildBoardReportHtml(parseInt(document.getElementById('rpMonth').value), parseInt(document.getElementById('rpYear').value));
+  exportReportPDFEditable(r.html, r.filename, r.title);
+}
+// ✅ ব্যাংক ব্যালেন্স বাড়া-কমার প্রতিটা ঘটনা — calcCashBankBalance()-এর হুবহু একই নিয়মে (তাই রিপোর্টের সমাপনী ব্যালেন্সের সাথে অ্যাপের ব্যালেন্স মিলবে):
+// ব্যাংক-মাধ্যমের আয় (+), ব্যাংক/চেকে ব্যয় (− চেক ভাঙ্গানোর তারিখে; পেন্ডিং বাদ), এবং bankTx-এর ব্যাংক-সংক্রান্ত লেনদেন (জমা, উত্তোলন, চেক ভাঙ্গানো ইত্যাদি)
+function getBankMovements() {
+  const out = [];
+  (appData.income||[]).forEach(e => {
+    if (e.visitId || e.payMode !== 'bank') return;
+    out.push({ date:e.date, amt:+(e.amount||0), kind:'ব্যাংকে আয়', ref:e.ref||'', voucher:e.memo||'', desc:`${e.category||''}${e.note?' — '+e.note:''}`, cheque:false });
+  });
+  (appData.expense||[]).forEach(e => {
+    if (e.payMode !== 'bank' || e.status === 'pending') return;
+    const hasChq = !!(e.checkNo && e.checkNo !== '—');
+    out.push({ date: expenseEffectiveDate(e), amt:-(e.amount||0), kind: hasChq ? 'চেক ভাঙ্গানো (ব্যয়)' : 'ব্যাংক থেকে ব্যয়', ref: hasChq ? 'চেক '+e.checkNo : '', voucher:e.voucher||'',
+      desc:`${e.category||''}${e.subCategory?' › '+e.subCategory:''}${e.payPerson?' — '+e.payPerson:''}${e.note?' — '+e.note:''}`, cheque:hasChq });
+  });
+  (appData.bankTx||[]).filter(tx => tx.ref !== 'duty-submit').forEach(tx => {
+    const map = { bank_in:[1,'ব্যাংকে জমা'], cash_to_bank:[1,'ক্যাশ থেকে ব্যাংকে জমা'], bank_to_cash:[-1,'ব্যাংক থেকে ক্যাশ উত্তোলন'],
+      bank_out:[-1, tx.checkNo ? 'চেক ভাঙ্গানো' : 'ব্যাংক থেকে পরিশোধ'], mfs_to_bank:[1,'মোবাইল ব্যাংকিং থেকে ব্যাংকে'], bank_to_mfs:[-1,'ব্যাংক থেকে মোবাইল ব্যাংকিং-এ'] };
+    const m = map[tx.type]; if (!m) return;
+    out.push({ date:tx.date, amt:m[0]*(tx.amount||0), kind:m[1], ref: tx.checkNo ? 'চেক '+tx.checkNo : (tx.ref||''), voucher:tx.voucher||'', desc:tx.note||'', cheque:!!tx.checkNo });
+  });
+  return out.filter(m => m.date);
+}
+// নির্দিষ্ট মাসের প্রারম্ভিক/সমাপনী ব্যালেন্স ও লেনদেন-তালিকা
+function getBankLedgerForPrefix(prefix) {
+  const all = getBankMovements(), start = prefix + '-01';
+  const opening = all.filter(m => m.date < start).reduce((s,m) => s + m.amt, 0);
+  const rows = all.filter(m => m.date.startsWith(prefix)).sort((a,b) => a.date.localeCompare(b.date));
+  const credit = rows.filter(m => m.amt > 0).reduce((s,m) => s + m.amt, 0);
+  const debit  = rows.filter(m => m.amt < 0).reduce((s,m) => s - m.amt, 0);
+  return { opening, rows, credit, debit, closing: opening + credit - debit };
+}
+// ✅ বোর্ড রিপোর্টের HTML তৈরি (মাস/বছর দিলে) — প্রিন্ট ও ওনার প্যানেলের "PDF ডাউনলোড" একই ফাংশন ব্যবহার করে
+function buildBoardReportHtml(month, year) {
   const pad      = n => String(n).padStart(2,'0');
   const prefix   = `${year}-${pad(month)}`;
   const months   = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
@@ -14762,7 +14849,7 @@ function printBoardReport() {
     <tr>
       <td>${i+1}</td>
       <td>${formatDate(v.date)}</td>
-      <td style="color:#9d174d;font-weight:600">REC-${String(v.id).slice(-6)}</td>
+      <td style="color:#9d174d;font-weight:600">${v.memoNo||v.rcptNo||('REC-'+String(v.id).slice(-6))}</td>
       <td>${v.services.map(s=>s.name).join(', ')}</td>
       <td>${v.patName}</td>
       <td style="text-align:right">৳ ${fmt(v.total)}</td>
@@ -14850,7 +14937,7 @@ function printBoardReport() {
     </tr>`;
   }
 
-  exportReportPDFEditable(`
+  const _boardHtml = `
   <html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>${css}</style></head>
@@ -14950,9 +15037,9 @@ function printBoardReport() {
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো আয় এন্ট্রি নেই।</p>'}
 
   <!-- রিসেপশন -->
-  <h2>৫. রিসেপশন ক্যাশ মেমো (রিসিট নং সহ)</h2>
+  <h2>৫. রিসেপশন ক্যাশ মেমো (মেমো নং সহ)</h2>
   ${visits.length?`<table>
-    <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>সার্ভিস</th><th>রোগী</th><th style="text-align:right">মোট বিল</th><th style="text-align:right">ডিসকাউন্ট</th><th style="text-align:right">নগদ প্রদান</th><th style="text-align:right">বাকি</th></tr></thead>
+    <thead><tr><th>#</th><th>তারিখ</th><th>মেমো নং</th><th>সার্ভিস</th><th>রোগী</th><th style="text-align:right">মোট বিল</th><th style="text-align:right">ডিসকাউন্ট</th><th style="text-align:right">নগদ প্রদান</th><th style="text-align:right">বাকি</th></tr></thead>
     <tbody>${recRows}</tbody>
     <tfoot><tr class="sum-row"><td colspan="7"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalRecInc)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(visits.reduce((s,v)=>s+v.due,0))}</strong></td></tr></tfoot>
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো রিসেপশন এন্ট্রি নেই।</p>'}
@@ -14986,8 +15073,35 @@ function printBoardReport() {
     <tfoot><tr class="sum-row"><td colspan="7"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp)}</strong></td></tr></tfoot>
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো ব্যয় এন্ট্রি নেই।</p>'}
 
+  <!-- ব্যাংক লেনদেন -->
+  <h2>৯. ব্যাংক লেনদেন ও ব্যালেন্স পরিবর্তন</h2>
+  ${(() => {
+    const L = getBankLedgerForPrefix(prefix);
+    const sgn = n => (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n));
+    const rowsHtml = L.rows.map((m,i)=>`<tr>
+      <td>${i+1}</td><td>${formatDate(m.date)}</td>
+      <td>${m.cheque?'<span class="badge exp">🏦 '+m.kind+'</span>':m.kind}</td>
+      <td style="font-weight:600;color:#9a3412">${[m.ref,m.voucher].filter(Boolean).join(' · ')||'—'}</td>
+      <td>${m.desc||'—'}</td>
+      <td style="text-align:right;color:#065f46;font-weight:700">${m.amt>0?'৳ '+fmt(m.amt):''}</td>
+      <td style="text-align:right;color:#991b1b;font-weight:700">${m.amt<0?'৳ '+fmt(-m.amt):''}</td>
+    </tr>`).join('');
+    return `<table>
+      <tr><td>মাসের শুরুতে ব্যাংক ব্যালেন্স</td><td style="text-align:right">${sgn(L.opening)}</td></tr>
+      <tr><td>মোট জমা / যোগ (+)</td><td style="text-align:right;color:#065f46">৳ ${fmt(L.credit)}</td></tr>
+      <tr><td>মোট কর্তন / চেক ভাঙ্গানো (−)</td><td style="text-align:right;color:#991b1b">৳ ${fmt(L.debit)}</td></tr>
+      <tr class="total-row"><td><strong>মাস শেষে ব্যাংক ব্যালেন্স</strong></td><td style="text-align:right"><strong>${sgn(L.closing)}</strong></td></tr>
+    </table>
+    ${L.rows.length ? `<table>
+      <thead><tr><th>#</th><th>তারিখ</th><th>ধরন</th><th>চেক নং · ভাউচার</th><th>বিবরণ</th><th style="text-align:right">জমা (+)</th><th style="text-align:right">কর্তন (−)</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot><tr class="sum-row"><td colspan="5"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(L.credit)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(L.debit)}</strong></td></tr></tfoot>
+    </table>
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* ব্যাংক ব্যালেন্স বাড়া-কমার প্রতিটা ঘটনা এখানে আছে। চেকের টাকা চেক ভাঙ্গানোর তারিখে কাটা ধরা হয় (ইস্যুর তারিখে নয়), তাই আগে ইস্যু করা চেক এই মাসে ভাঙ্গলে এই তালিকায় আসে।</div>` : '<p style="color:#9ca3af">এই মাসে ব্যাংক ব্যালেন্সে কোনো পরিবর্তন নেই।</p>'}`;
+  })()}
+
   <!-- স্যালারি -->
-  <h2>৯. কর্মী বেতন সারসংক্ষেপ</h2>
+  <h2>১০. কর্মী বেতন সারসংক্ষেপ</h2>
   ${appData.staff.filter(s=>s.status==='active').length?`<table>
     <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">মাসিক বেতন</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কর্তন</th><th style="text-align:right">অগ্রিম</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
     <tbody>${appData.staff.filter(s=>s.status==='active').map((s,i)=>{
@@ -15018,7 +15132,14 @@ function printBoardReport() {
     এই রিপোর্ট ${hospName} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।
   </div>
   </div>
-  </body></html>`, `board-report-${monthName}-${year}.pdf`, `বোর্ড রিপোর্ট — ${monthName} ${year}`);
+  </body></html>`;
+  return { html: _boardHtml, filename: `board-report-${monthName}-${year}.pdf`, title: `বোর্ড রিপোর্ট — ${monthName} ${year}` };
+}
+// ✅ এক ক্লিকে বোর্ড রিপোর্টের PDF ডিভাইসে ডাউনলোড (ওনার প্যানেল/অ্যাডমিন কোথা থেকেও)
+function downloadBoardReportPdf(month, year) {
+  showToast('📄 বোর্ড রিপোর্ট PDF তৈরি হচ্ছে… কয়েক সেকেন্ড অপেক্ষা করুন');
+  try { const r = buildBoardReportHtml(month, year); downloadHtmlAsPDF(r.html, r.filename); }
+  catch (e) { console.error(e); showToast('⚠️ বোর্ড রিপোর্ট তৈরি করা যায়নি'); }
 }
 
 // ===== REPORT MODULE =====
@@ -18498,7 +18619,7 @@ function confirmMonthClose() {
   _mcPreviewResult = null;
   renderShareholderTable(); renderMonthClosingHistory();
   if (typeof renderInvestorTable==='function') renderInvestorTable();
-  showToast(`✅ ${MC_MONTHS[r.month-1]} ${r.year} মাস ক্লোজ সম্পন্ন হয়েছে!`);
+  showToast(`✅ ${MC_MONTHS[r.month-1]} ${r.year} মাস ক্লোজ সম্পন্ন — ওনার প্যানেলে বোর্ড রিপোর্টের বার্তা চলে গেছে`);
 }
 
 // ✅ মাস-ক্লোজ রিওপেন — শুধুমাত্র সর্বশেষ ক্লোজ করা মাসের জন্য (সঞ্চিত লস ও শেয়ারহোল্ডার ব্যালেন্সের
@@ -18558,7 +18679,7 @@ function renderMonthClosingHistory() {
     <td>৳ ${fmt((mc.investorPoolAmt||0).toFixed(2))}</td>
     <td>৳ ${fmt((mc.shareholderPool||0).toFixed(2))}</td>
     <td style="font-size:12px;color:var(--text-light)">${mc.closedBy||'—'}</td>
-    <td><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button></td>
+    <td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button> <button class="btn btn-success btn-sm" onclick="downloadBoardReportPdf(${mc.month},${mc.year})" title="বোর্ড রিপোর্ট PDF ডাউনলোড">📄 PDF</button></td>
   </tr>`).join('');
   renderMcReopenLog();
 }
@@ -18872,7 +18993,7 @@ function renderOwnerMcCard(id) {
   box.innerHTML = `<div style="border:1.5px solid #e5e7eb;border-radius:12px;padding:14px;background:#fafbfc">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
       <div style="font-weight:700;font-size:14.5px;color:#1e293b">${mc.label||'—'}</div>
-      <button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-success btn-sm" onclick="downloadBoardReportPdf(${mc.month},${mc.year})" title="বোর্ড রিপোর্ট PDF ডাউনলোড">📄 PDF</button><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div style="grid-column:1/-1;background:${mc.isLoss?'#fef2f2':'#f0fdf4'};border-radius:9px;padding:11px 13px">
@@ -22390,6 +22511,7 @@ function initOwnerPage() {
   if (on) on.textContent = currentUser.name;
 
   renderOwnerMemoPublishNotif();
+  renderOwnerClosingNotif();
 
   // ⚡ পারফরম্যান্স ফিক্স: এই ফাংশনটা আগে বটম ট্যাবের যেকোনো ফিচারে ক্লিক করলেই (এমনকি "বোর্ড
   // বার্তা"-এর মতো সম্পূর্ণ অসম্পর্কিত জায়গা থেকেও) ড্যাশবোর্ড কার্ড, "সাম্প্রতিক এন্ট্রি" আর
