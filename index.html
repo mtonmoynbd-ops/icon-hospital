@@ -4623,6 +4623,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     </div>
     <!-- MONTHLY REPORT -->
     <div id="pg-report" class="page-view">
+      <div id="adminBoardPdfBox"></div>
       <!-- Filter bar -->
       <div class="panel">
         <div class="panel-header">
@@ -7310,6 +7311,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div id="ownerModalBody" style="font-size:12.5px"></div>
       </div>
     </div>
+    <div id="ownerBoardPdfBox" style="display:none"></div>
     <!-- Monthly Chart area -->
     <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px">
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📊 এই মাসের সারসংক্ষেপ</div>
@@ -11226,7 +11228,7 @@ function showPage(name) {
     makeTableResizable('expenseTable');
   }
   if (name === 'dashboard') { refreshDashboard(); makeTableResizable('recentTable'); }
-  if (name === 'report') { initReportFilters(); renderReport(); }
+  if (name === 'report') { initReportFilters(); renderReport(); renderBoardPdfBox('adminBoardPdfBox'); }
   // ✅ ফিক্স: initAttendancePage() নামে কোনো ফাংশন কখনোই ডিফাইন করা ছিল না (attendance এখন নিজস্ব
   // স্বতন্ত্র পেজ, initAttendanceStandalonePage() দিয়ে init হয়) — এই ভুল কলটা প্রতিবার স্যালারি শিটে
   // গেলে JS এরর ছুঁড়ে দিত, ফলে এর পরের সবগুলো কল (অগ্রিম টেবিল, ছুটির কোটা, সার্জন পারিশ্রমিক প্যানেল)
@@ -15135,11 +15137,157 @@ function buildBoardReportHtml(month, year) {
   </body></html>`;
   return { html: _boardHtml, filename: `board-report-${monthName}-${year}.pdf`, title: `বোর্ড রিপোর্ট — ${monthName} ${year}` };
 }
-// ✅ এক ক্লিকে বোর্ড রিপোর্টের PDF ডিভাইসে ডাউনলোড (ওনার প্যানেল/অ্যাডমিন কোথা থেকেও)
+// ===== ✅ বোর্ড রিপোর্ট PDF: প্রিন্ট-প্রিভিউর হুবহু একই A4 পাতা-বিভাজন ও ডিজাইনে, মোবাইলেও কাজ করে =====
+// প্রিন্ট প্রিভিউ যে ইঞ্জিন দিয়ে A4 পাতায় ভাগ করে (paginateA4Preview) সেটাই লুকানো জায়গায় চালিয়ে প্রতিটা পাতা আলাদা
+// ছবি হিসেবে তুলে PDF-এ বসানো হয় (একটা বিশাল ছবি নয়) — তাই ফোনের ক্যানভাস-সীমায় আটকায় না। মোবাইলে ডাউনলোড শুরু না হলে
+// "📥 ডাউনলোড"/"📤 শেয়ার" বাটনসহ একটা নিশ্চিতকরণ কার্ড আসে (ব্রাউজার ব্যবহারকারীর সরাসরি ক্লিক ছাড়া ফাইল নামাতে দেয় না)।
+function _isMobileDevice() { return /Android|iPhone|iPad|iPod|Mobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); }
+function _isIOSDevice() { return /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); }
+function _loadScriptOnce(url, isReady) {
+  return new Promise(function(resolve, reject) {
+    if (isReady()) return resolve();
+    var s = document.createElement('script'); s.src = url;
+    s.onload = function(){ isReady() ? resolve() : reject(new Error('লাইব্রেরি প্রস্তুত নয়')); };
+    s.onerror = function(){ reject(new Error('লাইব্রেরি লোড হয়নি')); };
+    document.head.appendChild(s);
+  });
+}
+function _getJsPDF() { return (window.jspdf && window.jspdf.jsPDF) || window.jsPDF || null; }
+function _ensurePdfLibs() {
+  return _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', function(){ return typeof window.html2canvas === 'function'; })
+    .then(function(){ return _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', function(){ return !!_getJsPDF(); }); });
+}
+function _pdfProgress(msg) {
+  var el = document.getElementById('pdfProgressBar');
+  if (!msg) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'pdfProgressBar';
+    el.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:11px 18px;border-radius:12px;z-index:100002;font-size:13px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.35);max-width:92vw;text-align:center';
+    document.body.appendChild(el); }
+  el.textContent = msg;
+}
+function _pdfReadyClose() { var m = document.getElementById('pdfReadyModal'); if (m) m.remove(); if (window._pdfReady && window._pdfReady.url) { try { URL.revokeObjectURL(window._pdfReady.url); } catch(e){} } window._pdfReady = null; }
+function _pdfReadyDownload() {
+  var r = window._pdfReady; if (!r) return;
+  if (_isIOSDevice()) { window.open(r.url, '_blank'); return; }   // আইফোনে PDF ভিউয়ারে খোলে — সেখান থেকে সেভ/শেয়ার
+  var a = document.createElement('a'); a.href = r.url; a.download = r.filename; document.body.appendChild(a); a.click(); a.remove();
+}
+function _pdfReadyShare() {
+  var r = window._pdfReady; if (!r) return;
+  var f = new File([r.blob], r.filename, { type: 'application/pdf' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: r.filename }).catch(function(){});
+  else showToast('এই ডিভাইসে শেয়ার সমর্থিত নয় — "📥 ডাউনলোড" চাপুন');
+}
+function _deliverPdf(blob, filename, pageCount) {
+  var url = URL.createObjectURL(blob), mobile = _isMobileDevice();
+  window._pdfReady = { blob: blob, url: url, filename: filename };
+  if (!mobile) {
+    var a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ if (window._pdfReady && window._pdfReady.url === url) _pdfReadyClose(); }, 60000);
+    showToast('✅ PDF ডাউনলোড হচ্ছে — ' + filename);
+    return;
+  }
+  if (!_isIOSDevice()) { var a2 = document.createElement('a'); a2.href = url; a2.download = filename; document.body.appendChild(a2); a2.click(); a2.remove(); }
+  var canShare = false;
+  try { canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'application/pdf' })] })); } catch(e){}
+  var mb = (blob.size / 1048576).toFixed(1);
+  var ov = document.createElement('div'); ov.id = 'pdfReadyModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.6);z-index:100003;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:360px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:inherit">'
+    + '<div style="font-weight:800;font-size:15px;color:#065f46">✅ বোর্ড রিপোর্ট PDF প্রস্তুত</div>'
+    + '<div style="font-size:12.5px;color:#475569;margin:6px 0 14px">' + pageCount + ' পৃষ্ঠা · ' + mb + ' MB' + (_isIOSDevice() ? '<br>"ডাউনলোড" চাপলে PDF খুলবে — সেখান থেকে সেভ/শেয়ার করুন।' : '<br>ডাউনলোড শুরু না হলে নিচের বাটন চাপুন।') + '</div>'
+    + '<button type="button" class="btn btn-success" style="width:100%;font-weight:800;margin-bottom:8px" onclick="_pdfReadyDownload()">📥 ডাউনলোড করুন</button>'
+    + (canShare ? '<button type="button" class="btn btn-primary" style="width:100%;font-weight:700;margin-bottom:8px" onclick="_pdfReadyShare()">📤 শেয়ার / ফাইলে সেভ করুন</button>' : '')
+    + '<button type="button" class="btn btn-outline" style="width:100%" onclick="_pdfReadyClose()">বন্ধ করুন</button></div>';
+  document.body.appendChild(ov);
+}
+async function downloadA4ReportPdf(htmlContent, filename) {
+  if (window._pdfBusy) { showToast('একটি PDF তৈরি চলছে — একটু অপেক্ষা করুন'); return; }
+  window._pdfBusy = true;
+  var root = null, mobile = _isMobileDevice();
+  try {
+    _pdfProgress('📄 PDF তৈরির প্রস্তুতি…');
+    await _ensurePdfLibs();
+    var old = document.getElementById('printPreviewOverlay'); if (old) old.remove();   // খোলা প্রিভিউ থাকলে তার অবস্থা সরিয়ে দেওয়া (একই পাতা-ইঞ্জিন)
+    // প্রিন্ট প্রিভিউর হুবহু একই প্রস্তুতি: style/body আলাদা করা, মূল wrapper শনাক্ত করা, ফ্ল্যাট কন্টেন্ট তৈরি
+    var extraStyle = '', bodyContent = htmlContent;
+    if (/<html[\s>]/i.test(htmlContent)) {
+      var sm = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+      extraStyle = sm.map(function(x){ return x.replace(/<\/?style[^>]*>/gi, ''); }).join('\n');
+      var bm = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      bodyContent = bm ? bm[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    }
+    window._a4MarginMm = null; window._a4ZoomPct = 100; window._a4ExtraStyleBase = extraStyle;
+    window._a4WrapperClass = ''; window._a4WrapperStyle = ''; window._a4InnerHtml = '';
+    var pd = document.createElement('div'); pd.innerHTML = bodyContent;
+    var wEl = pd.firstElementChild;
+    if (pd.children.length === 1 && wEl && wEl.children.length > 0) {
+      window._a4WrapperClass = wEl.className || ''; window._a4WrapperStyle = wEl.getAttribute('style') || '';
+      window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(wEl.innerHTML));
+    } else { window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(bodyContent)); }
+    root = document.createElement('div'); root.id = 'a4OffscreenRoot';
+    root.style.cssText = 'position:fixed;left:0;top:0;width:210mm;opacity:0.01;pointer-events:none;z-index:-1;background:#fff';
+    root.innerHTML = '<style>' + extraStyle + '</style><style>' + PDF_PAGE_BREAK_CSS + `
+      #printPreviewA4Pages{display:block;font-family:'Hind Siliguri',Arial,sans-serif}
+      #a4OffscreenRoot .a4-print-page{background:#fff;width:210mm!important;max-width:none!important;height:297mm!important;box-sizing:border-box;position:relative;overflow:hidden;display:block}
+      #a4OffscreenRoot .a4-print-page-num{display:none}
+      #printPreviewA4Pages th,#printPreviewA4Pages thead tr,#printPreviewA4Pages thead td,#printPreviewA4Pages tfoot tr,#printPreviewA4Pages tfoot td,#printPreviewA4Pages tr.total-row td,#printPreviewA4Pages tr.sum-row td,#printPreviewA4Pages h1,#printPreviewA4Pages h2,#printPreviewA4Pages h3,#printPreviewA4Pages h4,#printPreviewA4Pages h5,#printPreviewA4Pages h6{background:#eaf4fb!important;color:#1a2a3a!important;border-color:#bcd9ec!important}
+      #printPreviewA4Pages th *,#printPreviewA4Pages thead tr *,#printPreviewA4Pages tfoot tr *,#printPreviewA4Pages tr.total-row td *,#printPreviewA4Pages tr.sum-row td *,#printPreviewA4Pages h1 *,#printPreviewA4Pages h2 *,#printPreviewA4Pages h3 *,#printPreviewA4Pages h4 *,#printPreviewA4Pages h5 *,#printPreviewA4Pages h6 *{color:#1a2a3a!important}
+    </style><div id="printPreviewA4Pages"></div>`;
+    document.body.appendChild(root);
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
+    await new Promise(function(r){ setTimeout(r, 120); });
+    paginateA4Preview();
+    var pages = Array.prototype.slice.call(root.querySelectorAll('.a4-print-page'));
+    if (!pages.length) throw new Error('পাতা তৈরি হয়নি');
+    // ছবিগুলো (লোগো) লোড হওয়া পর্যন্ত অপেক্ষা
+    await Promise.all(Array.prototype.slice.call(root.querySelectorAll('img')).map(function(img){ return img.complete && img.naturalWidth > 0 ? null : new Promise(function(res){ img.onload = res; img.onerror = res; }); }));
+    var JsPDF = _getJsPDF();
+    var pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+    for (var i = 0; i < pages.length; i++) {
+      _pdfProgress('📄 পাতা ' + (i + 1) + '/' + pages.length + ' তৈরি হচ্ছে…');
+      await new Promise(function(r){ setTimeout(r, 30); });   // UI-কে শ্বাস নিতে দেওয়া (ফোন হ্যাং না করতে)
+      var el = pages[i];
+      var canvas = await window.html2canvas(el, { scale: mobile ? 1.6 : 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0,
+        width: el.offsetWidth, height: el.offsetHeight, windowWidth: el.offsetWidth + 40, windowHeight: el.offsetHeight + 40, logging: false });
+      if (i > 0) pdf.addPage('a4', 'portrait');
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+      canvas.width = 0; canvas.height = 0;
+    }
+    _pdfProgress('📄 ফাইল প্রস্তুত হচ্ছে…');
+    var blob = pdf.output('blob');
+    _pdfProgress('');
+    _deliverPdf(blob, filename || 'report.pdf', pages.length);
+  } catch (err) {
+    console.error('PDF ত্রুটি:', err);
+    _pdfProgress('');
+    showToast('⚠️ PDF তৈরি করা যায়নি — ' + ((err && err.message) || 'ইন্টারনেট সংযোগ পরীক্ষা করুন'));
+  } finally {
+    if (root && root.parentNode) root.parentNode.removeChild(root);
+    window._pdfBusy = false;
+  }
+}
 function downloadBoardReportPdf(month, year) {
-  showToast('📄 বোর্ড রিপোর্ট PDF তৈরি হচ্ছে… কয়েক সেকেন্ড অপেক্ষা করুন');
-  try { const r = buildBoardReportHtml(month, year); downloadHtmlAsPDF(r.html, r.filename); }
-  catch (e) { console.error(e); showToast('⚠️ বোর্ড রিপোর্ট তৈরি করা যায়নি'); }
+  var r;
+  try { r = buildBoardReportHtml(month, year); } catch (e) { console.error(e); showToast('⚠️ বোর্ড রিপোর্ট তৈরি করা যায়নি'); return; }
+  downloadA4ReportPdf(r.html, 'board-report-' + year + '-' + String(month).padStart(2,'0') + '.pdf');
+}
+// ✅ মাসিক রিপোর্ট পেজের টপে: গত ৩ মাসের বোর্ড রিপোর্ট (কলাপ্সড; খুললে মাসের নামে PDF বাটন) — অ্যাডমিন ও ওনার দুই প্যানেলেই
+function renderBoardPdfBox(boxId) {
+  var box = document.getElementById(boxId); if (!box) return;
+  var names = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  var now = new Date(), items = [];
+  for (var k = 1; k <= 3; k++) { var d = new Date(now.getFullYear(), now.getMonth() - k, 1); items.push({ m: d.getMonth() + 1, y: d.getFullYear() }); }
+  var wasOpen = box.querySelector('details') && box.querySelector('details').open;
+  box.innerHTML = '<details style="background:#fff;border:1.5px solid #bfdbfe;border-radius:12px;margin-bottom:14px;overflow:hidden"' + (wasOpen ? ' open' : '') + '>'
+    + '<summary style="cursor:pointer;padding:12px 16px;font-weight:800;font-size:14px;color:#0f4c81;background:linear-gradient(120deg,#eff6ff,#e0f2fe);list-style:none">📄 বোর্ড রিপোর্ট (PDF) — গত ৩ মাস <span style="font-weight:600;font-size:12px;color:#64748b">· খুলতে ক্লিক করুন</span></summary>'
+    + '<div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px">'
+    + items.map(function(it){
+        var closed = (appData.monthClosings||[]).some(function(c){ return c.month===it.m && c.year===it.y; });
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px">'
+          + '<div style="font-weight:700;font-size:13.5px;color:#1e293b">' + names[it.m-1] + ' ' + it.y + ' <span style="font-size:11px;font-weight:700;color:' + (closed ? '#047857' : '#b45309') + ';background:' + (closed ? '#d1fae5' : '#fef3c7') + ';border-radius:20px;padding:1px 8px;margin-left:4px">' + (closed ? '✅ ক্লোজড' : '⏳ ক্লোজ বাকি') + '</span></div>'
+          + '<button class="btn btn-success btn-sm" style="font-weight:700" onclick="downloadBoardReportPdf(' + it.m + ',' + it.y + ')">📄 ' + names[it.m-1] + ' PDF ডাউনলোড</button></div>';
+      }).join('')
+    + '</div></details>';
 }
 
 // ===== REPORT MODULE =====
@@ -18993,7 +19141,7 @@ function renderOwnerMcCard(id) {
   box.innerHTML = `<div style="border:1.5px solid #e5e7eb;border-radius:12px;padding:14px;background:#fafbfc">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
       <div style="font-weight:700;font-size:14.5px;color:#1e293b">${mc.label||'—'}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-success btn-sm" onclick="downloadBoardReportPdf(${mc.month},${mc.year})" title="বোর্ড রিপোর্ট PDF ডাউনলোড">📄 PDF</button><button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button></div>
+      <button class="btn btn-primary btn-sm" onclick="viewMonthClosingDetail(${mc.id})">👁️ বিস্তারিত</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div style="grid-column:1/-1;background:${mc.isLoss?'#fef2f2':'#f0fdf4'};border-radius:9px;padding:11px 13px">
@@ -20885,6 +21033,7 @@ function applyOwnerFeatureVisibility(activeFeature) {
 
   const monthly = document.getElementById('ownerMonthlySummary');
   if (monthly && monthly.parentElement) monthly.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
+  { const pb = document.getElementById('ownerBoardPdfBox'); if (pb) { pb.style.display = activeFeature === 'report' ? '' : 'none'; if (activeFeature === 'report') renderBoardPdfBox('ownerBoardPdfBox'); } }
   const recent = document.getElementById('ownerRecentList');
   if (recent && recent.parentElement) recent.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
   show('ownerShareBlock', activeFeature === 'myshare');
