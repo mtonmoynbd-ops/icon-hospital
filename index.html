@@ -15514,15 +15514,15 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           break;
         case 'daily':
           o.date = dayOf(c[0]);
-          o.multi = [['আয় ' + c[1], 'i'], ['ব্যয় ' + c[2], 'e']];
-          o.amt = c[3]; o.cls = /^-/.test(c[3]) ? 'exp' : 'inc';
+          o.multi = [['আয়', c[1], 'i'], ['ব্যয়', c[2], 'e']];
+          o.amt = c[3]; o.cls = /^-/.test(c[3]) ? 'neg' : 'pos';
           break;
         case 'inc': case 'exp':
-          o.date = dayOf(c[1]); o.title = c[3]; o.amt = c[7]; o.cls = kind;
+          o.date = dayOf(c[1]); o.title = c[3]; o.amt = c[7]; o.cls = kind === 'exp' ? 'neg' : 'pos';
           put(o.sub, '', c[2]); put(o.sub, '', c[4]); put(o.sub, '', c[5]); put(o.sub, '', c[6]);
           break;
         case 'rec':
-          o.date = dayOf(c[1]); o.title = c[4] || c[3]; o.amt = c[7]; o.cls = 'inc';
+          o.date = dayOf(c[1]); o.title = c[4] || c[3]; o.amt = c[7]; o.cls = 'pos';
           put(o.sub, '', c[2]); put(o.sub, '', c[3]);
           if (!blank(c[6]) || !blank(c[8])) {
             o.chips.push(['বিল ' + c[5], '']);
@@ -15531,21 +15531,21 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           }
           break;
         case 'camp':
-          o.date = dayOf(c[1]); o.title = c[3] + (blank(c[4]) ? '' : ' · ' + c[4]); o.amt = c[9]; o.cls = 'inc';
+          o.date = dayOf(c[1]); o.title = c[3] + (blank(c[4]) ? '' : ' · ' + c[4]); o.amt = c[9]; o.cls = 'pos';
           put(o.sub, '', c[2]);
           [5, 6, 7, 8].forEach(function(i){ put(o.sub, L[i], c[i]); });
           break;
         case 'campexp':
-          o.date = dayOf(c[1]); o.title = c[2]; o.amt = c[8]; o.cls = 'exp';
+          o.date = dayOf(c[1]); o.title = c[2]; o.amt = c[8]; o.cls = 'neg';
           [3, 4, 5, 6, 7].forEach(function(i){ put(o.sub, L[i], c[i]); });
           break;
         case 'op':
-          o.date = dayOf(c[1]); o.title = c[2] + (blank(c[3]) ? '' : ' · ' + c[3]); o.amt = c[5]; o.cls = 'inc';
+          o.date = dayOf(c[1]); o.title = c[2] + (blank(c[3]) ? '' : ' · ' + c[3]); o.amt = c[5]; o.cls = 'pos';
           put(o.sub, 'সার্জন:', c[4]); put(o.sub, 'সার্জন ফি', c[6]); put(o.sub, 'নেট', c[7]);
           break;
         case 'bank':
           o.date = dayOf(c[1]); o.title = c[2];
-          if (!blank(c[5])) { o.amt = '+ ' + c[5]; o.cls = 'inc'; } else { o.amt = '− ' + c[6]; o.cls = 'exp'; }
+          if (!blank(c[5])) { o.amt = '+ ' + c[5]; o.cls = 'pos'; } else { o.amt = '− ' + c[6]; o.cls = 'neg'; }
           put(o.sub, '', c[3]); put(o.sub, '', c[4]);
           break;
         case 'sal':
@@ -15567,7 +15567,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
       var l1 = mk('div', 'cc-l1');
       if (o.date) l1.appendChild(mk('span', 'cc-d', o.date));
       var ti = mk('span', 'cc-t' + (o.multi ? ' cc-multi' : ''));
-      if (o.multi) o.multi.forEach(function(m){ ti.appendChild(mk('span', 'cc-' + m[1], m[0])); });
+      if (o.multi) o.multi.forEach(function(m){ var sp = mk('span', 'cc-m cc-' + m[2]); sp.appendChild(mk('span', 'cc-ml', m[0])); sp.appendChild(mk('span', 'cc-mv', m[1])); ti.appendChild(sp); });
       else ti.textContent = o.title;
       l1.appendChild(ti);
       if (o.amt) l1.appendChild(mk('span', 'cc-a' + (o.cls ? ' ' + o.cls : ''), o.amt));
@@ -15592,13 +15592,13 @@ function _boardMobileSrcdoc(fullHtml, nav) {
         if (k === 0) label = v; else if (v) vals.push({ l: L[idx] || '', v: v });
         idx += span;
       });
-      var d = mk('div', 'cc-tot' + (tr.classList.contains('total-row') ? ' dark' : ''));
+      var d = mk('div', 'cc-tot' + (tr.classList.contains('total-row') ? ' dark' : '') + (vals.length === 1 ? ' one' : ''));
       d.appendChild(mk('span', 'cc-tl', label));
-      if (vals.length) {
-        var mi = /^(মোট|লাভ\/লস)$/.test(L[L.length - 1] || '') ? vals.length - 1 : 0;
-        d.appendChild(mk('span', 'cc-tv', vals[mi].v));
-        var rest = vals.filter(function(x, i){ return i !== mi; });
-        if (rest.length) d.appendChild(mk('span', 'cc-tx', rest.map(function(x){ return (x.l ? x.l + ' ' : '') + x.v; }).join(' · ')));
+      if (vals.length === 1) d.appendChild(mk('span', 'cc-tn', vals[0].v));
+      else if (vals.length) {
+        var g = mk('div', 'cc-tg');
+        vals.forEach(function(x) { var c = mk('div', 'cc-tc'); c.appendChild(mk('span', 'cc-tk', x.l)); c.appendChild(mk('span', 'cc-tn', x.v)); g.appendChild(c); });
+        d.appendChild(g);
       }
       return d;
     };
@@ -15618,7 +15618,9 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     var img = hd.querySelector('img'), col = hd.children[hd.children.length - 1], rr = col ? col.children : [];
     var hosp = tx(rr[0]), ttl = tx(rr[1]), mon = bn(tx(rr[2]));
     hd.removeAttribute('style'); hd.className = 'm-hd'; hd.innerHTML = '';
-    if (img) { img.removeAttribute('style'); hd.appendChild(img); }
+    if (img) img.removeAttribute('style');
+    var row = mk('div', 'm-hd-row');
+    if (img) row.appendChild(img);
     var inf = mk('div', 'm-hd-i');
     inf.appendChild(mk('div', 'm-hd-n', hosp));
     inf.appendChild(mk('div', 'm-hd-t', ttl));
@@ -15626,11 +15628,14 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     var ob = mk('button', 'm-nv', '‹'); ob.type = 'button'; ob.setAttribute('onclick', 'parent._bmvOlder&&parent._bmvOlder()'); if (nav.hasOlder === false) ob.disabled = true;
     var nb = mk('button', 'm-nv', '›'); nb.type = 'button'; nb.setAttribute('onclick', 'parent._bmvNewer&&parent._bmvNewer()'); if (nav.hasNewer === false) nb.disabled = true;
     mr.appendChild(ob); mr.appendChild(mk('span', 'm-hd-mm', mon)); mr.appendChild(nb);
-    if (nav.closed != null) mr.appendChild(mk('span', 'm-hd-st' + (nav.closed ? ' ok' : ''), nav.closed ? '✅ ক্লোজড' : '⏳ ক্লোজ বাকি'));
     inf.appendChild(mr);
-    hd.appendChild(inf);
+    row.appendChild(inf);
     var xb = mk('button', 'm-x', '✕'); xb.type = 'button'; xb.setAttribute('onclick', 'parent._bmvClose&&parent._bmvClose()');
-    hd.appendChild(xb);
+    row.appendChild(xb);
+    hd.appendChild(row);
+    var st = nav.status || (nav.closed ? 'closed' : 'open');
+    var stMap = { closed: ['st-ok', '✅ মাস ক্লোজড'], open: ['st-wait', '⏳ ক্লোজ বাকি'], running: ['st-run', '🔄 চলমান'] };
+    hd.appendChild(mk('div', 'm-hd-bar ' + stMap[st][0], stMap[st][1]));
   }
 
   var wrap = doc.body.firstElementChild;
@@ -15644,18 +15649,21 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     strong,b,th{font-weight:700}
     .brpt-page,.a4-page{width:auto!important;max-width:none!important;min-height:0!important;margin:0!important;padding:0 10px 10px!important;box-shadow:none!important;background:transparent!important}
     /* স্থির লোগো-কার্ড */
-    .m-hd{position:sticky;top:0;z-index:40;display:flex!important;align-items:center;gap:10px;flex-wrap:nowrap;margin:0 0 8px!important;padding:8px 10px!important;border:0!important;border-radius:0 0 12px 12px;background:linear-gradient(120deg,#fff,#eff6ff);box-shadow:0 8px 0 0 #eef2f7,0 2px 10px rgba(15,76,129,.16)}
+    .m-hd{position:sticky;top:0;z-index:40;display:block!important;margin:0 0 8px!important;padding:0!important;border:0!important;border-radius:0 0 12px 12px;overflow:hidden;background:linear-gradient(120deg,#fff,#eff6ff);box-shadow:0 8px 0 0 #eef2f7,0 2px 10px rgba(15,76,129,.16)}
+    .m-hd-row{display:flex;align-items:center;gap:10px;padding:8px 10px}
     .m-hd img{height:34px!important;max-height:34px!important;width:auto!important;object-fit:contain;flex:0 0 auto}
     .m-hd-i{flex:1;min-width:0;text-align:right}
     .m-hd-n{font-size:13.5px;font-weight:700;color:#0f4c81;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .m-hd-t{font-size:11.5px;font-weight:600;color:#1a2a3a;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .m-hd-m{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:3px;font-size:11.5px;color:#475569}
-    .m-hd-mm{font-weight:700;color:#334155}
-    .m-hd-st{font-size:10.5px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:10px;padding:0 7px;line-height:17px;white-space:nowrap}
-    .m-hd-st.ok{color:#047857;background:#d1fae5}
+    .m-hd-m{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:3px}
+    .m-hd-mm{font-size:12px;font-weight:700;color:#334155;white-space:nowrap}
+    .m-hd-bar{font-size:10.5px;font-weight:700;text-align:center;line-height:16px;letter-spacing:.2px}
+    .m-hd-bar.st-ok{background:#d1fae5;color:#047857;border-top:2px solid #10b981}
+    .m-hd-bar.st-wait{background:#fef3c7;color:#b45309;border-top:2px solid #f59e0b}
+    .m-hd-bar.st-run{background:#dbeafe;color:#1d4ed8;border-top:2px solid #3b82f6}
     .m-nv{width:24px;height:22px;border:1px solid #cfe0f1;background:#fff;color:#0f4c81;border-radius:6px;font-weight:700;font-size:14px;line-height:1;padding:0}
     .m-nv:disabled{opacity:.3}
-    .m-x{flex:0 0 auto;align-self:flex-start;width:26px;height:26px;border-radius:50%;border:0;background:#0f4c81;color:#fff;font-weight:700;font-size:12px;line-height:1;padding:0}
+    .m-x{flex:0 0 auto;width:28px;height:28px;border-radius:50%;border:0;background:#0f4c81;color:#fff;font-weight:700;font-size:12px;line-height:1;padding:0}
     /* সেকশন শিরোনাম = ভাঁজ বাটন */
     h2.m-h{display:flex!important;align-items:center;gap:7px;cursor:pointer;font-size:13.5px!important;font-weight:700!important;margin:8px 0 0!important;padding:8px 11px!important;border-radius:10px;line-height:1.3!important;user-select:none;-webkit-tap-highlight-color:transparent}
     h2.m-h .m-arrow{display:inline-block;transition:transform .18s;font-size:11px;flex:0 0 auto}
@@ -15678,17 +15686,20 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     /* কমপ্যাক্ট কার্ড: ১ লাইন, সর্বোচ্চ ২ লাইন */
     .cc-list{margin:0 0 6px}
     .cc{background:#fff;border:1px solid #e3eaf2;border-left:3px solid #93c5fd;border-radius:9px;margin:0 0 4px;padding:4px 9px;-webkit-tap-highlight-color:transparent}
-    .cc.inc{border-left-color:#6ee7b7}
-    .cc.exp{border-left-color:#fca5a5}
+    .cc.pos{border-left-color:#6ee7b7}
+    .cc.neg{border-left-color:#fca5a5}
     .cc-l1{display:flex;align-items:center;gap:7px;min-height:20px}
     .cc-d{flex:0 0 auto;min-width:25px;text-align:center;font-size:12px;font-weight:700;color:#0f4c81;background:#e8f1fb;border-radius:6px;padding:0 4px;line-height:20px}
     .cc-t{flex:1;min-width:0;font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .cc-t.cc-multi{display:flex;flex-wrap:wrap;gap:0 10px;overflow:visible;font-size:12px;font-weight:600}
-    .cc-i{color:#065f46}
-    .cc-e{color:#991b1b}
+    .cc-t.cc-multi{display:flex;flex-wrap:wrap;gap:0 12px;overflow:visible}
+    .cc-m{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
+    .cc-ml{font-size:10.5px;font-weight:500;color:#64748b}
+    .cc-mv{font-size:13px;font-weight:700}
+    .cc-i .cc-mv{color:#065f46}
+    .cc-e .cc-mv{color:#991b1b}
     .cc-a{flex:0 0 auto;margin-left:auto;font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap}
-    .cc-a.inc{color:#065f46}
-    .cc-a.exp{color:#991b1b}
+    .cc-a.pos{color:#065f46}
+    .cc-a.neg{color:#991b1b}
     .cc-l2{display:flex;align-items:center;gap:6px;margin-top:1px;font-size:11px;font-weight:500;color:#64748b;line-height:1.35}
     .cc-s{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cc.open .cc-s,.cc.open .cc-t:not(.cc-multi){white-space:normal;overflow:visible}
@@ -15697,11 +15708,15 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc-chip.i{background:#d1fae5;color:#065f46}
     .cc-chip.e{background:#fee2e2;color:#991b1b}
     .cc-chip.w{background:#fef3c7;color:#92400e}
-    .cc-tot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1px 8px;border-radius:9px;padding:5px 10px;margin:0 0 4px;background:#eaf4fb;border:1px solid #bcd9ec;border-left:3px solid #0f4c81;font-size:13px;font-weight:700;color:#0f172a}
+    .cc-tot{display:block;border-radius:9px;padding:6px 10px;margin:0 0 4px;background:#eaf4fb;border:1px solid #bcd9ec;border-left:3px solid #0f4c81;color:#0f172a}
+    .cc-tot.one{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .cc-tot.dark{background:linear-gradient(135deg,#0f4c81,#1a6bb5);border-color:#0f4c81;color:#fff}
-    .cc-tl{flex:1;min-width:0}
-    .cc-tv{flex:0 0 auto;white-space:nowrap}
-    .cc-tx{flex:1 0 100%;font-size:11px;font-weight:500;opacity:.85}
+    .cc-tl{font-size:13px;font-weight:700;display:block}
+    .cc-tot.one .cc-tl{display:inline}
+    .cc-tg{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:3px 10px;margin-top:3px}
+    .cc-tc{display:flex;flex-direction:column;min-width:0}
+    .cc-tk{font-size:10.5px;font-weight:500;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cc-tn{font-size:13px;font-weight:700;white-space:nowrap}
     .cc-empty{padding:8px;text-align:center;color:#94a3b8;font-size:12px}
     p,div{font-size:inherit}
     .badge{display:inline-block;font-size:11px}
@@ -15754,7 +15769,8 @@ function openBoardReportMobileView(month, year) {
     try { r = buildBoardReportHtml(mm, yy); } catch (e) { console.error(e); showToast('⚠️ রিপোর্ট তৈরি করা যায়নি'); return; }
     cur = idx;
     var closed = (appData.monthClosings||[]).some(function(c){ return c.month===mm && c.year===yy; });
-    fr.srcdoc = _boardMobileSrcdoc(r.html, { closed: closed, hasOlder: idx >= 0 && idx < months.length - 1, hasNewer: idx > 0 });
+    var running = (mm === now.getMonth() + 1 && yy === now.getFullYear());
+    fr.srcdoc = _boardMobileSrcdoc(r.html, { status: running ? 'running' : (closed ? 'closed' : 'open'), hasOlder: idx >= 0 && idx < months.length - 1, hasNewer: idx > 0 });
   }
   // লোগো-কার্ডের ভেতরের ‹ › ✕ বাটন এই ফাংশনগুলো ডাকে
   window._bmvOlder = function(){ if (cur >= 0 && cur < months.length - 1) { var t = months[cur + 1]; show(t.m, t.y, cur + 1); } };
