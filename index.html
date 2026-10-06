@@ -928,7 +928,7 @@
 
   @media print {
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-    body > *:not(#printPreviewOverlay) { display:none !important; }
+    body > *:not(#printPreviewOverlay):not(#a4OffscreenRoot) { display:none !important; }
     /* position:fixed + overflow:auto ক্লিপ করে ফেলে প্রিন্টে — শুধু প্রথম পেজ/ভিউপোর্ট এর সমান অংশ প্রিন্ট হয়,
        বাকি পেজ কাটা পড়ে এবং স্ক্রলবারও প্রিন্টে চলে আসে। তাই static/visible flow এ আনা হলো যাতে
        ব্রাউজার একাধিক পেজে ঠিকমতো পেজিনেট করতে পারে। */
@@ -15200,76 +15200,145 @@ function _deliverPdf(blob, filename, pageCount) {
     + '<button type="button" class="btn btn-outline" style="width:100%" onclick="_pdfReadyClose()">বন্ধ করুন</button></div>';
   document.body.appendChild(ov);
 }
-async function downloadA4ReportPdf(htmlContent, filename) {
+// প্রিন্ট-প্রিভিউর হুবহু A4 পাতা লুকানো জায়গায় বানানো — "জেনুইন" (প্রিন্ট ইঞ্জিন) ও "ছবি-ভিত্তিক" দুই এক্সপোর্টারই এটা ব্যবহার করে
+async function _buildA4OffscreenRoot(htmlContent) {
+  ['printPreviewOverlay','a4OffscreenRoot','a4PrintOnly'].forEach(function(id){ var e = document.getElementById(id); if (e) e.remove(); });
+  var extraStyle = '', bodyContent = htmlContent;
+  if (/<html[\s>]/i.test(htmlContent)) {
+    var sm = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+    extraStyle = sm.map(function(x){ return x.replace(/<\/?style[^>]*>/gi, ''); }).join('\n');
+    var bm = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    bodyContent = bm ? bm[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  }
+  window._a4MarginMm = null; window._a4ZoomPct = 100; window._a4ExtraStyleBase = extraStyle;
+  window._a4WrapperClass = ''; window._a4WrapperStyle = ''; window._a4InnerHtml = '';
+  var pd = document.createElement('div'); pd.innerHTML = bodyContent;
+  var wEl = pd.firstElementChild;
+  if (pd.children.length === 1 && wEl && wEl.children.length > 0) {
+    window._a4WrapperClass = wEl.className || ''; window._a4WrapperStyle = wEl.getAttribute('style') || '';
+    window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(wEl.innerHTML));
+  } else { window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(bodyContent)); }
+  var root = document.createElement('div'); root.id = 'a4OffscreenRoot';
+  root.style.cssText = 'position:fixed;left:0;top:0;width:210mm;opacity:0.01;pointer-events:none;z-index:-1;background:#fff';
+  root.innerHTML = '<style id="a4ExtraStyleOff">' + extraStyle + '</style><style>' + PDF_PAGE_BREAK_CSS + `
+    #printPreviewA4Pages{display:block;font-family:'Hind Siliguri',Arial,sans-serif}
+    #a4OffscreenRoot .a4-print-page{background:#fff;width:210mm!important;max-width:none!important;height:297mm!important;box-sizing:border-box;position:relative;overflow:hidden;display:block}
+    #a4OffscreenRoot .a4-print-page-num{display:none}
+    #printPreviewA4Pages th,#printPreviewA4Pages thead tr,#printPreviewA4Pages thead td,#printPreviewA4Pages tfoot tr,#printPreviewA4Pages tfoot td,#printPreviewA4Pages tr.total-row td,#printPreviewA4Pages tr.sum-row td,#printPreviewA4Pages h1,#printPreviewA4Pages h2,#printPreviewA4Pages h3,#printPreviewA4Pages h4,#printPreviewA4Pages h5,#printPreviewA4Pages h6{background:#eaf4fb!important;color:#1a2a3a!important;border-color:#bcd9ec!important}
+    #printPreviewA4Pages th *,#printPreviewA4Pages thead tr *,#printPreviewA4Pages tfoot tr *,#printPreviewA4Pages tr.total-row td *,#printPreviewA4Pages tr.sum-row td *,#printPreviewA4Pages h1 *,#printPreviewA4Pages h2 *,#printPreviewA4Pages h3 *,#printPreviewA4Pages h4 *,#printPreviewA4Pages h5 *,#printPreviewA4Pages h6 *{color:#1a2a3a!important}
+  </style><div id="printPreviewA4Pages"></div>`;
+  document.body.appendChild(root);
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
+  await new Promise(function(r){ setTimeout(r, 120); });
+  paginateA4Preview();
+  var pages = Array.prototype.slice.call(root.querySelectorAll('.a4-print-page'));
+  if (!pages.length) { root.remove(); throw new Error('পাতা তৈরি হয়নি'); }
+  await Promise.all(Array.prototype.slice.call(root.querySelectorAll('img')).map(function(img){ return img.complete && img.naturalWidth > 0 ? null : new Promise(function(res){ img.onload = res; img.onerror = res; }); }));
+  return { root: root, pages: pages };
+}
+// ===== ✅ জেনুইন (ভেক্টর) PDF — ব্রাউজারের প্রিন্ট ইঞ্জিন দিয়ে: ঠিক "বোর্ড রিপোর্ট প্রিন্ট"-এর মতোই, লেখা ছবি নয় (জুম করলেও ঝাপসা হয় না, লেখা সিলেক্ট করা যায়) =====
+// লুকানো A4 পাতাগুলোই প্রিন্ট হয় (বাকি অ্যাপ প্রিন্টে লুকানো); প্রিন্টারের জায়গায় "PDF হিসেবে সংরক্ষণ" বেছে নিলেই ফাইল ডিভাইসে নামে।
+function _a4PrintNow(filename) {
+  var root = document.getElementById('a4OffscreenRoot');
+  if (!root) { showToast('⚠️ রিপোর্ট প্রস্তুত নেই — আবার চেষ্টা করুন'); return; }
+  var xs = root.querySelector('#a4ExtraStyleOff'); if (xs) xs.media = 'print';   // রিপোর্টের নিজস্ব স্টাইল শুধু প্রিন্টে — স্ক্রিনে অ্যাপ নষ্ট হয় না
+  var old = document.getElementById('a4PrintOnly'); if (old) old.remove();
+  var st = document.createElement('style'); st.id = 'a4PrintOnly';
+  st.textContent = '@page{size:A4;margin:0}@media print{html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important;overflow:visible!important}'
+    + 'body>*:not(#a4OffscreenRoot){display:none!important}'
+    + '#a4OffscreenRoot{position:static!important;opacity:1!important;z-index:auto!important;width:210mm!important;left:auto!important;top:auto!important;pointer-events:auto!important}'
+    + '#a4OffscreenRoot .a4-print-page{overflow:visible!important;box-shadow:none!important;page-break-after:always;break-after:page}'
+    + '#a4OffscreenRoot .a4-print-page:last-child{page-break-after:auto;break-after:auto}}';
+  document.head.appendChild(st);
+  var origTitle = document.title; document.title = String(filename||'report').replace(/\.pdf$/i, '');
+  var cleanup = function() {
+    document.title = origTitle;
+    var r = document.getElementById('a4OffscreenRoot'); if (r) r.remove();
+    var s = document.getElementById('a4PrintOnly'); if (s) s.remove();
+    var m = document.getElementById('pdfPrintModal'); if (m) m.remove();
+    window._a4Pending = null;
+  };
+  window.addEventListener('afterprint', cleanup, { once: true });
+  setTimeout(function(){ try { window.print(); } catch (e) { cleanup(); showToast('⚠️ প্রিন্ট খোলা যায়নি'); } }, 80);
+}
+function _a4PdfModalClose() {
+  var m = document.getElementById('pdfPrintModal'); if (m) m.remove();
+  var r = document.getElementById('a4OffscreenRoot'); if (r) r.remove();
+  var s = document.getElementById('a4PrintOnly'); if (s) s.remove();
+  window._a4Pending = null;
+}
+// মোবাইলে: প্রিন্ট অবশ্যই সরাসরি ক্লিকে চালু করতে হয় — তাই প্রস্তুত হওয়ার পর একটা কার্ড দেখানো হয়
+function _showMobilePdfModal(pageCount, filename) {
+  var ios = _isIOSDevice();
+  var ov = document.createElement('div'); ov.id = 'pdfPrintModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.6);z-index:100003;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:370px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:inherit">'
+    + '<div style="font-weight:800;font-size:15px;color:#065f46">✅ বোর্ড রিপোর্ট প্রস্তুত (' + pageCount + ' পৃষ্ঠা)</div>'
+    + '<div style="font-size:12.5px;color:#475569;margin:8px 0 14px;line-height:1.7">নিচের বাটন চাপলে প্রিন্ট স্ক্রিন খুলবে।<br>'
+    + (ios ? '• প্রিভিউ খোলার পর উপরে ডানের <b>শেয়ার</b> আইকন চেপে <b>"ফাইলসে সংরক্ষণ"</b> বেছে নিন।' : '• প্রিন্টারের জায়গায় <b>"PDF হিসেবে সংরক্ষণ করুন"</b> (Save as PDF) বেছে PDF বাটন চাপুন — ফাইল আপনার ফোনে নামবে।')
+    + '<br>• এটা আসল (ভেক্টর) PDF — জুম করলেও লেখা পরিষ্কার থাকে।</div>'
+    + '<button type="button" class="btn btn-success" style="width:100%;font-weight:800;margin-bottom:8px" onclick="_a4PrintNow(\'' + String(filename).replace(/'/g,"") + '\')">🖨️ PDF হিসেবে সংরক্ষণ করুন</button>'
+    + '<button type="button" class="btn btn-outline" style="width:100%;font-size:12px;margin-bottom:8px;color:#64748b" onclick="_a4RasterFromPending()">প্রিন্ট স্ক্রিন না এলে: ছবি-ভিত্তিক PDF (কম তীক্ষ্ণ)</button>'
+    + '<button type="button" class="btn btn-outline" style="width:100%" onclick="_a4PdfModalClose()">বন্ধ করুন</button></div>';
+  document.body.appendChild(ov);
+}
+async function exportA4ReportPdf(htmlContent, filename) {
   if (window._pdfBusy) { showToast('একটি PDF তৈরি চলছে — একটু অপেক্ষা করুন'); return; }
   window._pdfBusy = true;
-  var root = null, mobile = _isMobileDevice();
+  try {
+    _pdfProgress('📄 পাতা সাজানো হচ্ছে…');
+    var b = await _buildA4OffscreenRoot(htmlContent);
+    _pdfProgress('');
+    window._a4Pending = { html: htmlContent, filename: filename, pages: b.pages.length };
+    if (_isMobileDevice()) _showMobilePdfModal(b.pages.length, filename);
+    else { showToast('🖨️ প্রিন্ট উইন্ডোতে গন্তব্য "Save as PDF" বেছে সংরক্ষণ করুন'); _a4PrintNow(filename); }
+  } catch (err) {
+    console.error('PDF ত্রুটি:', err); _pdfProgress('');
+    showToast('⚠️ PDF প্রস্তুত করা যায়নি — ' + ((err && err.message) || 'আবার চেষ্টা করুন'));
+  } finally { window._pdfBusy = false; }
+}
+function _a4RasterFromPending() {
+  var pnd = window._a4Pending; if (!pnd) return;
+  _a4PdfModalClose();
+  downloadA4ReportPdfRaster(pnd.html, pnd.filename);
+}
+// ছবি-ভিত্তিক বিকল্প (ফলব্যাক): প্রতিটা A4 পাতা উচ্চ রেজোলিউশনে ছবি তুলে PDF-এ — লেখা ভেক্টর নয়
+async function downloadA4ReportPdfRaster(htmlContent, filename) {
+  if (window._pdfBusy) { showToast('একটি PDF তৈরি চলছে — একটু অপেক্ষা করুন'); return; }
+  window._pdfBusy = true;
+  var mobile = _isMobileDevice(), root = null;
   try {
     _pdfProgress('📄 PDF তৈরির প্রস্তুতি…');
     await _ensurePdfLibs();
-    var old = document.getElementById('printPreviewOverlay'); if (old) old.remove();   // খোলা প্রিভিউ থাকলে তার অবস্থা সরিয়ে দেওয়া (একই পাতা-ইঞ্জিন)
-    // প্রিন্ট প্রিভিউর হুবহু একই প্রস্তুতি: style/body আলাদা করা, মূল wrapper শনাক্ত করা, ফ্ল্যাট কন্টেন্ট তৈরি
-    var extraStyle = '', bodyContent = htmlContent;
-    if (/<html[\s>]/i.test(htmlContent)) {
-      var sm = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
-      extraStyle = sm.map(function(x){ return x.replace(/<\/?style[^>]*>/gi, ''); }).join('\n');
-      var bm = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      bodyContent = bm ? bm[1] : htmlContent.replace(/<\/?(html|head|body)[^>]*>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-    }
-    window._a4MarginMm = null; window._a4ZoomPct = 100; window._a4ExtraStyleBase = extraStyle;
-    window._a4WrapperClass = ''; window._a4WrapperStyle = ''; window._a4InnerHtml = '';
-    var pd = document.createElement('div'); pd.innerHTML = bodyContent;
-    var wEl = pd.firstElementChild;
-    if (pd.children.length === 1 && wEl && wEl.children.length > 0) {
-      window._a4WrapperClass = wEl.className || ''; window._a4WrapperStyle = wEl.getAttribute('style') || '';
-      window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(wEl.innerHTML));
-    } else { window._a4InnerHtml = tagA4Tables(markA4HeadlinesNonEditable(bodyContent)); }
-    root = document.createElement('div'); root.id = 'a4OffscreenRoot';
-    root.style.cssText = 'position:fixed;left:0;top:0;width:210mm;opacity:0.01;pointer-events:none;z-index:-1;background:#fff';
-    root.innerHTML = '<style>' + extraStyle + '</style><style>' + PDF_PAGE_BREAK_CSS + `
-      #printPreviewA4Pages{display:block;font-family:'Hind Siliguri',Arial,sans-serif}
-      #a4OffscreenRoot .a4-print-page{background:#fff;width:210mm!important;max-width:none!important;height:297mm!important;box-sizing:border-box;position:relative;overflow:hidden;display:block}
-      #a4OffscreenRoot .a4-print-page-num{display:none}
-      #printPreviewA4Pages th,#printPreviewA4Pages thead tr,#printPreviewA4Pages thead td,#printPreviewA4Pages tfoot tr,#printPreviewA4Pages tfoot td,#printPreviewA4Pages tr.total-row td,#printPreviewA4Pages tr.sum-row td,#printPreviewA4Pages h1,#printPreviewA4Pages h2,#printPreviewA4Pages h3,#printPreviewA4Pages h4,#printPreviewA4Pages h5,#printPreviewA4Pages h6{background:#eaf4fb!important;color:#1a2a3a!important;border-color:#bcd9ec!important}
-      #printPreviewA4Pages th *,#printPreviewA4Pages thead tr *,#printPreviewA4Pages tfoot tr *,#printPreviewA4Pages tr.total-row td *,#printPreviewA4Pages tr.sum-row td *,#printPreviewA4Pages h1 *,#printPreviewA4Pages h2 *,#printPreviewA4Pages h3 *,#printPreviewA4Pages h4 *,#printPreviewA4Pages h5 *,#printPreviewA4Pages h6 *{color:#1a2a3a!important}
-    </style><div id="printPreviewA4Pages"></div>`;
-    document.body.appendChild(root);
-    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
-    await new Promise(function(r){ setTimeout(r, 120); });
-    paginateA4Preview();
-    var pages = Array.prototype.slice.call(root.querySelectorAll('.a4-print-page'));
-    if (!pages.length) throw new Error('পাতা তৈরি হয়নি');
-    // ছবিগুলো (লোগো) লোড হওয়া পর্যন্ত অপেক্ষা
-    await Promise.all(Array.prototype.slice.call(root.querySelectorAll('img')).map(function(img){ return img.complete && img.naturalWidth > 0 ? null : new Promise(function(res){ img.onload = res; img.onerror = res; }); }));
+    var b = await _buildA4OffscreenRoot(htmlContent); root = b.root; var pages = b.pages;
     var JsPDF = _getJsPDF();
     var pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
     for (var i = 0; i < pages.length; i++) {
       _pdfProgress('📄 পাতা ' + (i + 1) + '/' + pages.length + ' তৈরি হচ্ছে…');
-      await new Promise(function(r){ setTimeout(r, 30); });   // UI-কে শ্বাস নিতে দেওয়া (ফোন হ্যাং না করতে)
+      await new Promise(function(r){ setTimeout(r, 30); });
       var el = pages[i];
-      var canvas = await window.html2canvas(el, { scale: mobile ? 1.6 : 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0,
+      var canvas = await window.html2canvas(el, { scale: mobile ? 2 : 3, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0,
         width: el.offsetWidth, height: el.offsetHeight, windowWidth: el.offsetWidth + 40, windowHeight: el.offsetHeight + 40, logging: false });
       if (i > 0) pdf.addPage('a4', 'portrait');
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
       canvas.width = 0; canvas.height = 0;
     }
     _pdfProgress('📄 ফাইল প্রস্তুত হচ্ছে…');
-    var blob = pdf.output('blob');
-    _pdfProgress('');
+    var blob = pdf.output('blob'); _pdfProgress('');
     _deliverPdf(blob, filename || 'report.pdf', pages.length);
   } catch (err) {
-    console.error('PDF ত্রুটি:', err);
-    _pdfProgress('');
-    showToast('⚠️ PDF তৈরি করা যায়নি — ' + ((err && err.message) || 'ইন্টারনেট সংযোগ পরীক্ষা করুন'));
+    console.error('PDF ত্রুটি:', err); _pdfProgress('');
+    showToast('⚠️ ছবি-ভিত্তিক PDF তৈরি করা যায়নি — ' + ((err && err.message) || 'ইন্টারনেট সংযোগ পরীক্ষা করুন'));
   } finally {
     if (root && root.parentNode) root.parentNode.removeChild(root);
     window._pdfBusy = false;
   }
 }
+
 function downloadBoardReportPdf(month, year) {
   var r;
   try { r = buildBoardReportHtml(month, year); } catch (e) { console.error(e); showToast('⚠️ বোর্ড রিপোর্ট তৈরি করা যায়নি'); return; }
-  downloadA4ReportPdf(r.html, 'board-report-' + year + '-' + String(month).padStart(2,'0') + '.pdf');
+  exportA4ReportPdf(r.html, 'board-report-' + year + '-' + String(month).padStart(2,'0') + '.pdf');
 }
 // ✅ মাসিক রিপোর্ট পেজের টপে: গত ৩ মাসের বোর্ড রিপোর্ট (কলাপ্সড; খুললে মাসের নামে PDF বাটন) — অ্যাডমিন ও ওনার দুই প্যানেলেই
 function renderBoardPdfBox(boxId) {
