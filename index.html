@@ -7311,7 +7311,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div id="ownerModalBody" style="font-size:12.5px"></div>
       </div>
     </div>
-    <div id="ownerBoardPdfBox" style="display:none"></div>
+    <div id="ownerBoardViewBox" style="display:none"></div>
     <!-- Monthly Chart area -->
     <div style="background:white;border-radius:12px;padding:16px;margin-bottom:16px">
       <div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📊 এই মাসের সারসংক্ষেপ</div>
@@ -9959,7 +9959,7 @@ function printMemoDoc(id) {
     </div>`, d.title);
 }
 
-// ===== OWNER PANEL — মাস ক্লোজের বার্তা + বোর্ড রিপোর্ট PDF (এক ক্লিকে নিজের ডিভাইসে ডাউনলোড) =====
+// ===== OWNER PANEL — মাস ক্লোজের বার্তা + বোর্ড রিপোর্ট (মোবাইল ভিউ) =====
 // "দেখা হয়েছে" প্রতিটা ডিভাইসে আলাদা (localStorage) — অ্যাডমিন মাস ক্লোজ করলেই সব ওনার ডিভাইসে বার্তা আসে, কেউ ডাউনলোড বা ✕ চাপলে শুধু তার ডিভাইস থেকে সরে।
 const OWNER_CLOSE_SEEN_KEY = 'hms_owner_close_seen_ids';
 function renderOwnerClosingNotif() {
@@ -9979,16 +9979,16 @@ function renderOwnerClosingNotif() {
         </div>
         <button class="btn btn-outline btn-sm" onclick="ownerDismissClosing(${mc.id})" style="border-color:#34d399;color:#065f46" title="বন্ধ করুন">✕</button>
       </div>
-      <div style="margin-top:9px"><button class="btn btn-success btn-sm" style="width:100%;font-weight:700" onclick="ownerDownloadClosingReport(${mc.id})">📄 বোর্ড রিপোর্ট (PDF) ডাউনলোড করুন</button></div>
+      <div style="margin-top:9px"><button class="btn btn-success btn-sm" style="width:100%;font-weight:700" onclick="ownerViewClosingReport(${mc.id})">📱 বোর্ড রিপোর্ট দেখুন</button></div>
     </div>`).join('');
 }
 function ownerDismissClosing(id) {
   const set = _ownerBnIdSet(OWNER_CLOSE_SEEN_KEY); set.add(id); _ownerBnIdSetSave(OWNER_CLOSE_SEEN_KEY, set);
   renderOwnerClosingNotif();
 }
-function ownerDownloadClosingReport(id) {
+function ownerViewClosingReport(id) {
   const mc = (appData.monthClosings||[]).find(m => m.id===id); if (!mc) return;
-  downloadBoardReportPdf(mc.month, mc.year);
+  openBoardReportMobileView(mc.month, mc.year);
   const set = _ownerBnIdSet(OWNER_CLOSE_SEEN_KEY); set.add(id); _ownerBnIdSetSave(OWNER_CLOSE_SEEN_KEY, set);
   setTimeout(renderOwnerClosingNotif, 400);
 }
@@ -15471,7 +15471,96 @@ function downloadBoardReportPdf(month, year) {
     }, 1000);
   } catch (e) {}
 })();
-// ✅ মাসিক রিপোর্ট পেজের টপে: গত ৩ মাসের বোর্ড রিপোর্ট (কলাপ্সড; খুললে মাসের নামে PDF বাটন) — অ্যাডমিন ও ওনার দুই প্যানেলেই
+// ===== ✅ ওনার প্যানেল: বোর্ড রিপোর্ট মোবাইল ভিউতে দেখা (PDF/স্ক্রিনশট নয়) =====
+// বোর্ড রিপোর্টের হুবহু একই HTML (সব সেকশন, একই সংখ্যা) নিয়ে A4-এর জায়গায় ফোনের উপযোগী করা হয়: তালিকার টেবিলগুলো প্রতি সারিতে এক কার্ডে
+// (কলামের নাম: মান) সাজানো, ছোট সারাংশ-টেবিল আগের মতোই। আলাদা iframe-এ চলে, তাই অ্যাপের ডিজাইনে কোনো প্রভাব পড়ে না।
+function _boardMobileSrcdoc(fullHtml) {
+  var doc = new DOMParser().parseFromString(fullHtml, 'text/html');
+  var styles = Array.prototype.map.call(doc.querySelectorAll('style'), function(s){ return s.textContent; }).join('\n');
+  doc.querySelectorAll('table').forEach(function(t) {
+    var headRow = t.querySelector('thead tr');
+    if (!headRow) return;
+    var labels = Array.prototype.map.call(headRow.children, function(h){ return (h.textContent || '').trim(); });
+    t.classList.add('m-cards');
+    t.querySelectorAll('tbody tr, tfoot tr').forEach(function(tr) {
+      var idx = 0;
+      Array.prototype.forEach.call(tr.children, function(td) {
+        var span = parseInt(td.getAttribute('colspan') || '1', 10) || 1;
+        td.setAttribute('data-label', span > 1 ? '' : (labels[idx] || ''));
+        idx += span;
+      });
+    });
+  });
+  var wrap = doc.body.firstElementChild;
+  if (wrap) wrap.removeAttribute('style');
+  var bodyHtml = doc.body.innerHTML;
+  var mobileCss = `
+    html,body{margin:0;padding:0;background:#f1f5f9;-webkit-text-size-adjust:100%}
+    body{font-family:'Hind Siliguri',Arial,sans-serif;font-size:14px;color:#1e293b}
+    .brpt-page,.a4-page{width:auto!important;max-width:none!important;min-height:0!important;margin:0!important;padding:10px!important;box-shadow:none!important;background:transparent!important}
+    *{box-sizing:border-box;max-width:100%}
+    img{max-height:52px;width:auto!important;height:auto!important;object-fit:contain}
+    div[style*="margin:-12mm"]{margin:0 0 12px!important;padding:12px!important;flex-wrap:wrap!important;border-radius:12px;background:#fff}
+    h1,h2,h3{font-size:15px!important;margin:16px 0 8px!important;padding:8px 10px!important;border-radius:8px;line-height:1.35!important}
+    table{width:100%!important;border-collapse:collapse;margin:0 0 10px}
+    table:not(.m-cards) td,table:not(.m-cards) th{padding:7px 8px!important;font-size:13px!important}
+    table:not(.m-cards){background:#fff;border-radius:10px;overflow:hidden}
+    table.m-cards{border-collapse:separate;border-spacing:0}
+    table.m-cards thead{display:none!important}
+    table.m-cards tbody,table.m-cards tfoot{display:block!important}
+    table.m-cards tr{display:block!important;background:#fff!important;border:1px solid #e2e8f0!important;border-radius:10px;margin:0 0 8px!important;padding:6px 10px!important}
+    table.m-cards td{display:flex!important;justify-content:space-between;align-items:baseline;gap:12px;padding:3px 0!important;border:0!important;background:transparent!important;text-align:right!important;font-size:13px!important;word-break:break-word}
+    table.m-cards td::before{content:attr(data-label);font-weight:700;color:#64748b;text-align:left;flex:0 0 40%;font-size:12px}
+    table.m-cards td[data-label=""]::before,table.m-cards td[data-label="#"]::before{display:none}
+    table.m-cards td[data-label="#"],table.m-cards td:empty{display:none!important}
+    table.m-cards tr.total-row,table.m-cards tr.sum-row,table.m-cards tfoot tr{background:#eaf4fb!important;border-color:#bcd9ec!important}
+    table.m-cards tr.total-row td,table.m-cards tr.sum-row td,table.m-cards tfoot td{font-weight:800}
+    p,div{font-size:inherit}
+    .badge{display:inline-block;font-size:11px}
+  `;
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">'
+    + '<style>' + styles + '</style><style>' + mobileCss + '</style></head><body>' + bodyHtml + '</body></html>';
+}
+function openBoardReportMobileView(month, year) {
+  var r;
+  try { r = buildBoardReportHtml(month, year); } catch (e) { console.error(e); showToast('⚠️ রিপোর্ট তৈরি করা যায়নি'); return; }
+  var old = document.getElementById('boardMobileView'); if (old) old.remove();
+  var ov = document.createElement('div'); ov.id = 'boardMobileView';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#f1f5f9;display:flex;flex-direction:column';
+  ov.innerHTML = '<div style="flex:0 0 auto;background:#0f4c81;color:#fff;padding:10px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.25)">'
+    + '<div style="flex:1;min-width:0;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ' + String(r.title).replace(/</g,'&lt;') + '</div>'
+    + '<button type="button" id="bmvMinus" style="background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;width:34px;height:32px;font-weight:800;font-size:15px">A−</button>'
+    + '<button type="button" id="bmvPlus" style="background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;width:34px;height:32px;font-weight:800;font-size:15px">A+</button>'
+    + '<button type="button" id="bmvClose" style="background:#fff;color:#0f4c81;border:none;border-radius:8px;padding:0 12px;height:32px;font-weight:800">✕ বন্ধ</button></div>'
+    + '<iframe id="bmvFrame" style="flex:1 1 auto;width:100%;border:0;background:#f1f5f9"></iframe>';
+  document.body.appendChild(ov);
+  var fr = document.getElementById('bmvFrame'), zoom = 1;
+  fr.srcdoc = _boardMobileSrcdoc(r.html);
+  var applyZoom = function() { try { fr.contentDocument.body.style.zoom = zoom; } catch (e) {} };
+  document.getElementById('bmvPlus').onclick = function(){ zoom = Math.min(1.6, zoom + 0.1); applyZoom(); };
+  document.getElementById('bmvMinus').onclick = function(){ zoom = Math.max(0.7, zoom - 0.1); applyZoom(); };
+  document.getElementById('bmvClose').onclick = function(){ ov.remove(); };
+}
+// ওনার প্যানেল: মাসিক রিপোর্ট পেজের টপে গত ৩ মাসের রিপোর্ট (কলাপ্সড) — মাসে ক্লিক করলে মোবাইল ভিউ খোলে
+function renderBoardViewBox(boxId) {
+  var box = document.getElementById(boxId); if (!box) return;
+  var names = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  var now = new Date(), items = [];
+  for (var k = 1; k <= 3; k++) { var d = new Date(now.getFullYear(), now.getMonth() - k, 1); items.push({ m: d.getMonth() + 1, y: d.getFullYear() }); }
+  var wasOpen = box.querySelector('details') && box.querySelector('details').open;
+  box.innerHTML = '<details style="background:#fff;border:1.5px solid #bfdbfe;border-radius:12px;margin-bottom:14px;overflow:hidden"' + (wasOpen ? ' open' : '') + '>'
+    + '<summary style="cursor:pointer;padding:12px 16px;font-weight:800;font-size:14px;color:#0f4c81;background:linear-gradient(120deg,#eff6ff,#e0f2fe);list-style:none">📊 মাসিক রিপোর্ট — গত ৩ মাস <span style="font-weight:600;font-size:12px;color:#64748b">· খুলতে ক্লিক করুন</span></summary>'
+    + '<div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px">'
+    + items.map(function(it){
+        var closed = (appData.monthClosings||[]).some(function(c){ return c.month===it.m && c.year===it.y; });
+        return '<div onclick="openBoardReportMobileView(' + it.m + ',' + it.y + ')" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;border:1px solid #e2e8f0;border-radius:10px;padding:11px 12px">'
+          + '<div style="font-weight:700;font-size:14px;color:#1e293b">' + names[it.m-1] + ' ' + it.y + ' <span style="font-size:11px;font-weight:700;color:' + (closed ? '#047857' : '#b45309') + ';background:' + (closed ? '#d1fae5' : '#fef3c7') + ';border-radius:20px;padding:1px 8px;margin-left:4px">' + (closed ? '✅ ক্লোজড' : '⏳ ক্লোজ বাকি') + '</span></div>'
+          + '<span style="font-size:12.5px;font-weight:800;color:#0f4c81;white-space:nowrap">📱 দেখুন ›</span></div>';
+      }).join('')
+    + '</div></details>';
+}
+// ✅ মাসিক রিপোর্ট পেজের টপে: গত ৩ মাসের বোর্ড রিপোর্ট (কলাপ্সড; খুললে মাসের নামে PDF বাটন) — অ্যাডমিন প্যানেলে
 function renderBoardPdfBox(boxId) {
   var box = document.getElementById(boxId); if (!box) return;
   var names = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
@@ -21233,7 +21322,7 @@ function applyOwnerFeatureVisibility(activeFeature) {
 
   const monthly = document.getElementById('ownerMonthlySummary');
   if (monthly && monthly.parentElement) monthly.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
-  { const pb = document.getElementById('ownerBoardPdfBox'); if (pb) { pb.style.display = activeFeature === 'report' ? '' : 'none'; if (activeFeature === 'report') renderBoardPdfBox('ownerBoardPdfBox'); } }
+  { const pb = document.getElementById('ownerBoardViewBox'); if (pb) { pb.style.display = activeFeature === 'report' ? '' : 'none'; if (activeFeature === 'report') renderBoardViewBox('ownerBoardViewBox'); } }
   const recent = document.getElementById('ownerRecentList');
   if (recent && recent.parentElement) recent.parentElement.style.display = activeFeature === 'report' ? '' : 'none';
   show('ownerShareBlock', activeFeature === 'myshare');
