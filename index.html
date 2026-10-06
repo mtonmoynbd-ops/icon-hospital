@@ -15141,6 +15141,55 @@ function buildBoardReportHtml(month, year) {
 // প্রিন্ট প্রিভিউ যে ইঞ্জিন দিয়ে A4 পাতায় ভাগ করে (paginateA4Preview) সেটাই লুকানো জায়গায় চালিয়ে প্রতিটা পাতা আলাদা
 // ছবি হিসেবে তুলে PDF-এ বসানো হয় (একটা বিশাল ছবি নয়) — তাই ফোনের ক্যানভাস-সীমায় আটকায় না। মোবাইলে ডাউনলোড শুরু না হলে
 // "📥 ডাউনলোড"/"📤 শেয়ার" বাটনসহ একটা নিশ্চিতকরণ কার্ড আসে (ব্রাউজার ব্যবহারকারীর সরাসরি ক্লিক ছাড়া ফাইল নামাতে দেয় না)।
+// ===== মোবাইল অ্যাপ (WebView র‍্যাপার) সহায়তা =====
+// অ্যাপটা যদি সাধারণ Android WebView-তে চলে, তাহলে ব্রাউজারের window.print() ও ফাইল-ডাউনলোড সেখানে কিছুই করে না (নেটিভ অংশ সমর্থন না দিলে)।
+// নেটিভ অংশ চাইলে window.HMSNative নামে একটা ইন্টারফেস দিতে পারে: print(title) এবং/অথবা savePdf(base64, filename) — থাকলে এই কোড সেটাই ব্যবহার করে।
+function _hasNative(m) { return !!(window.HMSNative && typeof window.HMSNative[m] === 'function'); }
+function _envInfo() {
+  var ua = navigator.userAgent || '';
+  var bridges = [];
+  ['HMSNative','AndroidBridge','Android','AndroidInterface','ReactNativeWebView','AppInventor'].forEach(function(k){ if (window[k]) bridges.push(k); });
+  if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) bridges.push('Capacitor');
+  if (window.flutter_inappwebview) bridges.push('flutter_inappwebview');
+  if (window.webkit && window.webkit.messageHandlers) bridges.push('webkit.messageHandlers');
+  var wv = /;\s*wv\)/.test(ua) || /\bwv\b/.test(ua) || (/Android/.test(ua) && /Version\/\d/.test(ua) && /Chrome\//.test(ua));
+  return { ua: ua, wv: wv, bridges: bridges, print: typeof window.print, share: !!navigator.share,
+    shareFiles: !!(navigator.canShare && (function(){ try { return navigator.canShare({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] }); } catch(e){ return false; } })()),
+    proto: location.protocol, host: location.host || '(লোকাল ফাইল)', standalone: !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches),
+    nativePrint: _hasNative('print'), nativeSave: _hasNative('savePdf'), screen: screen.width + 'x' + screen.height,
+    kodular: !!(window.AppInventor && typeof window.AppInventor.setWebViewString === 'function') };
+}
+function showPdfDiagnostics() {
+  var i = _envInfo();
+  var txt = ['ICON HMS — PDF ডায়াগনস্টিক',
+    'WebView অ্যাপ: ' + (i.wv ? 'হ্যাঁ (সম্ভবত)' : 'না'),
+    'নেটিভ ব্রিজ: ' + (i.bridges.length ? i.bridges.join(', ') : 'নেই'),
+    'HMSNative.print: ' + (i.nativePrint ? 'আছে' : 'নেই') + ' | HMSNative.savePdf: ' + (i.nativeSave ? 'আছে' : 'নেই') + ' | Kodular/AppInventor ব্রিজ: ' + (i.kodular ? 'আছে' : 'নেই'),
+    'window.print: ' + i.print + ' | navigator.share: ' + i.share + ' | ফাইল-শেয়ার: ' + i.shareFiles,
+    'ঠিকানা: ' + i.proto + '//' + i.host + ' | standalone: ' + i.standalone, 'স্ক্রিন: ' + i.screen, 'UA: ' + i.ua].join('\n');
+  var ov = document.createElement('div'); ov.id = 'pdfDiagModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.6);z-index:100005;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = '<div style="background:#fff;border-radius:14px;width:100%;max-width:420px;padding:16px;font-family:inherit"><div style="font-weight:800;color:#0f4c81;margin-bottom:8px">🔍 ডিভাইস তথ্য</div><pre id="pdfDiagText" style="white-space:pre-wrap;word-break:break-word;font-size:11.5px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;max-height:46vh;overflow:auto;margin:0 0 10px"></pre>'
+    + '<div style="display:flex;gap:8px"><button type="button" class="btn btn-primary btn-sm" style="flex:1" onclick="try{navigator.clipboard.writeText(document.getElementById(\'pdfDiagText\').textContent);showToast(\'কপি হয়েছে\')}catch(e){showToast(\'স্ক্রিনশট নিন\')}">📋 কপি</button><button type="button" class="btn btn-outline btn-sm" style="flex:1" onclick="document.getElementById(\'pdfDiagModal\').remove()">বন্ধ</button></div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('pdfDiagText').textContent = txt;
+}
+function _blobToBase64(blob) { return new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(',')[1] || ''); }; r.onerror = rej; r.readAsDataURL(blob); }); }
+// অ্যাপের নেটিভ অংশ ফাইল সংরক্ষণ সমর্থন করলে সেটা ব্যবহার (HMSNative / Capacitor / Flutter InAppWebView)
+async function _tryNativeSavePdf(blob, filename) {
+  try {
+    if (_hasNative('savePdf')) { window.HMSNative.savePdf(await _blobToBase64(blob), filename); return true; }
+    var C = window.Capacitor;
+    if (C && C.Plugins && C.Plugins.Filesystem) {
+      var b64 = await _blobToBase64(blob);
+      var w = await C.Plugins.Filesystem.writeFile({ path: filename, data: b64, directory: 'DOCUMENTS' });
+      if (C.Plugins.Share && w && w.uri) { try { await C.Plugins.Share.share({ title: filename, url: w.uri }); } catch(e){} }
+      return true;
+    }
+    if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) { await window.flutter_inappwebview.callHandler('savePdf', await _blobToBase64(blob), filename); return true; }
+  } catch (e) { console.warn('নেটিভ সংরক্ষণ ব্যর্থ:', e); }
+  return false;
+}
 function _isMobileDevice() { return /Android|iPhone|iPad|iPod|Mobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); }
 function _isIOSDevice() { return /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); }
 function _loadScriptOnce(url, isReady) {
@@ -15178,6 +15227,12 @@ function _pdfReadyShare() {
   else showToast('এই ডিভাইসে শেয়ার সমর্থিত নয় — "📥 ডাউনলোড" চাপুন');
 }
 function _deliverPdf(blob, filename, pageCount) {
+  _tryNativeSavePdf(blob, filename).then(function(ok){
+    if (ok) { showToast('✅ PDF সংরক্ষিত হয়েছে — ' + filename); return; }
+    _deliverPdfWeb(blob, filename, pageCount);
+  });
+}
+function _deliverPdfWeb(blob, filename, pageCount) {
   var url = URL.createObjectURL(blob), mobile = _isMobileDevice();
   window._pdfReady = { blob: blob, url: url, filename: filename };
   if (!mobile) {
@@ -15259,7 +15314,12 @@ function _a4PrintNow(filename) {
     window._a4Pending = null;
   };
   window.addEventListener('afterprint', cleanup, { once: true });
-  setTimeout(function(){ try { window.print(); } catch (e) { cleanup(); showToast('⚠️ প্রিন্ট খোলা যায়নি'); } }, 80);
+  setTimeout(function(){
+    try {
+      if (_hasNative('print')) { window.HMSNative.print(document.title); setTimeout(cleanup, 180000); }   // অ্যাপের নেটিভ PrintManager (WebView)
+      else window.print();
+    } catch (e) { cleanup(); showToast('⚠️ প্রিন্ট খোলা যায়নি'); }
+  }, 80);
 }
 function _a4PdfModalClose() {
   var m = document.getElementById('pdfPrintModal'); if (m) m.remove();
@@ -15279,18 +15339,72 @@ function _showMobilePdfModal(pageCount, filename) {
     + '<br>• এটা আসল (ভেক্টর) PDF — জুম করলেও লেখা পরিষ্কার থাকে।</div>'
     + '<button type="button" class="btn btn-success" style="width:100%;font-weight:800;margin-bottom:8px" onclick="_a4PrintNow(\'' + String(filename).replace(/'/g,"") + '\')">🖨️ PDF হিসেবে সংরক্ষণ করুন</button>'
     + '<button type="button" class="btn btn-outline" style="width:100%;font-size:12px;margin-bottom:8px;color:#64748b" onclick="_a4RasterFromPending()">প্রিন্ট স্ক্রিন না এলে: ছবি-ভিত্তিক PDF (কম তীক্ষ্ণ)</button>'
+    + '<button type="button" class="btn btn-outline" style="width:100%;font-size:12px;margin-bottom:8px" onclick="showPdfDiagnostics()">🔍 ডিভাইস তথ্য</button>'
     + '<button type="button" class="btn btn-outline" style="width:100%" onclick="_a4PdfModalClose()">বন্ধ করুন</button></div>';
   document.body.appendChild(ov);
 }
-async function exportA4ReportPdf(htmlContent, filename) {
+// সাধারণ WebView অ্যাপ (নেটিভ সমর্থন ছাড়া): প্রিন্ট/ডাউনলোড কাজ করে না — ব্যাখ্যাসহ বিকল্প দেখানো হয়
+function _showWebViewPdfModal(pageCount, filename) {
+  var i = _envInfo(), http = /^https?:$/.test(i.proto);
+  var ov = document.createElement('div'); ov.id = 'pdfPrintModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.6);z-index:100003;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:380px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:inherit">'
+    + '<div style="font-weight:800;font-size:15px;color:#b45309">⚠️ এই অ্যাপের ভেতরে PDF সংরক্ষণ সমর্থিত নয়</div>'
+    + '<div style="font-size:12.5px;color:#475569;margin:8px 0 12px;line-height:1.7">রিপোর্ট প্রস্তুত (' + pageCount + ' পৃষ্ঠা)। কিন্তু অ্যাপটি ফোনের ওয়েব-ভিউয়ে চলছে, যেখানে প্রিন্ট ও ফাইল-ডাউনলোড অ্যাপের নেটিভ অংশ চালু না করলে কাজ করে না।<br>এখনকার বিকল্প:</div>'
+    + '<button type="button" class="btn btn-primary" style="width:100%;font-weight:700;margin-bottom:8px" onclick="_a4ViewPages()">🖼️ পাতাগুলো দেখুন (স্ক্রিনশট নেওয়ার জন্য)</button>'
+    + (http ? '<button type="button" class="btn btn-success" style="width:100%;font-weight:700;margin-bottom:8px" onclick="_pdfOpenInBrowser()">🌐 ফোনের ব্রাউজারে খুলে ডাউনলোড করুন</button><div style="font-size:11px;color:#64748b;margin:-4px 0 10px">ব্রাউজারে একবার লগইন করলে রিপোর্ট নিজে থেকে তৈরি হবে, তারপর "PDF হিসেবে সংরক্ষণ" চাপুন।</div>' : '')
+    + '<button type="button" class="btn btn-outline" style="width:100%;font-size:12px;margin-bottom:8px;color:#64748b" onclick="_a4RasterFromPending()">ছবি-ভিত্তিক PDF চেষ্টা করুন (সংরক্ষণ নাও হতে পারে)</button>'
+    + '<button type="button" class="btn btn-outline" style="width:100%;font-size:12px;margin-bottom:8px" onclick="showPdfDiagnostics()">🔍 ডিভাইস তথ্য (ডেভেলপারকে পাঠান)</button>'
+    + '<button type="button" class="btn btn-outline" style="width:100%" onclick="_a4PdfModalClose()">বন্ধ করুন</button></div>';
+  document.body.appendChild(ov);
+}
+// ফোনের ব্রাউজারে খোলা: Kodular/App Inventor অ্যাপে WebViewString দিয়ে ব্লকে বার্তা পাঠানো হয় ("HMS_OPEN_URL|<ঠিকানা>|<সময়>"),
+// ব্লকে ActivityStarter দিয়ে ব্রাউজার খুলতে হয় (ধাপ আমি আলাদা জানিয়েছি)। ব্রিজ না থাকলে সাধারণ window.open।
+function _openInSystemBrowser(url) {
+  if (window.AppInventor && typeof window.AppInventor.setWebViewString === 'function') {
+    window.AppInventor.setWebViewString('HMS_OPEN_URL|' + url + '|' + Date.now());
+    showToast('🌐 ব্রাউজার খোলার অনুরোধ পাঠানো হয়েছে…');
+  } else { window.open(url, '_blank'); }
+}
+function _pdfOpenInBrowser() {
+  var pnd = window._a4Pending || {};
+  var link = location.origin + location.pathname + (pnd.board ? '?board=' + pnd.board : '');
+  _openInSystemBrowser(link);
+}
+async function _a4ViewPages() {
+  var pnd = window._a4Pending; if (!pnd) return;
+  var html = pnd.html; _a4PdfModalClose();
+  try {
+    _pdfProgress('🖼️ পাতাগুলো প্রস্তুত হচ্ছে…');
+    await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', function(){ return typeof window.html2canvas === 'function'; });
+    var b = await _buildA4OffscreenRoot(html), imgs = [];
+    for (var i = 0; i < b.pages.length; i++) {
+      _pdfProgress('🖼️ পাতা ' + (i + 1) + '/' + b.pages.length + '…');
+      await new Promise(function(r){ setTimeout(r, 30); });
+      var el = b.pages[i];
+      var c = await window.html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#fff', width: el.offsetWidth, height: el.offsetHeight, windowWidth: el.offsetWidth + 40, windowHeight: el.offsetHeight + 40, logging: false });
+      imgs.push(c.toDataURL('image/jpeg', 0.92)); c.width = 0; c.height = 0;
+    }
+    b.root.remove(); _pdfProgress('');
+    var ov = document.createElement('div'); ov.id = 'pdfViewerModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:#e5e7eb;z-index:100004;overflow:auto;-webkit-overflow-scrolling:touch';
+    ov.innerHTML = '<div style="position:sticky;top:0;background:#0f172a;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;z-index:2;font-size:13px;font-weight:700"><span>বোর্ড রিপোর্ট — স্ক্রিনশট নিন</span><button type="button" onclick="document.getElementById(\'pdfViewerModal\').remove()" style="background:#fff;color:#0f172a;border:none;border-radius:8px;padding:6px 12px;font-weight:800">✕ বন্ধ</button></div>'
+      + imgs.map(function(u, k){ return '<img src="' + u + '" style="display:block;width:100%;max-width:820px;margin:8px auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2)" alt="পাতা ' + (k+1) + '">'; }).join('');
+    document.body.appendChild(ov);
+  } catch (e) { _pdfProgress(''); showToast('⚠️ পাতা প্রস্তুত করা যায়নি — ' + ((e && e.message) || 'ইন্টারনেট পরীক্ষা করুন')); }
+}
+async function exportA4ReportPdf(htmlContent, filename, meta) {
   if (window._pdfBusy) { showToast('একটি PDF তৈরি চলছে — একটু অপেক্ষা করুন'); return; }
   window._pdfBusy = true;
   try {
     _pdfProgress('📄 পাতা সাজানো হচ্ছে…');
     var b = await _buildA4OffscreenRoot(htmlContent);
     _pdfProgress('');
-    window._a4Pending = { html: htmlContent, filename: filename, pages: b.pages.length };
-    if (_isMobileDevice()) _showMobilePdfModal(b.pages.length, filename);
+    window._a4Pending = { html: htmlContent, filename: filename, pages: b.pages.length, board: (meta && meta.board) || '' };
+    var _env = _envInfo();
+    var _otherBridges = _env.bridges.filter(function(k){ return k !== 'AppInventor'; });   // Kodular ব্রিজ প্রিন্ট/সেভ করতে পারে না — তাই গণ্য নয়
+    if (_isMobileDevice() && _env.wv && !_env.nativePrint && !_env.nativeSave && !_otherBridges.length) _showWebViewPdfModal(b.pages.length, filename);
+    else if (_isMobileDevice()) _showMobilePdfModal(b.pages.length, filename);
     else { showToast('🖨️ প্রিন্ট উইন্ডোতে গন্তব্য "Save as PDF" বেছে সংরক্ষণ করুন'); _a4PrintNow(filename); }
   } catch (err) {
     console.error('PDF ত্রুটি:', err); _pdfProgress('');
@@ -15338,8 +15452,25 @@ async function downloadA4ReportPdfRaster(htmlContent, filename) {
 function downloadBoardReportPdf(month, year) {
   var r;
   try { r = buildBoardReportHtml(month, year); } catch (e) { console.error(e); showToast('⚠️ বোর্ড রিপোর্ট তৈরি করা যায়নি'); return; }
-  exportA4ReportPdf(r.html, 'board-report-' + year + '-' + String(month).padStart(2,'0') + '.pdf');
+  exportA4ReportPdf(r.html, 'board-report-' + year + '-' + String(month).padStart(2,'0') + '.pdf', { board: year + '-' + String(month).padStart(2,'0') });
 }
+// ব্রাউজারে ?board=YYYY-MM দিয়ে খুললে: লগইনের পর (ডাটা আসার জন্য ~৪.৫ সেকেন্ড অপেক্ষা করে) বোর্ড রিপোর্ট PDF নিজে থেকে শুরু হয়
+(function() {
+  try {
+    var m = /[?&]board=(\d{4})-(\d{1,2})/.exec(location.search); if (!m) return;
+    var y = +m[1], mo = +m[2], t0 = 0, n = 0;
+    var iv = setInterval(function() {
+      n++; if (n > 900) { clearInterval(iv); return; }
+      var u = (typeof currentUser !== 'undefined') ? currentUser : null;
+      if (!u || ['owner','admin'].indexOf(u.role) === -1) { t0 = 0; return; }
+      if (!t0) t0 = Date.now();
+      if (Date.now() - t0 < 4500) return;
+      clearInterval(iv);
+      try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+      downloadBoardReportPdf(mo, y);
+    }, 1000);
+  } catch (e) {}
+})();
 // ✅ মাসিক রিপোর্ট পেজের টপে: গত ৩ মাসের বোর্ড রিপোর্ট (কলাপ্সড; খুললে মাসের নামে PDF বাটন) — অ্যাডমিন ও ওনার দুই প্যানেলেই
 function renderBoardPdfBox(boxId) {
   var box = document.getElementById(boxId); if (!box) return;
