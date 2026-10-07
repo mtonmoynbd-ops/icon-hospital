@@ -3051,7 +3051,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </div>
             <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="expAmount" placeholder="০.০০" min="0"></div>
           </div>
-          <div class="field" style="margin-bottom:8px"><label>📅 কোন মাসের বিল? <span style="font-size:11px;color:var(--text-light)">(শুধু ভাড়া/বিদ্যুৎ/পানির বিলের জন্য, ঐচ্ছিক — খালি থাকলে এন্ট্রির মাস ধরা হবে)</span></label><input type="month" id="expForMonth"></div>
+          <div id="expBillWrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+            <div class="form-row">
+              <div class="field"><label>📅 কোন মাসের বিল? * <span style="font-size:11px;color:var(--text-light)">(শুধু বাকি মাস)</span></label><select id="expForMonth" onchange="onExpForMonthChange()"></select></div>
+              <div class="field"><label>⚠️ জরিমানা (৳) <span style="font-size:11px;color:var(--text-light)">দেরিতে দিলে</span></label>
+                <div style="display:flex;gap:6px"><input type="number" id="expFine" min="0" placeholder="০" style="display:none;flex:1"><button type="button" class="btn btn-outline btn-sm" id="expFineBtn" onclick="toggleExpFine()">➕ জরিমানা যোগ</button></div></div>
+            </div>
+            <div style="font-size:11.5px"><a href="#" onclick="openFixedBillEntry();return false" style="color:#0369a1;font-weight:700">🧾 বিল এসেছে? সঠিক অঙ্ক এন্ট্রি করুন</a> <span id="expBillHint" style="color:var(--danger)"></span></div>
+          </div>
           <!-- পেমেন্ট মাধ্যম -->
           <div class="form-row" style="margin-bottom:8px">
             <div class="field">
@@ -6111,7 +6118,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field"><label>অন্যান্য সাধারণ খরচ (৳) <span style="font-size:11px;color:var(--text-light)">আনুমানিক মাসিক</span></label><input type="number" id="settOtherFixed" placeholder="০" min="0"></div>
           </div>
           <div style="background:#f0f4f8;border-radius:8px;padding:10px;font-size:12px;color:var(--text-light)">
-            💡 স্যালারি অটো যোগ হয়। দৈনিক লাভ = আজকের আয় − (মাসিক ফিক্সড ÷ ৩০) − আজকের ব্যয়
+            💡 স্যালারি অটো যোগ হয়। দৈনিক লাভ = আজকের আয় − (মাসিক ফিক্সড ÷ মাসের প্রকৃত দিন সংখ্যা) − আজকের ব্যয়
           </div>
           <div class="field" style="margin-top:10px;max-width:320px"><label>📒 ভাড়া/ইউটিলিটি বকেয়া ট্র্যাকিং শুরুর মাস</label><input type="month" id="settFixedTrackStart" onchange="appData.settings.fixedTrackStart=this.value;saveData();renderFixedTracker()"></div>
           <div id="fixedTrackerBox"></div>
@@ -10909,7 +10916,7 @@ const PATH_SYNCED_MODULES = [
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
   'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox', 'tgOutbox',
-  'dueHistory', 'investors', 'investorWithdrawals', 'investorCapitalInflows', 'boardPositions', 'testFees'
+  'dueHistory', 'investors', 'investorWithdrawals', 'investorCapitalInflows', 'boardPositions', 'testFees', 'fixedBills'
 ];
 
 function updateSyncStatusUI() {
@@ -11588,7 +11595,7 @@ function refreshDashboard() {
   // Fixed cost — ক্লোজড মাস হলে ক্লোজিং-এর সময়কার স্ন্যাপশট রেট, নাহলে বর্তমান সেটিংস
   const _mf = getMonthlyFixedForPrefix(prefix);
   const monthlyFixed = _mf.monthlyFixed, monthlySalary = _mf.monthlySalary, totalMonthlyFixed = _mf.totalFixed;
-  const dailyFixed = totalMonthlyFixed / 30;
+  const dailyFixed = totalMonthlyFixed / daysInCurrentMonth();
 
   // Today income — campToday আলাদা যোগ করা হবে না কারণ camp income appData.income এ আছে
   // ✅ visitId ট্যাগযুক্ত এন্ট্রি (বিল থেকে অটো তৈরি "রিসেপশন আয়"/"অ্যাডমিন বিল") বাদ — visit.cashPaid দিয়েই আগে থেকে গণনা হয়
@@ -11700,7 +11707,7 @@ function showDashCardModal(cardId, modalId) {
   const s      = appData.settings;
   const _mf2   = getMonthlyFixedForPrefix(prefix);
   const monthlyFixed = _mf2.monthlyFixed, monthlySalary = _mf2.monthlySalary, totalMonthlyFixed = _mf2.totalFixed;
-  const dailyFixed = totalMonthlyFixed / 30;
+  const dailyFixed = totalMonthlyFixed / daysInCurrentMonth();
 
   const mid = modalId || 'dashCardModal';
   const pfx = modalId ? modalId.replace('CardModal','') : 'dash';
@@ -11743,7 +11750,7 @@ function showDashCardModal(cardId, modalId) {
     body = section('ম্যানুয়াল ব্যয়',
       exp.length ? exp.map(e=>row((e.category||'—')+' '+(e.ref?'('+e.ref+')':''), '৳ '+fmt(e.amount), '#e74c3c')).join('') : '<div style="color:#aaa;padding:4px 0">কোনো এন্ট্রি নেই</div>'
     ) + section('ফিক্সড খরচ (দৈনিক ভাগ)',
-      row('ভাড়া ৳'+fmt(s.rent||0)+' + ইউটিলিটি ৳'+fmt(s.utility||0)+' + অন্যান্য ৳'+fmt(s.otherFixed||0), '৳ '+fmt(Math.round(monthlyFixed/30)), '#e67e22')
+      row('ভাড়া ৳'+fmt(s.rent||0)+' + ইউটিলিটি ৳'+fmt(s.utility||0)+' + অন্যান্য ৳'+fmt(s.otherFixed||0), '৳ '+fmt(Math.round(monthlyFixed/daysInCurrentMonth())), '#e67e22')
       + row('কর্মী বেতন (৳'+fmt(monthlySalary)+'/মাস)', '৳ '+fmt(Math.round(monthlySalary/30)), '#e67e22')
     ) + row('<strong>মোট</strong>', '<strong>৳ '+fmt(Math.round(expSum+dailyFixed))+'</strong>', '#e74c3c');
 
@@ -12279,6 +12286,17 @@ function saveExpense() {
   const date=document.getElementById('expDate').value, cat=document.getElementById('expCategory').value;
   const subCat=(document.getElementById('expSubCategory')||{}).value||'';
   const amt=parseFloat(document.getElementById('expAmount').value);
+  // ভাড়া/বিদ্যুৎ/পানির বিল: কোন মাসের বিল (শুধু বাকি মাস) বাধ্যতামূলক; বাকির বেশি দেওয়া যাবে না; জরিমানা আলাদা এন্ট্রি
+  let _forMonth = '', _billFine = 0;
+  const _billItem = fixedBillItemForCategory(cat);
+  if (_billItem) {
+    _forMonth = (document.getElementById('expForMonth')||{}).value || '';
+    if (!_forMonth) { showToast('⚠️ কোনো মাসের বিল বাকি নেই — নতুন বিল এলে "বিল এন্ট্রি" করুন'); return; }
+    const _row = getUnpaidBillMonths(_billItem.key).find(r => r.month === _forMonth);
+    if (!_row) { showToast('⚠️ এই মাসের বিল ইতিমধ্যে পরিশোধিত'); return; }
+    if (!isNaN(amt) && amt > _row.due + 0.5) { showToast(`⚠️ ${_fbMonthLabel(_forMonth)} এর বাকি মাত্র ৳${fmt(_row.due)} — এর বেশি দেওয়া যাবে না`); return; }
+    _billFine = parseFloat((document.getElementById('expFine')||{}).value) || 0;
+  }
   let voucher=document.getElementById('expVoucher').value.trim();
   voucher = ensureUniqueVoucher(voucher, date);
   const note=document.getElementById('expNote').value.trim();
@@ -12307,7 +12325,6 @@ function saveExpense() {
   }
   if (!date||!cat||isNaN(amt)||amt<=0) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
   const expId = Date.now();
-  const _forMonth = (['ভাড়া','বিদ্যুৎ বিল','পানির বিল'].includes(cat) ? ((document.getElementById('expForMonth')||{}).value || '') : '');
   appData.expense.push(Object.assign({ id:expId, date, category:cat, subCategory:subCat, amount:amt, voucher, note, payMode, payPerson, checkNo, checkbookId, clearDate, status, actualClearedDate, mfsAccountId, by:currentUser.name }, _forMonth ? { forMonth:_forMonth } : {}));
   // ✅ ব্যাংক/চেক মাধ্যমে ব্যয় হলে — একই লেনদেনের একটা লিংকড রেকর্ড appData.issuedChecks-এও রাখা হয়,
   // যাতে সব ধরনের চেক (ব্যয় থেকে হোক, ইস্যু পেজ থেকে হোক, শেয়ারহোল্ডার উত্তোলন থেকে হোক) একটাই জায়গায় (single source of truth) ট্র্যাক হয় —
@@ -12321,16 +12338,18 @@ function saveExpense() {
       status, clearedDate: actualClearedDate, by: currentUser.name
     });
   }
-  logActivity('add', 'ব্যয়', `${cat} — ৳${fmt(amt)} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
+  if (_billFine > 0) _pushFineExpense(appData.expense[appData.expense.length-1], _billFine, cat, _forMonth, expId);
+  logActivity('add', 'ব্যয়', `${cat}${_forMonth ? ' ('+_fbMonthLabel(_forMonth)+' এর বিল)' : ''} — ৳${fmt(amt)}${_billFine>0 ? ' + জরিমানা ৳'+fmt(_billFine) : ''} (${voucher})${status==='pending'?' — পেন্ডিং, ভাঙ্গানোর তারিখ '+formatDate(clearDate):''}`);
   saveData(); clearExpenseForm(); renderExpenseTable(); refreshDashboard();
   if (typeof renderIssuedChecks==='function') renderIssuedChecks();
   showToast(status==='pending' ? `✅ ব্যয় এন্ট্রি সেভ (পেন্ডিং — ${formatDate(clearDate)} তারিখে ভাঙ্গানো হবে)! ভাউচার: ${voucher}` : '✅ ব্যয় এন্ট্রি সেভ! ভাউচার: ' + voucher);
 }
 function clearExpenseForm() {
   document.getElementById('expDate').value = todayStr();
-  const els = ['expAmount','expNote','expForMonth'];
+  const els = ['expAmount','expNote'];
   els.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const catEl=document.getElementById('expCategory'); if(catEl) catEl.value='';
+  { const bw=document.getElementById('expBillWrap'); if(bw){ bw.style.display='none'; const f=document.getElementById('expFine'); if(f){ f.value=''; f.style.display='none'; } const fb=document.getElementById('expFineBtn'); if(fb) fb.textContent='➕ জরিমানা যোগ'; } }
   const subEl=document.getElementById('expSubCategory'); if(subEl){ subEl.innerHTML='<option value="">-- সাব-ক্যাটাগরি --</option>'; }
   if (typeof updateCatDropdownLabel==='function') updateCatDropdownLabel('exp');
   const cashRadio=document.getElementById('expPayCash'); if(cashRadio){ cashRadio.checked=true; onExpPayModeChange(); }
@@ -12845,6 +12864,7 @@ function updateExpSubCats() {
   const subSel=document.getElementById('expSubCategory'); if(!subSel) return;
   const subs=(appData.settings.expSubCats||{})[fbSafeKey(cat)]||[];
   subSel.innerHTML='<option value="">-- সাব-ক্যাটাগরি (ঐচ্ছিক) --</option>'+subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+  if (typeof updateExpForMonthField==='function') updateExpForMonthField();
 }
 // আয়ের সাব-ক্যাটাগরি লোড (ব্যয়ের মতোই — ঐচ্ছিক)
 function updateIncSubCats() {
@@ -13356,11 +13376,12 @@ function renderExpenseTable() {
       const fundBadge = e.isFundExpense ? `<span title="এই খরচ ফান্ড থেকে করা হয়েছে — মাসিক নিট লাভ/লোকসান হিসাবে গণনা হয় না" style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏦 P&L-নিরপেক্ষ</span>` : '';
       const invBadge = e.isInventoryPurchase ? `<span title="ইনভেন্টরি ক্রয় — সম্পদ হিসেবে গণ্য, বিক্রির সময় COGS হিসেবে গণনা হয়, তাই এখন P&L-এ ধরা হয় না" style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">📦 সম্পদ</span>` : '';
       const fixedBadge = (!e.isFundExpense && !e.isInventoryPurchase && isFixedCostExpenseCategory(e.category)) ? `<span title="এই খাতের টাকা Settings-এর ফিক্সড খরচ রেট থেকে ইতিমধ্যে P&L-এ আলাদাভাবে গণনা হয়ে যায় — তাই এখানে ডাবল-কাউন্ট এড়াতে 'পরিচালন ব্যয়'-এ ধরা হয় না" style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏠 ফিক্সড-খাত (P&L-এ পৃথক)</span>` : '';
+      const forMonthBadge = e.forMonth ? `<span title="এই পরিশোধ যে মাসের বিলের জন্য" style="background:#e0f2fe;color:#075985;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">📅 ${_fbMonthLabel(e.forMonth)} এর বিল</span>` : '';
       const origDateNote = (effDate!==e.date) ? `<span style="color:#94a3b8;font-size:11px"> (মূল এন্ট্রি: ${formatDate(e.date)})</span>` : '';
       html += `<tr class="exp-grp-row"${e.isFundExpense?' style="background:#faf5ff"':''} data-grp="${gid}" id="exp-row-${e.id}">
         <td>${formatDate(effDate)}</td>
         <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
-        <td>${e.category}${fundBadge}${invBadge}${fixedBadge}</td>
+        <td>${e.category}${fundBadge}${invBadge}${fixedBadge}${forMonthBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
         <td>${payBadge}${statusBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${personOrCheck}</td>
@@ -14020,7 +14041,7 @@ function renderDashRecentEntries() {
       id:e.id, date:e.date, type:'আয়',
       vouchRef: e.memo||e.note||'—',
       cat: e.category,
-      ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.ref||'—'),
+      ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.forMonth ? `📅 ${_fbMonthLabel(e.forMonth)} এর বিল` : (e.ref||'—')),
       campId: e.campId||null,
       opId,
       visitId: e.visitId||null,
@@ -14032,7 +14053,7 @@ function renderDashRecentEntries() {
       id:e.id, date:e.date, type:'ব্যয়',
       vouchRef: e.voucher||'—',
       cat: e.category,
-      ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.ref||'—'),
+      ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.forMonth ? `📅 ${_fbMonthLabel(e.forMonth)} এর বিল` : (e.ref||'—')),
       campId: e.campId||null,
       opId,
       amt: e.amount, by: e.by||'—', cls:'badge-expense'
@@ -14740,7 +14761,7 @@ function confirmDueWaive(id) {
 // ===== SETTINGS =====
 function clearAllData() {
   if (!confirm('সত্যিই সব ডেটা মুছে ফেলবেন?')) return;
-  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], settings:appData.settings, passwords:appData.passwords||{} };
+  appData={ income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, fixedBills:[], attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], settings:appData.settings, passwords:appData.passwords||{} };
   saveData(); refreshDashboard(); showToast('🗑️ সব ডেটা মুছে ফেলা হয়েছে');
 }
 
@@ -14809,7 +14830,7 @@ function buildBoardReportHtml(month, year) {
   const totalCOGS      = getCOGSForPrefix(prefix);
   const grossProfit    = grandInc - totalCOGS;
   const totalOpFee     = ops.reduce((s,o)=>s+(o.sgFee||0),0);
-  const fixedCost      = (appData.settings.rent||0)+(appData.settings.utility||0)+(appData.settings.otherFixed||0);
+  const fixedCost      = getMonthlyFixedForPrefix(prefix).monthlyFixed;
   const salCost        = appData.staff.filter(s=>s.status==='active').reduce((s,st)=>s+st.basic,0);
   const netProfit      = grandInc - totalCOGS - totalExp;
 
@@ -14924,28 +14945,32 @@ function buildBoardReportHtml(month, year) {
     </tr>`;
   }).join('');
 
-  // দৈনিক সারসংক্ষেপ — ফিক্সড (কর্মীর বেতন + ভাড়া + আনুমানিক ইউটিলিটি + অন্যান্য সাধারণ খরচ) ÷ ৩০ ধরে আনুমানিক দৈনিক লাভ/লস
+  // দৈনিক সারসংক্ষেপ — প্রতি সারিতে শুধু আয়/ব্যয়/লাভ-লস; ফিক্সড (কর্মীর বেতন + ভাড়া + আনুমানিক ইউটিলিটি + অন্যান্য) শুধু সর্বমোটে:
+  // চলতি মাসে আজ পর্যন্ত চলে-যাওয়া দিন × (মাসিক ফিক্সড ÷ মাসের প্রকৃত দিন সংখ্যা), অন্য মাসে পুরো মাসের ফিক্সড
   const daysInMonth = new Date(year, month, 0).getDate();
   const _fxInfo = getMonthlyFixedForPrefix(prefix);
-  const _fxDaily = (_fxInfo.totalFixed||0) / 30;
+  const _fxPerDay = (_fxInfo.totalFixed||0) / daysInMonth;
   const _dayLimit = (() => { const td = todayStr(); if (td.slice(0,7) === prefix) return parseInt(td.slice(8,10),10); return td.slice(0,7) > prefix ? daysInMonth : 0; })();
-  let dailyRows='', gInc=0, gExp=0, gFix=0;
-  for(let d=1; d<=Math.min(daysInMonth,_dayLimit); d++){
+  const _fxDays = Math.min(daysInMonth, _dayLimit);
+  const _fxRunning = todayStr().slice(0,7) === prefix;
+  let dailyRows='', gInc=0, gExp=0;
+  for(let d=1;d<=daysInMonth;d++){
     const ds=`${year}-${pad(month)}-${pad(d)}`;
     const di=incomes.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0)
              +visits.filter(v=>v.date===ds).reduce((s,v)=>s+v.cashPaid,0)
              +camps.filter(c=>c.date===ds).reduce((s,c)=>s+c.totalIncome,0);
     const de=expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0) + (getCOGSForPrefix(ds)||0);
-    gInc+=di; gExp+=de; gFix+=_fxDaily;
-    const dp=di-de-_fxDaily;
+    if(!di&&!de) continue;
+    gInc+=di; gExp+=de;
+    const dp=di-de;
     dailyRows+=`<tr>
       <td>${formatDate(ds)}</td>
       <td style="text-align:right;color:#065f46">৳ ${fmt(di)}</td>
       <td style="text-align:right;color:#991b1b">৳ ${fmt(de)}</td>
-      <td style="text-align:right;color:#b45309">৳ ${fmt(_fxDaily)}</td>
       <td style="text-align:right;font-weight:700;color:${dp>=0?'#065f46':'#991b1b'}">${dp>=0?'':'- '}৳ ${fmt(Math.abs(dp))}</td>
     </tr>`;
   }
+  const gFix = _fxPerDay * _fxDays;
   const gNet = gInc - gExp - gFix;
   const _fxS = appData.settings;
   const fixedBreakdownHtml = `<table>
@@ -14956,9 +14981,9 @@ function buildBoardReportHtml(month, year) {
          <tr><td>💡 ইউটিলিটি (আনুমানিক)</td><td style="text-align:right">৳ ${fmt(_fxS.utility||0)}</td></tr>
          <tr><td>🧾 অন্যান্য সাধারণ খরচ (আনুমানিক)</td><td style="text-align:right">৳ ${fmt(_fxS.otherFixed||0)}</td></tr>`}
     <tr class="sum-row"><td><strong>মোট মাসিক ফিক্সড</strong></td><td style="text-align:right"><strong>৳ ${fmt(_fxInfo.totalFixed||0)}</strong></td></tr>
-    <tr class="total-row"><td><strong>দৈনিক ফিক্সড (÷ ৩০)</strong></td><td style="text-align:right"><strong>৳ ${fmt(_fxDaily)}</strong></td></tr>
+    <tr class="sum-row"><td><strong>দৈনিক ফিক্সড (÷ ${fmt(daysInMonth)} দিন)</strong></td><td style="text-align:right"><strong>৳ ${fmt(_fxPerDay)}</strong></td></tr>
   </table>
-  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* দৈনিক লাভ/লস = আয় − ব্যয় (পরিচালন ব্যয় + বিক্রিত পণ্যের ক্রয়মূল্য) − দৈনিক ফিক্সড। ইউটিলিটি ও অন্যান্য খরচ আনুমানিক ধরা, তাই এটা দৈনিক ধারণা মাত্র।</div>`;
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* ব্যয় = পরিচালন ব্যয় + বিক্রিত পণ্যের ক্রয়মূল্য (COGS)। ফিক্সড শুধু সর্বমোটে ধরা — ${_fxRunning ? `চলতি মাসের ১–${fmt(_fxDays)} তারিখ (${fmt(_fxDays)} দিন) পর্যন্ত` : 'পুরো মাসের'}। ইউটিলিটি ও অন্যান্য খরচ আনুমানিক, তাই নিট লাভ/লস ধারণা মাত্র।</div>`;
 
   // ===== ১১. দেনা ও বকেয়া দায় — চলতি মাসে "আজ পর্যন্ত", আগের মাসে "মাস শেষ পর্যন্ত" =====
   const _liabHtml = (function() {
@@ -15002,7 +15027,7 @@ function buildBoardReportHtml(month, year) {
     // ঘ) অপরিশোধিত ভাড়া ও ইউটিলিটি — ট্র্যাকিং শুরুর মাস থেকে রিপোর্ট-মাস পর্যন্ত প্রতি মাসের বাকি (আগের মাসের বিল পরে দিলে সেটাও ধরা হয়)
     const fixRows = [];
     FIXED_BILL_ITEMS.forEach(it => getFixedBillRows(it.key, prefix, _asOf).forEach(r => {
-      if (r.due > 0.5) fixRows.push({ party: `${it.label.replace(/^\S+\s/, '')} — ${_fbMonthLabel(r.month)}`, desc: `ধার্য ৳ ${fmt(r.rate)} − পরিশোধ ৳ ${fmt(r.paid)}`, amt: r.due });
+      if (r.due > 0.5) fixRows.push({ party: `${it.label.replace(/^\S+\s/, '')} — ${_fbMonthLabel(r.month)}`, desc: `${r.exact ? 'সঠিক বিল' : 'আনুমানিক ধার্য'} ৳ ${fmt(r.rate)} − পরিশোধ ৳ ${fmt(r.paid)}`, amt: r.due });
     }));
 
     // ঙ) শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ — শুধু বর্তমান ব্যালেন্স থেকে জানা যায়, তাই চলতি মাসেই
@@ -15012,6 +15037,13 @@ function buildBoardReportHtml(month, year) {
       (appData.investors||[]).forEach(s => { if ((s.balance||0) > 0.5) divRows.push({ party: s.name, desc: 'ইনভেস্টর — বকেয়া লভ্যাংশ', amt: s.balance }); });
     }
 
+    // ঘ-১) এই মাসে পরিশোধিত ভাড়া/ইউটিলিটি — টাকা যেদিন বের হয়েছে সেই মাসের রিপোর্টে (ক্যাশ/ব্যাংক ব্যালেন্স মেলানোর জন্য); আগের মাসের বিল হলে কোন মাসের সেটা লেখা থাকে
+    const paidBillRows = [];
+    (appData.expense||[]).filter(e => !e.isFundExpense && FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category))).forEach(e => {
+      const d = expenseEffectiveDate(e); if (!d || !d.startsWith(prefix) || d > _asOf) return;
+      paidBillRows.push({ date: d, party: e.category, desc: `${formatDate(d)}${e.forMonth ? ' · ' + _fbMonthLabel(e.forMonth) + ' এর বিল' : ''}${e.voucher ? ' · ' + e.voucher : ''}`, amt: e.amount||0 });
+    });
+    paidBillRows.sort((a,b)=>a.date.localeCompare(b.date));
     const sum = rows => rows.reduce((s,r)=>s+r.amt, 0);
     const groups = [
       ['ক. কর্মীদের বাকি বেতন', salRows, 'কোনো বাকি বেতন নেই ✅'],
@@ -15031,10 +15063,16 @@ function buildBoardReportHtml(month, year) {
       <tbody>${g[1].map((r,i)=>`<tr><td>${i+1}</td><td style="font-weight:600">${_e(r.party)}</td><td>${_e(r.desc)}</td><td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(r.amt)}</td></tr>`).join('')}</tbody>
       <tfoot><tr class="sum-row"><td colspan="3"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(sum(g[1]))}</strong></td></tr></tfoot>
     </table>` : '').join('');
+    const paidDetail = paidBillRows.length ? `<h3>ঘ-১. এই মাসে পরিশোধিত ভাড়া/ইউটিলিটি (এই মাসেই টাকা বের হয়েছে)</h3><table>
+      <thead><tr><th>#</th><th>পক্ষ</th><th>বিবরণ</th><th style="text-align:right">পরিশোধিত টাকা</th></tr></thead>
+      <tbody>${paidBillRows.map((r,i)=>`<tr><td>${i+1}</td><td style="font-weight:600">${_e(r.party)}</td><td>${_e(r.desc)}</td><td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(r.amt)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="sum-row"><td colspan="3"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(sum(paidBillRows))}</strong></td></tr></tfoot>
+    </table>` : '';
     return `<h2>১১. দেনা ও বকেয়া দায় (${_running ? 'আজ পর্যন্ত' : 'মাস শেষে'})</h2>
     ${summary}
     ${detail}
-    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। ভাড়া/ইউটিলিটি: সেটিংসের ধার্য মাসিক হার থেকে ঐ মাসের বিল হিসেবে পরিশোধিত ব্যয় বাদ দিয়ে ধরা (আগের মাসের বাকি ধরতে সেটিংসে ট্র্যাকিং শুরুর মাস দিন)। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব।${_running ? '' : ' বকেয়া লভ্যাংশ শুধু চলতি মাসের রিপোর্টে দেখায়।'}</div>`;
+    ${paidDetail}
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; আগের মাসের বাকি ধরতে সেটিংসে ট্র্যাকিং শুরুর মাস দিন। ঘ-১-এর পরিশোধ ক্যাশ/ব্যাংক ব্যালেন্স থেকে এই মাসেই কমেছে; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব।${_running ? '' : ' বকেয়া লভ্যাংশ শুধু চলতি মাসের রিপোর্টে দেখায়।'}</div>`;
   })();
 
   const _boardHtml = `
@@ -15123,9 +15161,13 @@ function buildBoardReportHtml(month, year) {
   <!-- দৈনিক সারসংক্ষেপ -->
   <h2>৩. দৈনিক সারসংক্ষেপ</h2>
   <table>
-    <thead><tr><th>তারিখ</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">ফিক্সড</th><th style="text-align:right">লাভ/লস</th></tr></thead>
-    <tbody>${dailyRows||'<tr><td colspan="5" style="text-align:center;color:#aaa">কোনো ডেটা নেই</td></tr>'}</tbody>
-    <tfoot><tr class="total-row"><td>সর্বমোট</td><td style="text-align:right">৳ ${fmt(gInc)}</td><td style="text-align:right">৳ ${fmt(gExp)}</td><td style="text-align:right">৳ ${fmt(gFix)}</td><td style="text-align:right">${gNet>=0?'':'- '}৳ ${fmt(Math.abs(gNet))}</td></tr></tfoot>
+    <thead><tr><th>তারিখ</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">লাভ/লস</th></tr></thead>
+    <tbody>${dailyRows||'<tr><td colspan="4" style="text-align:center;color:#aaa">কোনো ডেটা নেই</td></tr>'}</tbody>
+    <tfoot>
+      <tr class="sum-row"><td><strong>সর্বমোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(gInc)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(gExp)}</strong></td><td style="text-align:right"><strong>${(gInc-gExp)>=0?'':'- '}৳ ${fmt(Math.abs(gInc-gExp))}</strong></td></tr>
+      <tr class="sum-row"><td colspan="3">ফিক্সড খরচ (${_fxRunning ? `১–${fmt(_fxDays)} তারিখ, চলতি ${fmt(_fxDays)} দিন` : 'পুরো মাস'})</td><td style="text-align:right">৳ ${fmt(gFix)}</td></tr>
+      <tr class="sum-row"><td colspan="3"><strong>ফিক্সড সহ আনুমানিক নিট লাভ/লস</strong></td><td style="text-align:right;font-weight:700;color:${gNet>=0?'#065f46':'#991b1b'}">${gNet>=0?'':'- '}৳ ${fmt(Math.abs(gNet))}</td></tr>
+    </tfoot>
   </table>
   ${fixedBreakdownHtml}
 
@@ -15601,7 +15643,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     var L = Array.prototype.map.call(headRow.children, function(h){ return tx(h); });
     var has = function(re){ return L.some(function(x){ return re.test(x); }); };
     var kind = 'generic';
-    if (has(/^পক্ষ$/) && has(/^বাকি টাকা$/)) kind = 'liab';
+    if (has(/^পক্ষ$/) && has(/^(বাকি|পরিশোধিত) টাকা$/)) kind = 'liab';
     else if (has(/^খাত$/) && has(/রিসেপশন/) && has(/ক্যাম্প/)) kind = 'cat';
     else if (has(/^তারিখ$/) && has(/^আয়$/) && has(/^ব্যয়$/)) kind = 'daily';
     else if (has(/নগদ প্রদান/)) kind = 'rec';
@@ -19247,59 +19289,143 @@ function getMonthlyFixedForPrefix(prefix) {
     return { monthlyFixed: closed.monthlyFixed||0, monthlySalary: closed.monthlySalary||0, totalFixed: closed.totalFixed, isSnapshot: true };
   }
   const s = appData.settings;
-  const monthlyFixed = (s.rent||0) + (s.utility||0) + (s.otherFixed||0);
+  const _rx = getFixedBillExact('rent', prefix), _ux = getFixedBillExact('utility', prefix); // বিলের সঠিক অঙ্ক এন্ট্রি থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার
+  const monthlyFixed = (_rx != null ? _rx : (s.rent||0)) + (_ux != null ? _ux : (s.utility||0)) + (s.otherFixed||0);
   const monthlySalary = (appData.staff||[]).filter(st=>st.status==='active').reduce((sum,st)=>sum+(st.basic||0),0);
   return { monthlyFixed, monthlySalary, totalFixed: monthlyFixed + monthlySalary, isSnapshot: false };
 }
 
+function daysInCurrentMonth() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate(); }
+
 // ===== ভাড়া/ইউটিলিটি বকেয়া ট্র্যাকার =====
-// প্রতিটা মাসের ধার্য ভাড়া/ইউটিলিটি (সেটিংসের হার) বনাম ঐ মাসের "বিল" হিসেবে পরিশোধিত ব্যয়। পরিশোধ কোন মাসের বিলের জন্য সেটা
-// expense.forMonth ('YYYY-MM') ফিল্ডে থাকে; না থাকলে ব্যয়ের নিজের মাসই ধরা হয় (আগের এন্ট্রির আচরণ অপরিবর্তিত)।
-// settings.fixedTrackStart (YYYY-MM) থেকে চলতি মাস পর্যন্ত হিসাব হয়; না দিলে শুধু রিপোর্ট/চলতি মাস ধরা হয়।
+// ধার্য অঙ্ক: মাসের "সঠিক বিল" (appData.fixedBills) থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার। পরিশোধ = ঐ মাসের বিল হিসেবে (expense.forMonth) দেওয়া টাকা।
+// টাকা বের হয় পরিশোধের দিনেই (ক্যাশ/ব্যাংক ব্যালেন্স ও সেই মাসের রিপোর্টে); forMonth শুধু কোন মাসের বিল মেটানো হলো সেটা ঠিক রাখে।
+// জরিমানা আলাদা ব্যয় এন্ট্রি ('অন্যান্য ব্যয়' › 'জরিমানা'), তাই বিলের বাকি কমায় না কিন্তু লাভ-লসে ব্যয় হিসেবে ধরা পড়ে।
 const FIXED_BILL_ITEMS = [
   { key:'rent',    label:'🏢 ভবন ভাড়া',            cat:'ভাড়া',        cats:['ভাড়া'],                  rate:()=> (appData.settings.rent||0) },
   { key:'utility', label:'💡 ইউটিলিটি (বিদ্যুৎ/পানি)', cat:'বিদ্যুৎ বিল', cats:['বিদ্যুৎ বিল','পানির বিল'], rate:()=> (appData.settings.utility||0) }
 ];
+function fixedBillItemForCategory(cat) { return FIXED_BILL_ITEMS.find(it => it.cats.includes(cat)) || null; }
 function _fbMonthsBetween(startP, endP) {
   const out = []; let [y, m] = startP.split('-').map(Number); const [ey, em] = endP.split('-').map(Number); let guard = 0;
   while ((y < ey || (y === ey && m <= em)) && guard++ < 60) { out.push(`${y}-${String(m).padStart(2,'0')}`); m++; if (m > 12) { m = 1; y++; } }
   return out;
 }
+function getFixedBillExact(itemKey, mp) {
+  const list = (appData.fixedBills||[]).filter(b => b.item === itemKey && b.month === mp);
+  return list.length ? list.sort((a, b) => (b.id||0) - (a.id||0))[0].amount : null;
+}
 function getFixedBillRows(itemKey, endPrefix, asOf) {
   const item = FIXED_BILL_ITEMS.find(x => x.key === itemKey); if (!item) return [];
-  const rate = item.rate(); if (!(rate > 0)) return [];
   const st = appData.settings.fixedTrackStart || '';
   const start = (st && st <= endPrefix) ? st : endPrefix;
   return _fbMonthsBetween(start, endPrefix).map(mp => {
+    const exact = getFixedBillExact(itemKey, mp);
+    const rate = exact != null ? exact : item.rate();
     const paid = (appData.expense||[]).filter(e => item.cats.includes(e.category) && !e.isFundExpense
       && (e.forMonth || (expenseEffectiveDate(e) || e.date || '').slice(0,7)) === mp
       && (!asOf || (e.date || '') <= asOf)).reduce((s, e) => s + (e.amount||0), 0);
-    return { month: mp, rate, paid, due: Math.max(0, rate - paid) };
-  });
+    return { month: mp, rate, paid, due: Math.max(0, rate - paid), exact: exact != null };
+  }).filter(r => r.rate > 0 || r.paid > 0);
 }
+function getUnpaidBillMonths(itemKey) { return getFixedBillRows(itemKey, todayStr().slice(0,7)).filter(r => r.due > 0.5); }
 function _fbMonthLabel(mp) { const [y, m] = mp.split('-').map(Number); return `${MC_MONTHS[m-1]} ${y}`; }
+
+// জরিমানা — মূল পরিশোধের সাথে একই মাধ্যম/তারিখে আলাদা ব্যয় এন্ট্রি
+function _pushFineExpense(base, fine, billCat, mp, parentId) {
+  appData.expense.push({ id: parentId + 2, date: base.date, category: 'অন্যান্য ব্যয়', subCategory: 'জরিমানা', amount: fine, voucher: generateNextVoucherNo(base.date),
+    note: `${billCat} (${_fbMonthLabel(mp)} এর বিল) — বিলম্বে পরিশোধের জরিমানা`, forMonth: mp, fineOf: parentId, payMode: base.payMode, payPerson: base.payPerson || '',
+    checkNo: '', checkbookId: '', clearDate: base.clearDate, status: base.status, actualClearedDate: base.actualClearedDate, mfsAccountId: base.mfsAccountId || '', by: base.by });
+}
+
+// ব্যয় ফর্ম: ভাড়া/বিদ্যুৎ/পানির বিল খাতে শুধু যে মাসগুলোর বিল এখনো বাকি সেগুলোই বেছে নেওয়া যায়
+function updateExpForMonthField() {
+  const wrap = document.getElementById('expBillWrap'); if (!wrap) return;
+  const it = fixedBillItemForCategory((document.getElementById('expCategory')||{}).value || '');
+  if (!it) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const sel = document.getElementById('expForMonth'), hint = document.getElementById('expBillHint'), rows = getUnpaidBillMonths(it.key);
+  sel.innerHTML = rows.length
+    ? rows.map(r => `<option value="${r.month}">${_fbMonthLabel(r.month)} — বাকি ৳ ${fmt(r.due)} (${r.exact ? 'সঠিক বিল' : 'আনুমানিক'})</option>`).join('')
+    : '<option value="">— কোনো মাসের বিল বাকি নেই —</option>';
+  if (hint) hint.textContent = rows.length ? '' : 'এই খাতের সব মাসের বিল পরিশোধিত। নতুন বিল এলে "বিল এন্ট্রি" করুন।';
+  onExpForMonthChange();
+}
+function onExpForMonthChange() {
+  const it = fixedBillItemForCategory((document.getElementById('expCategory')||{}).value || '');
+  const sel = document.getElementById('expForMonth'), amtEl = document.getElementById('expAmount'); if (!it || !sel || !amtEl) return;
+  const row = getUnpaidBillMonths(it.key).find(r => r.month === sel.value);
+  amtEl.value = row ? Math.round(row.due * 100) / 100 : '';
+}
+function toggleExpFine() {
+  const inp = document.getElementById('expFine'), btn = document.getElementById('expFineBtn'); if (!inp || !btn) return;
+  const show = inp.style.display === 'none'; inp.style.display = show ? '' : 'none'; if (!show) inp.value = '';
+  btn.textContent = show ? '✖ জরিমানা বাদ' : '➕ জরিমানা যোগ'; if (show) inp.focus();
+}
+
+// সঠিক বিলের অঙ্ক এন্ট্রি (বিল এলে)
+function openFixedBillEntry(itemKey, mp) {
+  const nowP = todayStr().slice(0,7), st = appData.settings.fixedTrackStart || '', start = (st && st <= nowP) ? st : nowP;
+  const months = _fbMonthsBetween(start, nowP).reverse();
+  document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+  const modal = document.createElement('div'); modal.className = 'modal-overlay'; modal.style.display = 'flex';
+  modal.innerHTML = `<div class="modal" style="max-width:420px">
+    <div class="modal-title">🧾 বিলের সঠিক অঙ্ক এন্ট্রি</div>
+    <div class="field"><label>খাত *</label><select id="fbeItem" onchange="fillFixedBillEntry()">${FIXED_BILL_ITEMS.map(it => `<option value="${it.key}" ${it.key === (itemKey||'utility') ? 'selected' : ''}>${it.label}</option>`).join('')}</select></div>
+    <div class="field"><label>কোন মাসের বিল *</label><select id="fbeMonth" onchange="fillFixedBillEntry()">${months.map(m => `<option value="${m}" ${m === (mp||nowP) ? 'selected' : ''}>${_fbMonthLabel(m)}</option>`).join('')}</select></div>
+    <div class="field amt-hl"><label>সঠিক বিলের অঙ্ক (৳) *</label><input type="number" id="fbeAmount" min="0" placeholder="০"></div>
+    <div class="field"><label>বিবরণ/বিল নং (ঐচ্ছিক)</label><input type="text" id="fbeNote"></div>
+    <div id="fbeHint" style="font-size:11.5px;color:var(--text-light);margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বাতিল</button><button class="btn btn-success" onclick="saveFixedBillEntry()">✅ সেভ</button></div>
+  </div>`;
+  document.body.appendChild(modal); fillFixedBillEntry();
+}
+function fillFixedBillEntry() {
+  const key = (document.getElementById('fbeItem')||{}).value, mp = (document.getElementById('fbeMonth')||{}).value; if (!key || !mp) return;
+  const it = FIXED_BILL_ITEMS.find(x => x.key === key), ex = getFixedBillExact(key, mp);
+  const amt = document.getElementById('fbeAmount'), hint = document.getElementById('fbeHint');
+  if (amt) amt.value = ex != null ? ex : '';
+  if (hint) hint.textContent = `সেটিংসের আনুমানিক হার ৳ ${fmt(it.rate())}${ex != null ? ' · আগে দেওয়া সঠিক অঙ্ক বদলে যাবে' : ''}। সঠিক অঙ্ক দিলে ঐ মাসের ফিক্সড খরচ ও বকেয়া এটা দিয়েই হিসাব হবে।`;
+}
+function saveFixedBillEntry() {
+  const key = (document.getElementById('fbeItem')||{}).value, mp = (document.getElementById('fbeMonth')||{}).value;
+  const amt = parseFloat((document.getElementById('fbeAmount')||{}).value) || 0, note = ((document.getElementById('fbeNote')||{}).value || '').trim();
+  if (!key || !mp || !(amt > 0)) { showToast('⚠️ খাত, মাস ও সঠিক অঙ্ক দিন'); return; }
+  const it = FIXED_BILL_ITEMS.find(x => x.key === key);
+  appData.fixedBills = (appData.fixedBills||[]).filter(b => !(b.item === key && b.month === mp));
+  appData.fixedBills.push({ id: Date.now(), item: key, month: mp, amount: amt, note, by: currentUser.name, at: new Date().toISOString() });
+  logActivity('add', 'বিল', `${it.label.replace(/^\S+\s/, '')} — ${_fbMonthLabel(mp)} এর সঠিক বিল ৳${fmt(amt)}`);
+  document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+  saveData(); renderFixedTracker(); if (typeof updateExpForMonthField === 'function') updateExpForMonthField(); refreshDashboard();
+  showToast(`✅ ${_fbMonthLabel(mp)} এর বিল ৳${fmt(amt)} সেভ হয়েছে`);
+}
+
 function renderFixedTracker() {
   const box = document.getElementById('fixedTrackerBox'); if (!box) return;
-  const s = appData.settings, nowP = todayStr().slice(0,7);
-  const sal = (appData.staff||[]).filter(st=>st.status==='active').reduce((sum,st)=>sum+(st.basic||0),0);
-  const comps = [['👨‍⚕️ কর্মীদের বেতন (সক্রিয়, বেসিক)', sal], ['🏢 ভবন ভাড়া', s.rent||0], ['💡 ইউটিলিটি (আনুমানিক)', s.utility||0], ['🧾 অন্যান্য সাধারণ খরচ (আনুমানিক)', s.otherFixed||0]];
+  const s = appData.settings, nowP = todayStr().slice(0,7), nd = daysInCurrentMonth();
+  const fx = getMonthlyFixedForPrefix(nowP);
+  const rx = getFixedBillExact('rent', nowP), ux = getFixedBillExact('utility', nowP);
+  const comps = [['👨‍⚕️ কর্মীদের বেতন (সক্রিয়, বেসিক)', fx.monthlySalary], ['🏢 ভবন ভাড়া' + (rx != null ? ' (সঠিক বিল)' : ''), rx != null ? rx : (s.rent||0)], ['💡 ইউটিলিটি ' + (ux != null ? '(সঠিক বিল)' : '(আনুমানিক)'), ux != null ? ux : (s.utility||0)], ['🧾 অন্যান্য সাধারণ খরচ (আনুমানিক)', s.otherFixed||0]];
   const total = comps.reduce((a, c) => a + c[1], 0);
   let dueRows = '', dueTotal = 0;
   FIXED_BILL_ITEMS.forEach(it => getFixedBillRows(it.key, nowP).forEach(r => {
     if (r.due < 0.5) return; dueTotal += r.due;
-    dueRows += `<tr><td>${it.label}</td><td>${_fbMonthLabel(r.month)}</td><td style="text-align:right">৳ ${fmt(r.rate)}</td><td style="text-align:right">৳ ${fmt(r.paid)}</td><td style="text-align:right;font-weight:700;color:var(--danger)">৳ ${fmt(r.due)}</td><td><button class="btn btn-success btn-sm" onclick="openFixedBillPay('${it.key}','${r.month}')">💳 পরিশোধ</button></td></tr>`;
+    dueRows += `<tr><td>${it.label}</td><td>${_fbMonthLabel(r.month)}</td><td style="text-align:right">৳ ${fmt(r.rate)}<div style="font-size:10.5px;color:${r.exact ? 'var(--success)' : 'var(--text-light)'}">${r.exact ? 'সঠিক বিল' : 'আনুমানিক'}</div></td><td style="text-align:right">৳ ${fmt(r.paid)}</td><td style="text-align:right;font-weight:700;color:var(--danger)">৳ ${fmt(r.due)}</td><td style="white-space:nowrap"><button class="btn btn-outline btn-sm" onclick="openFixedBillEntry('${it.key}','${r.month}')">🧾 বিল</button> <button class="btn btn-success btn-sm" onclick="openFixedBillPay('${it.key}','${r.month}')">💳 পরিশোধ</button></td></tr>`;
   }));
   box.innerHTML = `
     <div style="background:#f0f4f8;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12.5px">
       <div style="font-weight:700;margin-bottom:6px">📊 মাসিক ফিক্সড খরচের গঠন (দৈনিক লাভ/লসে এটাই ধরা হয়)</div>
       ${comps.map(c => `<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${c[0]}</span><span>৳ ${fmt(c[1])}</span></div>`).join('')}
       <div style="display:flex;justify-content:space-between;border-top:1px solid #cbd5e1;margin-top:4px;padding-top:4px;font-weight:700"><span>মোট মাসিক ফিক্সড</span><span>৳ ${fmt(total)}</span></div>
-      <div style="display:flex;justify-content:space-between;font-weight:700;color:#0f4c81"><span>দৈনিক ফিক্সড (÷ ৩০)</span><span>৳ ${fmt(total/30)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;color:#0f4c81"><span>দৈনিক ফিক্সড (÷ ${fmt(nd)} দিন)</span><span>৳ ${fmt(total/nd)}</span></div>
     </div>
-    <div style="margin-top:10px;font-size:12.5px;font-weight:700">📒 ভাড়া/ইউটিলিটি বকেয়া ট্র্যাকার ${dueTotal>0?`<span style="color:var(--danger)">— মোট বাকি ৳ ${fmt(dueTotal)}</span>`:''}</div>
+    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="font-size:12.5px;font-weight:700">📒 ভাড়া/ইউটিলিটি বকেয়া ট্র্যাকার ${dueTotal>0?`<span style="color:var(--danger)">— মোট বাকি ৳ ${fmt(dueTotal)}</span>`:''}</div>
+      <button class="btn btn-outline btn-sm" onclick="openFixedBillEntry()">🧾 বিল এন্ট্রি (সঠিক অঙ্ক)</button>
+    </div>
     ${dueRows ? `<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;margin-top:6px"><thead><tr><th>খাত</th><th>মাস</th><th style="text-align:right">ধার্য</th><th style="text-align:right">পরিশোধ</th><th style="text-align:right">বাকি</th><th></th></tr></thead><tbody>${dueRows}</tbody></table></div>`
       : `<div style="color:var(--success);font-size:12.5px;margin-top:6px">${(s.fixedTrackStart||'') ? '✅ ট্র্যাকিং শুরুর মাস থেকে এ পর্যন্ত কোনো ভাড়া/ইউটিলিটি বাকি নেই' : 'ট্র্যাকিং শুরুর মাস দিলে আগের মাসের বাকিও এখানে ও রিপোর্টে ধরা পড়বে। এখন শুধু চলতি মাসের হিসাব চলছে।'}</div>`}
-    <div style="font-size:11.5px;color:var(--text-light);margin-top:6px">আগের মাসের বিল পরের মাসে দিলে "পরিশোধ" বাটন বা ব্যয় পেজের <b>"কোন মাসের বিল"</b> ঘর ব্যবহার করুন — তাহলে সেটা ঐ আগের মাসের বাকি থেকেই কমবে।</div>`;
+    <div style="font-size:11.5px;color:var(--text-light);margin-top:6px">বিল এলে "বিল" বাটনে সঠিক অঙ্ক দিন। পরিশোধের সময় (এখানে বা ব্যয় পেজে) শুধু বাকি মাসগুলোই বেছে নেওয়া যায়; দেরির জরিমানা থাকলে "➕ জরিমানা" দিন। টাকা বের হওয়ার দিনের মাসেই রিপোর্ট ও ক্যাশ ব্যালেন্সে দেখাবে।</div>`;
 }
 function openFixedBillPay(itemKey, mp) {
   const it = FIXED_BILL_ITEMS.find(x => x.key === itemKey); if (!it) return;
@@ -19308,26 +19434,32 @@ function openFixedBillPay(itemKey, mp) {
   const modal = document.createElement('div'); modal.className = 'modal-overlay'; modal.style.display = 'flex';
   modal.innerHTML = `<div class="modal" style="max-width:420px">
     <div class="modal-title">💳 ${it.label} — ${_fbMonthLabel(mp)}</div>
-    <div style="font-size:13px;margin-bottom:12px;background:#f0f4f8;border-radius:8px;padding:10px 12px">ধার্য ৳ ${fmt(row.rate)} · পরিশোধ ৳ ${fmt(row.paid)} · <b style="color:var(--danger)">বাকি ৳ ${fmt(row.due)}</b></div>
+    <div style="font-size:13px;margin-bottom:12px;background:#f0f4f8;border-radius:8px;padding:10px 12px">ধার্য ৳ ${fmt(row.rate)} (${row.exact ? 'সঠিক বিল' : 'আনুমানিক'}) · পরিশোধ ৳ ${fmt(row.paid)} · <b style="color:var(--danger)">বাকি ৳ ${fmt(row.due)}</b></div>
     <div class="field"><label>পরিশোধের তারিখ *</label><input type="date" id="fbDate" value="${todayStr()}"></div>
-    <div class="field amt-hl"><label>পরিমাণ (৳) *</label><input type="number" id="fbAmount" min="0" max="${row.due}" value="${row.due}"></div>
-    <div style="font-size:11.5px;color:var(--text-light);margin-bottom:10px">নগদ ক্যাশ থেকে ব্যয় হিসেবে যাবে। চেক/ব্যাংক হলে ব্যয় পেজে "কোন মাসের বিল" ঘর দিয়ে এন্ট্রি দিন।</div>
+    <div class="field amt-hl"><label>বিলের পরিমাণ (৳) *</label><input type="number" id="fbAmount" min="0" max="${row.due}" value="${Math.round(row.due*100)/100}"></div>
+    <div class="field"><label>⚠️ জরিমানা (৳) <span style="font-size:11px;color:var(--text-light)">দেরিতে দিলে, ঐচ্ছিক</span></label>
+      <div style="display:flex;gap:6px"><input type="number" id="fbFine" min="0" placeholder="০" style="display:none;flex:1"><button type="button" class="btn btn-outline btn-sm" id="fbFineBtn" onclick="var i=document.getElementById('fbFine'),s=i.style.display==='none';i.style.display=s?'':'none';if(!s)i.value='';this.textContent=s?'✖ জরিমানা বাদ':'➕ জরিমানা যোগ';">➕ জরিমানা যোগ</button></div></div>
+    <div style="font-size:11.5px;color:var(--text-light);margin-bottom:10px">নগদ ক্যাশ থেকে ব্যয় হিসেবে যাবে। চেক/ব্যাংক হলে ব্যয় পেজে এন্ট্রি দিন।</div>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বাতিল</button><button class="btn btn-success" onclick="saveFixedBillPay('${itemKey}','${mp}')">✅ পরিশোধ করুন</button></div>
   </div>`;
   document.body.appendChild(modal);
 }
 function saveFixedBillPay(itemKey, mp) {
   const it = FIXED_BILL_ITEMS.find(x => x.key === itemKey); if (!it) return;
+  const row = getFixedBillRows(itemKey, todayStr().slice(0,7)).find(r => r.month === mp); if (!row) return;
   const date = (document.getElementById('fbDate')||{}).value || todayStr();
-  let amt = parseFloat((document.getElementById('fbAmount')||{}).value) || 0;
+  const amt = parseFloat((document.getElementById('fbAmount')||{}).value) || 0, fine = parseFloat((document.getElementById('fbFine')||{}).value) || 0;
   if (amt <= 0) { showToast('⚠️ সঠিক পরিমাণ দিন'); return; }
-  const voucher = generateNextVoucherNo(date);
-  appData.expense.push({ id: Date.now(), date, category: it.cat, subCategory: '', amount: amt, voucher, note: `${it.label.replace(/^\S+\s/, '')} — ${_fbMonthLabel(mp)} মাসের বিল পরিশোধ`, forMonth: mp,
-    payMode: 'cash', payPerson: '', checkNo: '', checkbookId: '', clearDate: date, status: 'cleared', actualClearedDate: date, mfsAccountId: '', by: currentUser.name });
-  logActivity('add', 'ব্যয়', `${it.cat} (${_fbMonthLabel(mp)} এর বিল) — ৳${fmt(amt)} (${voucher})`);
+  if (amt > row.due + 0.5) { showToast(`⚠️ ${_fbMonthLabel(mp)} এর বাকি মাত্র ৳${fmt(row.due)}`); return; }
+  const id = Date.now(), voucher = generateNextVoucherNo(date);
+  const base = { id, date, category: it.cat, subCategory: '', amount: amt, voucher, note: `${it.label.replace(/^\S+\s/, '')} — ${_fbMonthLabel(mp)} মাসের বিল পরিশোধ`, forMonth: mp,
+    payMode: 'cash', payPerson: '', checkNo: '', checkbookId: '', clearDate: date, status: 'cleared', actualClearedDate: date, mfsAccountId: '', by: currentUser.name };
+  appData.expense.push(base);
+  if (fine > 0) _pushFineExpense(base, fine, it.cat, mp, id);
+  logActivity('add', 'ব্যয়', `${it.cat} (${_fbMonthLabel(mp)} এর বিল) — ৳${fmt(amt)}${fine > 0 ? ' + জরিমানা ৳' + fmt(fine) : ''} (${voucher})`);
   document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
   saveData(); renderFixedTracker(); if (typeof renderExpenseTable === 'function') renderExpenseTable(); refreshDashboard();
-  showToast(`✅ ৳${fmt(amt)} পরিশোধ হিসেবে রেকর্ড হয়েছে`);
+  showToast(`✅ ৳${fmt(amt)}${fine > 0 ? ' + জরিমানা ৳' + fmt(fine) : ''} পরিশোধ হিসেবে রেকর্ড হয়েছে`);
 }
 
 // ===== সরবরাহকারীর দেনা — নির্দিষ্ট তারিখ পর্যন্ত (নির্ভুল) =====
@@ -19375,7 +19507,8 @@ function computeMonthlyAutoNet(month, year) {
   // ✅ COGS — এই মাসে বিক্রি হওয়া ইনভেন্টরির (ওষুধ/চশমা) ক্রয়মূল্য। মেডিসিন কেনার সময় খরচ ধরা হয় না,
   // শুধু বিক্রি হলে COGS হিসেবে হিসাব হয় — তাই শেয়ারহোল্ডার মুনাফা বণ্টনের সঠিক হিসাবের জন্য এটা বাদ দেওয়া আবশ্যক
   const mCOGS = getCOGSForPrefix(prefix);
-  const monthlyFixed = (s.rent||0) + (s.utility||0) + (s.otherFixed||0);
+  const _rx = getFixedBillExact('rent', prefix), _ux = getFixedBillExact('utility', prefix); // বিলের সঠিক অঙ্ক এন্ট্রি থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার
+  const monthlyFixed = (_rx != null ? _rx : (s.rent||0)) + (_ux != null ? _ux : (s.utility||0)) + (s.otherFixed||0);
   const monthlySalary = (appData.staff||[]).filter(st=>st.status==='active').reduce((sum,st)=>sum+st.basic,0);
   const totalFixed = monthlyFixed + monthlySalary;
   const totalIncome = mInc + mVis + mCamp;
@@ -24600,7 +24733,7 @@ function buildReadOnlyHTML(feature, role) {
     const bankTxLabels = { cash_in:'ক্যাশ যোগ', bank_in:'ব্যাংক যোগ', cash_to_bank:'ক্যাশ→ব্যাংক', bank_to_cash:'ব্যাংক→ক্যাশ', cash_out:'ক্যাশ ব্যয়', bank_out:'ব্যাংক ব্যয়' };
     const rows = [
       ...(appData.income||[]).filter(e=>e.date===today).map(e=>({ time:e.id||0, type:'আয়', icon:'💰', cls:'#16a34a', bg:'#d1fae5', label: e.category||'আয়', sub: (e.campId?(campMap[e.campId]||'ক্যাম্প'):(e.note||e.memo||'')), amt:e.amount||0, by:e.by||'—' })),
-      ...(appData.expense||[]).filter(e=>(typeof expenseEffectiveDate==='function'?expenseEffectiveDate(e):e.date)===today && !e.isFundExpense).map(e=>({ time:e.id||0, type:'ব্যয়', icon:'💸', cls:'#e74c3c', bg:'#fee2e2', label: e.category||'ব্যয়', sub: e.note||e.voucher||'', amt:e.amount||0, by:e.by||'—' })),
+      ...(appData.expense||[]).filter(e=>(typeof expenseEffectiveDate==='function'?expenseEffectiveDate(e):e.date)===today && !e.isFundExpense).map(e=>({ time:e.id||0, type:'ব্যয়', icon:'💸', cls:'#e74c3c', bg:'#fee2e2', label: e.category||'ব্যয়', sub: (e.forMonth ? `📅 ${_fbMonthLabel(e.forMonth)} এর বিল` + (e.note ? ' — ' : '') : '') + (e.note||e.voucher||''), amt:e.amount||0, by:e.by||'—' })),
       ...(appData.bankTx||[]).filter(tx=>tx.date===today).map(tx=>({ time:tx.id||0, type: tx.source==='withdrawal'?'মুনাফা উত্তোলন':'ট্রান্সফার', icon:'🔁', cls:'#1d4ed8', bg:'#dbeafe', label: bankTxLabels[tx.type]||tx.type||'—', sub: tx.note||'', amt:tx.amount||0, by:tx.by||'—' })),
       ...(appData.recDeposits||[]).filter(d=>d.date===today).map(d=>({ time:d.id||0, type:'রিসেপ জমা', icon:'🧰', cls:'#0369a1', bg:'#e0f2fe', label:'ক্যাশ জমা', sub:`${d.visitCount||0}জন রোগী`, amt:d.amount||0, by:d.by||'—' })),
     ].sort((a,b)=>(b.time>a.time?1:-1));
