@@ -15034,7 +15034,7 @@ function buildBoardReportHtml(month, year) {
           const absentCut = rec.paid ? (rec.absentCut||0) : getStaffAbsentCut(s.id, mm, yy);
           const adv = rec.paid ? (rec.advanceTotal||0) : getStaffAdvanceTotal(s.id, mm, yy);
           const net = (s.basic||0) + (rec.bonus||0) + docComm - (rec.cut||0) - absentCut - adv;
-          if (net > 0.5) salRows.push({ party: s.name + (isActive ? '' : ' (অব্যাহতিপ্রাপ্ত)'), desc: `${s.desig ? s.desig + ' · ' : ''}${months[mm-1]} ${yy} এর বেতন`, amt: net });
+          if (net > 0.5) salRows.push({ key: 's' + s.id, party: s.name + (isActive ? '' : ' (অব্যাহতিপ্রাপ্ত)'), head: s.desig || '', part: `${months[mm-1]} ${yy} ৳ ${fmt(net)}`, amt: net });
         });
       });
     } else {
@@ -15042,7 +15042,7 @@ function buildBoardReportHtml(month, year) {
       const [yy, mm] = prefix.split('-').map(Number);
       (appData.staff||[]).filter(s=>s.status==='active').forEach(s => {
         const net = (s.basic||0) + getLinkedDoctorCommission(s.id, mm, yy) - getStaffAbsentCut(s.id, mm, yy) - getStaffAdvanceTotal(s.id, mm, yy);
-        if (net > 0.5) salRows.push({ party: s.name, desc: `${s.desig ? s.desig + ' · ' : ''}${months[mm-1]} ${yy} এর বেতন`, amt: net });
+        if (net > 0.5) salRows.push({ key: 's' + s.id, party: s.name, head: s.desig || '', part: `${months[mm-1]} ${yy} ৳ ${fmt(net)}`, amt: net });
       });
     }
 
@@ -15061,7 +15061,7 @@ function buildBoardReportHtml(month, year) {
     // ঘ) অপরিশোধিত ভাড়া ও ইউটিলিটি — ট্র্যাকিং শুরুর মাস থেকে রিপোর্ট-মাস পর্যন্ত প্রতি মাসের বাকি (আগের মাসের বিল পরে দিলে সেটাও ধরা হয়)
     const fixRows = [];
     FIXED_BILL_ITEMS.forEach(it => getFixedBillRows(it.key, prefix, _asOf).forEach(r => {
-      if (r.due > 0.5) fixRows.push({ party: `${it.label.replace(/^\S+\s/, '')} — ${_fbMonthLabel(r.month)}`, desc: `${r.exact ? 'সঠিক বিল' : 'আনুমানিক ধার্য'} ৳ ${fmt(r.rate)} − পরিশোধ ৳ ${fmt(r.paid)}`, amt: r.due });
+      if (r.due > 0.5) fixRows.push({ key: it.key, party: it.label.replace(/^\S+\s/, ''), head: '', part: `${_fbMonthLabel(r.month)} বাকি ৳ ${fmt(r.due)}` + (r.paid > 0.5 ? ` (ধার্য ৳ ${fmt(r.rate)}, আংশিক পরিশোধ ৳ ${fmt(r.paid)})` : ''), amt: r.due });
     }));
 
     // ঙ) শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ — শুধু বর্তমান ব্যালেন্স থেকে জানা যায়, তাই চলতি মাসেই
@@ -15078,12 +15078,19 @@ function buildBoardReportHtml(month, year) {
       settledRows.push({ d, label: `✅ ${_fbMonthLabel(e.forMonth)} এর ${e.category} — ${formatDate(d)} তারিখে পরিশোধ`, amt: e.amount||0 });
     });
     settledRows.sort((a,b)=>a.d.localeCompare(b.d));
+    // কর্মী / ভাড়া / ইউটিলিটি — একজন বা একটা খাতের জন্য একটাই কার্ড: সব বাকি মাস + আংশিক পরিশোধ + মোট দেনা
+    const groupDebts = rows => {
+      const order = [], map = {};
+      rows.forEach(r => { if (!map[r.key]) { map[r.key] = { party: r.party, head: r.head, parts: [], amt: 0 }; order.push(r.key); } const g = map[r.key]; g.parts.push(r.part); g.amt += r.amt; });
+      return order.map(k => { const g = map[k]; return { party: g.party, desc: `${g.head ? g.head + ' · ' : ''}${g.parts.length > 1 ? fmt(g.parts.length) + ' মাসের বাকি — ' : 'বাকি — '}${g.parts.join(' · ')}`, amt: g.amt }; }).sort((a,b)=>b.amt-a.amt);
+    };
+    const salGroups = groupDebts(salRows), fixGroups = groupDebts(fixRows);
     const sum = rows => rows.reduce((s,r)=>s+r.amt, 0);
     const groups = [
-      ['ক. কর্মীদের বাকি বেতন', salRows, 'কোনো বাকি বেতন নেই ✅'],
+      ['ক. কর্মীদের বাকি বেতন', salGroups, 'কোনো বাকি বেতন নেই ✅'],
       ['খ. সরবরাহকারীদের দেনা', venRows, 'সরবরাহকারীর কোনো দেনা নেই ✅'],
       ['গ. লোন (ব্যক্তি/প্রতিষ্ঠান থেকে নেয়া)', loanRows, 'কোনো বকেয়া লোন নেই ✅'],
-      ['ঘ. অপরিশোধিত ভাড়া ও ইউটিলিটি', fixRows, 'ভাড়া/ইউটিলিটি বাকি নেই ✅']
+      ['ঘ. অপরিশোধিত ভাড়া ও ইউটিলিটি', fixGroups, 'ভাড়া/ইউটিলিটি বাকি নেই ✅']
     ];
     if (_running) groups.push(['ঙ. শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ', divRows, 'বকেয়া লভ্যাংশ নেই ✅']);
     const grand = groups.reduce((s,g)=>s+sum(g[1]), 0);
