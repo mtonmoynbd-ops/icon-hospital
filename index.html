@@ -4647,7 +4647,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </select>
             <select id="rpYear" onchange="renderReport()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;"></select>
             <button class="btn btn-warning btn-sm" onclick="printReport()">🖨️ সাধারণ প্রিন্ট</button>
-            <button class="btn btn-primary btn-sm" onclick="printBoardReport()">📋 বোর্ড রিপোর্ট প্রিন্ট</button>
+            <button class="btn btn-outline btn-sm" onclick="openBoardReportMobileView(parseInt(document.getElementById('rpMonth').value),parseInt(document.getElementById('rpYear').value))">👁️ বোর্ড রিপোর্ট প্রিভিউ</button> <button class="btn btn-primary btn-sm" onclick="printBoardReport()">📋 বোর্ড রিপোর্ট প্রিন্ট</button>
           </div>
         </div>
       </div>
@@ -14929,6 +14929,22 @@ function buildBoardReportHtml(month, year) {
       <td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(e.amount)}</td>
     </tr>`).join('');
 
+  // ভাড়া/ইউটিলিটি বিল পরিশোধ — লাভ-লসে ফিক্সড হারে আলাদা ধরা (তাই totalExp-এ নেই), কিন্তু টাকা এই মাসেই বের হয়েছে বলে ব্যয়ের তালিকায় দেখানো হয়
+  const _fixedPays = (appData.expense||[]).filter(e => !e.isFundExpense && FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category)))
+    .map(e => ({ e, d: expenseEffectiveDate(e) })).filter(x => x.d && x.d.startsWith(prefix)).sort((a,b)=>a.d.localeCompare(b.d));
+  const fixedPaidTotal = _fixedPays.reduce((s,x)=>s+(x.e.amount||0),0);
+  const fixedPayRows = _fixedPays.map((x,i)=>`
+    <tr>
+      <td>${expenses.length+i+1}</td>
+      <td>${formatDate(x.d)}</td>
+      <td style="color:#d97706;font-weight:600">${x.e.voucher||'—'}</td>
+      <td>${x.e.category} <span style="font-size:10px;font-weight:700;color:#b45309">(ফিক্সড বিল)</span></td>
+      <td>${x.e.ref||'—'}</td>
+      <td>${x.e.forMonth ? '📅 ' + _fbMonthLabel(x.e.forMonth) + ' এর বিল' : ''}${x.e.forMonth && x.e.note ? ' — ' : ''}${x.e.note||(x.e.forMonth ? '' : '—')}</td>
+      <td>${x.e.by||'—'}</td>
+      <td style="text-align:right;font-weight:700;color:#b45309">৳ ${fmt(x.e.amount)}</td>
+    </tr>`).join('');
+
   // ক্যাম্প ব্যয়
   const campExpRows = camps.filter(c=>c.totalExpense>0).map((c,i)=>{
     const b=c.expBreakdown||{};
@@ -15037,13 +15053,13 @@ function buildBoardReportHtml(month, year) {
       (appData.investors||[]).forEach(s => { if ((s.balance||0) > 0.5) divRows.push({ party: s.name, desc: 'ইনভেস্টর — বকেয়া লভ্যাংশ', amt: s.balance }); });
     }
 
-    // ঘ-১) এই মাসে পরিশোধিত ভাড়া/ইউটিলিটি — টাকা যেদিন বের হয়েছে সেই মাসের রিপোর্টে (ক্যাশ/ব্যাংক ব্যালেন্স মেলানোর জন্য); আগের মাসের বিল হলে কোন মাসের সেটা লেখা থাকে
-    const paidBillRows = [];
-    (appData.expense||[]).filter(e => !e.isFundExpense && FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category))).forEach(e => {
+    // ঘ-১) আগের মাসের বাকি বিল এই মাসে পরিশোধ হলে তার উল্লেখ (পুরো এন্ট্রি ৮ নং ব্যয়ের তালিকায়)
+    const settledRows = [];
+    (appData.expense||[]).filter(e => !e.isFundExpense && e.forMonth && e.forMonth < prefix && FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category))).forEach(e => {
       const d = expenseEffectiveDate(e); if (!d || !d.startsWith(prefix) || d > _asOf) return;
-      paidBillRows.push({ date: d, party: e.category, desc: `${formatDate(d)}${e.forMonth ? ' · ' + _fbMonthLabel(e.forMonth) + ' এর বিল' : ''}${e.voucher ? ' · ' + e.voucher : ''}`, amt: e.amount||0 });
+      settledRows.push({ d, label: `✅ ${_fbMonthLabel(e.forMonth)} এর ${e.category} — ${formatDate(d)} তারিখে পরিশোধ`, amt: e.amount||0 });
     });
-    paidBillRows.sort((a,b)=>a.date.localeCompare(b.date));
+    settledRows.sort((a,b)=>a.d.localeCompare(b.d));
     const sum = rows => rows.reduce((s,r)=>s+r.amt, 0);
     const groups = [
       ['ক. কর্মীদের বাকি বেতন', salRows, 'কোনো বাকি বেতন নেই ✅'],
@@ -15063,16 +15079,14 @@ function buildBoardReportHtml(month, year) {
       <tbody>${g[1].map((r,i)=>`<tr><td>${i+1}</td><td style="font-weight:600">${_e(r.party)}</td><td>${_e(r.desc)}</td><td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(r.amt)}</td></tr>`).join('')}</tbody>
       <tfoot><tr class="sum-row"><td colspan="3"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(sum(g[1]))}</strong></td></tr></tfoot>
     </table>` : '').join('');
-    const paidDetail = paidBillRows.length ? `<h3>ঘ-১. এই মাসে পরিশোধিত ভাড়া/ইউটিলিটি (এই মাসেই টাকা বের হয়েছে)</h3><table>
-      <thead><tr><th>#</th><th>পক্ষ</th><th>বিবরণ</th><th style="text-align:right">পরিশোধিত টাকা</th></tr></thead>
-      <tbody>${paidBillRows.map((r,i)=>`<tr><td>${i+1}</td><td style="font-weight:600">${_e(r.party)}</td><td>${_e(r.desc)}</td><td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(r.amt)}</td></tr>`).join('')}</tbody>
-      <tfoot><tr class="sum-row"><td colspan="3"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(sum(paidBillRows))}</strong></td></tr></tfoot>
-    </table>` : '';
+    const paidDetail = settledRows.length ? `<h3>ঘ-১. আগের মাসের বিল এই মাসে পরিশোধ হয়েছে</h3><table>
+      ${settledRows.map(r=>`<tr><td>${_e(r.label)}</td><td style="text-align:right;font-weight:700">৳ ${fmt(r.amt)}</td></tr>`).join('')}
+    </table><div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:10px">* এই টাকা এই মাসেই বের হয়েছে — পূর্ণ এন্ট্রি ৮ নং সেকশনের ব্যয়ের তালিকায় আছে।</div>` : '';
     return `<h2>১১. দেনা ও বকেয়া দায় (${_running ? 'আজ পর্যন্ত' : 'মাস শেষে'})</h2>
     ${summary}
     ${detail}
     ${paidDetail}
-    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; আগের মাসের বাকি ধরতে সেটিংসে ট্র্যাকিং শুরুর মাস দিন। ঘ-১-এর পরিশোধ ক্যাশ/ব্যাংক ব্যালেন্স থেকে এই মাসেই কমেছে; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব।${_running ? '' : ' বকেয়া লভ্যাংশ শুধু চলতি মাসের রিপোর্টে দেখায়।'}</div>`;
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; আগের মাসের বাকি ধরতে সেটিংসে ট্র্যাকিং শুরুর মাস দিন। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৮ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব।${_running ? '' : ' বকেয়া লভ্যাংশ শুধু চলতি মাসের রিপোর্টে দেখায়।'}</div>`;
   })();
 
   const _boardHtml = `
@@ -15210,10 +15224,14 @@ function buildBoardReportHtml(month, year) {
 
   <!-- ব্যয় -->
   <h2>৮. ব্যয়ের বিস্তারিত তালিকা (ভাউচার নং সহ)</h2>
-  ${expenses.length?`<table>
+  ${(expenses.length||_fixedPays.length)?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>ভাউচার নং</th><th>খাত</th><th>রেফারেন্স</th><th>বিবরণ</th><th>এন্ট্রিকারী</th><th style="text-align:right">পরিমাণ</th></tr></thead>
-    <tbody>${expRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="7"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp)}</strong></td></tr></tfoot>
+    <tbody>${expRows}${fixedPayRows}</tbody>
+    <tfoot>
+      <tr class="sum-row"><td colspan="7"><strong>${_fixedPays.length ? 'মোট ব্যয় (লাভ-লসে ধরা)' : 'মোট'}</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp)}</strong></td></tr>
+      ${_fixedPays.length ? `<tr class="sum-row"><td colspan="7">ভাড়া/ইউটিলিটি বিল পরিশোধ (লাভ-লসে ফিক্সড হারে আলাদা ধরা)</td><td style="text-align:right">৳ ${fmt(fixedPaidTotal)}</td></tr>
+      <tr class="sum-row"><td colspan="7"><strong>মোট বের হওয়া টাকা (ক্যাশ/ব্যাংক)</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp+fixedPaidTotal)}</strong></td></tr>` : ''}
+    </tfoot>
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো ব্যয় এন্ট্রি নেই।</p>'}
 
   <!-- ব্যাংক লেনদেন -->
@@ -15633,7 +15651,8 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     var d = dayOf(v); if (!d) return '';
     var mi = -1; for (var i = 0; i < 12; i++) { if ((v || '').indexOf(MN[i].slice(0, 3)) > -1) { mi = i; break; } }
     var mm = mi >= 0 ? mi + 1 : (nav.month || 0);
-    return mm ? d + '-' + bn(('0' + mm).slice(-2)) : d;
+    var SH = ['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে'];
+    return mm ? d + ' ' + SH[mm - 1] : d;
   };
 
   // ===== প্রতিটা তালিকা-টেবিল → কমপ্যাক্ট কার্ড (১–২ লাইন); তারিখ শুধু দিন (০১, ০২…) =====
@@ -15853,7 +15872,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc.pos{border-left-color:#6ee7b7}
     .cc.neg{border-left-color:#fca5a5}
     .cc-l1{display:flex;align-items:center;gap:7px;min-height:20px}
-    .cc-d{flex:0 0 auto;min-width:42px;text-align:center;font-size:11.5px;font-weight:700;color:#0f4c81;background:#e8f1fb;border-radius:6px;padding:0 4px;line-height:20px}
+    .cc-d{flex:0 0 auto;min-width:52px;text-align:center;font-size:11.5px;white-space:nowrap;font-weight:700;color:#0f4c81;background:#e8f1fb;border-radius:6px;padding:0 4px;line-height:20px}
     .cc-t{flex:1;min-width:0;font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cc-t.cc-multi{display:flex;flex-wrap:wrap;gap:0 12px;overflow:visible}
     .cc-m{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
@@ -15931,7 +15950,7 @@ function openBoardReportMobileView(month, year, opts) {
     ov.style.bottom = (tabBar && tabBar.style.display !== 'none' ? tabBar.offsetHeight : 0) + 'px';
   }
   ov.innerHTML = '<div id="bmvLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#eef2f7;color:#0f4c81;font-weight:700;z-index:2">⏳ রিপোর্ট প্রস্তুত হচ্ছে…</div>'
-    + '<iframe id="bmvFrame" style="flex:1 1 auto;width:100%;border:0;background:#eef2f7"></iframe>';
+    + '<iframe id="bmvFrame" style="flex:1 1 auto;width:100%;max-width:780px;align-self:center;border:0;background:#eef2f7"></iframe>';
   document.body.appendChild(ov);
   var fr = document.getElementById('bmvFrame');
   fr.onload = function() { var l = document.getElementById('bmvLoading'); if (l) l.remove(); };
@@ -15976,16 +15995,18 @@ function renderBoardPdfBox(boxId) {
   var box = document.getElementById(boxId); if (!box) return;
   var names = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   var now = new Date(), items = [];
-  for (var k = 1; k <= 3; k++) { var d = new Date(now.getFullYear(), now.getMonth() - k, 1); items.push({ m: d.getMonth() + 1, y: d.getFullYear() }); }
+  for (var k = 0; k <= 3; k++) { var d = new Date(now.getFullYear(), now.getMonth() - k, 1); items.push({ m: d.getMonth() + 1, y: d.getFullYear() }); }
   var wasOpen = box.querySelector('details') && box.querySelector('details').open;
   box.innerHTML = '<details style="background:#fff;border:1.5px solid #bfdbfe;border-radius:12px;margin-bottom:14px;overflow:hidden"' + (wasOpen ? ' open' : '') + '>'
-    + '<summary style="cursor:pointer;padding:12px 16px;font-weight:800;font-size:14px;color:#0f4c81;background:linear-gradient(120deg,#eff6ff,#e0f2fe);list-style:none">📄 বোর্ড রিপোর্ট (PDF) — গত ৩ মাস <span style="font-weight:600;font-size:12px;color:#64748b">· খুলতে ক্লিক করুন</span></summary>'
+    + '<summary style="cursor:pointer;padding:12px 16px;font-weight:800;font-size:14px;color:#0f4c81;background:linear-gradient(120deg,#eff6ff,#e0f2fe);list-style:none">📄 বোর্ড রিপোর্ট (প্রিভিউ / PDF) — চলতি ও গত ৩ মাস <span style="font-weight:600;font-size:12px;color:#64748b">· খুলতে ক্লিক করুন</span></summary>'
     + '<div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px">'
     + items.map(function(it){
         var closed = (appData.monthClosings||[]).some(function(c){ return c.month===it.m && c.year===it.y; });
+        var run = (it.m === now.getMonth() + 1 && it.y === now.getFullYear());
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px">'
-          + '<div style="font-weight:700;font-size:13.5px;color:#1e293b">' + names[it.m-1] + ' ' + it.y + ' <span style="font-size:11px;font-weight:700;color:' + (closed ? '#047857' : '#b45309') + ';background:' + (closed ? '#d1fae5' : '#fef3c7') + ';border-radius:20px;padding:1px 8px;margin-left:4px">' + (closed ? '✅ ক্লোজড' : '⏳ ক্লোজ বাকি') + '</span></div>'
-          + '<button class="btn btn-success btn-sm" style="font-weight:700" onclick="downloadBoardReportPdf(' + it.m + ',' + it.y + ')">📄 ' + names[it.m-1] + ' PDF ডাউনলোড</button></div>';
+          + '<div style="font-weight:700;font-size:13.5px;color:#1e293b">' + names[it.m-1] + ' ' + it.y + ' <span style="font-size:11px;font-weight:700;color:' + (run ? '#1d4ed8' : closed ? '#047857' : '#b45309') + ';background:' + (run ? '#dbeafe' : closed ? '#d1fae5' : '#fef3c7') + ';border-radius:20px;padding:1px 8px;margin-left:4px">' + (run ? '🔄 চলতি মাস' : closed ? '✅ ক্লোজড' : '⏳ ক্লোজ বাকি') + '</span></div>'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" style="font-weight:700" onclick="openBoardReportMobileView(' + it.m + ',' + it.y + ')">👁️ প্রিভিউ</button>'
+          + '<button class="btn btn-success btn-sm" style="font-weight:700" onclick="downloadBoardReportPdf(' + it.m + ',' + it.y + ')">📄 PDF</button></div></div>';
       }).join('')
     + '</div></details>';
 }
