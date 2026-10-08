@@ -14917,17 +14917,17 @@ function buildBoardReportHtml(month, year) {
     </tr>`).join('');
 
   // ব্যয়ের বিস্তারিত তালিকা
-  const expRows = expenses.sort((a,b)=>a.date.localeCompare(b.date)).map((e,i)=>`
+  const expRows = expenses.sort((a,b)=>(expenseEffectiveDate(a)||a.date).localeCompare(expenseEffectiveDate(b)||b.date)).map((e,i)=>{ const _d = expenseEffectiveDate(e) || e.date; return `
     <tr>
       <td>${i+1}</td>
-      <td>${formatDate(e.date)}</td>
+      <td>${formatDate(_d)}${_d !== e.date ? ` <span style="font-size:10px;color:#6b7280">(পূর্বের এন্ট্রি: ${formatDate(e.date)} · ভাউচার ${e.voucher||'—'})</span>` : ''}</td>
       <td style="color:#d97706;font-weight:600">${e.voucher||'—'}</td>
       <td>${e.category}</td>
       <td>${e.ref||'—'}</td>
       <td>${e.note||'—'}</td>
       <td>${e.by||'—'}</td>
       <td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(e.amount)}</td>
-    </tr>`).join('');
+    </tr>`;}).join('');
 
   // ভাড়া/ইউটিলিটি বিল পরিশোধ — লাভ-লসে ফিক্সড হারে আলাদা ধরা (তাই totalExp-এ নেই), কিন্তু টাকা এই মাসেই বের হয়েছে বলে ব্যয়ের তালিকায় দেখানো হয়
   const _fixedPays = (appData.expense||[]).filter(e => !e.isFundExpense && FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category)))
@@ -14936,7 +14936,7 @@ function buildBoardReportHtml(month, year) {
   const fixedPayRows = _fixedPays.map((x,i)=>`
     <tr>
       <td>${expenses.length+i+1}</td>
-      <td>${formatDate(x.d)}</td>
+      <td>${formatDate(x.d)}${x.d !== x.e.date ? ` <span style="font-size:10px;color:#6b7280">(পূর্বের এন্ট্রি: ${formatDate(x.e.date)} · ভাউচার ${x.e.voucher||'—'})</span>` : ''}</td>
       <td style="color:#d97706;font-weight:600">${x.e.voucher||'—'}</td>
       <td>${x.e.category} <span style="font-size:10px;font-weight:700;color:#b45309">(ফিক্সড বিল)</span></td>
       <td>${x.e.ref||'—'}</td>
@@ -14965,7 +14965,7 @@ function buildBoardReportHtml(month, year) {
   // চলতি মাসে আজ পর্যন্ত চলে-যাওয়া দিন × (মাসিক ফিক্সড ÷ মাসের প্রকৃত দিন সংখ্যা), অন্য মাসে পুরো মাসের ফিক্সড
   const daysInMonth = new Date(year, month, 0).getDate();
   const _fxInfo = getMonthlyFixedForPrefix(prefix);
-  const _fxPerDay = (_fxInfo.totalFixed||0) / daysInMonth;
+  const _fxPerDay = Math.round((_fxInfo.totalFixed||0) / daysInMonth);
   const _dayLimit = (() => { const td = todayStr(); if (td.slice(0,7) === prefix) return parseInt(td.slice(8,10),10); return td.slice(0,7) > prefix ? daysInMonth : 0; })();
   const _fxDays = Math.min(daysInMonth, _dayLimit);
   const _fxRunning = todayStr().slice(0,7) === prefix;
@@ -14986,7 +14986,7 @@ function buildBoardReportHtml(month, year) {
       <td style="text-align:right;font-weight:700;color:${dp>=0?'#065f46':'#991b1b'}">${dp>=0?'':'- '}৳ ${fmt(Math.abs(dp))}</td>
     </tr>`;
   }
-  const gFix = _fxPerDay * _fxDays;
+  const gFix = _fxDays >= daysInMonth ? (_fxInfo.totalFixed||0) : _fxPerDay * _fxDays;
   const gNet = gInc - gExp - gFix;
   const _fxS = appData.settings;
   const fixedBreakdownHtml = `<table>
@@ -15009,21 +15009,39 @@ function buildBoardReportHtml(month, year) {
     let _asOf = `${prefix}-${pad(new Date(year, month, 0).getDate())}`;
     if (_asOf > _today) _asOf = _today;
 
-    // ক) কর্মীদের বাকি বেতন (রিপোর্ট-মাস + আগের ১২ মাসের স্পষ্টভাবে সংরক্ষিত বাকি রেকর্ড)
+    // ক) কর্মীদের বাকি বেতন — প্রথম বেতন-রেকর্ডের মাস থেকে রিপোর্ট-মাস পর্যন্ত সব মাস (যোগদানের আগের মাস বাদ)।
+    //    সক্রিয় কর্মীর রেকর্ডহীন মাসও বাকি ধরা হয়; অব্যাহতিপ্রাপ্ত কর্মীর শুধু স্পষ্ট বাকি রেকর্ড।
     const salRows = [];
-    for (let k = 12; k >= 0; k--) {
-      let mm = month - k, yy = year; while (mm < 1) { mm += 12; yy--; }
+    let _salStart = '';
+    const _noteSalMonth = (key) => { const m = String(key||'').match(/_(\d{4})_(\d{2})$/); if (m) { const pp = m[1] + '-' + m[2]; if (!_salStart || pp < _salStart) _salStart = pp; } };
+    Object.keys(appData.salaries||{}).forEach(_noteSalMonth);
+    (appData.expense||[]).forEach(e => { if (e.salaryRef) _noteSalMonth(e.salaryRef); });
+    const _salFrom = (() => { let [y, m] = prefix.split('-').map(Number); m -= 35; while (m < 1) { m += 12; y--; } const floor = `${y}-${pad(m)}`; return (_salStart && _salStart > floor) ? _salStart : floor; })();
+    if (_salStart) {
+      _fbMonthsBetween(_salFrom <= prefix ? _salFrom : prefix, prefix).forEach(mp => {
+        const [yy, mm] = mp.split('-').map(Number);
+        (appData.staff||[]).forEach(s => {
+          const isActive = s.status === 'active';
+          if (s.join && s.join.slice(0,7) > mp) return;
+          const rec0 = appData.salaries && appData.salaries[`sal_${s.id}_${yy}_${pad(mm)}`];
+          if (!isActive && !rec0) return;
+          if (mp === prefix && !isActive && !rec0) return;
+          const rec = rec0 || { bonus:0, cut:0, paid:false };
+          let paidAsOf = !!rec.paid;
+          if (rec.paid && rec.expenseId) { const ex = (appData.expense||[]).find(e=>e.id===rec.expenseId); if (ex && ex.date && ex.date > _asOf) paidAsOf = false; }
+          if (paidAsOf) return;
+          const docComm = rec.paid ? (rec.doctorCommission||0) : getLinkedDoctorCommission(s.id, mm, yy);
+          const absentCut = rec.paid ? (rec.absentCut||0) : getStaffAbsentCut(s.id, mm, yy);
+          const adv = rec.paid ? (rec.advanceTotal||0) : getStaffAdvanceTotal(s.id, mm, yy);
+          const net = (s.basic||0) + (rec.bonus||0) + docComm - (rec.cut||0) - absentCut - adv;
+          if (net > 0.5) salRows.push({ party: s.name + (isActive ? '' : ' (অব্যাহতিপ্রাপ্ত)'), desc: `${s.desig ? s.desig + ' · ' : ''}${months[mm-1]} ${yy} এর বেতন`, amt: net });
+        });
+      });
+    } else {
+      // বেতনের কোনো রেকর্ডই নেই — শুধু রিপোর্ট-মাসের সক্রিয় কর্মীদের বেতন
+      const [yy, mm] = prefix.split('-').map(Number);
       (appData.staff||[]).filter(s=>s.status==='active').forEach(s => {
-        const rec0 = appData.salaries && appData.salaries[`sal_${s.id}_${yy}_${pad(mm)}`];
-        if (k > 0 && !rec0) return;
-        const rec = rec0 || { bonus:0, cut:0, paid:false };
-        let paidAsOf = !!rec.paid;
-        if (rec.paid && rec.expenseId) { const ex = (appData.expense||[]).find(e=>e.id===rec.expenseId); if (ex && ex.date && ex.date > _asOf) paidAsOf = false; }
-        if (paidAsOf) return;
-        const docComm = rec.paid ? (rec.doctorCommission||0) : getLinkedDoctorCommission(s.id, mm, yy);
-        const absentCut = rec.paid ? (rec.absentCut||0) : getStaffAbsentCut(s.id, mm, yy);
-        const adv = rec.paid ? (rec.advanceTotal||0) : getStaffAdvanceTotal(s.id, mm, yy);
-        const net = (s.basic||0) + (rec.bonus||0) + docComm - (rec.cut||0) - absentCut - adv;
+        const net = (s.basic||0) + getLinkedDoctorCommission(s.id, mm, yy) - getStaffAbsentCut(s.id, mm, yy) - getStaffAdvanceTotal(s.id, mm, yy);
         if (net > 0.5) salRows.push({ party: s.name, desc: `${s.desig ? s.desig + ' · ' : ''}${months[mm-1]} ${yy} এর বেতন`, amt: net });
       });
     }
@@ -15086,7 +15104,7 @@ function buildBoardReportHtml(month, year) {
     ${summary}
     ${detail}
     ${paidDetail}
-    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; আগের মাসের বাকি ধরতে সেটিংসে ট্র্যাকিং শুরুর মাস দিন। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৮ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব।${_running ? '' : ' বকেয়া লভ্যাংশ শুধু চলতি মাসের রিপোর্টে দেখায়।'}</div>`;
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। বেতন: প্রথম বেতন-রেকর্ডের মাস থেকে সব মাসের বাকি ধরা (সর্বোচ্চ ৩৬ মাস)। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; শুরুর মাস না দিলে প্রথম পরিশোধের মাস থেকে ধরা হয় (সেটিংসে শুরুর মাস দেওয়া যায়)। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৮ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব।${_running ? '' : ' বকেয়া লভ্যাংশ শুধু চলতি মাসের রিপোর্টে দেখায়।'}</div>`;
   })();
 
   const _boardHtml = `
@@ -15263,24 +15281,29 @@ function buildBoardReportHtml(month, year) {
 
   <!-- স্যালারি -->
   <h2>১০. কর্মী বেতন সারসংক্ষেপ</h2>
-  ${appData.staff.filter(s=>s.status==='active').length?`<table>
-    <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">মাসিক বেতন</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কর্তন</th><th style="text-align:right">অগ্রিম</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
+  ${appData.staff.filter(s=>s.status==='active').length?`<table style="font-size:10.5px">
+    <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">মাসিক বেতন</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কমিশন</th><th style="text-align:right">কর্তন</th><th style="text-align:right">অনুপস্থিতি কর্তন</th><th style="text-align:right">অগ্রিম</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
     <tbody>${appData.staff.filter(s=>s.status==='active').map((s,i)=>{
       const key=`sal_${s.id}_${year}_${pad(month)}`;
       const sal=(appData.salaries&&appData.salaries[key])||{bonus:0,cut:0,paid:false};
       const advTotal = sal.paid ? (sal.advanceTotal||0) : getStaffAdvanceTotal(s.id, month, year);
-      const net=s.basic+(sal.bonus||0)-(sal.cut||0)-advTotal;
+      const docComm = sal.paid ? (sal.doctorCommission||0) : getLinkedDoctorCommission(s.id, month, year);
+      const absentCut = sal.paid ? (sal.absentCut||0) : getStaffAbsentCut(s.id, month, year);
+      const net=s.basic+(sal.bonus||0)+docComm-(sal.cut||0)-absentCut-advTotal;
+      const dash = v => v>0 ? '৳ '+fmt(v) : '—';
       return `<tr><td>${i+1}</td><td style="font-weight:600">${s.name}</td><td>${s.desig}</td>
         <td style="text-align:right">৳ ${fmt(s.basic)}</td>
-        <td style="text-align:right">৳ ${fmt(sal.bonus||0)}</td>
-        <td style="text-align:right">৳ ${fmt(sal.cut||0)}</td>
-        <td style="text-align:right">${advTotal>0?'৳ '+fmt(advTotal):'—'}</td>
+        <td style="text-align:right;color:#065f46">${dash(sal.bonus||0)}</td>
+        <td style="text-align:right;color:#065f46">${dash(docComm)}</td>
+        <td style="text-align:right;color:#991b1b">${dash(sal.cut||0)}</td>
+        <td style="text-align:right;color:#991b1b">${dash(absentCut)}</td>
+        <td style="text-align:right;color:#991b1b">${dash(advTotal)}</td>
         <td style="text-align:right;font-weight:700">৳ ${fmt(net)}</td>
         <td style="text-align:center"><span class="${sal.paid?'inc':'exp'} badge">${sal.paid?'✅ পরিশোধ':'⏳ বাকি'}</span></td>
       </tr>`;
     }).join('')}</tbody>
     <tfoot><tr class="total-row"><td colspan="3">সর্বমোট (${appData.staff.filter(s=>s.status==='active').length} জন)</td>
-      <td style="text-align:right">৳ ${fmt(salCost)}</td><td colspan="5"></td></tr></tfoot>
+      <td style="text-align:right">৳ ${fmt(salCost)}</td><td colspan="7"></td></tr></tfoot>
   </table>`:'<p style="color:#9ca3af">কোনো কর্মী নেই।</p>'}
 
   ${_liabHtml}
@@ -15649,7 +15672,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
 
   var dateOf = function(v){
     var d = dayOf(v); if (!d) return '';
-    var mi = -1; for (var i = 0; i < 12; i++) { if ((v || '').indexOf(MN[i].slice(0, 3)) > -1) { mi = i; break; } }
+    var mi = -1, best = 1e9, vv = v || ''; for (var i = 0; i < 12; i++) { var at = vv.indexOf(MN[i].slice(0, 3)); if (at > -1 && at < best) { best = at; mi = i; } }
     var mm = mi >= 0 ? mi + 1 : (nav.month || 0);
     var SH = ['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে'];
     return mm ? d + ' ' + SH[mm - 1] : d;
@@ -15700,6 +15723,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
         case 'inc': case 'exp':
           o.date = dateOf(c[1]); o.title = c[3]; o.amt = c[7]; o.cls = kind === 'exp' ? 'neg' : 'pos';
           put(o.sub, '', c[2]); put(o.sub, '', c[4]); put(o.sub, '', c[5]); put(o.sub, '', c[6]);
+          var _br = (c[1].match(/\(([^)]*)\)/) || [])[1]; if (_br) put(o.sub, '', '(' + _br + ')');
           break;
         case 'rec':
           o.date = dateOf(c[1]); o.title = c[4] || c[3]; o.amt = c[7]; o.cls = 'pos';
@@ -15729,10 +15753,10 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           put(o.sub, '', c[3]); put(o.sub, '', c[4]);
           break;
         case 'sal':
-          o.title = c[1] + (blank(c[2]) ? '' : ' · ' + c[2]); o.amt = c[7];
-          put(o.sub, 'বেতন', c[3]); put(o.sub, 'বোনাস', c[4]); put(o.sub, 'কর্তন', c[5]); put(o.sub, 'অগ্রিম', c[6]);
-          var bd = tr.children[8] && tr.children[8].querySelector('.badge');
-          if (c[8]) o.chips.push([c[8], bd && bd.classList.contains('inc') ? 'i' : 'e']);
+          o.title = c[1] + (blank(c[2]) ? '' : ' · ' + c[2]); o.amt = c[9];
+          put(o.sub, 'বেতন', c[3]); put(o.sub, '+ বোনাস', c[4]); put(o.sub, '+ কমিশন', c[5]); put(o.sub, '− কর্তন', c[6]); put(o.sub, '− অনুপস্থিতি', c[7]); put(o.sub, '− অগ্রিম', c[8]);
+          var bd = tr.children[10] && tr.children[10].querySelector('.badge');
+          if (c[10]) o.chips.push([c[10], bd && bd.classList.contains('inc') ? 'i' : 'e']);
           break;
         default:
           var ids = []; for (var q = 0; q < L.length; q++) if (L[q] !== '#') ids.push(q);
@@ -19338,7 +19362,10 @@ function getFixedBillExact(itemKey, mp) {
 }
 function getFixedBillRows(itemKey, endPrefix, asOf) {
   const item = FIXED_BILL_ITEMS.find(x => x.key === itemKey); if (!item) return [];
-  const st = appData.settings.fixedTrackStart || '';
+  let st = appData.settings.fixedTrackStart || '';
+  if (!st) { // শুরুর মাস না দিলে এই খাতে সবচেয়ে প্রথম পরিশোধের মাস থেকে ধরা
+    (appData.expense||[]).forEach(e => { if (item.cats.includes(e.category) && !e.isFundExpense) { const mp = e.forMonth || (expenseEffectiveDate(e) || e.date || '').slice(0,7); if (mp && (!st || mp < st)) st = mp; } });
+  }
   const start = (st && st <= endPrefix) ? st : endPrefix;
   return _fbMonthsBetween(start, endPrefix).map(mp => {
     const exact = getFixedBillExact(itemKey, mp);
@@ -19445,7 +19472,7 @@ function renderFixedTracker() {
       <button class="btn btn-outline btn-sm" onclick="openFixedBillEntry()">🧾 বিল এন্ট্রি (সঠিক অঙ্ক)</button>
     </div>
     ${dueRows ? `<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;margin-top:6px"><thead><tr><th>খাত</th><th>মাস</th><th style="text-align:right">ধার্য</th><th style="text-align:right">পরিশোধ</th><th style="text-align:right">বাকি</th><th></th></tr></thead><tbody>${dueRows}</tbody></table></div>`
-      : `<div style="color:var(--success);font-size:12.5px;margin-top:6px">${(s.fixedTrackStart||'') ? '✅ ট্র্যাকিং শুরুর মাস থেকে এ পর্যন্ত কোনো ভাড়া/ইউটিলিটি বাকি নেই' : 'ট্র্যাকিং শুরুর মাস দিলে আগের মাসের বাকিও এখানে ও রিপোর্টে ধরা পড়বে। এখন শুধু চলতি মাসের হিসাব চলছে।'}</div>`}
+      : `<div style="color:var(--success);font-size:12.5px;margin-top:6px">${(s.fixedTrackStart||'') ? '✅ ট্র্যাকিং শুরুর মাস থেকে এ পর্যন্ত কোনো ভাড়া/ইউটিলিটি বাকি নেই' : 'শুরুর মাস না দিলে এই খাতে প্রথম পরিশোধের মাস থেকে সব মাসের বাকি ধরা হয়; আরও আগের বাকি ধরতে শুরুর মাস দিন।'}</div>`}
     <div style="font-size:11.5px;color:var(--text-light);margin-top:6px">বিল এলে "বিল" বাটনে সঠিক অঙ্ক দিন। পরিশোধের সময় (এখানে বা ব্যয় পেজে) শুধু বাকি মাসগুলোই বেছে নেওয়া যায়; দেরির জরিমানা থাকলে "➕ জরিমানা" দিন। টাকা বের হওয়ার দিনের মাসেই রিপোর্ট ও ক্যাশ ব্যালেন্সে দেখাবে।</div>`;
 }
 function openFixedBillPay(itemKey, mp) {
