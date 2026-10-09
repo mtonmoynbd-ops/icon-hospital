@@ -14862,18 +14862,30 @@ function buildBoardReportHtml(month, year) {
     @media print{.brpt-page{padding:10mm;box-shadow:none} .no-print{display:none}}
   `;
 
-  // আয়ের বিস্তারিত তালিকা
-  const incRows = incomes.sort((a,b)=>a.date.localeCompare(b.date)).map((e,i)=>`
+  // আয়ের বিস্তারিত তালিকা — সব ধরনের আয় (অ্যাডমিন/বাকি আদায় এন্ট্রি + রিসেপশন বিল + ক্যাম্প আয়) তারিখ ক্রমে, মেমো/রিসিট নং সহ
+  const _incAll = [
+    ...incomes.map(e => ({ d: e.date, memo: e.memo||'', kind: 'adm', cat: e.category, ref: e.ref||'—', note: e.note||'—', by: e.by||'—', amt: e.amount||0 })),
+    ...visits.map(v => ({ d: v.date, memo: v.memoNo||v.rcptNo||'', memoShow: v.memoNo||v.rcptNo||('REC-'+String(v.id).slice(-6)), kind: 'rec', cat: '🏥 রিসেপশন বিল', ref: v.patName||'—', note: (v.services||[]).map(s=>s.name).join(', ')||'—', by: v.by||v.createdBy||'—', amt: getVisitBilledCashPaid(v) })),
+    ...camps.map(c => { const b=c.incBreakdown||{}; return { d: c.date, memo: c.receipt||'', kind: 'camp', cat: '🏕️ ক্যাম্প আয়', ref: [c.name, c.location].filter(Boolean).join(' — ')||'—', note: `ভিজিট ${fmt(b.visit||0)} · ওষুধ ${fmt(b.med||0)} · চশমা ${fmt(b.glass||0)} · টেস্ট ${fmt(b.test||0)}`, by: c.by||'—', amt: c.totalIncome||0 }; })
+  ].sort((a,b)=>(a.d||'').localeCompare(b.d||'') || String(a.memo).localeCompare(String(b.memo), undefined, {numeric:true}));
+  const incRows = _incAll.map((x,i)=>`
     <tr>
       <td>${i+1}</td>
-      <td>${formatDate(e.date)}</td>
-      <td style="color:#00897b;font-weight:600">${e.memo||'—'}</td>
-      <td>${e.category}</td>
-      <td>${e.ref||'—'}</td>
-      <td>${e.note||'—'}</td>
-      <td>${e.by||'—'}</td>
-      <td style="text-align:right;font-weight:700;color:#065f46">৳ ${fmt(e.amount)}</td>
+      <td>${formatDate(x.d)}</td>
+      <td style="color:${x.kind==='adm'?'#00897b':'#9d174d'};font-weight:600">${x.memoShow||x.memo||'—'}</td>
+      <td>${x.cat}</td>
+      <td>${x.ref}</td>
+      <td>${x.note}</td>
+      <td>${x.by}</td>
+      <td style="text-align:right;font-weight:700;color:#065f46">৳ ${fmt(x.amt)}</td>
     </tr>`).join('');
+  const _incAllTotal = _incAll.reduce((s,x)=>s+x.amt,0);
+  const _memoRange = (rows) => { const ms = rows.map(x=>String(x.memo||'').trim()).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true})); return ms.length ? `${ms[0]}${ms.length>1 ? ' → ' + ms[ms.length-1] : ''} (${fmt(ms.length)}টি)` : '—'; };
+  const memoRangeHtml = `<table>
+    <tr><td>🧾 অ্যাডমিন/অন্যান্য আয় এন্ট্রি — মেমো রেঞ্জ</td><td style="text-align:right;font-weight:700">${_memoRange(_incAll.filter(x=>x.kind==='adm'))}</td></tr>
+    <tr><td>🏥 রিসেপশন ক্যাশ মেমো — মেমো রেঞ্জ</td><td style="text-align:right;font-weight:700">${_memoRange(_incAll.filter(x=>x.kind==='rec'))}</td></tr>
+    <tr><td>🏕️ ক্যাম্প রিসিট — রিসিট রেঞ্জ</td><td style="text-align:right;font-weight:700">${_memoRange(_incAll.filter(x=>x.kind==='camp'))}</td></tr>
+  </table>`;
 
   // রিসেপশন আয়
   const recRows = visits.sort((a,b)=>a.date.localeCompare(b.date)).map((v,i)=>`
@@ -14919,35 +14931,38 @@ function buildBoardReportHtml(month, year) {
       <td style="text-align:right;font-weight:700;color:${(o.net||0)>=0?'#065f46':'#991b1b'}">৳ ${fmt(o.net||0)}</td>
     </tr>`).join('');
 
-  // ব্যয়ের বিস্তারিত তালিকা
-  const expRows = expenses.sort((a,b)=>(expenseEffectiveDate(a)||a.date).localeCompare(expenseEffectiveDate(b)||b.date)).map((e,i)=>{ const _d = expenseEffectiveDate(e) || e.date; return `
-    <tr>
-      <td>${i+1}</td>
-      <td>${formatDate(_d)}${_d !== e.date ? ` <span style="font-size:10px;color:#6b7280">(পূর্বের এন্ট্রি: ${formatDate(e.date)} · ভাউচার ${e.voucher||'—'})</span>` : ''}</td>
-      <td style="color:#d97706;font-weight:600">${e.voucher||'—'}</td>
-      <td>${e.category}</td>
-      <td>${e.ref||'—'}</td>
-      <td>${e.note||'—'}</td>
-      <td>${e.by||'—'}</td>
-      <td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(e.amount)}</td>
-    </tr>`;}).join('');
-
-  // ভাড়া/ইউটিলিটি বিল পরিশোধ — লাভ-লসে ফিক্সড হারে আলাদা ধরা (তাই totalExp-এ নেই), কিন্তু টাকা এই মাসেই বের হয়েছে বলে ব্যয়ের তালিকায় দেখানো হয়
+  // ব্যয়ের বিস্তারিত তালিকা — সব এন্ট্রি (ভাড়া/ইউটিলিটি/বকেয়া পরিশোধসহ) তারিখ ক্রমে। তারিখ = যেদিন ব্যয় ধরা হয়েছে (চেক ভাঙ্গার তারিখ), আলাদা হলে ব্র্যাকেটে পূর্বের এন্ট্রি তারিখ ও ভাউচার
+  // ভাড়া/ইউটিলিটি বিল পরিশোধ লাভ-লসে ফিক্সড হারে আলাদা ধরা (তাই totalExp-এ নেই), কিন্তু টাকা এই মাসেই বের হয়েছে বলে তালিকায় দেখানো হয়
   const _fixedPays = (appData.expense||[]).filter(e => !e.isFundExpense && (FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category)) || isArrearsPayment(e)))
     .map(e => ({ e, d: expenseEffectiveDate(e) })).filter(x => x.d && x.d.startsWith(prefix)).sort((a,b)=>a.d.localeCompare(b.d));
   const fixedPaidTotal = _fixedPays.reduce((s,x)=>s+(x.e.amount||0),0);
   const arrearsPaidTotal = _fixedPays.filter(x=>isArrearsPayment(x.e)).reduce((s,x)=>s+(x.e.amount||0),0);
-  const fixedPayRows = _fixedPays.map((x,i)=>`
+  const _expAll = expenses.map(e => ({ e, d: expenseEffectiveDate(e) || e.date, fixed: false }))
+    .concat(_fixedPays.map(x => ({ e: x.e, d: x.d, fixed: true })))
+    .sort((a,b)=>(a.d||'').localeCompare(b.d||'') || String(a.e.voucher||'').localeCompare(String(b.e.voucher||''), undefined, {numeric:true}));
+  const _origNote = (x) => x.d !== x.e.date ? ` <span style="font-size:10px;color:#6b7280">(পূর্বের এন্ট্রি: ${formatDate(x.e.date)} · ভাউচার ${x.e.voucher||'—'})</span>` : '';
+  const expRows = _expAll.map((x,i)=> x.fixed ? `
     <tr>
-      <td>${expenses.length+i+1}</td>
-      <td>${formatDate(x.d)}${x.d !== x.e.date ? ` <span style="font-size:10px;color:#6b7280">(পূর্বের এন্ট্রি: ${formatDate(x.e.date)} · ভাউচার ${x.e.voucher||'—'})</span>` : ''}</td>
+      <td>${i+1}</td>
+      <td>${formatDate(x.d)}${_origNote(x)}</td>
       <td style="color:#d97706;font-weight:600">${x.e.voucher||'—'}</td>
       <td>${x.e.category} ${isArrearsPayment(x.e) ? '<span style="font-size:10px;font-weight:700;color:#b91c1c">(🕘 বকেয়া পরিশোধ)</span>' : '<span style="font-size:10px;font-weight:700;color:#b45309">(ফিক্সড বিল)</span>'}</td>
       <td>${x.e.ref||'—'}</td>
       <td>${x.e.forMonth ? '📅 ' + _fbMonthLabel(x.e.forMonth) + ' এর বিল' : ''}${x.e.forMonth && x.e.note ? ' — ' : ''}${x.e.note||(x.e.forMonth ? '' : '—')}</td>
       <td>${x.e.by||'—'}</td>
       <td style="text-align:right;font-weight:700;color:#b45309">৳ ${fmt(x.e.amount)}</td>
+    </tr>` : `
+    <tr>
+      <td>${i+1}</td>
+      <td>${formatDate(x.d)}${_origNote(x)}</td>
+      <td style="color:#d97706;font-weight:600">${x.e.voucher||'—'}</td>
+      <td>${x.e.category}</td>
+      <td>${x.e.ref||'—'}</td>
+      <td>${x.e.note||'—'}</td>
+      <td>${x.e.by||'—'}</td>
+      <td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(x.e.amount)}</td>
     </tr>`).join('');
+  const fixedPayRows = '';
 
   // ক্যাম্প ব্যয়
   const campExpRows = camps.filter(c=>c.totalExpense>0).map((c,i)=>{
@@ -15076,7 +15091,7 @@ function buildBoardReportHtml(month, year) {
     // ঙ) শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ — বর্তমান ব্যালেন্স থেকে পেছনে হিসাব (ঐ তারিখের পরের মাস-ক্লোজ লভ্যাংশ বাদ, পরের উত্তোলন ফেরত যোগ)
     const divRows = computeDividendDuesAsOf(_asOf);
 
-    // ঘ-১) আগের মাসের বাকি বিল এই মাসে পরিশোধ হলে তার উল্লেখ (পুরো এন্ট্রি ৮ নং ব্যয়ের তালিকায়)
+    // ঘ-১) আগের মাসের বাকি বিল এই মাসে পরিশোধ হলে তার উল্লেখ (পুরো এন্ট্রি ৯ নং ব্যয়ের তালিকায়)
     const settledRows = [];
     (appData.expense||[]).filter(e => isArrearsPayment(e) && expenseBillMonth(e) < prefix).forEach(e => {
       const d = expenseEffectiveDate(e); if (!d || !d.startsWith(prefix) || d > _asOf) return;
@@ -15111,12 +15126,12 @@ function buildBoardReportHtml(month, year) {
     </table>` : '').join('');
     const paidDetail = settledRows.length ? `<h3>ঘ-১. আগের মাসের বিল এই মাসে পরিশোধ হয়েছে</h3><table>
       ${settledRows.map(r=>`<tr><td>${_e(r.label)}</td><td style="text-align:right;font-weight:700">৳ ${fmt(r.amt)}</td></tr>`).join('')}
-    </table><div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:10px">* এই টাকা এই মাসেই বের হয়েছে — পূর্ণ এন্ট্রি ৮ নং সেকশনের ব্যয়ের তালিকায় আছে।</div>` : '';
-    return `<h2>১১. দেনা ও বকেয়া দায় (${_running ? 'আজ পর্যন্ত' : 'মাস শেষে'})</h2>
+    </table><div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:10px">* এই টাকা এই মাসেই বের হয়েছে — পূর্ণ এন্ট্রি ৯ নং সেকশনের ব্যয়ের তালিকায় আছে।</div>` : '';
+    return `<h2>১২. দেনা ও বকেয়া দায় (${_running ? 'আজ পর্যন্ত' : 'মাস শেষে'})</h2>
     ${summary}
     ${detail}
     ${paidDetail}
-    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। বেতন: প্রথম বেতন-রেকর্ডের মাস থেকে সব মাসের বাকি ধরা (সর্বোচ্চ ৩৬ মাস)। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; শুরুর মাস না দিলে প্রথম পরিশোধের মাস থেকে ধরা হয় (সেটিংসে শুরুর মাস দেওয়া যায়)। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৮ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব। বকেয়া লভ্যাংশ: মাস-ক্লোজের তারিখ ও উত্তোলনের তারিখ ধরে ঐ তারিখের অবস্থা।</div>`;
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। বেতন: প্রথম বেতন-রেকর্ডের মাস থেকে সব মাসের বাকি ধরা (সর্বোচ্চ ৩৬ মাস)। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; শুরুর মাস না দিলে প্রথম পরিশোধের মাস থেকে ধরা হয় (সেটিংসে শুরুর মাস দেওয়া যায়)। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৯ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব। বকেয়া লভ্যাংশ: মাস-ক্লোজের তারিখ ও উত্তোলনের তারিখ ধরে ঐ তারিখের অবস্থা।</div>`;
   })();
 
   const _boardHtml = `
@@ -15202,8 +15217,35 @@ function buildBoardReportHtml(month, year) {
     </table>`;
   })()}
 
+  <h2>৩. ব্যয়ের খাত-ভিত্তিক বিশ্লেষণ (উৎস অনুযায়ী)</h2>
+  ${(() => {
+    const m = {};
+    const bump = (k, src, amt) => { if (!amt) return; m[k] = m[k] || { camp:0, hosp:0, total:0 }; m[k][src] += amt; m[k].total += amt; };
+    expenses.forEach(e => bump(canonicalExpenseCat(e.category) || e.category, e.campId ? 'camp' : 'hosp', e.amount||0));
+    if (totalCOGS) bump('📦 বিক্রিত পণ্যের ক্রয়মূল্য (COGS)', 'hosp', totalCOGS);
+    const sorted = Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
+    const gC = sorted.reduce((s,[,v])=>s+v.camp,0), gH = sorted.reduce((s,[,v])=>s+v.hosp,0), gT = gC + gH;
+    const fx = getMonthlyFixedForPrefix(prefix).totalFixed || 0;
+    const rows = sorted.map(([cat,d])=>`
+      <tr>
+        <td>${cat}</td>
+        <td style="text-align:right">${d.camp>0?'৳ '+fmt(d.camp):'—'}</td>
+        <td style="text-align:right">${d.hosp>0?'৳ '+fmt(d.hosp):'—'}</td>
+        <td style="text-align:right;font-weight:700">৳ ${fmt(d.total)}</td>
+      </tr>`).join('');
+    return `<table>
+      <thead><tr><th>খাত</th><th style="text-align:right">🏕️ ক্যাম্প</th><th style="text-align:right">🏥 হাসপাতাল (সাধারণ)</th><th style="text-align:right">মোট</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" style="text-align:center;color:#aaa">কোনো ডেটা নেই</td></tr>'}</tbody>
+      <tfoot>
+        <tr class="sum-row"><td><strong>মোট ব্যয় (পরিচালন + COGS)</strong></td><td style="text-align:right"><strong>৳ ${fmt(gC)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(gH)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(gT)}</strong></td></tr>
+        <tr class="sum-row"><td colspan="3">ফিক্সড খরচ (বেতন + ভাড়া + ইউটিলিটি + অন্যান্য, মাসের)</td><td style="text-align:right">৳ ${fmt(fx)}</td></tr>
+        <tr class="sum-row"><td colspan="3"><strong>ফিক্সড সহ সর্বমোট ব্যয়</strong></td><td style="text-align:right"><strong>৳ ${fmt(gT+fx)}</strong></td></tr>
+      </tfoot>
+    </table>`;
+  })()}
+
   <!-- দৈনিক সারসংক্ষেপ -->
-  <h2>৩. দৈনিক সারসংক্ষেপ</h2>
+  <h2>৪. দৈনিক সারসংক্ষেপ</h2>
   <table>
     <thead><tr><th>তারিখ</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">লাভ/লস</th></tr></thead>
     <tbody>${dailyRows||'<tr><td colspan="4" style="text-align:center;color:#aaa">কোনো ডেটা নেই</td></tr>'}</tbody>
@@ -15217,15 +15259,16 @@ function buildBoardReportHtml(month, year) {
   ${fixedBreakdownHtml}
 
   <!-- আয়ের বিস্তারিত -->
-  <h2>৪. আয়ের বিস্তারিত তালিকা (মেমো নং সহ)</h2>
-  ${incomes.length?`<table>
+  <h2>৫. আয়ের বিস্তারিত তালিকা (সব ধরনের আয়, তারিখ ক্রমে — মেমো/রিসিট নং সহ)</h2>
+  ${_incAll.length?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>মেমো নং</th><th>খাত</th><th>রোগী/রেফ</th><th>বিবরণ</th><th>এন্ট্রিকারী</th><th style="text-align:right">পরিমাণ</th></tr></thead>
     <tbody>${incRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="7"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalManualInc)}</strong></td></tr></tfoot>
-  </table>`:'<p style="color:#9ca3af">এই মাসে কোনো আয় এন্ট্রি নেই।</p>'}
+    <tfoot><tr class="sum-row"><td colspan="7"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(_incAllTotal)}</strong></td></tr></tfoot>
+  </table>
+  ${memoRangeHtml}`:'<p style="color:#9ca3af">এই মাসে কোনো আয় এন্ট্রি নেই।</p>'}
 
   <!-- রিসেপশন -->
-  <h2>৫. রিসেপশন ক্যাশ মেমো (মেমো নং সহ)</h2>
+  <h2>৬. রিসেপশন ক্যাশ মেমো (মেমো নং সহ)</h2>
   ${visits.length?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>মেমো নং</th><th>সার্ভিস</th><th>রোগী</th><th style="text-align:right">মোট বিল</th><th style="text-align:right">ডিসকাউন্ট</th><th style="text-align:right">নগদ প্রদান</th><th style="text-align:right">বাকি</th></tr></thead>
     <tbody>${recRows}</tbody>
@@ -15233,7 +15276,7 @@ function buildBoardReportHtml(month, year) {
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো রিসেপশন এন্ট্রি নেই।</p>'}
 
   <!-- ক্যাম্প -->
-  <h2>৬. ক্যাম্প আয় (রিসিট নং সহ)</h2>
+  <h2>৭. ক্যাম্প আয় (রিসিট নং সহ)</h2>
   ${camps.length?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th style="text-align:right">ভিজিট</th><th style="text-align:right">ওষুধ</th><th style="text-align:right">চশমা</th><th style="text-align:right">টেস্ট</th><th style="text-align:right">মোট</th></tr></thead>
     <tbody>${campRows}</tbody>
@@ -15246,7 +15289,7 @@ function buildBoardReportHtml(month, year) {
   </table>`:''}`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
 
   <!-- অপারেশন -->
-  <h2>৭. অপারেশন আয় ও সার্জন পারিশ্রমিক</h2>
+  <h2>৮. অপারেশন আয় ও সার্জন পারিশ্রমিক</h2>
   ${ops.length?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>রোগী</th><th>অপারেশন</th><th>সার্জন</th><th style="text-align:right">অপা. ফি</th><th style="text-align:right">সার্জন ফি</th><th style="text-align:right">নেট লাভ</th></tr></thead>
     <tbody>${opRows}</tbody>
@@ -15254,7 +15297,7 @@ function buildBoardReportHtml(month, year) {
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো অপারেশন নেই।</p>'}
 
   <!-- ব্যয় -->
-  <h2>৮. ব্যয়ের বিস্তারিত তালিকা (ভাউচার নং সহ)</h2>
+  <h2>৯. ব্যয়ের বিস্তারিত তালিকা (ভাউচার নং সহ)</h2>
   ${(expenses.length||_fixedPays.length)?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>ভাউচার নং</th><th>খাত</th><th>রেফারেন্স</th><th>বিবরণ</th><th>এন্ট্রিকারী</th><th style="text-align:right">পরিমাণ</th></tr></thead>
     <tbody>${expRows}${fixedPayRows}</tbody>
@@ -15267,7 +15310,7 @@ function buildBoardReportHtml(month, year) {
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো ব্যয় এন্ট্রি নেই।</p>'}
 
   <!-- ব্যাংক লেনদেন -->
-  <h2>৯. ব্যাংক লেনদেন ও ব্যালেন্স পরিবর্তন</h2>
+  <h2>১০. ব্যাংক লেনদেন ও ব্যালেন্স পরিবর্তন</h2>
   ${(() => {
     const L = getBankLedgerForPrefix(prefix);
     const sgn = n => (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n));
@@ -15294,7 +15337,7 @@ function buildBoardReportHtml(month, year) {
   })()}
 
   <!-- স্যালারি -->
-  <h2>১০. কর্মী বেতন সারসংক্ষেপ</h2>
+  <h2>১১. কর্মী বেতন সারসংক্ষেপ</h2>
   ${appData.staff.filter(s=>s.status==='active').length?`<table style="font-size:10.5px">
     <thead><tr><th>#</th><th>নাম</th><th>পদবি</th><th style="text-align:right">মাসিক বেতন</th><th style="text-align:right">বোনাস</th><th style="text-align:right">কমিশন</th><th style="text-align:right">কর্তন</th><th style="text-align:right">অনুপস্থিতি কর্তন</th><th style="text-align:right">অগ্রিম</th><th style="text-align:right">নেট বেতন</th><th style="text-align:center">স্ট্যাটাস</th></tr></thead>
     <tbody>${appData.staff.filter(s=>s.status==='active').map((s,i)=>{
@@ -15700,7 +15743,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     var has = function(re){ return L.some(function(x){ return re.test(x); }); };
     var kind = 'generic';
     if (has(/^পক্ষ$/) && has(/^(বাকি|পরিশোধিত) টাকা$/)) kind = 'liab';
-    else if (has(/^খাত$/) && has(/রিসেপশন/) && has(/ক্যাম্প/)) kind = 'cat';
+    else if (has(/^খাত$/) && has(/রিসেপশন|হাসপাতাল/) && has(/ক্যাম্প/)) kind = 'cat';
     else if (has(/^তারিখ$/) && has(/^আয়$/) && has(/^ব্যয়$/)) kind = 'daily';
     else if (has(/নগদ প্রদান/)) kind = 'rec';
     else if (has(/ক্যাম্পের নাম/)) kind = 'camp';
@@ -15721,7 +15764,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           put(o.sub, '', c[2]);
           break;
         case 'cat':
-          o.title = c[0]; o.amt = c[3];
+          o.title = c[0]; o.amt = c[3]; o.cls = /হাসপাতাল/.test(L[2]) ? 'neg' : '';
           put(o.sub, L[1], c[1]); put(o.sub, L[2], c[2]);
           break;
         case 'daily':
