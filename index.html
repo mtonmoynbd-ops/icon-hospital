@@ -13334,18 +13334,20 @@ function renderExpenseTable() {
     const fundItems = items.filter(e=>e.isFundExpense);
     const invItems = items.filter(e=>e.isInventoryPurchase);
     const normalTotal = normalItems.reduce((s,e)=>s+e.amount,0);
-    const fixedTotal = fixedItems.reduce((s,e)=>s+e.amount,0);
+    const arrearsTotal = fixedItems.filter(e=>isArrearsPayment(e)).reduce((s,e)=>s+e.amount,0);
+    const fixedTotal = fixedItems.filter(e=>!isArrearsPayment(e)).reduce((s,e)=>s+e.amount,0);
     const fundTotal = fundItems.reduce((s,e)=>s+e.amount,0);
     const invTotal = invItems.reduce((s,e)=>s+e.amount,0);
     const transferTotal = transferItems.reduce((s,tx)=>s+tx.amount,0);
-    const grandTotal = normalTotal + fixedTotal + fundTotal + invTotal;
+    const grandTotal = normalTotal + fixedTotal + arrearsTotal + fundTotal + invTotal;
     const label = getGroupLabel(key);
     const gid = key.replace(/[^a-zA-Z0-9]/g,'_');
     let bracketsHtml = `<span style="color:${groupText}">সাধারণ ব্যয়: ৳ ${fmt(normalTotal)}</span>`;
-    if (fixedTotal) bracketsHtml += ` <span style="color:#b45309">| ফিক্সড-খাত: ৳ ${fmt(fixedTotal)}</span>`;
+    if (fixedTotal) bracketsHtml += ` <span style="color:#b45309">| ফিক্সড-খাত (চলতি মাসের): ৳ ${fmt(fixedTotal)}</span>`;
+    if (arrearsTotal) bracketsHtml += ` <span style="color:#b91c1c;font-weight:700">| 🕘 বকেয়া পরিশোধ (আগের মাসের): ৳ ${fmt(arrearsTotal)}</span>`;
     if (fundTotal) bracketsHtml += ` <span style="color:#5b21b6">| ফান্ড থেকে: ৳ ${fmt(fundTotal)}</span>`;
     if (invTotal) bracketsHtml += ` <span style="color:#0369a1">| ইনভেন্টরি: ৳ ${fmt(invTotal)}</span>`;
-    if (fixedTotal || fundTotal || invTotal) bracketsHtml += ` <span style="color:#991b1b;font-weight:800">| প্রকৃত মোট ব্যয়: ৳ ${fmt(grandTotal)}</span>`;
+    if (fixedTotal || arrearsTotal || fundTotal || invTotal) bracketsHtml += ` <span style="color:#991b1b;font-weight:800">| প্রকৃত মোট ব্যয়: ৳ ${fmt(grandTotal)}</span>`;
     if (transferTotal) bracketsHtml += ` <span style="color:#0f766e;font-weight:700">| 🔁 ট্রান্সফার/উত্তোলন (ব্যয় নয়): ৳ ${fmt(transferTotal)}</span>`;
     const entryCountTxt = items.length + (transferItems.length ? ` + ${transferItems.length} ট্রান্সফার` : '');
     html += `<tr style="background:${groupBg};cursor:pointer;border-top:2px solid ${groupBorder}" data-hdr-gid="exp_${gid}" data-open="1" onclick="toggleExpGroup('${gid}')">
@@ -13375,7 +13377,8 @@ function renderExpenseTable() {
         : (e.payPerson || '—');
       const fundBadge = e.isFundExpense ? `<span title="এই খরচ ফান্ড থেকে করা হয়েছে — মাসিক নিট লাভ/লোকসান হিসাবে গণনা হয় না" style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏦 P&L-নিরপেক্ষ</span>` : '';
       const invBadge = e.isInventoryPurchase ? `<span title="ইনভেন্টরি ক্রয় — সম্পদ হিসেবে গণ্য, বিক্রির সময় COGS হিসেবে গণনা হয়, তাই এখন P&L-এ ধরা হয় না" style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">📦 সম্পদ</span>` : '';
-      const fixedBadge = (!e.isFundExpense && !e.isInventoryPurchase && isFixedCostExpenseCategory(e.category)) ? `<span title="এই খাতের টাকা Settings-এর ফিক্সড খরচ রেট থেকে ইতিমধ্যে P&L-এ আলাদাভাবে গণনা হয়ে যায় — তাই এখানে ডাবল-কাউন্ট এড়াতে 'পরিচালন ব্যয়'-এ ধরা হয় না" style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏠 ফিক্সড-খাত (P&L-এ পৃথক)</span>` : '';
+      const _fixedBadge0 = (!e.isFundExpense && !e.isInventoryPurchase && isFixedCostExpenseCategory(e.category)) ? `<span title="এই খাতের টাকা Settings-এর ফিক্সড খরচ রেট থেকে ইতিমধ্যে P&L-এ আলাদাভাবে গণনা হয়ে যায় — তাই এখানে ডাবল-কাউন্ট এড়াতে 'পরিচালন ব্যয়'-এ ধরা হয় না" style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🏠 ফিক্সড-খাত (P&L-এ পৃথক)</span>` : '';
+      const fixedBadge = isArrearsPayment(e) ? `<span title="আগের মাসের বিল/বেতন, এই মাসে পরিশোধ — চলতি মাসের ফিক্সড হিসাব নয়" style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">🕘 বকেয়া পরিশোধ</span>` : _fixedBadge0;
       const forMonthBadge = e.forMonth ? `<span title="এই পরিশোধ যে মাসের বিলের জন্য" style="background:#e0f2fe;color:#075985;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px;white-space:nowrap">📅 ${_fbMonthLabel(e.forMonth)} এর বিল</span>` : '';
       const origDateNote = (effDate!==e.date) ? `<span style="color:#94a3b8;font-size:11px"> (মূল এন্ট্রি: ${formatDate(e.date)})</span>` : '';
       html += `<tr class="exp-grp-row"${e.isFundExpense?' style="background:#faf5ff"':''} data-grp="${gid}" id="exp-row-${e.id}">
@@ -14930,15 +14933,16 @@ function buildBoardReportHtml(month, year) {
     </tr>`;}).join('');
 
   // ভাড়া/ইউটিলিটি বিল পরিশোধ — লাভ-লসে ফিক্সড হারে আলাদা ধরা (তাই totalExp-এ নেই), কিন্তু টাকা এই মাসেই বের হয়েছে বলে ব্যয়ের তালিকায় দেখানো হয়
-  const _fixedPays = (appData.expense||[]).filter(e => !e.isFundExpense && FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category)))
+  const _fixedPays = (appData.expense||[]).filter(e => !e.isFundExpense && (FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category)) || isArrearsPayment(e)))
     .map(e => ({ e, d: expenseEffectiveDate(e) })).filter(x => x.d && x.d.startsWith(prefix)).sort((a,b)=>a.d.localeCompare(b.d));
   const fixedPaidTotal = _fixedPays.reduce((s,x)=>s+(x.e.amount||0),0);
+  const arrearsPaidTotal = _fixedPays.filter(x=>isArrearsPayment(x.e)).reduce((s,x)=>s+(x.e.amount||0),0);
   const fixedPayRows = _fixedPays.map((x,i)=>`
     <tr>
       <td>${expenses.length+i+1}</td>
       <td>${formatDate(x.d)}${x.d !== x.e.date ? ` <span style="font-size:10px;color:#6b7280">(পূর্বের এন্ট্রি: ${formatDate(x.e.date)} · ভাউচার ${x.e.voucher||'—'})</span>` : ''}</td>
       <td style="color:#d97706;font-weight:600">${x.e.voucher||'—'}</td>
-      <td>${x.e.category} <span style="font-size:10px;font-weight:700;color:#b45309">(ফিক্সড বিল)</span></td>
+      <td>${x.e.category} ${isArrearsPayment(x.e) ? '<span style="font-size:10px;font-weight:700;color:#b91c1c">(🕘 বকেয়া পরিশোধ)</span>' : '<span style="font-size:10px;font-weight:700;color:#b45309">(ফিক্সড বিল)</span>'}</td>
       <td>${x.e.ref||'—'}</td>
       <td>${x.e.forMonth ? '📅 ' + _fbMonthLabel(x.e.forMonth) + ' এর বিল' : ''}${x.e.forMonth && x.e.note ? ' — ' : ''}${x.e.note||(x.e.forMonth ? '' : '—')}</td>
       <td>${x.e.by||'—'}</td>
@@ -14969,6 +14973,9 @@ function buildBoardReportHtml(month, year) {
   const _dayLimit = (() => { const td = todayStr(); if (td.slice(0,7) === prefix) return parseInt(td.slice(8,10),10); return td.slice(0,7) > prefix ? daysInMonth : 0; })();
   const _fxDays = Math.min(daysInMonth, _dayLimit);
   const _fxRunning = todayStr().slice(0,7) === prefix;
+  // আগের মাসের বিল/বেতন এই মাসে পরিশোধ (বকেয়া পরিশোধ) — ফিক্সড/নিট হিসাবের বাইরে, কিন্তু টাকা এই মাসেই বের হয়েছে; লাল কার্ডে আলাদা দেখানো
+  const _arrearsByDate = {}; let gArrears = 0;
+  (appData.expense||[]).filter(e => isArrearsPayment(e)).forEach(e => { const d0 = expenseEffectiveDate(e); if (!d0 || !d0.startsWith(prefix)) return; (_arrearsByDate[d0] = _arrearsByDate[d0] || []).push(e); gArrears += e.amount||0; });
   let dailyRows='', gInc=0, gExp=0;
   for(let d=1;d<=daysInMonth;d++){
     const ds=`${year}-${pad(month)}-${pad(d)}`;
@@ -14976,15 +14983,17 @@ function buildBoardReportHtml(month, year) {
              +visits.filter(v=>v.date===ds).reduce((s,v)=>s+v.cashPaid,0)
              +camps.filter(c=>c.date===ds).reduce((s,c)=>s+c.totalIncome,0);
     const de=expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0) + (getCOGSForPrefix(ds)||0);
-    if(!di&&!de) continue;
+    const _arr = _arrearsByDate[ds] || [];
+    if(!di&&!de&&!_arr.length) continue;
     gInc+=di; gExp+=de;
     const dp=di-de;
-    dailyRows+=`<tr>
+    if(di||de) dailyRows+=`<tr>
       <td>${formatDate(ds)}</td>
       <td style="text-align:right;color:#065f46">৳ ${fmt(di)}</td>
       <td style="text-align:right;color:#991b1b">৳ ${fmt(de)}</td>
       <td style="text-align:right;font-weight:700;color:${dp>=0?'#065f46':'#991b1b'}">${dp>=0?'':'- '}৳ ${fmt(Math.abs(dp))}</td>
     </tr>`;
+    _arr.forEach(e => { dailyRows += `<tr class="arrears"><td>${formatDate(ds)}</td><td colspan="2" style="color:#991b1b;font-weight:600">বকেয়া বিল পরিশোধ <span style="font-size:10px;font-weight:400;color:#b91c1c">(${arrearsLabel(e)})</span></td><td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(e.amount)}</td></tr>`; });
   }
   const gFix = _fxDays >= daysInMonth ? (_fxInfo.totalFixed||0) : _fxPerDay * _fxDays;
   const gNet = gInc - gExp - gFix;
@@ -15064,18 +15073,14 @@ function buildBoardReportHtml(month, year) {
       if (r.due > 0.5) fixRows.push({ key: it.key, party: it.label.replace(/^\S+\s/, ''), head: '', part: `${_fbMonthLabel(r.month)} বাকি ৳ ${fmt(r.due)}` + (r.paid > 0.5 ? ` (ধার্য ৳ ${fmt(r.rate)}, আংশিক পরিশোধ ৳ ${fmt(r.paid)})` : ''), amt: r.due });
     }));
 
-    // ঙ) শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ — শুধু বর্তমান ব্যালেন্স থেকে জানা যায়, তাই চলতি মাসেই
-    const divRows = [];
-    if (_running) {
-      (appData.shareholders||[]).forEach(s => { if ((s.balance||0) > 0.5) divRows.push({ party: s.name, desc: 'শেয়ারহোল্ডার — বকেয়া লভ্যাংশ', amt: s.balance }); });
-      (appData.investors||[]).forEach(s => { if ((s.balance||0) > 0.5) divRows.push({ party: s.name, desc: 'ইনভেস্টর — বকেয়া লভ্যাংশ', amt: s.balance }); });
-    }
+    // ঙ) শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ — বর্তমান ব্যালেন্স থেকে পেছনে হিসাব (ঐ তারিখের পরের মাস-ক্লোজ লভ্যাংশ বাদ, পরের উত্তোলন ফেরত যোগ)
+    const divRows = computeDividendDuesAsOf(_asOf);
 
     // ঘ-১) আগের মাসের বাকি বিল এই মাসে পরিশোধ হলে তার উল্লেখ (পুরো এন্ট্রি ৮ নং ব্যয়ের তালিকায়)
     const settledRows = [];
-    (appData.expense||[]).filter(e => !e.isFundExpense && e.forMonth && e.forMonth < prefix && FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category))).forEach(e => {
+    (appData.expense||[]).filter(e => isArrearsPayment(e) && expenseBillMonth(e) < prefix).forEach(e => {
       const d = expenseEffectiveDate(e); if (!d || !d.startsWith(prefix) || d > _asOf) return;
-      settledRows.push({ d, label: `✅ ${_fbMonthLabel(e.forMonth)} এর ${e.category} — ${formatDate(d)} তারিখে পরিশোধ`, amt: e.amount||0 });
+      settledRows.push({ d, label: `✅ ${arrearsLabel(e)} — ${formatDate(d)} তারিখে পরিশোধ (বকেয়া পরিশোধ)`, amt: e.amount||0 });
     });
     settledRows.sort((a,b)=>a.d.localeCompare(b.d));
     // কর্মী / ভাড়া / ইউটিলিটি — একজন বা একটা খাতের জন্য একটাই কার্ড: সব বাকি মাস + আংশিক পরিশোধ + মোট দেনা
@@ -15092,7 +15097,7 @@ function buildBoardReportHtml(month, year) {
       ['গ. লোন (ব্যক্তি/প্রতিষ্ঠান থেকে নেয়া)', loanRows, 'কোনো বকেয়া লোন নেই ✅'],
       ['ঘ. অপরিশোধিত ভাড়া ও ইউটিলিটি', fixGroups, 'ভাড়া/ইউটিলিটি বাকি নেই ✅']
     ];
-    if (_running) groups.push(['ঙ. শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ', divRows, 'বকেয়া লভ্যাংশ নেই ✅']);
+    groups.push(['ঙ. শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ', divRows, 'বকেয়া লভ্যাংশ নেই ✅']);
     const grand = groups.reduce((s,g)=>s+sum(g[1]), 0);
 
     const summary = `<table>
@@ -15111,7 +15116,7 @@ function buildBoardReportHtml(month, year) {
     ${summary}
     ${detail}
     ${paidDetail}
-    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। বেতন: প্রথম বেতন-রেকর্ডের মাস থেকে সব মাসের বাকি ধরা (সর্বোচ্চ ৩৬ মাস)। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; শুরুর মাস না দিলে প্রথম পরিশোধের মাস থেকে ধরা হয় (সেটিংসে শুরুর মাস দেওয়া যায়)। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৮ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব।${_running ? '' : ' বকেয়া লভ্যাংশ শুধু চলতি মাসের রিপোর্টে দেখায়।'}</div>`;
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। বেতন: প্রথম বেতন-রেকর্ডের মাস থেকে সব মাসের বাকি ধরা (সর্বোচ্চ ৩৬ মাস)। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; শুরুর মাস না দিলে প্রথম পরিশোধের মাস থেকে ধরা হয় (সেটিংসে শুরুর মাস দেওয়া যায়)। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৮ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব। বকেয়া লভ্যাংশ: মাস-ক্লোজের তারিখ ও উত্তোলনের তারিখ ধরে ঐ তারিখের অবস্থা।</div>`;
   })();
 
   const _boardHtml = `
@@ -15206,6 +15211,7 @@ function buildBoardReportHtml(month, year) {
       <tr class="sum-row"><td><strong>সর্বমোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(gInc)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(gExp)}</strong></td><td style="text-align:right"><strong>${(gInc-gExp)>=0?'':'- '}৳ ${fmt(Math.abs(gInc-gExp))}</strong></td></tr>
       <tr class="sum-row"><td colspan="3">ফিক্সড খরচ (${_fxRunning ? `১–${fmt(_fxDays)} তারিখ, চলতি ${fmt(_fxDays)} দিন` : 'পুরো মাস'})</td><td style="text-align:right">৳ ${fmt(gFix)}</td></tr>
       <tr class="sum-row"><td colspan="3"><strong>ফিক্সড সহ আনুমানিক নিট লাভ/লস</strong></td><td style="text-align:right;font-weight:700;color:${gNet>=0?'#065f46':'#991b1b'}">${gNet>=0?'':'- '}৳ ${fmt(Math.abs(gNet))}</td></tr>
+      ${gArrears>0 ? `<tr class="sum-row"><td colspan="3" style="color:#991b1b">🕘 বকেয়া বিল পরিশোধ (আগের মাসের — উপরের নিট হিসাবের বাইরে)</td><td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(gArrears)}</td></tr>` : ''}
     </tfoot>
   </table>
   ${fixedBreakdownHtml}
@@ -15254,7 +15260,8 @@ function buildBoardReportHtml(month, year) {
     <tbody>${expRows}${fixedPayRows}</tbody>
     <tfoot>
       <tr class="sum-row"><td colspan="7"><strong>${_fixedPays.length ? 'মোট ব্যয় (লাভ-লসে ধরা)' : 'মোট'}</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp)}</strong></td></tr>
-      ${_fixedPays.length ? `<tr class="sum-row"><td colspan="7">ভাড়া/ইউটিলিটি বিল পরিশোধ (লাভ-লসে ফিক্সড হারে আলাদা ধরা)</td><td style="text-align:right">৳ ${fmt(fixedPaidTotal)}</td></tr>
+      ${_fixedPays.length ? `<tr class="sum-row"><td colspan="7">ফিক্সড-খাত পরিশোধ — ভাড়া/ইউটিলিটি (লাভ-লসে ফিক্সড হারে আলাদা ধরা)</td><td style="text-align:right">৳ ${fmt(fixedPaidTotal)}</td></tr>
+      ${arrearsPaidTotal>0 ? `<tr class="sum-row"><td colspan="7" style="color:#b91c1c">এর মধ্যে 🕘 বকেয়া পরিশোধ (আগের মাসের বিল/বেতন)</td><td style="text-align:right;color:#b91c1c">৳ ${fmt(arrearsPaidTotal)}</td></tr>` : ''}
       <tr class="sum-row"><td colspan="7"><strong>মোট বের হওয়া টাকা (ক্যাশ/ব্যাংক)</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp+fixedPaidTotal)}</strong></td></tr>` : ''}
     </tfoot>
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো ব্যয় এন্ট্রি নেই।</p>'}
@@ -15719,6 +15726,11 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           break;
         case 'daily':
           o.date = dateOf(c[0]);
+          if (tr.classList && tr.classList.contains('arrears')) {
+            o.arrears = true; o.title = 'বকেয়া বিল পরিশোধ'; o.amt = c[2]; o.cls = 'neg';
+            var _bm = (c[1].match(/\(([^)]*)\)/) || [])[1]; if (_bm) o.sub.push('(' + _bm + ')');
+            break;
+          }
           if (c.length >= 5) {
             o.multi = [['আয়', c[1], 'i'], ['ব্যয়', c[2], 'e'], ['ফিক্সড', c[3], 'f']];
             o.amt = c[4]; o.cls = /^-/.test(c[4]) ? 'neg' : 'pos';
@@ -15774,7 +15786,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     };
 
     var render = function(o) {
-      var d = mk('div', 'cc' + (o.cls ? ' ' + o.cls : '') + (o.multi ? ' cc-daily' : ''));
+      var d = mk('div', 'cc' + (o.cls ? ' ' + o.cls : '') + (o.multi ? ' cc-daily' : '') + (o.arrears ? ' cc-arr' : ''));
       var l1 = mk('div', 'cc-l1');
       if (o.date) l1.appendChild(mk('span', 'cc-d', o.date));
       var ti = mk('span', 'cc-t' + (o.multi ? ' cc-multi' : ''));
@@ -15919,6 +15931,9 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc-s{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cc.open .cc-s,.cc.open .cc-t:not(.cc-multi){white-space:normal;overflow:visible}
     .cc-x{flex:0 0 auto;display:flex;gap:4px}
+    .cc.cc-arr{background:#fff5f5;border-left:3px dashed #ef4444;border-color:#fecaca}
+    .cc-arr .cc-t{color:#b91c1c}
+    .cc-arr .cc-s{color:#b91c1c;font-size:10.5px}
     .cc-chip{font-size:10.5px;font-weight:700;border-radius:10px;padding:0 6px;background:#eef2f7;color:#475569;line-height:17px;white-space:nowrap}
     .cc-chip.i{background:#d1fae5;color:#065f46}
     .cc-chip.e{background:#fee2e2;color:#991b1b}
@@ -19515,6 +19530,43 @@ function saveFixedBillPay(itemKey, mp) {
   document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
   saveData(); renderFixedTracker(); if (typeof renderExpenseTable === 'function') renderExpenseTable(); refreshDashboard();
   showToast(`✅ ৳${fmt(amt)}${fine > 0 ? ' + জরিমানা ৳' + fmt(fine) : ''} পরিশোধ হিসেবে রেকর্ড হয়েছে`);
+}
+
+// ===== বকেয়া পরিশোধ (আগের মাসের বিল/বেতন এই মাসে মেটানো) =====
+// ভাড়া/ইউটিলিটি বিলের expense.forMonth বা বেতনের expense.salaryRef থেকে "কোন মাসের" সেটা বোঝা যায়; সেই মাস পরিশোধের মাসের আগে হলে এটা চলতি মাসের ফিক্সড হিসাব নয়, "বকেয়া পরিশোধ"।
+function expenseBillMonth(e) {
+  if (e.forMonth) return e.forMonth;
+  const m = String(e.salaryRef || '').match(/_(\d{4})_(\d{2})$/);
+  return m ? m[1] + '-' + m[2] : '';
+}
+function isArrearsPayment(e) {
+  if (!e || e.isFundExpense || e.isInventoryPurchase || !isFixedCostExpenseCategory(e.category)) return false;
+  const bm = expenseBillMonth(e); if (!bm) return false;
+  const eff = (expenseEffectiveDate(e) || e.date || '').slice(0, 7);
+  return !!eff && bm < eff;
+}
+function arrearsLabel(e) { const bm = expenseBillMonth(e); return `${bm ? _fbMonthLabel(bm) + ' এর ' : ''}${e.category}`; }
+
+// ===== শেয়ারহোল্ডার/ইনভেস্টরের বকেয়া লভ্যাংশ — নির্দিষ্ট তারিখ পর্যন্ত =====
+// বর্তমান ব্যালেন্স থেকে পেছনে হিসাব: ঐ তারিখের পরে মাস-ক্লোজে যোগ হওয়া লভ্যাংশ বাদ, ঐ তারিখের পরে করা উত্তোলন ফেরত যোগ।
+function computeDividendDuesAsOf(asOf) {
+  const out = [], closed = appData.monthClosings || [];
+  const laterClose = mc => { const d = (mc.closedAt || '').slice(0, 10); return !!d && d > asOf; };
+  (appData.shareholders || []).forEach(sh => {
+    if (sh.joinDate && sh.joinDate > asOf) return;
+    let bal = sh.balance || 0;
+    closed.forEach(mc => { if (!laterClose(mc)) return; const b = (mc.breakdown || []).find(x => x.shareholderId === sh.id); if (b) bal -= b.amount || 0; });
+    (appData.shareholderWithdrawals || []).forEach(w => { if (w.shareholderId === sh.id && w.date > asOf) bal += w.amount || 0; });
+    if (bal > 0.5) out.push({ party: sh.name, desc: 'শেয়ারহোল্ডার — বকেয়া লভ্যাংশ', amt: bal });
+  });
+  (appData.investors || []).forEach(inv => {
+    if (inv.joinDate && inv.joinDate > asOf) return;
+    let bal = inv.balance || 0;
+    closed.forEach(mc => { if (!laterClose(mc)) return; const b = (mc.investorBreakdown || []).find(x => x.investorId === inv.id); if (b) bal -= b.amount || 0; });
+    (appData.investorWithdrawals || []).forEach(w => { if (w.investorId === inv.id && w.date > asOf) bal += w.amount || 0; });
+    if (bal > 0.5) out.push({ party: inv.name, desc: 'ইনভেস্টর — বকেয়া লভ্যাংশ', amt: bal });
+  });
+  return out;
 }
 
 // ===== সরবরাহকারীর দেনা — নির্দিষ্ট তারিখ পর্যন্ত (নির্ভুল) =====
@@ -37551,15 +37603,16 @@ function getPeriodOpexFixedSplit(period) {
     if (period === 'year')  return d.startsWith(yearPfx);
     return false;
   }
-  let opexTotal = 0, fixedTotal = 0;
+  let opexTotal = 0, fixedTotal = 0, arrearsTotal = 0;
   (appData.expense||[]).forEach(e => {
     if (e.isFundExpense || e.isInventoryPurchase) return;
     const d = expenseEffectiveDate(e);
     if (!d || !dateMatch(d)) return;
-    if (isFixedCostExpenseCategory(e.category)) fixedTotal += e.amount;
+    if (isArrearsPayment(e)) arrearsTotal += e.amount;
+    else if (isFixedCostExpenseCategory(e.category)) fixedTotal += e.amount;
     else opexTotal += e.amount;
   });
-  return { opexTotal, fixedTotal };
+  return { opexTotal, fixedTotal, arrearsTotal };
 }
 
 // Resizes a canvas's backing pixel buffer to match its actual on-screen CSS
@@ -40179,10 +40232,10 @@ function renderDashPieChart(){
   const note=document.getElementById('dashPieOpexNote');
   if (note) {
     if (_dPieType==='expense') {
-      const {opexTotal, fixedTotal}=getPeriodOpexFixedSplit(_dPiePeriod);
-      if (fixedTotal>0) {
+      const {opexTotal, fixedTotal, arrearsTotal}=getPeriodOpexFixedSplit(_dPiePeriod);
+      if (fixedTotal>0 || arrearsTotal>0) {
         note.style.display='block';
-        note.innerHTML=`🟢 পরিচালন ব্যয় (P&L-ভুক্ত): ৳ ${fmt(opexTotal)} &nbsp;|&nbsp; 🏠 ফিক্সড-খাত এন্ট্রি (Settings-এ পৃথক গণনা): ৳ ${fmt(fixedTotal)}`;
+        note.innerHTML=`🟢 পরিচালন ব্যয় (P&L-ভুক্ত): ৳ ${fmt(opexTotal)} &nbsp;|&nbsp; 🏠 ফিক্সড-খাত (চলতি মাসের, Settings-এ পৃথক গণনা): ৳ ${fmt(fixedTotal)}${arrearsTotal>0 ? ` &nbsp;|&nbsp; 🕘 বকেয়া পরিশোধ (আগের মাসের): ৳ ${fmt(arrearsTotal)}` : ''}`;
       } else {
         note.style.display='none';
       }
@@ -40975,10 +41028,10 @@ function renderOwnerPieChart(){
   const note=document.getElementById('ownerPieOpexNote');
   if (note) {
     if (_oPieType==='expense') {
-      const {opexTotal, fixedTotal}=getPeriodOpexFixedSplit(_oPiePeriod);
-      if (fixedTotal>0) {
+      const {opexTotal, fixedTotal, arrearsTotal}=getPeriodOpexFixedSplit(_oPiePeriod);
+      if (fixedTotal>0 || arrearsTotal>0) {
         note.style.display='block';
-        note.innerHTML=`🟢 পরিচালন ব্যয় (P&L-ভুক্ত): ৳ ${fmt(opexTotal)} &nbsp;|&nbsp; 🏠 ফিক্সড-খাত এন্ট্রি (Settings-এ পৃথক গণনা): ৳ ${fmt(fixedTotal)}`;
+        note.innerHTML=`🟢 পরিচালন ব্যয় (P&L-ভুক্ত): ৳ ${fmt(opexTotal)} &nbsp;|&nbsp; 🏠 ফিক্সড-খাত (চলতি মাসের, Settings-এ পৃথক গণনা): ৳ ${fmt(fixedTotal)}${arrearsTotal>0 ? ` &nbsp;|&nbsp; 🕘 বকেয়া পরিশোধ (আগের মাসের): ৳ ${fmt(arrearsTotal)}` : ''}`;
       } else {
         note.style.display='none';
       }
