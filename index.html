@@ -14906,7 +14906,10 @@ function buildBoardReportHtml(month, year) {
   const totalOpInc     = ops.reduce((s,o)=>s+o.fee,0); // ইতিমধ্যে totalManualInc-এর মধ্যে আছে, শুধু তথ্যের জন্য আলাদা দেখানো হচ্ছে
   const grandInc       = getTotalRevenueForPrefix(prefix); // = totalManualInc + totalRecInc + totalCampInc (একক উৎস)
   const totalExp       = expenses.reduce((s,e)=>s+e.amount,0);
-  const totalCOGS      = getCOGSForPrefix(prefix);
+  // পণ্যের ক্রয়মূল্য: হাসপাতাল (stockLog-এর বিক্রি) + ক্যাম্পে বিক্রি (ক্যাম্প রেকর্ডের totalCOGS — এটা stockLog-এ cogsAmount হিসেবে থাকে না)
+  const hospCOGS       = getCOGSForPrefix(prefix);
+  const campCOGS       = camps.reduce((s,c)=>s+(c.totalCOGS||0),0);
+  const totalCOGS      = hospCOGS + campCOGS;
   const grossProfit    = grandInc - totalCOGS;
   const totalOpFee     = ops.reduce((s,o)=>s+(o.sgFee||0),0);
   const fixedCost      = getMonthlyFixedForPrefix(prefix).monthlyFixed;
@@ -14942,14 +14945,14 @@ function buildBoardReportHtml(month, year) {
   // তাই আয়ের ভাঙন একক উৎস getCampCategoryBreakdown() থেকে, ব্যয় expBreakdown অথবা expList থেকে, আর রিসিট নং receipt অথবা receiptStart–receiptEnd থেকে নেওয়া হয় (ক্যাম্প রেকর্ড প্রিভিউর মতোই)।
   const campReceiptText = c => c.receipt || (c.receiptStart ? (c.receiptEnd && c.receiptEnd !== c.receiptStart ? `#${c.receiptStart}–${c.receiptEnd}` : `#${c.receiptStart}`) : '—');
   const campExpBuckets = c => {
-    const out = { travel:0, food:0, promo:0, rent:0, bonus:0, other:0 };
+    const out = { travel:0, food:0, promo:0, rent:0, bonus:0, other:0, part:0 };
     const eb = c.expBreakdown;
     if (eb && Object.values(eb).some(v => v > 0)) {
       out.travel = eb.travel||0; out.food = eb.food||0; out.promo = eb.promo||0; out.rent = eb.rent||0; out.bonus = eb.bonus||0; out.other = eb.other||0;
     } else {
       (c.expList||[]).forEach(e => {
         const s = (e.category||'') + ' ' + (e.note||'');
-        const k = /যাতায়াত/.test(s) ? 'travel' : /খাওয়া|খাবার|নাস্তা/.test(s) ? 'food' : /প্রচার|বিজ্ঞাপন|মাইক|ব্যানার|পোস্টার/.test(s) ? 'promo' : /রেন্ট|ভাড়া/.test(s) ? 'rent' : /বোনাস/.test(s) ? 'bonus' : 'other';
+        const k = e.category === 'পার্টটাইমার পেমেন্ট' ? 'part' : /যাতায়াত/.test(s) ? 'travel' : /খাওয়া|খাবার|নাস্তা/.test(s) ? 'food' : /প্রচার|বিজ্ঞাপন|মাইক|ব্যানার|পোস্টার/.test(s) ? 'promo' : /রেন্ট|ভাড়া/.test(s) ? 'rent' : /বোনাস/.test(s) ? 'bonus' : 'other';
         out[k] += e.amount||0;
       });
     }
@@ -15008,21 +15011,30 @@ function buildBoardReportHtml(month, year) {
       <td style="text-align:right;color:#e74c3c">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
     </tr>`).join('');
 
-  // ক্যাম্প আয়
-  const campRows = camps.map((c,i)=>{
-    const b=_campBr.get(c);
+  // ক্যাম্প বিস্তারিত — প্রতি ক্যাম্পে আয় − ব্যয় − পণ্যের COGS − নিয়মিত কর্মীর সেদিনের বেতন = নিট লাভ/লস (ক্যাম্প রেকর্ড প্রিভিউর হিসাবেই)
+  const _cd = camps.map(c => {
+    const b = _campBr.get(c), eb = campExpBuckets(c);
+    const cogs = c.totalCOGS||0, staff = c.regularStaffCost||0;
+    const staffNames = (c.regularStaff||[]).map(s=>s.name).filter(Boolean).join(', ');
+    const cost = eb.total + cogs + staff;
+    return { c, b, eb, cogs, staff, staffNames, income: c.totalIncome||0, cost, net: (c.totalIncome||0) - cost };
+  });
+  const cdIncTotal = _cd.reduce((s,x)=>s+x.income,0), cdCostTotal = _cd.reduce((s,x)=>s+x.cost,0), cdNetTotal = _cd.reduce((s,x)=>s+x.net,0);
+  const _sg = n => (n>=0?'':'- ') + '৳ ' + fmt(Math.abs(n));
+  const campRows = _cd.map((x,i)=>{
+    const c=x.c, b=x.b, eb=x.eb;
+    const incParts = [['ভিজিট',b.visit],['ওষুধ',b.med],['চশমা',b.glass],['টেস্ট',b.test],['অন্যান্য',b.other]].filter(p=>(p[1]||0)>0.5).map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
+    const expParts = [['যাতায়াত',eb.travel],['খাওয়া',eb.food],['প্রচার',eb.promo],['রেন্ট',eb.rent],['বোনাস',eb.bonus],['পার্টটাইমার',eb.part],['অন্যান্য',eb.other]].filter(p=>(p[1]||0)>0.5).map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
     return `<tr>
       <td>${i+1}</td>
       <td>${formatDate(c.date)}</td>
       <td style="color:#9d174d;font-weight:600">${campReceiptText(c)}</td>
-      <td style="font-weight:600">${c.name}</td>
-      <td>${c.location}</td>
-      <td>${fmt(b.visit||0)}</td>
-      <td>${fmt(b.med||0)}</td>
-      <td>${fmt(b.glass||0)}</td>
-      <td>${fmt(b.test||0)}</td>
-      ${hasCampOther?`<td>${fmt(b.other||0)}</td>`:''}
-      <td style="text-align:right;font-weight:700;color:#065f46">৳ ${fmt(c.totalIncome)}</td>
+      <td style="font-weight:600">${c.name} — ${c.location}</td>
+      <td style="text-align:right"><div class="cd-m" style="font-weight:700;color:#065f46">৳ ${fmt(x.income)}</div><div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">${incParts||'—'}</div></td>
+      <td style="text-align:right"><div class="cd-m" style="font-weight:700;color:#991b1b">৳ ${fmt(x.cost)}</div>
+        <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">ক্যাম্প ব্যয় ৳ ${fmt(eb.total)}${expParts?` (${expParts})`:''}</div>
+        <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">পণ্যের COGS ৳ ${fmt(x.cogs)}${x.staff>0?` · কর্মীর দৈনিক বেতন ৳ ${fmt(x.staff)}${x.staffNames?' ('+x.staffNames+')':''}`:''}</div></td>
+      <td style="text-align:right;font-weight:700;color:${x.net>=0?'#065f46':'#991b1b'}">${_sg(x.net)}</td>
     </tr>`;
   }).join('');
 
@@ -15108,7 +15120,7 @@ function buildBoardReportHtml(month, year) {
     const di=incomes.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0)
              +visits.filter(v=>v.date===ds).reduce((s,v)=>s+v.cashPaid,0)
              +camps.filter(c=>c.date===ds).reduce((s,c)=>s+c.totalIncome,0);
-    const de=expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0) + (getCOGSForPrefix(ds)||0);
+    const de=expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0) + (getCOGSForPrefix(ds)||0) + camps.filter(c=>c.date===ds).reduce((s,c)=>s+(c.totalCOGS||0),0);
     const _arr = _arrearsByDate[ds] || [];
     if(!di&&!de&&!_arr.length) continue;
     gInc+=di; gExp+=de;
@@ -15296,7 +15308,7 @@ function buildBoardReportHtml(month, year) {
     <tr><td>ক্যাম্প আয়</td><td style="text-align:right">৳ ${fmt(totalCampInc)} (${camps.length}টি ক্যাম্প)</td></tr>
     <tr><td>অপারেশন ফি</td><td style="text-align:right">৳ ${fmt(totalOpInc)} (${ops.length}টি)</td></tr>
     <tr class="sum-row"><td><strong>মোট আয় (Revenue)</strong></td><td style="text-align:right"><strong>৳ ${fmt(grandInc)}</strong></td></tr>
-    <tr><td>পণ্যের ক্রয়মূল্য (COGS) — বিক্রি হওয়া ওষুধ/চশমার ক্রয়মূল্য</td><td style="text-align:right">৳ ${fmt(totalCOGS)}</td></tr>
+    <tr><td>পণ্যের ক্রয়মূল্য (COGS) — বিক্রি হওয়া ওষুধ/চশমার ক্রয়মূল্য${campCOGS>0?` (হাসপাতাল ৳ ${fmt(hospCOGS)} + ক্যাম্প ৳ ${fmt(campCOGS)})`:''}</td><td style="text-align:right">৳ ${fmt(totalCOGS)}</td></tr>
     <tr class="sum-row"><td><strong>গ্রস প্রফিট (Revenue - COGS)</strong></td><td style="text-align:right"><strong>৳ ${fmt(grossProfit)}</strong></td></tr>
     <tr><td>পরিচালন ব্যয় (Operating Expense)</td><td style="text-align:right">৳ ${fmt(totalExp)}</td></tr>
     <tr><td style="padding-left:20px">— সার্জন পারিশ্রমিক</td><td style="text-align:right">৳ ${fmt(totalOpFee)}</td></tr>
@@ -15333,7 +15345,8 @@ function buildBoardReportHtml(month, year) {
     const m = {};
     const bump = (k, src, amt) => { if (!amt) return; m[k] = m[k] || { camp:0, hosp:0, total:0 }; m[k][src] += amt; m[k].total += amt; };
     expenses.forEach(e => bump(canonicalExpenseCat(e.category) || e.category, e.campId ? 'camp' : 'hosp', e.amount||0));
-    if (totalCOGS) bump('📦 বিক্রিত পণ্যের ক্রয়মূল্য (COGS)', 'hosp', totalCOGS);
+    if (hospCOGS) bump('📦 বিক্রিত পণ্যের ক্রয়মূল্য (COGS)', 'hosp', hospCOGS);
+    if (campCOGS) bump('📦 বিক্রিত পণ্যের ক্রয়মূল্য (COGS)', 'camp', campCOGS);
     const sorted = Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
     const gC = sorted.reduce((s,[,v])=>s+v.camp,0), gH = sorted.reduce((s,[,v])=>s+v.hosp,0), gT = gC + gH;
     const fx = getMonthlyFixedForPrefix(prefix).totalFixed || 0;
@@ -15387,18 +15400,13 @@ function buildBoardReportHtml(month, year) {
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো রিসেপশন এন্ট্রি নেই।</p>'}
 
   <!-- ক্যাম্প -->
-  <h2>৭. ক্যাম্প আয় (রিসিট নং সহ)</h2>
+  <h2>৭. ক্যাম্প বিস্তারিত (আয়, ব্যয় ও নিট লাভ/লস — রিসিট নং সহ)</h2>
   ${camps.length?`<table>
-    <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th style="text-align:right">ভিজিট</th><th style="text-align:right">ওষুধ</th><th style="text-align:right">চশমা</th><th style="text-align:right">টেস্ট</th>${hasCampOther?'<th style="text-align:right">অন্যান্য</th>':''}<th style="text-align:right">মোট</th></tr></thead>
+    <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্প</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">নিট লাভ/লস</th></tr></thead>
     <tbody>${campRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="${hasCampOther?10:9}"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalCampInc)}</strong></td></tr></tfoot>
+    <tfoot><tr class="sum-row"><td colspan="4"><strong>মোট (${fmt(camps.length)}টি ক্যাম্প)</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdIncTotal)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdCostTotal)}</strong></td><td style="text-align:right;font-weight:700;color:${cdNetTotal>=0?'#065f46':'#991b1b'}"><strong>${_sg(cdNetTotal)}</strong></td></tr></tfoot>
   </table>
-  ${campExpRows?`<h3>ক্যাম্প ব্যয়</h3>
-  <table>
-    <thead><tr><th>#</th><th>তারিখ</th><th>ক্যাম্প</th><th style="text-align:right">যাতায়াত</th><th style="text-align:right">খাওয়া</th><th style="text-align:right">প্রচার</th><th style="text-align:right">রেন্ট</th><th style="text-align:right">বোনাস</th><th style="text-align:right">অন্যান্য</th><th style="text-align:right">মোট ব্যয়</th></tr></thead>
-    <tbody>${campExpRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="9"><strong>মোট ক্যাম্প ব্যয়</strong></td><td style="text-align:right"><strong>৳ ${fmt(campExpTotal)}</strong></td></tr></tfoot>
-  </table>`:''}`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* নিট = আয় − ক্যাম্প ব্যয় (পার্টটাইমারসহ) − পণ্যের COGS − ক্যাম্পে যাওয়া নিয়মিত কর্মীর সেদিনের বেতন (মাসিক ÷ ৩০; মাসিক বেতনেও ধরা আছে বলে এটা শুধু ক্যাম্পের হিসাব দেখানোর জন্য)।</div>`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
 
   <!-- অপারেশন -->
   <h2>৮. অপারেশন আয় ও সার্জন পারিশ্রমিক</h2>
@@ -15856,8 +15864,9 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     var kind = 'generic';
     if (has(/^পক্ষ$/) && has(/^(বাকি|পরিশোধিত) টাকা$/)) kind = 'liab';
     else if (has(/^খাত$/) && has(/রিসেপশন|হাসপাতাল/) && has(/ক্যাম্প/)) kind = 'cat';
-    else if (has(/^তারিখ$/) && has(/^আয়$/) && has(/^ব্যয়$/)) kind = 'daily';
+    else if (has(/^তারিখ$/) && has(/^আয়$/) && has(/^ব্যয়$/) && !has(/নিট লাভ/)) kind = 'daily';
     else if (has(/নগদ প্রদান/)) kind = 'rec';
+    else if (has(/^ক্যাম্প$/) && has(/নিট লাভ\/লস/)) kind = 'campdet';
     else if (has(/ক্যাম্পের নাম/)) kind = 'camp';
     else if (has(/যাতায়াত/)) kind = 'campexp';
     else if (has(/সার্জন ফি/)) kind = 'op';
@@ -15908,6 +15917,15 @@ function _boardMobileSrcdoc(fullHtml, nav) {
             if (!blank(c[8])) o.chips.push(['বাকি ' + c[8], 'e']);
           }
           break;
+        case 'campdet':
+          o.date = dateOf(c[1]); o.title = c[3]; o.amt = c[6]; o.cls = /^[-−]/.test(c[6]) ? 'neg' : 'pos';
+          var _m = function(i){ var e = tr.children[i] && tr.children[i].querySelector('.cd-m'); return e ? tx(e) : c[i]; };
+          var _s = function(i){ var a = tr.children[i] ? Array.prototype.map.call(tr.children[i].querySelectorAll('.cd-s'), tx) : []; return a.filter(Boolean); };
+          o.ie = [['আয়', _m(4), 'i'], ['ব্যয়', _m(5), 'e']];
+          put(o.sub, 'রিসিট', c[2]);
+          _s(4).forEach(function(s){ if (s !== '—') o.sub.push('আয়: ' + s); });
+          _s(5).forEach(function(s){ o.sub.push(s); });
+          break;
         case 'camp':
           o.date = dateOf(c[1]); o.title = c[3] + (blank(c[4]) ? '' : ' · ' + c[4]); o.amt = c[c.length - 1]; o.cls = 'pos';
           put(o.sub, '', c[2]);
@@ -15950,6 +15968,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
       l1.appendChild(ti);
       if (o.amt) l1.appendChild(mk('span', 'cc-a' + (o.cls ? ' ' + o.cls : ''), o.amt));
       d.appendChild(l1);
+      if (o.ie) { var ie = mk('div', 'cc-l2 cc-ie'); o.ie.forEach(function(m){ var sp = mk('span', 'cc-m cc-' + m[2]); sp.appendChild(mk('span', 'cc-ml', m[0])); sp.appendChild(mk('span', 'cc-mv', m[1])); ie.appendChild(sp); }); d.appendChild(ie); }
       if (o.sub.length || o.chips.length) {
         var l2 = mk('div', 'cc-l2');
         l2.appendChild(mk('span', 'cc-s', o.sub.join(' · ')));
@@ -16089,6 +16108,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc.cc-arr{background:#fff5f5;border-left:3px dashed #ef4444;border-color:#fecaca}
     .cc-arr .cc-t{color:#b91c1c}
     .cc-arr .cc-s{color:#b91c1c;font-size:10.5px}
+    .cc-ie{gap:14px;font-size:12px;margin-top:2px;padding-left:2px}
     .cc-chip{font-size:10.5px;font-weight:700;border-radius:10px;padding:0 6px;background:#eef2f7;color:#475569;line-height:17px;white-space:nowrap}
     .cc-chip.i{background:#d1fae5;color:#065f46}
     .cc-chip.e{background:#fee2e2;color:#991b1b}
