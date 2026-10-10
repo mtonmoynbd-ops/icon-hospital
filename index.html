@@ -14938,6 +14938,29 @@ function buildBoardReportHtml(month, year) {
     @media print{.brpt-page{padding:10mm;box-shadow:none} .no-print{display:none}}
   `;
 
+  // ক্যাম্প রেকর্ড দুই পথে তৈরি হয় — অ্যাডমিন ফর্ম (incBreakdown/expBreakdown/receipt) আর ক্যাম্পেইনার ক্লোজিং (itemSales/testSales/visitFeeTotal, expList, receiptStart–receiptEnd)।
+  // তাই আয়ের ভাঙন একক উৎস getCampCategoryBreakdown() থেকে, ব্যয় expBreakdown অথবা expList থেকে, আর রিসিট নং receipt অথবা receiptStart–receiptEnd থেকে নেওয়া হয় (ক্যাম্প রেকর্ড প্রিভিউর মতোই)।
+  const campReceiptText = c => c.receipt || (c.receiptStart ? (c.receiptEnd && c.receiptEnd !== c.receiptStart ? `#${c.receiptStart}–${c.receiptEnd}` : `#${c.receiptStart}`) : '—');
+  const campExpBuckets = c => {
+    const out = { travel:0, food:0, promo:0, rent:0, bonus:0, other:0 };
+    const eb = c.expBreakdown;
+    if (eb && Object.values(eb).some(v => v > 0)) {
+      out.travel = eb.travel||0; out.food = eb.food||0; out.promo = eb.promo||0; out.rent = eb.rent||0; out.bonus = eb.bonus||0; out.other = eb.other||0;
+    } else {
+      (c.expList||[]).forEach(e => {
+        const s = (e.category||'') + ' ' + (e.note||'');
+        const k = /যাতায়াত/.test(s) ? 'travel' : /খাওয়া|খাবার|নাস্তা/.test(s) ? 'food' : /প্রচার|বিজ্ঞাপন|মাইক|ব্যানার|পোস্টার/.test(s) ? 'promo' : /রেন্ট|ভাড়া/.test(s) ? 'rent' : /বোনাস/.test(s) ? 'bonus' : 'other';
+        out[k] += e.amount||0;
+      });
+    }
+    const sum = Object.values(out).reduce((x,y)=>x+y,0);
+    out.total = sum > 0 ? sum : (c.totalExpense||0);
+    if (sum === 0 && out.total > 0) out.other = out.total;
+    return out;
+  };
+  const _campBr = new Map(camps.map(c => [c, getCampCategoryBreakdown(c)]));
+  const hasCampOther = camps.some(c => (_campBr.get(c).other||0) > 0.5);
+
   // আয়ের বিস্তারিত তালিকা — সব ধরনের আয় (অ্যাডমিন/বাকি আদায় এন্ট্রি + রিসেপশন বিল + ক্যাম্প আয়) তারিখ ক্রমে, মেমো/রিসিট নং সহ
   const _incAll = [
     ...incomes.map(e => ({ d: e.date, memo: e.memo||'', kind: 'adm', cat: e.category, ref: e.ref||'—', note: e.note||'—', by: e.by||'—', amt: e.amount||0 })),
@@ -14984,29 +15007,6 @@ function buildBoardReportHtml(month, year) {
       <td style="text-align:right;font-weight:700;color:#065f46">৳ ${fmt(v.cashPaid)}</td>
       <td style="text-align:right;color:#e74c3c">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
     </tr>`).join('');
-
-  // ক্যাম্প রেকর্ড দুই পথে তৈরি হয় — অ্যাডমিন ফর্ম (incBreakdown/expBreakdown/receipt) আর ক্যাম্পেইনার ক্লোজিং (itemSales/testSales/visitFeeTotal, expList, receiptStart–receiptEnd)।
-  // তাই আয়ের ভাঙন একক উৎস getCampCategoryBreakdown() থেকে, ব্যয় expBreakdown অথবা expList থেকে, আর রিসিট নং receipt অথবা receiptStart–receiptEnd থেকে নেওয়া হয় (ক্যাম্প রেকর্ড প্রিভিউর মতোই)।
-  const campReceiptText = c => c.receipt || (c.receiptStart ? (c.receiptEnd && c.receiptEnd !== c.receiptStart ? `#${c.receiptStart}–${c.receiptEnd}` : `#${c.receiptStart}`) : '—');
-  const campExpBuckets = c => {
-    const out = { travel:0, food:0, promo:0, rent:0, bonus:0, other:0 };
-    const eb = c.expBreakdown;
-    if (eb && Object.values(eb).some(v => v > 0)) {
-      out.travel = eb.travel||0; out.food = eb.food||0; out.promo = eb.promo||0; out.rent = eb.rent||0; out.bonus = eb.bonus||0; out.other = eb.other||0;
-    } else {
-      (c.expList||[]).forEach(e => {
-        const s = (e.category||'') + ' ' + (e.note||'');
-        const k = /যাতায়াত/.test(s) ? 'travel' : /খাওয়া|খাবার|নাস্তা/.test(s) ? 'food' : /প্রচার|বিজ্ঞাপন|মাইক|ব্যানার|পোস্টার/.test(s) ? 'promo' : /রেন্ট|ভাড়া/.test(s) ? 'rent' : /বোনাস/.test(s) ? 'bonus' : 'other';
-        out[k] += e.amount||0;
-      });
-    }
-    const sum = Object.values(out).reduce((x,y)=>x+y,0);
-    out.total = sum > 0 ? sum : (c.totalExpense||0);
-    if (sum === 0 && out.total > 0) out.other = out.total;
-    return out;
-  };
-  const _campBr = new Map(camps.map(c => [c, getCampCategoryBreakdown(c)]));
-  const hasCampOther = camps.some(c => (_campBr.get(c).other||0) > 0.5);
 
   // ক্যাম্প আয়
   const campRows = camps.map((c,i)=>{
