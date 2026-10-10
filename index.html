@@ -1328,7 +1328,7 @@ function openA4PrintPreview(htmlContent, title, filename) {
       <style>
         ${PDF_PAGE_BREAK_CSS}
         #printPreviewA4Pages{display:flex;flex-direction:column;align-items:center;gap:14px;font-family:'Hind Siliguri',Arial,sans-serif}
-        .a4-print-page{background:#fff;width:210mm;max-width:100%;height:297mm;box-sizing:border-box;box-shadow:0 4px 18px rgba(15,23,42,.18);outline:none;position:relative;overflow:hidden}
+        .a4-print-page{background:#fff;width:210mm;max-width:none;height:297mm;box-sizing:border-box;box-shadow:0 4px 18px rgba(15,23,42,.18);outline:none;position:relative;overflow:hidden}
         .a4-print-page-num{position:absolute;bottom:6mm;right:8mm;font-size:10px;color:#b0b8c2;user-select:none}
         mark{background:#fff59d;padding:0 1px}
         /* টেবিলের/সেকশন-হেডলাইনের গাঢ় নীল টপ বার/সর্বমোট বার — পেপারে প্রিন্টের জন্য হালকা আকাশি
@@ -1373,6 +1373,7 @@ function openA4PrintPreview(htmlContent, title, filename) {
           #a4SideTools .a4t-hint{display:none}
           #a4SideTools hr{display:none}
         }
+        @media (max-width:860px){ .a4-print-page{max-width:100%} }
         @media (max-width:640px){ .a4-print-page{height:auto;min-height:0;box-shadow:0 2px 10px rgba(15,23,42,.15);overflow:visible} }
         /* A4 পেজ সাইজ ফিজিক্যাল পেপারে ফিক্স করে দেওয়া হচ্ছে — width:auto রাখলে ব্রাউজারের
            নিজস্ব ডিফল্ট প্রিন্ট-মার্জিন যোগ হয়ে স্ক্রিনে-দেখা মার্জিনের চেয়ে PDF-এ বেশি মার্জিন
@@ -1582,144 +1583,220 @@ function runA4RepaginatePreservingCursor() {
 // একটা <table> এলিমেন্টকে সারি (row) অনুযায়ী একাধিক টুকরায় ভাগ করে — প্রতিটা টুকরায় thead
 // (থাকলে) পুনরাবৃত্তি হয়, tfoot (থাকলে) শুধু একদম শেষ টুকরায় বসে। শুধু ১টা টুকরা ফেরত এলে
 // বুঝতে হবে ভাগ করা সম্ভব হয়নি (thead/tbody গঠন না মেলা বা একটাই অস্বাভাবিক বড় সারি)।
-function splitA4Table(table, firstCapPx, fullPageHeightPx) {
+// ===== A4 পেজিনেশন — সঠিক মাপ (মার্জিন/লাইন-বক্সসহ), টেবিল-ফিট, সারি-ভাঙা ছাড়া পেজ-বিভাজন =====
+// ১) প্রতিটা টপ-লেভেল অংশের "দখল করা উচ্চতা" নেওয়া হয় পরের অংশের শুরুর অবস্থান থেকে (মার্জিন/কোলাপ্স/লাইন-বক্স সব ধরে),
+// ২) চওড়া টেবিল শুধু নিজে ছোট হয় (পুরো কন্টেন্ট না) — পাতার ভেতরে আঁটার জন্য,
+// ৩) ভাগ হওয়া টেবিলের টুকরা বসিয়ে আসল উচ্চতা মেপে সারি ঠিক করা হয় (নিচের মার্জিনে কিছু কাটে না; প্রতি টুকরায় thead),
+// ৪) বোর্ড রিপোর্টে: যে সেকশন পুরো এক পাতায় আঁটে কিন্তু বাকি জায়গায় আঁটে না, সেটা নতুন পাতায় শুরু হয়।
+function _a4EnsureFitCss() {
+  if (document.getElementById('a4FitCss')) return;
+  const st = document.createElement('style'); st.id = 'a4FitCss';
+  st.textContent = `
+    .a4-fit th,.a4-fit td{overflow-wrap:anywhere;word-break:normal}
+    .a4-fit[style*="--a4f"] th,.a4-fit[style*="--a4f"] td{font-size:var(--a4f)!important;padding:4px 5px!important;line-height:1.3!important}
+    .a4-fit[style*="--a4f"] .badge{font-size:calc(var(--a4f) - 1px)!important;padding:1px 6px!important}`;
+  document.head.appendChild(st);
+}
+
+function fitA4Tables(root, availPx) {
+  root.querySelectorAll('table').forEach(tbl => {
+    tbl.classList.add('a4-fit');
+    tbl.style.removeProperty('--a4f');
+    const over = () => tbl.scrollWidth > availPx + 1 || tbl.getBoundingClientRect().width > availPx + 1;
+    if (!over()) return;
+    const cell = tbl.querySelector('td,th');
+    const base = cell ? (parseFloat(getComputedStyle(cell).fontSize) || 12) : 12;
+    for (let k = 0.92; k >= 0.55; k -= 0.04) {
+      tbl.style.setProperty('--a4f', (base * k).toFixed(2) + 'px');
+      if (!over()) break;
+    }
+  });
+}
+
+// টেবিলকে সারি অনুযায়ী টুকরা করে — প্রতিটা টুকরা host-এ বসিয়ে আসল উচ্চতা মেপে সারি ঠিক করা হয়।
+// কলামের চওড়া মূল টেবিল থেকে নিয়ে সব টুকরায় একই রাখা হয়, যাতে পাতা বদলালেও কলাম একই লাইনে থাকে।
+function splitA4Table(table, firstCapPx, fullCapPx, host) {
   const thead = table.querySelector(':scope > thead');
   const tbody = table.querySelector(':scope > tbody');
   const tfoot = table.querySelector(':scope > tfoot');
   if (!tbody || !tbody.children.length) return [table];
-
   const rows = Array.from(tbody.children);
-  const theadHeight = thead ? thead.getBoundingClientRect().height : 0;
-  const tfootHeight = tfoot ? tfoot.getBoundingClientRect().height : 0;
-
-  const fragments = [];
-  let rowIdx = 0;
-  while (rowIdx < rows.length) {
-    const isFirstFrag = fragments.length === 0;
-    const cap = isFirstFrag ? firstCapPx : fullPageHeightPx;
-    const fragRows = [];
-    let used = theadHeight;
-    while (rowIdx < rows.length) {
-      const rh = rows[rowIdx].getBoundingClientRect().height;
-      const isLastRow = (rowIdx === rows.length - 1);
-      const extra = isLastRow ? tfootHeight : 0; // tfoot শেষ ভাগে বসবে, তাই শেষ সারির হিসাবে যোগ করা হচ্ছে
-      if (fragRows.length > 0 && used + rh + extra > cap) break;
-      fragRows.push(rows[rowIdx]);
-      used += rh;
-      rowIdx++;
+  const origW = table.getBoundingClientRect().width;
+  let widths = null;
+  const hr = thead ? thead.querySelector('tr') : rows[0];
+  if (hr && !Array.from(hr.children).some(c => (c.colSpan || 1) > 1)) widths = Array.from(hr.children).map(c => c.getBoundingClientRect().width);
+  const mkFrag = () => {
+    const t = table.cloneNode(false);
+    if (widths) {
+      t.style.tableLayout = 'fixed'; t.style.width = origW + 'px';
+      const cg = document.createElement('colgroup');
+      widths.forEach(w => { const c = document.createElement('col'); c.style.width = w + 'px'; cg.appendChild(c); });
+      t.appendChild(cg);
     }
-    if (!fragRows.length) { fragRows.push(rows[rowIdx]); rowIdx++; } // অসীম লুপ এড়াতে অন্তত ১টা সারি
-    const newTable = table.cloneNode(false);
-    if (thead) newTable.appendChild(thead.cloneNode(true));
-    const newTbody = document.createElement('tbody');
-    fragRows.forEach(r => newTbody.appendChild(r));
-    newTable.appendChild(newTbody);
-    if (rowIdx >= rows.length && tfoot) newTable.appendChild(tfoot);
-    fragments.push(newTable);
+    if (thead) t.appendChild(thead.cloneNode(true));
+    const tb = document.createElement('tbody'); t.appendChild(tb);
+    host.appendChild(t);
+    return { t, tb };
+  };
+  const frags = [];
+  let idx = 0;
+  while (idx < rows.length) {
+    const cap = frags.length === 0 ? firstCapPx : fullCapPx;
+    const { t, tb } = mkFrag();
+    let added = 0;
+    while (idx < rows.length) {
+      tb.appendChild(rows[idx]);
+      const isLast = idx === rows.length - 1;
+      if (isLast && tfoot) t.appendChild(tfoot);
+      const h = t.getBoundingClientRect().height;
+      if (h > cap && added > 0) {            // এই সারিটা আঁটে না — ফেরত নিয়ে পরের টুকরায়
+        if (isLast && tfoot) t.removeChild(tfoot);
+        tb.removeChild(rows[idx]);
+        break;
+      }
+      added++; idx++;
+      if (h > cap) break;                      // একটামাত্র বিশাল সারি — অন্তত এটুকু বসাতেই হবে
+    }
+    frags.push(t);
   }
-  return fragments.length ? fragments : [table];
+  return frags;
 }
 
 function paginateA4Preview() {
   const pagesEl = document.getElementById('printPreviewA4Pages');
   if (!pagesEl || typeof window._a4InnerHtml !== 'string') return;
+  _a4EnsureFitCss();
 
   let finalWrapperStyle = window._a4WrapperStyle || '';
   if (window._a4MarginMm != null) {
     finalWrapperStyle = finalWrapperStyle.replace(/padding\s*:[^;]+;?/i, '') + `;padding:${window._a4MarginMm}mm;`;
   }
 
-  // পরিমাপের জন্য একটা লুকানো স্টেজিং এলাকা — আসল wrapper ক্লাস/স্টাইলসহ, ঠিক ১টা A4 পাতার width-এ
+  // পরিমাপের লুকানো স্টেজ — আসল পাতার মতোই ঠিক 210mm চওড়া (max-width ছাড়া), যাতে মাপ আর আসল পাতার লেআউট মিলে যায়
   const stage = document.createElement('div');
   stage.style.cssText = 'position:fixed;left:-99999px;top:0;visibility:hidden;';
   const wrapperEl = document.createElement('div');
   if (window._a4WrapperClass) wrapperEl.className = window._a4WrapperClass;
-  wrapperEl.setAttribute('style', (finalWrapperStyle ? finalWrapperStyle + ';' : '') + 'width:210mm !important;box-sizing:border-box !important;');
+  wrapperEl.setAttribute('style', (finalWrapperStyle ? finalWrapperStyle + ';' : '') +
+    'width:210mm !important;max-width:none !important;min-height:0 !important;height:auto !important;overflow:visible !important;position:relative !important;margin:0 !important;box-sizing:border-box !important;');
   wrapperEl.innerHTML = window._a4InnerHtml;
   stage.appendChild(wrapperEl);
   document.body.appendChild(stage);
 
-  // আগের কোনো রি-পেজিনেশনে ভাঙা টেবিল-টুকরা থাকলে সেগুলো আবার জোড়া দিয়ে অক্ষত অবস্থা থেকে
-  // নতুন করে বিভাজন হিসাব করা হচ্ছে — নাহলে বারবার এডিট/মার্জিন-বদলে একই টেবিল বারবার ভেঙে
-  // ডুপ্লিকেট হেডার/অস্বাভাবিক ছোট টুকরা জমে যেত
+  // আগের রি-পেজিনেশনের ভাঙা টেবিল-টুকরা জোড়া লাগিয়ে অক্ষত অবস্থা থেকে নতুন করে হিসাব; জোড়া টেবিল স্টেজে বসিয়ে মাপা হয়
   const children = reassembleA4TableFragments(Array.from(wrapperEl.children));
   if (!children.length) { stage.remove(); pagesEl.innerHTML = ''; return; }
+  wrapperEl.innerHTML = '';
+  children.forEach(c => wrapperEl.appendChild(c));
 
   const cs = getComputedStyle(wrapperEl);
   const padTop = parseFloat(cs.paddingTop) || 0;
   const padBottom = parseFloat(cs.paddingBottom) || 0;
+  const padLeft = parseFloat(cs.paddingLeft) || 0;
+  const padRight = parseFloat(cs.paddingRight) || 0;
   const rectWidth = wrapperEl.getBoundingClientRect().width || 1;
   const pxPerMm = rectWidth / 210;
-  const pageHeightPx = Math.max(297 * pxPerMm - padTop - padBottom, 100);
+  const slack = 1.5 * pxPerMm;                                   // সামান্য নিরাপত্তা-ফাঁক (রাউন্ডিং/বর্ডার)
+  const pageHeightPx = Math.max(297 * pxPerMm - padTop - padBottom - slack, 100);
 
-  // প্রথমবার (মার্জিন এখনো ওভাররাইড করা না থাকলে) ডকুমেন্টের নিজস্ব প্যাডিং মান মনে রাখা হচ্ছে,
-  // যাতে টুলবক্সের মার্জিন ইনপুট সঠিক ডিফল্ট মান দেখাতে পারে
-  if (window._a4MarginMm == null) {
-    window._a4MarginMm = Math.round(padTop / pxPerMm);
-  }
+  if (window._a4MarginMm == null) window._a4MarginMm = Math.round(padTop / pxPerMm);
+
+  // চওড়া টেবিল পাতার ভেতরে আনতে শুধু সেই টেবিলের লেখা ছোট করা হয়
+  fitA4Tables(wrapperEl, rectWidth - padLeft - padRight);
+
+  // প্রতিটা অংশের দখল করা উচ্চতা — পরের অংশের শুরুর অবস্থান থেকে (মার্জিন/কোলাপ্স/লাইন-বক্স সব ধরে)
+  const kids = Array.from(wrapperEl.children);
+  const items = kids.map(el => {
+    const r = el.getBoundingClientRect(), c = getComputedStyle(el);
+    return { el, top: r.top, bottom: r.bottom, h: r.height, mt: parseFloat(c.marginTop) || 0, mb: parseFloat(c.marginBottom) || 0 };
+  });
+  items.forEach((it, i) => {
+    const start = it.top - it.mt;
+    const end = i + 1 < items.length ? items[i + 1].top - items[i + 1].mt : it.bottom + it.mb;
+    it.extent = Math.max(end - start, it.h);
+  });
+  const extentOf = new Map(items.map(it => [it.el, it.extent]));
 
   const pages = [];
-  let current = [], currentHeight = 0;
-  children.forEach(child => {
-    const h = child.getBoundingClientRect().height;
+  let current = [], cur = 0;
+  const isHeading = el => /^H[1-6]$/.test(el.tagName);
+  const pushPage = () => { if (current.length) pages.push(current); current = []; cur = 0; };
+  // নতুন পাতা — পাতার শেষে একলা পড়ে থাকা হেডিং পরের পাতায় তার কন্টেন্টের সাথে চলে যায়
+  const newPageCarry = () => {
+    const carry = [];
+    while (current.length > 1 && isHeading(current[current.length - 1])) carry.unshift(current.pop());
+    pushPage();
+    carry.forEach(el => { current.push(el); cur += extentOf.get(el) || el.getBoundingClientRect().height; });
+  };
+  const tableMinStart = tbl => {
+    const thead = tbl.querySelector(':scope > thead'), tbody = tbl.querySelector(':scope > tbody');
+    let h = thead ? thead.getBoundingClientRect().height : 0;
+    if (tbody) Array.from(tbody.children).slice(0, 2).forEach(r => { h += r.getBoundingClientRect().height; });
+    return h + 6;
+  };
 
-    // এই চাইল্ডটা একটা <table> হলে এবং বর্তমান পেজের বাকি জায়গায় সম্পূর্ণটা না আঁটলে —
-    // পুরো টেবিলটা পরের পেজে ঠেলে না দিয়ে সারি (row) অনুযায়ী ভাগ করে যতটা বসে ততটা এখানে,
-    // বাকিটা পরের পাতা(গুলো)-এ বসানো হচ্ছে (thead প্রতিটা ভাগেই পুনরাবৃত্তি হয়) — এতে বড় টেবিল
-    // পুরোপুরি পরের পেজে লাফ দিয়ে আগের পেজে বড় ফাঁকা জায়গা/একলা হেডিং আটকে থাকার সমস্যা হয় না
-    if (child.tagName === 'TABLE' && currentHeight + h > pageHeightPx) {
-      const remaining = pageHeightPx - currentHeight;
-      const fragments = splitA4Table(child, Math.max(remaining, 0), pageHeightPx);
-      if (fragments.length > 1) {
-        fragments.forEach((frag, fi) => {
-          const fh = frag.getBoundingClientRect().height;
-          if (fi === 0) {
-            // প্রথম ভাগটা বর্তমান পেজের বাকি জায়গায় বসিয়ে সেই পেজ কমপ্লিট করা হচ্ছে
-            current.push(frag);
-            pages.push(current);
-            current = [];
-            currentHeight = 0;
-          } else if (fi < fragments.length - 1) {
-            // মাঝের ভাগগুলো প্রতিটাই একটা করে সম্পূর্ণ পাতা দখল করে
-            pages.push([frag]);
-          } else {
-            // শেষ ভাগটা নতুন (এখনো খোলা) পাতায় বসানো হচ্ছে — পরের সাধারণ চাইল্ডরা এর সাথে যোগ হতে পারবে
-            current.push(frag);
-            currentHeight = fh;
-          }
-        });
+  const placeItem = (it) => {
+    const el = it.el, ext = it.extent;
+    if (el.tagName === 'TABLE' && cur + ext > pageHeightPx) {
+      const need = tableMinStart(el);
+      if (current.length > 0 && pageHeightPx - cur < need) newPageCarry();
+      if (cur + ext > pageHeightPx) {
+        const frags = splitA4Table(el, pageHeightPx - cur - it.mb, pageHeightPx - it.mb, wrapperEl);
+        if (frags.length > 1 || frags[0] !== el) {
+          if (frags[0] !== el) el.remove();
+          frags.forEach((f, fi) => {
+            if (fi > 0) pushPage();
+            const fh = f.getBoundingClientRect().height;
+            current.push(f);
+            cur += fh + (fi === frags.length - 1 ? it.mb : 0);
+          });
+          return;
+        }
+      }
+    }
+    if (current.length > 0 && cur + ext > pageHeightPx) newPageCarry();
+    current.push(el); cur += ext;
+  };
+
+  // সেকশন-ভিত্তিক গ্রুপ (শুধু বোর্ড রিপোর্টে): H2 থেকে পরের H2 পর্যন্ত
+  const sectioned = /brpt-page/.test(window._a4WrapperClass || '');
+  const groups = [];
+  if (sectioned) {
+    let g = null;
+    items.forEach(it => {
+      if (it.el.tagName === 'H2' || !g) { g = { items: [], total: 0, h2: it.el.tagName === 'H2' }; groups.push(g); }
+      g.items.push(it); g.total += it.extent;
+    });
+  } else {
+    items.forEach(it => groups.push({ items: [it], total: it.extent, h2: false }));
+  }
+
+  groups.forEach(gr => {
+    if (sectioned && gr.h2) {
+      if (gr.total <= pageHeightPx) {
+        // পুরো সেকশন এক পাতায় আঁটে — বাকি জায়গায় না আঁটলে নতুন পাতায় শুরু
+        if (cur > 0 && cur + gr.total > pageHeightPx) pushPage();
+        gr.items.forEach(it => { current.push(it.el); cur += it.extent; });
         return;
       }
-      // ভাগ করা সম্ভব না হলে (thead/tbody গঠন না মেলা, বা একটামাত্র বিশাল সারি) — স্বাভাবিক লজিক চলবে
+      // বড় সেকশন — হেডিং + টেবিলের শুরুর কয়েকটা সারির জায়গা না থাকলে নতুন পাতা, তারপর সারি অনুযায়ী ভাগ হয়ে বসে
+      let need = 0, k = 0;
+      while (k < gr.items.length && isHeading(gr.items[k].el)) { need += gr.items[k].extent; k++; }
+      const nx = gr.items[k];
+      if (nx) need += nx.el.tagName === 'TABLE' ? tableMinStart(nx.el) : Math.min(nx.extent, 40 * pxPerMm);
+      if (cur > 0 && pageHeightPx - cur < need) pushPage();
     }
-
-    if (current.length > 0 && currentHeight + h > pageHeightPx) {
-      // নতুন পাতা শুরু করার আগে — বর্তমান পাতার একদম শেষে যদি একটা একলা হেডিং (h1-h6) থেকে যায়
-      // (এবং তার আগে অন্য কন্টেন্টও ছিল), সেটাকে এই পাতায় না রেখে পরের পাতায় নিয়ে যাওয়া হচ্ছে —
-      // যাতে হেডিং তার নিচের কন্টেন্ট থেকে বিচ্ছিন্ন হয়ে একা আটকে না থাকে
-      if (current.length > 1 && /^H[1-6]$/.test(current[current.length - 1].tagName)) {
-        const orphanHeading = current.pop();
-        pages.push(current);
-        current = [orphanHeading];
-        currentHeight = orphanHeading.getBoundingClientRect().height;
-      } else {
-        pages.push(current);
-        current = [];
-        currentHeight = 0;
-      }
-    }
-    current.push(child);
-    currentHeight += h;
+    gr.items.forEach(placeItem);
   });
   if (current.length) pages.push(current);
-  if (!pages.length) pages.push(children);
+  if (!pages.length) pages.push(Array.from(wrapperEl.children));
 
   pagesEl.innerHTML = '';
   pages.forEach((group, idx) => {
     const pageDiv = document.createElement('div');
     pageDiv.className = 'a4-print-page' + (window._a4WrapperClass ? ' ' + window._a4WrapperClass : '');
     if (finalWrapperStyle) pageDiv.setAttribute('style', finalWrapperStyle);
-    group.forEach(node => pageDiv.appendChild(node)); // stage থেকে আসল পাতায় সরিয়ে নেওয়া হচ্ছে
+    group.forEach(node => pageDiv.appendChild(node)); // স্টেজ থেকে আসল পাতায় সরিয়ে নেওয়া হচ্ছে
     if (pages.length > 1) {
       const numTag = document.createElement('div');
       numTag.className = 'a4-print-page-num';
@@ -1732,7 +1809,6 @@ function paginateA4Preview() {
   stage.remove();
 }
 
-// টুলবক্সের মার্জিন ইনপুট বক্সে ডকুমেন্টের প্রকৃত (ব্যবহৃত) মার্জিন মান দেখানো হচ্ছে
 function syncA4MarginInput() {
   const input = document.getElementById('a4MarginInput');
   if (input && window._a4MarginMm != null) input.value = window._a4MarginMm;
@@ -14866,7 +14942,7 @@ function buildBoardReportHtml(month, year) {
   const _incAll = [
     ...incomes.map(e => ({ d: e.date, memo: e.memo||'', kind: 'adm', cat: e.category, ref: e.ref||'—', note: e.note||'—', by: e.by||'—', amt: e.amount||0 })),
     ...visits.map(v => ({ d: v.date, memo: v.memoNo||v.rcptNo||'', memoShow: v.memoNo||v.rcptNo||('REC-'+String(v.id).slice(-6)), kind: 'rec', cat: '🏥 রিসেপশন বিল', ref: v.patName||'—', note: (v.services||[]).map(s=>s.name).join(', ')||'—', by: v.by||v.createdBy||'—', amt: getVisitBilledCashPaid(v) })),
-    ...camps.map(c => { const b=c.incBreakdown||{}; return { d: c.date, memo: c.receipt||'', kind: 'camp', cat: '🏕️ ক্যাম্প আয়', ref: [c.name, c.location].filter(Boolean).join(' — ')||'—', note: `ভিজিট ${fmt(b.visit||0)} · ওষুধ ${fmt(b.med||0)} · চশমা ${fmt(b.glass||0)} · টেস্ট ${fmt(b.test||0)}`, by: c.by||'—', amt: c.totalIncome||0 }; })
+    ...camps.map(c => { const b=_campBr.get(c)||{}; return { d: c.date, memo: c.receipt||(c.receiptStart?campReceiptText(c):''), memoShow: campReceiptText(c), kind: 'camp', cat: '🏕️ ক্যাম্প আয়', ref: [c.name, c.location].filter(Boolean).join(' — ')||'—', note: `ভিজিট ${fmt(b.visit||0)} · ওষুধ ${fmt(b.med||0)} · চশমা ${fmt(b.glass||0)} · টেস্ট ${fmt(b.test||0)}${(b.other||0)>0.5?` · অন্যান্য ${fmt(b.other)}`:''}`, by: c.by||'—', amt: c.totalIncome||0 }; })
   ].sort((a,b)=>(a.d||'').localeCompare(b.d||'') || String(a.memo).localeCompare(String(b.memo), undefined, {numeric:true}));
   const incRows = _incAll.map((x,i)=>`
     <tr>
@@ -14881,10 +14957,18 @@ function buildBoardReportHtml(month, year) {
     </tr>`).join('');
   const _incAllTotal = _incAll.reduce((s,x)=>s+x.amt,0);
   const _memoRange = (rows) => { const ms = rows.map(x=>String(x.memo||'').trim()).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true})); return ms.length ? `${ms[0]}${ms.length>1 ? ' → ' + ms[ms.length-1] : ''} (${fmt(ms.length)}টি)` : '—'; };
+  const _campRange = () => {
+    const st = [], en = [], strs = []; let n = 0;
+    camps.forEach(c => { if (c.receiptStart) { st.push(+c.receiptStart); en.push(+(c.receiptEnd||c.receiptStart)); n++; } else if (c.receipt) strs.push({ memo: String(c.receipt) }); });
+    const parts = [];
+    if (n) parts.push(`#${Math.min(...st)} → #${Math.max(...en)} (${fmt(n)}টি ক্যাম্প)`);
+    if (strs.length) parts.push(_memoRange(strs));
+    return parts.join(' · ') || '—';
+  };
   const memoRangeHtml = `<table>
     <tr><td>🧾 অ্যাডমিন/অন্যান্য আয় এন্ট্রি — মেমো রেঞ্জ</td><td style="text-align:right;font-weight:700">${_memoRange(_incAll.filter(x=>x.kind==='adm'))}</td></tr>
     <tr><td>🏥 রিসেপশন ক্যাশ মেমো — মেমো রেঞ্জ</td><td style="text-align:right;font-weight:700">${_memoRange(_incAll.filter(x=>x.kind==='rec'))}</td></tr>
-    <tr><td>🏕️ ক্যাম্প রিসিট — রিসিট রেঞ্জ</td><td style="text-align:right;font-weight:700">${_memoRange(_incAll.filter(x=>x.kind==='camp'))}</td></tr>
+    <tr><td>🏕️ ক্যাম্প রিসিট — রিসিট রেঞ্জ</td><td style="text-align:right;font-weight:700">${_campRange()}</td></tr>
   </table>`;
 
   // রিসেপশন আয়
@@ -14901,19 +14985,43 @@ function buildBoardReportHtml(month, year) {
       <td style="text-align:right;color:#e74c3c">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
     </tr>`).join('');
 
+  // ক্যাম্প রেকর্ড দুই পথে তৈরি হয় — অ্যাডমিন ফর্ম (incBreakdown/expBreakdown/receipt) আর ক্যাম্পেইনার ক্লোজিং (itemSales/testSales/visitFeeTotal, expList, receiptStart–receiptEnd)।
+  // তাই আয়ের ভাঙন একক উৎস getCampCategoryBreakdown() থেকে, ব্যয় expBreakdown অথবা expList থেকে, আর রিসিট নং receipt অথবা receiptStart–receiptEnd থেকে নেওয়া হয় (ক্যাম্প রেকর্ড প্রিভিউর মতোই)।
+  const campReceiptText = c => c.receipt || (c.receiptStart ? (c.receiptEnd && c.receiptEnd !== c.receiptStart ? `#${c.receiptStart}–${c.receiptEnd}` : `#${c.receiptStart}`) : '—');
+  const campExpBuckets = c => {
+    const out = { travel:0, food:0, promo:0, rent:0, bonus:0, other:0 };
+    const eb = c.expBreakdown;
+    if (eb && Object.values(eb).some(v => v > 0)) {
+      out.travel = eb.travel||0; out.food = eb.food||0; out.promo = eb.promo||0; out.rent = eb.rent||0; out.bonus = eb.bonus||0; out.other = eb.other||0;
+    } else {
+      (c.expList||[]).forEach(e => {
+        const s = (e.category||'') + ' ' + (e.note||'');
+        const k = /যাতায়াত/.test(s) ? 'travel' : /খাওয়া|খাবার|নাস্তা/.test(s) ? 'food' : /প্রচার|বিজ্ঞাপন|মাইক|ব্যানার|পোস্টার/.test(s) ? 'promo' : /রেন্ট|ভাড়া/.test(s) ? 'rent' : /বোনাস/.test(s) ? 'bonus' : 'other';
+        out[k] += e.amount||0;
+      });
+    }
+    const sum = Object.values(out).reduce((x,y)=>x+y,0);
+    out.total = sum > 0 ? sum : (c.totalExpense||0);
+    if (sum === 0 && out.total > 0) out.other = out.total;
+    return out;
+  };
+  const _campBr = new Map(camps.map(c => [c, getCampCategoryBreakdown(c)]));
+  const hasCampOther = camps.some(c => (_campBr.get(c).other||0) > 0.5);
+
   // ক্যাম্প আয়
   const campRows = camps.map((c,i)=>{
-    const b=c.incBreakdown||{};
+    const b=_campBr.get(c);
     return `<tr>
       <td>${i+1}</td>
       <td>${formatDate(c.date)}</td>
-      <td style="color:#9d174d;font-weight:600">${c.receipt||'—'}</td>
+      <td style="color:#9d174d;font-weight:600">${campReceiptText(c)}</td>
       <td style="font-weight:600">${c.name}</td>
       <td>${c.location}</td>
       <td>${fmt(b.visit||0)}</td>
       <td>${fmt(b.med||0)}</td>
       <td>${fmt(b.glass||0)}</td>
       <td>${fmt(b.test||0)}</td>
+      ${hasCampOther?`<td>${fmt(b.other||0)}</td>`:''}
       <td style="text-align:right;font-weight:700;color:#065f46">৳ ${fmt(c.totalIncome)}</td>
     </tr>`;
   }).join('');
@@ -14965,8 +15073,10 @@ function buildBoardReportHtml(month, year) {
   const fixedPayRows = '';
 
   // ক্যাম্প ব্যয়
-  const campExpRows = camps.filter(c=>c.totalExpense>0).map((c,i)=>{
-    const b=c.expBreakdown||{};
+  const _campExpList = camps.map(c => ({ c, b: campExpBuckets(c) })).filter(x => x.b.total > 0);
+  const campExpTotal = _campExpList.reduce((s,x)=>s+x.b.total,0);
+  const campExpRows = _campExpList.map((x,i)=>{
+    const c=x.c, b=x.b;
     return `<tr>
       <td>${i+1}</td>
       <td>${formatDate(c.date)}</td>
@@ -14976,7 +15086,8 @@ function buildBoardReportHtml(month, year) {
       <td>${fmt(b.promo||0)}</td>
       <td>${fmt(b.rent||0)}</td>
       <td>${fmt(b.bonus||0)}</td>
-      <td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(c.totalExpense)}</td>
+      <td>${fmt(b.other||0)}</td>
+      <td style="text-align:right;font-weight:700;color:#991b1b">৳ ${fmt(b.total)}</td>
     </tr>`;
   }).join('');
 
@@ -15278,14 +15389,15 @@ function buildBoardReportHtml(month, year) {
   <!-- ক্যাম্প -->
   <h2>৭. ক্যাম্প আয় (রিসিট নং সহ)</h2>
   ${camps.length?`<table>
-    <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th style="text-align:right">ভিজিট</th><th style="text-align:right">ওষুধ</th><th style="text-align:right">চশমা</th><th style="text-align:right">টেস্ট</th><th style="text-align:right">মোট</th></tr></thead>
+    <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th style="text-align:right">ভিজিট</th><th style="text-align:right">ওষুধ</th><th style="text-align:right">চশমা</th><th style="text-align:right">টেস্ট</th>${hasCampOther?'<th style="text-align:right">অন্যান্য</th>':''}<th style="text-align:right">মোট</th></tr></thead>
     <tbody>${campRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="9"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalCampInc)}</strong></td></tr></tfoot>
+    <tfoot><tr class="sum-row"><td colspan="${hasCampOther?10:9}"><strong>মোট</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalCampInc)}</strong></td></tr></tfoot>
   </table>
   ${campExpRows?`<h3>ক্যাম্প ব্যয়</h3>
   <table>
-    <thead><tr><th>#</th><th>তারিখ</th><th>ক্যাম্প</th><th style="text-align:right">যাতায়াত</th><th style="text-align:right">খাওয়া</th><th style="text-align:right">প্রচার</th><th style="text-align:right">রেন্ট</th><th style="text-align:right">বোনাস</th><th style="text-align:right">মোট ব্যয়</th></tr></thead>
+    <thead><tr><th>#</th><th>তারিখ</th><th>ক্যাম্প</th><th style="text-align:right">যাতায়াত</th><th style="text-align:right">খাওয়া</th><th style="text-align:right">প্রচার</th><th style="text-align:right">রেন্ট</th><th style="text-align:right">বোনাস</th><th style="text-align:right">অন্যান্য</th><th style="text-align:right">মোট ব্যয়</th></tr></thead>
     <tbody>${campExpRows}</tbody>
+    <tfoot><tr class="sum-row"><td colspan="9"><strong>মোট ক্যাম্প ব্যয়</strong></td><td style="text-align:right"><strong>৳ ${fmt(campExpTotal)}</strong></td></tr></tfoot>
   </table>`:''}`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
 
   <!-- অপারেশন -->
@@ -15797,13 +15909,13 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           }
           break;
         case 'camp':
-          o.date = dateOf(c[1]); o.title = c[3] + (blank(c[4]) ? '' : ' · ' + c[4]); o.amt = c[9]; o.cls = 'pos';
+          o.date = dateOf(c[1]); o.title = c[3] + (blank(c[4]) ? '' : ' · ' + c[4]); o.amt = c[c.length - 1]; o.cls = 'pos';
           put(o.sub, '', c[2]);
-          [5, 6, 7, 8].forEach(function(i){ put(o.sub, L[i], c[i]); });
+          for (var _q = 5; _q < c.length - 1; _q++) put(o.sub, L[_q], c[_q]);
           break;
         case 'campexp':
-          o.date = dateOf(c[1]); o.title = c[2]; o.amt = c[8]; o.cls = 'neg';
-          [3, 4, 5, 6, 7].forEach(function(i){ put(o.sub, L[i], c[i]); });
+          o.date = dateOf(c[1]); o.title = c[2]; o.amt = c[c.length - 1]; o.cls = 'neg';
+          for (var _r = 3; _r < c.length - 1; _r++) put(o.sub, L[_r], c[_r]);
           break;
         case 'op':
           o.date = dateOf(c[1]); o.title = c[2] + (blank(c[3]) ? '' : ' · ' + c[3]); o.amt = c[5]; o.cls = 'pos';
