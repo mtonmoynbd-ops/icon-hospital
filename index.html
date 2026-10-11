@@ -11910,7 +11910,7 @@ function showDashCardModal(cardId, modalId) {
     // "ব্যয়" ব্রেকডাউনে দুইবার গণনা হয়ে ক্যাশ-ব্যালেন্স ব্রেকডাউন ভুল দেখাত (আয়ের ক্ষেত্রে এই বাদ
     // দেওয়াটা আগে থেকেই আছে, দ্রষ্টব্য mCamp-সংক্রান্ত ফিক্স, ব্যয়েও একই কারণে দরকার)
     const opExpense = (appData.expense||[]).filter(e=>!e.campId&&e.payMode!=='bank'&&e.payMode!=='mfs'&&expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).reduce((s,e)=>s+(e.amount||0),0);
-    const campExpense = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+((c.totalExpense||0)+(c.totalCOGS||0)+(c.regularStaffCost||0)),0);
+    const campExpense = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+(c.totalExpense||0),0); // COGS ও নিয়মিত কর্মীর বেতন ক্যাশ-আউট না (calcCashBankBalance-এর সাথে মিল)
     const cashIn  = (appData.bankTx||[]).filter(t=>t.type==='cash_in'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
     const cashOut = (appData.bankTx||[]).filter(t=>t.type==='cash_out'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
     const c2b     = (appData.bankTx||[]).filter(t=>t.type==='cash_to_bank'&&t.date&&t.date.startsWith(prefix)).reduce((s,t)=>s+t.amount,0);
@@ -14907,14 +14907,19 @@ function buildBoardReportHtml(month, year) {
   const grandInc       = getTotalRevenueForPrefix(prefix); // = totalManualInc + totalRecInc + totalCampInc (একক উৎস)
   const totalExp       = expenses.reduce((s,e)=>s+e.amount,0);
   // পণ্যের ক্রয়মূল্য: হাসপাতাল (stockLog-এর বিক্রি) + ক্যাম্পে বিক্রি (ক্যাম্প রেকর্ডের totalCOGS — এটা stockLog-এ cogsAmount হিসেবে থাকে না)
-  const hospCOGS       = getCOGSForPrefix(prefix);
-  const campCOGS       = camps.reduce((s,c)=>s+(c.totalCOGS||0),0);
-  const totalCOGS      = hospCOGS + campCOGS;
+  const totalCOGS      = getCOGSForPrefix(prefix);            // হাসপাতাল + ক্যাম্প (সব জায়গায় একই একক উৎস)
+  const campCOGS       = getCampCOGSForPrefix(prefix);
+  const hospCOGS       = totalCOGS - campCOGS;
   const grossProfit    = grandInc - totalCOGS;
   const totalOpFee     = ops.reduce((s,o)=>s+(o.sgFee||0),0);
-  const fixedCost      = getMonthlyFixedForPrefix(prefix).monthlyFixed;
-  const salCost        = appData.staff.filter(s=>s.status==='active').reduce((s,st)=>s+st.basic,0);
-  const netProfit      = grandInc - totalCOGS - totalExp;
+  const _fxAll         = getMonthlyFixedForPrefix(prefix);      // ক্লোজড মাসে ক্লোজিং-এর সময়ের হার, নাহলে বর্তমান হার (সঠিক বিল থাকলে সেটা)
+  const fixedCost      = _fxAll.monthlyFixed;                    // ভাড়া + ইউটিলিটি + অন্যান্য সাধারণ খরচ
+  const salCost        = _fxAll.monthlySalary;                   // সক্রিয় কর্মীর মাসিক বেতন (P&L-এর জন্য)
+  const salCostLive    = appData.staff.filter(s=>s.status==='active').reduce((s,st)=>s+st.basic,0); // বেতন সারসংক্ষেপ টেবিলের সারির সাথে মেলানোর জন্য
+  const netProfit      = grandInc - totalCOGS - totalExp;        // পরিচালন লাভ/লস — ফিক্সড খরচের আগে
+  const totalFixedAll  = fixedCost + salCost;
+  const netAfterFixed  = netProfit - totalFixedAll;              // ফিক্সড সহ নিট — মাস-ক্লোজের ভিত্তির সাথে একই কাঠামো
+  const _mc            = (appData.monthClosings||[]).find(mc => mc.month === month && mc.year === year);
 
   // CSS
   const css = `
@@ -15007,8 +15012,8 @@ function buildBoardReportHtml(month, year) {
       <td>${v.patName}</td>
       <td style="text-align:right">৳ ${fmt(v.total)}</td>
       <td style="text-align:right;color:#f59e0b">${v.discAmt>0?'- ৳ '+fmt(v.discAmt):'—'}</td>
-      <td style="text-align:right;font-weight:700;color:#065f46">৳ ${fmt(v.cashPaid)}</td>
-      <td style="text-align:right;color:#e74c3c">${v.due>0?'৳ '+fmt(v.due):'✅'}</td>
+      <td style="text-align:right;font-weight:700;color:#065f46">৳ ${fmt(getVisitBilledCashPaid(v))}</td>
+      <td style="text-align:right;color:#e74c3c">${(() => { const later = (v.cashPaid||0) - getVisitBilledCashPaid(v); const dueB = (v.due||0) + later; return dueB>0 ? '৳ '+fmt(dueB) + (later>0 ? `<div style="font-size:9.5px;color:#6b7280">পরে আদায় ৳ ${fmt(later)}${v.due>0?' · এখন বাকি ৳ '+fmt(v.due):' · এখন পরিশোধিত'}</div>` : '') : '✅'; })()}</td>
     </tr>`).join('');
 
   // ক্যাম্প বিস্তারিত — প্রতি ক্যাম্পে আয় − ব্যয় − পণ্যের COGS − নিয়মিত কর্মীর সেদিনের বেতন = নিট লাভ/লস (ক্যাম্প রেকর্ড প্রিভিউর হিসাবেই)
@@ -15055,13 +15060,29 @@ function buildBoardReportHtml(month, year) {
   // ভাড়া/ইউটিলিটি বিল পরিশোধ লাভ-লসে ফিক্সড হারে আলাদা ধরা (তাই totalExp-এ নেই), কিন্তু টাকা এই মাসেই বের হয়েছে বলে তালিকায় দেখানো হয়
   const _fixedPays = (appData.expense||[]).filter(e => !e.isFundExpense && (FIXED_BILL_ITEMS.some(it => it.cats.includes(e.category)) || isArrearsPayment(e)))
     .map(e => ({ e, d: expenseEffectiveDate(e) })).filter(x => x.d && x.d.startsWith(prefix)).sort((a,b)=>a.d.localeCompare(b.d));
+  // ইনভেন্টরি ক্রয় (স্টক কেনা) ও ফান্ড খরচ — লাভ-লসে নেই (COGS/ফান্ড-নিরপেক্ষ), কিন্তু টাকা বের হয়েছে
+  const _invFund = (appData.expense||[]).filter(e => e.isInventoryPurchase || e.isFundExpense)
+    .map(e => ({ e, d: expenseEffectiveDate(e) })).filter(x => x.d && x.d.startsWith(prefix));
+  const invPaidTotal = _invFund.filter(x=>x.e.isInventoryPurchase && !x.e.isFundExpense).reduce((s,x)=>s+(x.e.amount||0),0);
+  const fundPaidTotal = _invFund.filter(x=>x.e.isFundExpense).reduce((s,x)=>s+(x.e.amount||0),0);
   const fixedPaidTotal = _fixedPays.reduce((s,x)=>s+(x.e.amount||0),0);
   const arrearsPaidTotal = _fixedPays.filter(x=>isArrearsPayment(x.e)).reduce((s,x)=>s+(x.e.amount||0),0);
   const _expAll = expenses.map(e => ({ e, d: expenseEffectiveDate(e) || e.date, fixed: false }))
     .concat(_fixedPays.map(x => ({ e: x.e, d: x.d, fixed: true })))
+    .concat(_invFund.map(x => ({ e: x.e, d: x.d, fixed: false, kind: x.e.isFundExpense ? 'fund' : 'inv' })))
     .sort((a,b)=>(a.d||'').localeCompare(b.d||'') || String(a.e.voucher||'').localeCompare(String(b.e.voucher||''), undefined, {numeric:true}));
   const _origNote = (x) => x.d !== x.e.date ? ` <span style="font-size:10px;color:#6b7280">(পূর্বের এন্ট্রি: ${formatDate(x.e.date)} · ভাউচার ${x.e.voucher||'—'})</span>` : '';
-  const expRows = _expAll.map((x,i)=> x.fixed ? `
+  const expRows = _expAll.map((x,i)=> x.kind ? `
+    <tr>
+      <td>${i+1}</td>
+      <td>${formatDate(x.d)}${_origNote(x)}</td>
+      <td style="color:#d97706;font-weight:600">${x.e.voucher||'—'}</td>
+      <td>${x.e.category} ${x.kind==='fund' ? '<span style="font-size:10px;font-weight:700;color:#6d28d9">(ফান্ড খরচ — লাভ-লস নিরপেক্ষ)</span>' : '<span style="font-size:10px;font-weight:700;color:#1e40af">(ইনভেন্টরি ক্রয় — বিক্রির সময় COGS)</span>'}</td>
+      <td>${x.e.ref||'—'}</td>
+      <td>${x.e.note||'—'}</td>
+      <td>${x.e.by||'—'}</td>
+      <td style="text-align:right;font-weight:700;color:${x.kind==='fund'?'#6d28d9':'#1e40af'}">৳ ${fmt(x.e.amount)}</td>
+    </tr>` : x.fixed ? `
     <tr>
       <td>${i+1}</td>
       <td>${formatDate(x.d)}${_origNote(x)}</td>
@@ -15120,7 +15141,7 @@ function buildBoardReportHtml(month, year) {
     const di=incomes.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0)
              +visits.filter(v=>v.date===ds).reduce((s,v)=>s+v.cashPaid,0)
              +camps.filter(c=>c.date===ds).reduce((s,c)=>s+c.totalIncome,0);
-    const de=expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0) + (getCOGSForPrefix(ds)||0) + camps.filter(c=>c.date===ds).reduce((s,c)=>s+(c.totalCOGS||0),0);
+    const de=expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0) + (getCOGSForPrefix(ds)||0);
     const _arr = _arrearsByDate[ds] || [];
     if(!di&&!de&&!_arr.length) continue;
     gInc+=di; gExp+=de;
@@ -15294,12 +15315,12 @@ function buildBoardReportHtml(month, year) {
       <div class="value" style="color:#991b1b">৳ ${fmt(totalExp)}</div>
     </div>
     <div class="summary-box">
-      <div class="label">নেট লাভ/লস</div>
-      <div class="value" style="color:${netProfit>=0?'#065f46':'#991b1b'}">${netProfit>=0?'':'- '}৳ ${fmt(Math.abs(netProfit))}</div>
+      <div class="label">ফিক্সড খরচ (বেতন+ভাড়া+অন্যান্য)</div>
+      <div class="value" style="color:#b45309">৳ ${fmt(totalFixedAll)}</div>
     </div>
     <div class="summary-box">
-      <div class="label">ক্যাম্প আয়</div>
-      <div class="value" style="color:#d97706">৳ ${fmt(totalCampInc)}</div>
+      <div class="label">নিট লাভ/লস (ফিক্সড সহ)</div>
+      <div class="value" style="color:${netAfterFixed>=0?'#065f46':'#991b1b'}">${netAfterFixed>=0?'':'- '}৳ ${fmt(Math.abs(netAfterFixed))}</div>
     </div>
   </div>
   <table>
@@ -15310,13 +15331,18 @@ function buildBoardReportHtml(month, year) {
     <tr class="sum-row"><td><strong>মোট আয় (Revenue)</strong></td><td style="text-align:right"><strong>৳ ${fmt(grandInc)}</strong></td></tr>
     <tr><td>পণ্যের ক্রয়মূল্য (COGS) — বিক্রি হওয়া ওষুধ/চশমার ক্রয়মূল্য${campCOGS>0?` (হাসপাতাল ৳ ${fmt(hospCOGS)} + ক্যাম্প ৳ ${fmt(campCOGS)})`:''}</td><td style="text-align:right">৳ ${fmt(totalCOGS)}</td></tr>
     <tr class="sum-row"><td><strong>গ্রস প্রফিট (Revenue - COGS)</strong></td><td style="text-align:right"><strong>৳ ${fmt(grossProfit)}</strong></td></tr>
-    <tr><td>পরিচালন ব্যয় (Operating Expense)</td><td style="text-align:right">৳ ${fmt(totalExp)}</td></tr>
-    <tr><td style="padding-left:20px">— সার্জন পারিশ্রমিক</td><td style="text-align:right">৳ ${fmt(totalOpFee)}</td></tr>
-    <tr><td style="padding-left:20px">— মাসিক ফিক্সড খরচ (ভাড়া+ইউটিলিটি)</td><td style="text-align:right">৳ ${fmt(fixedCost)}</td></tr>
-    <tr><td style="padding-left:20px">— স্যালারি খরচ</td><td style="text-align:right">৳ ${fmt(salCost)}</td></tr>
-    <tr class="total-row"><td><strong>নেট লাভ/লস</strong></td><td style="text-align:right"><strong>${netProfit>=0?'':'- '}৳ ${fmt(Math.abs(netProfit))}</strong></td></tr>
+    <tr><td>পরিচালন ব্যয় (Operating Expense — ফিক্সড বাদে)</td><td style="text-align:right">৳ ${fmt(totalExp)}</td></tr>
+    <tr class="sum-row"><td><strong>পরিচালন লাভ/লস (ফিক্সড খরচের আগে)</strong></td><td style="text-align:right"><strong>${netProfit>=0?'':'- '}৳ ${fmt(Math.abs(netProfit))}</strong></td></tr>
+    <tr><td style="padding-left:20px">— কর্মীদের বেতন (সক্রিয় কর্মীর মাসিক বেসিক)</td><td style="text-align:right">৳ ${fmt(salCost)}</td></tr>
+    <tr><td style="padding-left:20px">— ভাড়া + ইউটিলিটি + অন্যান্য সাধারণ খরচ</td><td style="text-align:right">৳ ${fmt(fixedCost)}</td></tr>
+    <tr class="total-row"><td><strong>নিট লাভ/লস (ফিক্সড সহ)</strong></td><td style="text-align:right"><strong>${netAfterFixed>=0?'':'- '}৳ ${fmt(Math.abs(netAfterFixed))}</strong></td></tr>
   </table>
-  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* মেডিসিন/চশমার ক্রয়মূল্য এখানে "পরিচালন ব্যয়"-এ নেই — ক্রয়ের সময় নয়, শুধু বিক্রি হলে COGS হিসেবে ধরা হয়।</div>
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* মেডিসিন/চশমার ক্রয়মূল্য "পরিচালন ব্যয়"-এ নেই — ক্রয়ের সময় নয়, শুধু বিক্রি হলে COGS হিসেবে ধরা হয়। বেতন, ভাড়া, ইউটিলিটি ও অন্যান্য খরচ মাসিক হারে আলাদা ধরা (ইউটিলিটি ও অন্যান্য আনুমানিক; সঠিক বিল এন্ট্রি থাকলে সেটা)। মাস-ক্লোজের নিটও এই ফিক্সড সহ ভিত্তিতেই।${totalOpFee>0 ? ` অপারেশনের সার্জন পারিশ্রমিক ৳ ${fmt(totalOpFee)} অপারেশন সেকশনে আলাদা দেখানো — আলাদা ব্যয় এন্ট্রি দেওয়া না হলে উপরের লাভ-লসে ধরা নেই।` : ''}</div>
+  ${_mc ? `<table>
+    <tr><td>🔒 মাস-ক্লোজে নির্ধারিত নিট (${_mc.label||''}, ${formatDate((_mc.closedAt||'').slice(0,10))})</td><td style="text-align:right">${(_mc.autoNet||0)>=0?'':'- '}৳ ${fmt(Math.abs(_mc.autoNet||0))}</td></tr>
+    <tr><td>এই রিপোর্টের (বর্তমান ডেটা) নিট − ক্লোজিং-এর নিট = পার্থক্য</td><td style="text-align:right;font-weight:700;color:${Math.abs(netAfterFixed-(_mc.autoNet||0))<1?'#065f46':'#b45309'}">${(netAfterFixed-(_mc.autoNet||0))>=0?'':'- '}৳ ${fmt(Math.abs(netAfterFixed-(_mc.autoNet||0)))}</td></tr>
+  </table>
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* পার্থক্য থাকলে কারণ: ক্লোজিংয়ের পরে এন্ট্রি বদল/যোগ, অথবা বাকি আদায় কোন মাসে ধরা হয় তার ভিত্তির পার্থক্য (রিপোর্ট আদায়ের মাসে ধরে; ক্লোজিং বিলের মাসে)।</div>` : ''}
 
   <!-- আয়ের খাত-ভিত্তিক বিশ্লেষণ (উৎস অনুযায়ী) -->
   <h2>২. আয়ের খাত-ভিত্তিক বিশ্লেষণ (উৎস অনুযায়ী)</h2>
@@ -15418,14 +15444,16 @@ function buildBoardReportHtml(month, year) {
 
   <!-- ব্যয় -->
   <h2>৯. ব্যয়ের বিস্তারিত তালিকা (ভাউচার নং সহ)</h2>
-  ${(expenses.length||_fixedPays.length)?`<table>
+  ${(expenses.length||_fixedPays.length||_invFund.length)?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>ভাউচার নং</th><th>খাত</th><th>রেফারেন্স</th><th>বিবরণ</th><th>এন্ট্রিকারী</th><th style="text-align:right">পরিমাণ</th></tr></thead>
     <tbody>${expRows}${fixedPayRows}</tbody>
     <tfoot>
-      <tr class="sum-row"><td colspan="7"><strong>${_fixedPays.length ? 'মোট ব্যয় (লাভ-লসে ধরা)' : 'মোট'}</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp)}</strong></td></tr>
+      <tr class="sum-row"><td colspan="7"><strong>${(_fixedPays.length||_invFund.length) ? 'মোট ব্যয় (লাভ-লসে ধরা)' : 'মোট'}</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp)}</strong></td></tr>
       ${_fixedPays.length ? `<tr class="sum-row"><td colspan="7">ফিক্সড-খাত পরিশোধ — ভাড়া/ইউটিলিটি (লাভ-লসে ফিক্সড হারে আলাদা ধরা)</td><td style="text-align:right">৳ ${fmt(fixedPaidTotal)}</td></tr>
-      ${arrearsPaidTotal>0 ? `<tr class="sum-row"><td colspan="7" style="color:#b91c1c">এর মধ্যে 🕘 বকেয়া পরিশোধ (আগের মাসের বিল/বেতন)</td><td style="text-align:right;color:#b91c1c">৳ ${fmt(arrearsPaidTotal)}</td></tr>` : ''}
-      <tr class="sum-row"><td colspan="7"><strong>মোট বের হওয়া টাকা (ক্যাশ/ব্যাংক)</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp+fixedPaidTotal)}</strong></td></tr>` : ''}
+      ${arrearsPaidTotal>0 ? `<tr class="sum-row"><td colspan="7" style="color:#b91c1c">এর মধ্যে 🕘 বকেয়া পরিশোধ (আগের মাসের বিল/বেতন)</td><td style="text-align:right;color:#b91c1c">৳ ${fmt(arrearsPaidTotal)}</td></tr>` : ''}` : ''}
+      ${invPaidTotal>0 ? `<tr class="sum-row"><td colspan="7">ইনভেন্টরি ক্রয় — স্টক কেনা (লাভ-লসে নেই; বিক্রির সময় COGS হিসেবে ধরা হয়)</td><td style="text-align:right">৳ ${fmt(invPaidTotal)}</td></tr>` : ''}
+      ${fundPaidTotal>0 ? `<tr class="sum-row"><td colspan="7">ফান্ড খরচ (লাভ-লস নিরপেক্ষ)</td><td style="text-align:right">৳ ${fmt(fundPaidTotal)}</td></tr>` : ''}
+      ${(_fixedPays.length||_invFund.length) ? `<tr class="sum-row"><td colspan="7"><strong>মোট বের হওয়া টাকা (নগদ/ব্যাংক/মোবাইল ব্যাংকিং — সব মিলিয়ে)</strong></td><td style="text-align:right"><strong>৳ ${fmt(totalExp+fixedPaidTotal+invPaidTotal+fundPaidTotal)}</strong></td></tr>` : ''}
     </tfoot>
   </table>`:'<p style="color:#9ca3af">এই মাসে কোনো ব্যয় এন্ট্রি নেই।</p>'}
 
@@ -15480,7 +15508,7 @@ function buildBoardReportHtml(month, year) {
       </tr>`;
     }).join('')}</tbody>
     <tfoot><tr class="total-row"><td colspan="3">সর্বমোট (${appData.staff.filter(s=>s.status==='active').length} জন)</td>
-      <td style="text-align:right">৳ ${fmt(salCost)}</td><td colspan="7"></td></tr></tfoot>
+      <td style="text-align:right">৳ ${fmt(salCostLive)}</td><td colspan="7"></td></tr></tfoot>
   </table>`:'<p style="color:#9ca3af">কোনো কর্মী নেই।</p>'}
 
   ${_liabHtml}
@@ -17939,9 +17967,15 @@ function expenseCountsInPrefix(e, prefix) {
 }
 // ✅ নির্দিষ্ট তারিখ-প্রিফিক্স (যেমন 'YYYY-MM' বা 'YYYY-MM-DD') এর মধ্যে বিক্রি হওয়া ইনভেন্টরির মোট COGS —
 // stockLog এর 'out' এন্ট্রিগুলো থেকে হিসাব হয় (cogsAmount ফিল্ড, যা deductStockForSale() এ সেট হয়)
+// ক্যাম্পে বিক্রিত পণ্যের COGS ক্যাম্প রেকর্ডের totalCOGS-এ থাকে (ক্যাম্প বিক্রি deductStockForSale() দিয়ে যায় না, তাই stockLog-এ cogsAmount হয়ে আসে না)
+function getCampCOGSForPrefix(prefix) {
+  return (appData.camps||[]).filter(c => c.date && c.date.startsWith(prefix)).reduce((s,c) => s + (c.totalCOGS||0), 0);
+}
+// ⚠️ একক উৎস: ড্যাশবোর্ড, P&L, মাস-ক্লোজ ও বোর্ড রিপোর্ট — সব জায়গায় COGS = হাসপাতাল (stockLog) + ক্যাম্প (ক্যাম্প রেকর্ড)
 function getCOGSForPrefix(prefix) {
-  return (appData.stockLog||[]).filter(l => l.move==='out' && !l.reversed && l.date && l.date.startsWith(prefix) && l.cogsAmount)
+  const hospital = (appData.stockLog||[]).filter(l => l.move==='out' && !l.reversed && l.date && l.date.startsWith(prefix) && l.cogsAmount)
     .reduce((s,l) => s + (l.cogsAmount||0), 0);
+  return hospital + getCampCOGSForPrefix(prefix);
 }
 // ✅ মোট আয় (Total Revenue) — income + visits এর cashPaid + camp আয়, নির্দিষ্ট তারিখ-প্রিফিক্সের মধ্যে
 // ⚠️ গুরুত্বপূর্ণ: বিল সেভ হওয়ার সময় "রিসেপশন আয়"/"অ্যাডমিন বিল" ক্যাটাগরিতে যে income এন্ট্রি তৈরি হয় (visitId ট্যাগসহ),
@@ -40691,7 +40725,8 @@ function renderMonthlyComparison(){
     const cmp = (appData.camps||[]).filter(c=>inRange(c.date,start,end)).reduce((s,c)=>s+(c.totalIncome||0),0);
     return inc + vis + cmp;
   };
-  const getCOGSForRange = (start, end) => (appData.stockLog||[]).filter(l=>l.move==='out'&&!l.reversed&&inRange(l.date,start,end)&&l.cogsAmount).reduce((s,l)=>s+(l.cogsAmount||0),0);
+  const getCOGSForRange = (start, end) => (appData.stockLog||[]).filter(l=>l.move==='out'&&!l.reversed&&inRange(l.date,start,end)&&l.cogsAmount).reduce((s,l)=>s+(l.cogsAmount||0),0)
+    + (appData.camps||[]).filter(c=>inRange(c.date,start,end)).reduce((s,c)=>s+(c.totalCOGS||0),0);
   const getExpenseForRange = (start, end) => (appData.expense||[]).filter(e=>{
     if (e.isFundExpense) return false;
     if (e.isInventoryPurchase) return false;
