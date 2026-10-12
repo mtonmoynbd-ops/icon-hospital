@@ -15275,6 +15275,128 @@ function buildBoardReportHtml(month, year) {
     <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* হিসাব ${formatDate(_asOf)} পর্যন্ত। বেতন: প্রথম বেতন-রেকর্ডের মাস থেকে সব মাসের বাকি ধরা (সর্বোচ্চ ৩৬ মাস)। ভাড়া/ইউটিলিটি: ধার্য অঙ্ক (সঠিক বিল থাকলে সেটা, নাহলে সেটিংসের আনুমানিক হার) থেকে ঐ মাসের বিল হিসেবে এই তারিখ পর্যন্ত দেওয়া টাকা বাদ; শুরুর মাস না দিলে প্রথম পরিশোধের মাস থেকে ধরা হয় (সেটিংসে শুরুর মাস দেওয়া যায়)। ভাড়া/ইউটিলিটির পরিশোধ টাকা বের হওয়ার মাসের ব্যয় তালিকায় (৯ নং) দেখানো; লাভ-লসে ফিক্সড হারে আলাদা ধরা, তাই ডাবল-কাউন্ট নেই। সরবরাহকারীর দেনা ভাউচারের প্রকৃত পেমেন্ট-তারিখ ধরে হিসাব। বকেয়া লভ্যাংশ: মাস-ক্লোজের তারিখ ও উত্তোলনের তারিখ ধরে ঐ তারিখের অবস্থা।</div>`;
   })();
 
+  // ===== ১৩/১৪: নগদ-ব্যাংক-পাওনার অবস্থান; তুলনা, লাভ বণ্টন ও সতর্কতা =====
+  const _posHtml = (function() {
+    const nowP = todayStr().slice(0,7), running = prefix === nowP;
+    const asOfD = running ? todayStr() : `${prefix}-${pad(new Date(year, month, 0).getDate())}`;
+    const sg = n => (n>=0?'':'- ') + '৳ ' + fmt(Math.abs(n));
+    const _e = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // ক) নগদ ও ব্যাংক
+    const pos = getCashBankPositionForPrefix(prefix), cb = pos.cash, bk = pos.bank;
+    const r3 = (label, a, b) => `<tr><td>${label}</td><td style="text-align:right">${a}</td><td style="text-align:right">${b}</td></tr>`;
+    const cashBankHtml = `<table>
+      <thead><tr><th>বিষয়</th><th style="text-align:right">নগদ</th><th style="text-align:right">ব্যাংক</th></tr></thead>
+      <tbody>
+        ${r3('মাস শুরুর ব্যালেন্স', sg(cb.opening), sg(bk.opening))}
+        ${r3('আয় (আসল আদায়ের তারিখে)', '+ ৳ '+fmt(cb.income), '+ ৳ '+fmt(bk.income))}
+        ${r3('ট্রান্সফার ইন', '+ ৳ '+fmt(cb.fromOther), '+ ৳ '+fmt(bk.fromOther))}
+        ${r3('ব্যয় (ইনভেন্টরি ক্রয়/ফান্ডসহ)', '- ৳ '+fmt(cb.expense), '- ৳ '+fmt(bk.expense))}
+        ${r3('ট্রান্সফার আউট', '- ৳ '+fmt(cb.toOther), '- ৳ '+fmt(bk.toOther))}
+        ${(cb.adjIn||cb.adjOut||bk.adjIn||bk.adjOut) ? r3('অ্যাডজাস্টমেন্ট (আয়/ব্যয় নয়)', sg(cb.adjIn-cb.adjOut), sg(bk.adjIn-bk.adjOut)) : ''}
+      </tbody>
+      <tfoot><tr class="sum-row"><td><strong>মাস শেষের ব্যালেন্স${running?' (আজ পর্যন্ত)':''}</strong></td><td style="text-align:right"><strong>${sg(cb.closing)}</strong></td><td style="text-align:right"><strong>${sg(bk.closing)}</strong></td></tr></tfoot>
+    </table>
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* অ্যাপের ক্যাশ-হিসাব অনুযায়ী; মাস-শেষের ব্যালেন্স বর্তমান ব্যালেন্স থেকে পরের মাসগুলোর নড়াচড়া বাদ দিয়ে বের করা। মোবাইল ব্যাংকিং (MFS) আলাদা, এখানে নেই।</div>`;
+
+    // খ) রোগীর বাকি পাওনা
+    const rc = computeReceivablesAsOf(asOfD), collected = getDueCollectedForPrefix(prefix);
+    const recvHtml = `<table>
+      <thead><tr><th>উৎস</th><th style="text-align:right">বিল/রোগী</th><th style="text-align:right">বাকি</th></tr></thead>
+      <tbody>
+        <tr><td>🏥 রিসেপশন বিল</td><td style="text-align:right">${fmt(rc.bySrc.rec.n)}টি</td><td style="text-align:right">৳ ${fmt(rc.bySrc.rec.due)}</td></tr>
+        <tr><td>🧾 অ্যাডমিন বিল</td><td style="text-align:right">${fmt(rc.bySrc.adm.n)}টি</td><td style="text-align:right">৳ ${fmt(rc.bySrc.adm.due)}</td></tr>
+        <tr><td>🏕️ ক্যাম্প রোগী</td><td style="text-align:right">${fmt(rc.bySrc.camp.n)}টি</td><td style="text-align:right">৳ ${fmt(rc.bySrc.camp.due)}</td></tr>
+      </tbody>
+      <tfoot><tr class="sum-row"><td colspan="2"><strong>মোট বাকি পাওনা (${formatDate(asOfD)} পর্যন্ত)</strong></td><td style="text-align:right"><strong>৳ ${fmt(rc.total)}</strong></td></tr></tfoot>
+    </table>
+    <table>
+      <thead><tr><th>বাকির বয়স</th><th style="text-align:right">বিল</th><th style="text-align:right">বাকি</th></tr></thead>
+      <tbody>${rc.aging.map(a=>`<tr><td>${a[0]}</td><td style="text-align:right">${fmt(a[1])}টি</td><td style="text-align:right;${a[0].startsWith('৯০')&&a[2]>0?'color:#991b1b;font-weight:700':''}">৳ ${fmt(a[2])}</td></tr>`).join('')}</tbody>
+    </table>
+    <table><tr><td>✅ এ মাসে পুরনো বাকি আদায় হয়েছে (আয়ে "বাকি আদায়" হিসেবে ধরা)</td><td style="text-align:right;font-weight:700">৳ ${fmt(collected)}</td></tr></table>`;
+
+    // গ) স্টক
+    const purch = getInventoryPurchasesForPrefix(prefix);
+    const stockHtml = `<table>
+      <tr><td>এ মাসে কেনা (ইনভেন্টরি ক্রয়)</td><td style="text-align:right">৳ ${fmt(purch)}</td></tr>
+      <tr><td>এ মাসে বিক্রি হওয়া পণ্যের ক্রয়মূল্য (COGS)</td><td style="text-align:right">৳ ${fmt(totalCOGS)}</td></tr>
+      <tr class="sum-row"><td><strong>স্টকের নিট পরিবর্তন (কেনা − COGS)</strong></td><td style="text-align:right"><strong>${sg(purch-totalCOGS)}</strong></td></tr>
+      ${running ? `<tr><td>বর্তমান স্টকের মূল্য (গড় ক্রয়মূল্যে)</td><td style="text-align:right">৳ ${fmt(getInventoryValueNow())}</td></tr>` : ''}
+    </table>
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* কেনা ও বিক্রি আলাদা থাকায় স্টক কেনার টাকা লাভ-লসে ব্যয় হয় না — বিক্রি হলে COGS হিসেবে আসে।${running ? '' : ' মাস-শেষের স্টক-মূল্য আগের মাসের জন্য সংরক্ষিত নেই।'}</div>`;
+
+    // ১৪ ক) আগের মাসের সাথে তুলনা
+    let pm = month - 1, py = year; if (pm < 1) { pm = 12; py--; }
+    const prevP = `${py}-${pad(pm)}`;
+    const pRev = getTotalRevenueForPrefix(prevP), pCOGS = getCOGSForPrefix(prevP);
+    const pExp = (appData.expense||[]).filter(e => !e.isFundExpense && expenseCountsInPrefix(e, prevP)).reduce((s,e)=>s+(e.amount||0),0);
+    const pFix = getMonthlyFixedForPrefix(prevP).totalFixed || 0;
+    const pOp = pRev - pCOGS - pExp, pNet = pOp - pFix;
+    const pVis = (appData.visits||[]).filter(v => v.date && v.date.startsWith(prevP)).length;
+    const chg = (cur, prev) => { const d = cur - prev; const pct = prev ? Math.round(d / Math.abs(prev) * 100) : null; return (d>=0?'+ ':'- ') + '৳ ' + fmt(Math.abs(d)) + (pct==null?'':` (${pct>=0?'+':'-'}${fmt(Math.abs(pct))}%)`); };
+    const cRow = (label, cur, prev, bold) => `<tr><td>${bold?'<strong>'+label+'</strong>':label}</td><td style="text-align:right">${sg(cur)}</td><td style="text-align:right">${sg(prev)}</td><td style="text-align:right">${chg(cur, prev)}</td></tr>`;
+    const cmpHtml = (pRev || pExp) ? `<table>
+      <thead><tr><th>বিষয়</th><th style="text-align:right">এই মাস</th><th style="text-align:right">আগের মাস</th><th style="text-align:right">পরিবর্তন</th></tr></thead>
+      <tbody>
+        ${cRow('মোট আয়', grandInc, pRev)}
+        ${cRow('পণ্যের COGS', totalCOGS, pCOGS)}
+        ${cRow('পরিচালন ব্যয়', totalExp, pExp)}
+        ${cRow('পরিচালন লাভ/লস', netProfit, pOp)}
+        ${cRow('ফিক্সড খরচ', totalFixedAll, pFix)}
+        ${cRow('নিট লাভ/লস (ফিক্সড সহ)', netAfterFixed, pNet, true)}
+        <tr><td>রোগী (রিসেপশন বিল)</td><td style="text-align:right">${fmt(visits.length)} জন</td><td style="text-align:right">${fmt(pVis)} জন</td><td style="text-align:right">${(visits.length-pVis>=0?'+ ':'- ')+fmt(Math.abs(visits.length-pVis))} জন</td></tr>
+      </tbody></table>${running ? '<div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* চলতি মাস আজ পর্যন্ত — তাই পূর্ণ আগের মাসের সাথে তুলনা আংশিক।</div>' : ''}` : '<p style="color:#9ca3af">আগের মাসের কোনো ডেটা নেই।</p>';
+
+    // ১৪ খ) লাভ বণ্টন (ক্লোজড মাস)
+    let distHtml = '<p style="color:#9ca3af">এই মাস এখনো ক্লোজ হয়নি — ক্লোজ হলে লাভ বণ্টনের সারসংক্ষেপ এখানে আসবে।</p>';
+    if (_mc) {
+      const nm = (b, list, idKey) => b.name || b.shareholderName || b.investorName || ((list||[]).find(x=>x.id===b[idKey])||{}).name || '—';
+      const funds = (_mc.fundAllocations||[]).filter(f=>(f.amount||0)>0);
+      distHtml = `<table>
+        <tr><td>ক্লোজিংয়ের অটো নিট</td><td style="text-align:right">${sg(_mc.autoNet||0)}</td></tr>
+        ${(_mc.adjustment||0) ? `<tr><td>সমন্বয় ${_mc.adjustmentNote ? '('+_e(_mc.adjustmentNote)+')' : ''}</td><td style="text-align:right">${sg(_mc.adjustment)}</td></tr>` : ''}
+        <tr class="sum-row"><td><strong>চূড়ান্ত নিট</strong></td><td style="text-align:right"><strong>${sg(_mc.finalNet||0)}</strong></td></tr>
+        ${_mc.isLoss ? `<tr><td>লোকসান (পরবর্তী মাসে জমা)</td><td style="text-align:right;color:#991b1b">৳ ${fmt(_mc.lossAmt||0)}</td></tr>`
+          : `${(_mc.lossCleared||0)>0 ? `<tr><td>জমা লোকসান কাটা হয়েছে</td><td style="text-align:right">৳ ${fmt(_mc.lossCleared)}</td></tr>` : ''}
+        ${funds.map(f=>`<tr><td>ফান্ড — ${_e(f.fundName||f.name||'')}</td><td style="text-align:right">৳ ${fmt(f.amount)}</td></tr>`).join('')}
+        <tr><td>শেয়ারহোল্ডার পুল</td><td style="text-align:right">৳ ${fmt(_mc.shareholderPool||0)}</td></tr>
+        ${(_mc.investorPoolAmt||0)>0 ? `<tr><td>ইনভেস্টর পুল</td><td style="text-align:right">৳ ${fmt(_mc.investorPoolAmt)}</td></tr>` : ''}`}
+        <tr><td>জমা লোকসান (ক্লোজিংয়ের পর)</td><td style="text-align:right">৳ ${fmt(_mc.accLossAfter||0)}</td></tr>
+      </table>
+      ${(!_mc.isLoss && ((_mc.breakdown||[]).length || (_mc.investorBreakdown||[]).length)) ? `<table>
+        <thead><tr><th>প্রাপক</th><th style="text-align:right">টাকা</th></tr></thead>
+        <tbody>${(_mc.breakdown||[]).map(b=>`<tr><td>👥 ${_e(nm(b, appData.shareholders, 'shareholderId'))}</td><td style="text-align:right">৳ ${fmt(b.amount||0)}</td></tr>`).join('')}
+        ${(_mc.investorBreakdown||[]).map(b=>`<tr><td>💼 ${_e(nm(b, appData.investors, 'investorId'))}</td><td style="text-align:right">৳ ${fmt(b.amount||0)}</td></tr>`).join('')}</tbody>
+      </table>` : ''}`;
+    }
+
+    // ১৪ গ) সতর্কতা
+    const W = [];
+    const pend = (appData.expense||[]).filter(e => e.status === 'pending' && !e.rejected);
+    if (pend.length) W.push([`⏳ ভাঙ্গানো হয়নি এমন ইস্যুকৃত চেক ${fmt(pend.length)}টি`, '৳ ' + fmt(pend.reduce((s,e)=>s+(e.amount||0),0))]);
+    const noV = expenses.filter(e => !e.voucher).length;
+    if (noV) W.push([`🧾 এই মাসে ভাউচার নং ছাড়া ব্যয় এন্ট্রি`, `${fmt(noV)}টি`]);
+    const negStock = (appData.stock||[]).filter(i => (i.qty||0) < 0);
+    if (negStock.length) W.push([`📦 ঋণাত্মক স্টক: ${_e(negStock.slice(0,3).map(i=>i.name).join(', '))}${negStock.length>3?'…':''}`, `${fmt(negStock.length)}টি আইটেম`]);
+    const campNoR = camps.filter(c => campReceiptText(c) === '—').length;
+    if (campNoR) W.push([`🏕️ রিসিট নং ছাড়া ক্যাম্প`, `${fmt(campNoR)}টি`]);
+    const sgDue = computeSurgeonDuesAsOf(asOfD);
+    if (sgDue.length) W.push([`🩺 সার্জনের পারিশ্রমিক বাকি`, '৳ ' + fmt(sgDue.reduce((s,r)=>s+r.amt,0))]);
+    if (rc.aging[3][2] > 0.5) W.push([`🕘 ৯০ দিনের বেশি পুরনো রোগীর বাকি ${fmt(rc.aging[3][1])}টি`, '৳ ' + fmt(rc.aging[3][2])]);
+    if (_mc && Math.abs(netAfterFixed - (_mc.autoNet||0)) >= 1) W.push(['🔒 ক্লোজিংয়ের পরে হিসাব বদলেছে (ক্লোজিং নিট বনাম বর্তমান নিট)', sg(netAfterFixed - (_mc.autoNet||0))]);
+    const warnHtml = W.length ? `<table>${W.map(w=>`<tr><td>${w[0]}</td><td style="text-align:right;font-weight:700">${w[1]}</td></tr>`).join('')}</table>` : '<p style="color:#065f46">✅ কোনো সতর্কতা নেই।</p>';
+
+    return `<h2>১৩. নগদ, ব্যাংক ও পাওনার অবস্থান</h2>
+    <h3>ক. নগদ ও ব্যাংক</h3>${cashBankHtml}
+    <h3>খ. রোগীর বাকি পাওনা</h3>${recvHtml}
+    <h3>গ. স্টক (মেডিসিন/চশমা)</h3>${stockHtml}
+    <h2>১৪. তুলনা, লাভ বণ্টন ও সতর্কতা</h2>
+    <h3>ক. আগের মাসের সাথে তুলনা</h3>${cmpHtml}
+    <h3>খ. লাভ বণ্টন (ক্লোজড মাসে)</h3>${distHtml}
+    <h3>গ. সতর্কতা</h3>${warnHtml}`;
+  })();
+
   const _boardHtml = `
   <html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -15334,7 +15456,7 @@ function buildBoardReportHtml(month, year) {
     <tr><td style="padding-left:20px">— ভাড়া + ইউটিলিটি + অন্যান্য সাধারণ খরচ</td><td style="text-align:right">৳ ${fmt(fixedCost)}</td></tr>
     <tr class="total-row"><td><strong>নিট লাভ/লস (ফিক্সড সহ)</strong></td><td style="text-align:right"><strong>${netAfterFixed>=0?'':'- '}৳ ${fmt(Math.abs(netAfterFixed))}</strong></td></tr>
   </table>
-  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* মেডিসিন/চশমার ক্রয়মূল্য "পরিচালন ব্যয়"-এ নেই — ক্রয়ের সময় নয়, শুধু বিক্রি হলে COGS হিসেবে ধরা হয়। বেতন, ভাড়া, ইউটিলিটি ও অন্যান্য খরচ মাসিক হারে আলাদা ধরা (ইউটিলিটি ও অন্যান্য আনুমানিক; সঠিক বিল এন্ট্রি থাকলে সেটা)। মাস-ক্লোজের নিটও এই ফিক্সড সহ ভিত্তিতেই।${totalOpFee>0 ? ` অপারেশনের সার্জন পারিশ্রমিক ৳ ${fmt(totalOpFee)} অপারেশন সেকশনে আলাদা দেখানো — আলাদা ব্যয় এন্ট্রি দেওয়া না হলে উপরের লাভ-লসে ধরা নেই।` : ''}</div>
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* মেডিসিন/চশমার ক্রয়মূল্য "পরিচালন ব্যয়"-এ নেই — ক্রয়ের সময় নয়, শুধু বিক্রি হলে COGS হিসেবে ধরা হয়। বেতন, ভাড়া, ইউটিলিটি ও অন্যান্য খরচ মাসিক হারে আলাদা ধরা (ইউটিলিটি ও অন্যান্য আনুমানিক; সঠিক বিল এন্ট্রি থাকলে সেটা)। মাস-ক্লোজের নিটও এই ফিক্সড সহ ভিত্তিতেই।${totalOpFee>0 ? ` অপারেশনের সার্জন পারিশ্রমিক ৳ ${fmt(totalOpFee)} অপারেশন সেকশনে আলাদা দেখানো; সার্জনকে পরিশোধ করলে অটো ভাউচারে পরিশোধের তারিখে ব্যয় হিসেবে উপরের লাভ-লসে ধরা পড়ে, বাকি থাকলে দেনায় দেখায়।` : ''}</div>
   ${_mc ? `<table>
     <tr><td>🔒 মাস-ক্লোজে নির্ধারিত নিট (${_mc.label||''}, ${formatDate((_mc.closedAt||'').slice(0,10))})</td><td style="text-align:right">${(_mc.autoNet||0)>=0?'':'- '}৳ ${fmt(Math.abs(_mc.autoNet||0))}</td></tr>
     <tr><td>এই রিপোর্টের (বর্তমান ডেটা) নিট − ক্লোজিং-এর নিট = পার্থক্য</td><td style="text-align:right;font-weight:700;color:${Math.abs(netAfterFixed-(_mc.autoNet||0))<1?'#065f46':'#b45309'}">${(netAfterFixed-(_mc.autoNet||0))>=0?'':'- '}৳ ${fmt(Math.abs(netAfterFixed-(_mc.autoNet||0)))}</td></tr>
@@ -15509,6 +15631,8 @@ function buildBoardReportHtml(month, year) {
   </table>`:'<p style="color:#9ca3af">কোনো কর্মী নেই।</p>'}
 
   ${_liabHtml}
+
+  ${_posHtml}
 
   <!-- স্বাক্ষর -->
   <div class="sig-row">
@@ -15887,7 +16011,9 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     var L = Array.prototype.map.call(headRow.children, function(h){ return tx(h); });
     var has = function(re){ return L.some(function(x){ return re.test(x); }); };
     var kind = 'generic';
-    if (has(/^পক্ষ$/) && has(/^(বাকি|পরিশোধিত) টাকা$/)) kind = 'liab';
+    if (has(/^নগদ$/) && has(/^ব্যাংক$/)) kind = 'cashbank';
+    else if (has(/^এই মাস$/) && has(/^আগের মাস$/)) kind = 'cmp';
+    else if (has(/^পক্ষ$/) && has(/^(বাকি|পরিশোধিত) টাকা$/)) kind = 'liab';
     else if (has(/^খাত$/) && has(/রিসেপশন|হাসপাতাল/) && has(/ক্যাম্প/)) kind = 'cat';
     else if (has(/^তারিখ$/) && has(/^আয়$/) && has(/^ব্যয়$/) && !has(/নিট লাভ/)) kind = 'daily';
     else if (has(/নগদ প্রদান/)) kind = 'rec';
@@ -15905,6 +16031,13 @@ function _boardMobileSrcdoc(fullHtml, nav) {
       var c = Array.prototype.map.call(tr.children, function(td){ return tx(td); });
       var o = { date: '', title: '', amt: '', cls: '', sub: [], chips: [], multi: null };
       switch (kind) {
+        case 'cmp':
+          o.title = c[0]; o.amt = c[3];
+          o.sub.push('এই মাস ' + c[1] + ' · আগের মাস ' + c[2]);
+          break;
+        case 'cashbank':
+          o.title = c[0]; o.ie = [['নগদ', c[1], 'n'], ['ব্যাংক', c[2], 'n']];
+          break;
         case 'liab':
           o.title = c[1]; o.amt = c[3]; o.cls = 'neg';
           put(o.sub, '', c[2]);
@@ -15936,11 +16069,14 @@ function _boardMobileSrcdoc(fullHtml, nav) {
         case 'rec':
           o.date = dateOf(c[1]); o.title = c[4] || c[3]; o.amt = c[7]; o.cls = 'pos';
           put(o.sub, '', c[2]); put(o.sub, '', c[3]);
-          if (!blank(c[6]) || !blank(c[8])) {
+          var _dc = tr.children[8], _dnEl = _dc && _dc.querySelector('div');
+          var _dn = _dnEl ? tx(_dnEl) : '', _dm = _dn ? c[8].replace(_dn, '').trim() : c[8];
+          if (!blank(c[6]) || !blank(_dm)) {
             o.chips.push(['বিল ' + c[5], '']);
             if (!blank(c[6])) o.chips.push(['ছাড় ' + c[6].replace(/^-\s*/, ''), 'w']);
-            if (!blank(c[8])) o.chips.push(['বাকি ' + c[8], 'e']);
+            if (!blank(_dm)) o.chips.push(['বাকি ' + _dm, 'e']);
           }
+          if (_dn) o.sub.push('(' + _dn + ')');
           break;
         case 'campdet':
           o.date = dateOf(c[1]); o.title = c[3]; o.amt = c[6]; o.cls = /^[-−]/.test(c[6]) ? 'neg' : 'pos';
@@ -16120,6 +16256,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc-m{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
     .cc-ml{font-size:10.5px;font-weight:400;color:#64748b}
     .cc-mv{font-size:13px;font-weight:700}
+    .cc-n .cc-mv{color:#0f4c81}
     .cc-i .cc-mv{color:#065f46}
     .cc-e .cc-mv{color:#991b1b}
     .cc-f .cc-mv{color:#b45309}
@@ -16129,7 +16266,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc-l2{display:flex;align-items:center;gap:6px;margin-top:1px;font-size:11px;font-weight:400;color:#64748b;line-height:1.35}
     .cc-s{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cc.open .cc-s,.cc.open .cc-t:not(.cc-multi){white-space:normal;overflow:visible}
-    .cc-x{flex:0 0 auto;display:flex;gap:4px}
+    .cc-x{flex:0 1 auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:62%}
     .cc.cc-arr{background:#fff5f5;border-left:3px dashed #ef4444;border-color:#fecaca}
     .cc-arr .cc-t{color:#b91c1c}
     .cc-arr .cc-s{color:#b91c1c;font-size:10.5px}
