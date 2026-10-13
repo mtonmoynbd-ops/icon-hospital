@@ -11705,7 +11705,7 @@ function refreshDashboard() {
   const mTotalInc = pnl.totalRevenue;
   const mExp = pnl.opEx;
   const mCOGS = pnl.cogs;
-  const mCamp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+(c.totalIncome||0),0);
+  const mCamp = getRevenueBreakdownForPrefix(prefix).cmp;
   const mProfit = pnl.grossProfit - mExp - totalMonthlyFixed;
   animateStatText(document.getElementById('monthlyProfit'), mProfit, v => (v>=0?'৳ ':'- ৳ ') + fmt(Math.abs(v)));
   document.getElementById('monthlyProfit').style.color     = mProfit>=0 ? '#8e44ad' : 'var(--danger)';
@@ -11863,7 +11863,8 @@ function showDashCardModal(cardId, modalId) {
 
   } else if (cardId === 'campIncome') {
     const camps = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix));
-    const total = camps.reduce((s,c)=>s+c.totalIncome,0);
+    const _cmap2 = _campOfVisitMap();
+    const total = camps.reduce((s,c)=>s+getCampBilledIncome(c,_cmap2),0);
     icon='🏕️'; title='ক্যাম্প আয় — এই মাস'; sub=prefix+' মাস';
     amtText='৳ '+fmt(total); amtColor='#e67e22';
     body = camps.length
@@ -14888,7 +14889,7 @@ function buildBoardReportHtml(month, year) {
   // getIncomeCategoryBreakdown() (একক উৎস — মাসিক তুলনা স্ট্রিপ, P&L স্ট্রিপ, পাই চার্ট, মাসিক
   // রিপোর্ট পেজেও এই একই ফাংশন) ব্যবহার করা হচ্ছে, যাতে বোর্ড রিপোর্টের "মোট আয়" বাকি সব জায়গার
   // সাথে হুবহু মিলে যায়।
-  const incomes  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!e.campVisitId&&(!e.visitId||e.category==='বাকি আদায়'));
+  const incomes  = appData.income.filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&(!e.visitId||e.category==='বাকি আদায়'));   // ক্যাম্পের বাকি আদায়সহ — আদায়ের মাসেই
   const expenses = appData.expense.filter(e=>expenseCountsInPrefix(e, prefix));
   const visits   = appData.visits.filter(v=>v.date&&v.date.startsWith(prefix));
   const camps    = appData.camps.filter(c=>c.date&&c.date.startsWith(prefix));
@@ -14898,7 +14899,8 @@ function buildBoardReportHtml(month, year) {
   // সারসংক্ষেপ হিসাব
   const totalManualInc = incomes.reduce((s,e)=>s+e.amount,0); // ম্যানুয়াল/রিসেপশন এন্ট্রি (ক্যাম্প বাদে) — অপারেশন ফি এর মধ্যেই আছে
   const totalRecInc    = visits.reduce((s,v)=>s+getVisitBilledCashPaid(v),0); // বাকি আদায় দ্বৈত-গণনা এড়াতে বিলিং-সময়ের cashPaid
-  const totalCampInc   = camps.reduce((s,c)=>s+(c.totalIncome||0),0);
+    const _cmapB = _campOfVisitMap();
+  const totalCampInc   = camps.reduce((s,c)=>s+getCampBilledIncome(c,_cmapB),0);   // ক্যাম্প-দিনের আয় (পরে আদায় আলাদা, আদায়ের মাসে)
   const totalOpInc     = ops.reduce((s,o)=>s+o.fee,0); // ইতিমধ্যে totalManualInc-এর মধ্যে আছে, শুধু তথ্যের জন্য আলাদা দেখানো হচ্ছে
   const grandInc       = getTotalRevenueForPrefix(prefix); // = totalManualInc + totalRecInc + totalCampInc (একক উৎস)
   const totalExp       = expenses.reduce((s,e)=>s+e.amount,0);
@@ -14944,6 +14946,8 @@ function buildBoardReportHtml(month, year) {
 
   // ক্যাম্প রেকর্ড দুই পথে তৈরি হয় — অ্যাডমিন ফর্ম (incBreakdown/expBreakdown/receipt) আর ক্যাম্পেইনার ক্লোজিং (itemSales/testSales/visitFeeTotal, expList, receiptStart–receiptEnd)।
   // তাই আয়ের ভাঙন একক উৎস getCampCategoryBreakdown() থেকে, ব্যয় expBreakdown অথবা expList থেকে, আর রিসিট নং receipt অথবা receiptStart–receiptEnd থেকে নেওয়া হয় (ক্যাম্প রেকর্ড প্রিভিউর মতোই)।
+  const campPatients = c => c.totalPatients || (c.patients||[]).length || 0;
+  const totalCampPatients = camps.reduce((s,c)=>s+campPatients(c),0);
   const campReceiptText = c => c.receipt || (c.receiptStart ? (c.receiptEnd && c.receiptEnd !== c.receiptStart ? `#${c.receiptStart}–${c.receiptEnd}` : `#${c.receiptStart}`) : '—');
   const campExpBuckets = c => {
     const out = { travel:0, food:0, promo:0, rent:0, bonus:0, other:0, part:0 };
@@ -14962,14 +14966,14 @@ function buildBoardReportHtml(month, year) {
     if (sum === 0 && out.total > 0) out.other = out.total;
     return out;
   };
-  const _campBr = new Map(camps.map(c => [c, getCampCategoryBreakdown(c)]));
+  const _campBr = new Map(camps.map(c => [c, getCampBilledBreakdown(c, _cmapB)]));
   const hasCampOther = camps.some(c => (_campBr.get(c).other||0) > 0.5);
 
   // আয়ের বিস্তারিত তালিকা — সব ধরনের আয় (অ্যাডমিন/বাকি আদায় এন্ট্রি + রিসেপশন বিল + ক্যাম্প আয়) তারিখ ক্রমে, মেমো/রিসিট নং সহ
   const _incAll = [
     ...incomes.map(e => ({ d: e.date, memo: e.memo||'', kind: 'adm', cat: e.category, ref: e.ref||'—', note: e.note||'—', by: e.by||'—', amt: e.amount||0 })),
     ...visits.map(v => ({ d: v.date, memo: v.memoNo||v.rcptNo||'', memoShow: v.memoNo||v.rcptNo||('REC-'+String(v.id).slice(-6)), kind: 'rec', cat: '🏥 রিসেপশন বিল', ref: v.patName||'—', note: (v.services||[]).map(s=>s.name).join(', ')||'—', by: v.by||v.createdBy||'—', amt: getVisitBilledCashPaid(v) })),
-    ...camps.map(c => { const b=_campBr.get(c)||{}; return { d: c.date, memo: c.receipt||(c.receiptStart?campReceiptText(c):''), memoShow: campReceiptText(c), kind: 'camp', cat: '🏕️ ক্যাম্প আয়', ref: [c.name, c.location].filter(Boolean).join(' — ')||'—', note: `ভিজিট ${fmt(b.visit||0)} · ওষুধ ${fmt(b.med||0)} · চশমা ${fmt(b.glass||0)} · টেস্ট ${fmt(b.test||0)}${(b.other||0)>0.5?` · অন্যান্য ${fmt(b.other)}`:''}`, by: c.by||'—', amt: c.totalIncome||0 }; })
+    ...camps.map(c => { const b=_campBr.get(c)||{}; return { d: c.date, memo: c.receipt||(c.receiptStart?campReceiptText(c):''), memoShow: campReceiptText(c), kind: 'camp', cat: '🏕️ ক্যাম্প আয়', ref: [c.name, c.location].filter(Boolean).join(' — ')||'—', note: `ভিজিট ${fmt(b.visit||0)} · ওষুধ ${fmt(b.med||0)} · চশমা ${fmt(b.glass||0)} · টেস্ট ${fmt(b.test||0)}${(b.other||0)>0.5?` · অন্যান্য ${fmt(b.other)}`:''}`, by: c.by||'—', amt: getCampBilledIncome(c,_cmapB) }; })
   ].sort((a,b)=>(a.d||'').localeCompare(b.d||'') || String(a.memo).localeCompare(String(b.memo), undefined, {numeric:true}));
   const incRows = _incAll.map((x,i)=>`
     <tr>
@@ -15018,7 +15022,9 @@ function buildBoardReportHtml(month, year) {
     const cogs = c.totalCOGS||0, staff = c.regularStaffCost||0;
     const staffNames = (c.regularStaff||[]).map(s=>s.name).filter(Boolean).join(', ');
     const cost = eb.total + cogs + staff;
-    return { c, b, eb, cogs, staff, staffNames, income: c.totalIncome||0, cost, net: (c.totalIncome||0) - cost };
+    const income = getCampBilledIncome(c,_cmapB), later = getCampLaterCollections(c,_cmapB);
+    const stillDue = (appData.campVisits||[]).filter(v => v.campName === c.name && v.date === c.date).reduce((s,v)=>s+(v.due||0),0);
+    return { c, b, eb, cogs, staff, staffNames, income, later, stillDue, pts: campPatients(c), cost, net: income - cost };
   });
   const cdIncTotal = _cd.reduce((s,x)=>s+x.income,0), cdCostTotal = _cd.reduce((s,x)=>s+x.cost,0), cdNetTotal = _cd.reduce((s,x)=>s+x.net,0);
   const _sg = n => (n>=0?'':'- ') + '৳ ' + fmt(Math.abs(n));
@@ -15030,8 +15036,8 @@ function buildBoardReportHtml(month, year) {
       <td>${i+1}</td>
       <td>${formatDate(c.date)}</td>
       <td style="color:#9d174d;font-weight:600">${campReceiptText(c)}</td>
-      <td style="font-weight:600">${c.name} — ${c.location}</td>
-      <td style="text-align:right"><div class="cd-m" style="font-weight:700;color:#065f46">৳ ${fmt(x.income)}</div><div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">${incParts||'—'}</div></td>
+      <td style="font-weight:600">${c.name} — ${c.location}<div style="font-size:10.5px;font-weight:500;color:#475569">👥 ${fmt(x.pts)} জন রোগী</div></td>
+      <td style="text-align:right"><div class="cd-m" style="font-weight:700;color:#065f46">৳ ${fmt(x.income)}</div><div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">${incParts||'—'}</div>${x.later>0.5?`<div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">পরে আদায় ৳ ${fmt(x.later)} — আদায়ের মাসে "বাকি আদায়"-এ</div>`:''}${x.stillDue>0.5?`<div class="cd-s" style="font-size:10px;color:#b45309;line-height:1.35">এখনো বাকি ৳ ${fmt(x.stillDue)}</div>`:''}</td>
       <td style="text-align:right"><div class="cd-m" style="font-weight:700;color:#991b1b">৳ ${fmt(x.cost)}</div>
         <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">ক্যাম্প ব্যয় ৳ ${fmt(eb.total)}${expParts?` (${expParts})`:''}</div>
         <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">পণ্যের COGS ৳ ${fmt(x.cogs)}${x.staff>0?` · কর্মীর দৈনিক বেতন ৳ ${fmt(x.staff)}${x.staffNames?' ('+x.staffNames+')':''}`:''}</div></td>
@@ -15136,7 +15142,7 @@ function buildBoardReportHtml(month, year) {
     const ds=`${year}-${pad(month)}-${pad(d)}`;
     const di=incomes.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0)
              +visits.filter(v=>v.date===ds).reduce((s,v)=>s+getVisitBilledCashPaid(v),0)
-             +camps.filter(c=>c.date===ds).reduce((s,c)=>s+c.totalIncome,0);
+             +camps.filter(c=>c.date===ds).reduce((s,c)=>s+getCampBilledIncome(c,_cmapB),0);
     const de=expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0) + (getCOGSForPrefix(ds)||0);
     const _arr = _arrearsByDate[ds] || [];
     if(!di&&!de&&!_arr.length) continue;
@@ -15282,24 +15288,7 @@ function buildBoardReportHtml(month, year) {
     const sg = n => (n>=0?'':'- ') + '৳ ' + fmt(Math.abs(n));
     const _e = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-    // ক) নগদ ও ব্যাংক
-    const pos = getCashBankPositionForPrefix(prefix), cb = pos.cash, bk = pos.bank;
-    const r3 = (label, a, b) => `<tr><td>${label}</td><td style="text-align:right">${a}</td><td style="text-align:right">${b}</td></tr>`;
-    const cashBankHtml = `<table>
-      <thead><tr><th>বিষয়</th><th style="text-align:right">নগদ</th><th style="text-align:right">ব্যাংক</th></tr></thead>
-      <tbody>
-        ${r3('মাস শুরুর ব্যালেন্স', sg(cb.opening), sg(bk.opening))}
-        ${r3('আয় (আসল আদায়ের তারিখে)', '+ ৳ '+fmt(cb.income), '+ ৳ '+fmt(bk.income))}
-        ${r3('ট্রান্সফার ইন', '+ ৳ '+fmt(cb.fromOther), '+ ৳ '+fmt(bk.fromOther))}
-        ${r3('ব্যয় (ইনভেন্টরি ক্রয়/ফান্ডসহ)', '- ৳ '+fmt(cb.expense), '- ৳ '+fmt(bk.expense))}
-        ${r3('ট্রান্সফার আউট', '- ৳ '+fmt(cb.toOther), '- ৳ '+fmt(bk.toOther))}
-        ${(cb.adjIn||cb.adjOut||bk.adjIn||bk.adjOut) ? r3('অ্যাডজাস্টমেন্ট (আয়/ব্যয় নয়)', sg(cb.adjIn-cb.adjOut), sg(bk.adjIn-bk.adjOut)) : ''}
-      </tbody>
-      <tfoot><tr class="sum-row"><td><strong>মাস শেষের ব্যালেন্স${running?' (আজ পর্যন্ত)':''}</strong></td><td style="text-align:right"><strong>${sg(cb.closing)}</strong></td><td style="text-align:right"><strong>${sg(bk.closing)}</strong></td></tr></tfoot>
-    </table>
-    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* অ্যাপের ক্যাশ-হিসাব অনুযায়ী; মাস-শেষের ব্যালেন্স বর্তমান ব্যালেন্স থেকে পরের মাসগুলোর নড়াচড়া বাদ দিয়ে বের করা। মোবাইল ব্যাংকিং (MFS) আলাদা, এখানে নেই।</div>`;
-
-    // খ) রোগীর বাকি পাওনা
+    // ক) রোগীর বাকি পাওনা
     const rc = computeReceivablesAsOf(asOfD), collected = getDueCollectedForPrefix(prefix);
     const recvHtml = `<table>
       <thead><tr><th>উৎস</th><th style="text-align:right">বিল/রোগী</th><th style="text-align:right">বাকি</th></tr></thead>
@@ -15316,7 +15305,7 @@ function buildBoardReportHtml(month, year) {
     </table>
     <table><tr><td>✅ এ মাসে পুরনো বাকি আদায় হয়েছে (আয়ে "বাকি আদায়" হিসেবে ধরা)</td><td style="text-align:right;font-weight:700">৳ ${fmt(collected)}</td></tr></table>`;
 
-    // গ) স্টক
+    // খ) স্টক
     const purch = getInventoryPurchasesForPrefix(prefix);
     const stockHtml = `<table>
       <tr><td>এ মাসে কেনা (ইনভেন্টরি ক্রয়)</td><td style="text-align:right">৳ ${fmt(purch)}</td></tr>
@@ -15387,14 +15376,51 @@ function buildBoardReportHtml(month, year) {
     if (_mc && Math.abs(netAfterFixed - (_mc.autoNet||0)) >= 1) W.push(['🔒 ক্লোজিংয়ের পরে হিসাব বদলেছে (ক্লোজিং নিট বনাম বর্তমান নিট)', sg(netAfterFixed - (_mc.autoNet||0))]);
     const warnHtml = W.length ? `<table>${W.map(w=>`<tr><td>${w[0]}</td><td style="text-align:right;font-weight:700">${w[1]}</td></tr>`).join('')}</table>` : '<p style="color:#065f46">✅ কোনো সতর্কতা নেই।</p>';
 
-    return `<h2>১৩. নগদ, ব্যাংক ও পাওনার অবস্থান</h2>
-    <h3>ক. নগদ ও ব্যাংক</h3>${cashBankHtml}
-    <h3>খ. রোগীর বাকি পাওনা</h3>${recvHtml}
-    <h3>গ. স্টক (মেডিসিন/চশমা)</h3>${stockHtml}
+    return `<h2>১৩. পাওনা ও স্টকের অবস্থান</h2>
+    <h3>ক. রোগীর বাকি পাওনা</h3>${recvHtml}
+    <h3>খ. স্টক (মেডিসিন/চশমা)</h3>${stockHtml}
     <h2>১৪. তুলনা, লাভ বণ্টন ও সতর্কতা</h2>
     <h3>ক. আগের মাসের সাথে তুলনা</h3>${cmpHtml}
     <h3>খ. লাভ বণ্টন (ক্লোজড মাসে)</h3>${distHtml}
     <h3>গ. সতর্কতা</h3>${warnHtml}`;
+  })();
+
+  // ===== ১৫: ক্যাশ, ব্যাংক ও মোবাইল ব্যাংকিং — মাসের শুরু ও শেষ (অ্যাপের নিজস্ব ক্যাশ-ফ্লো ফাংশন; ব্যালেন্স শিট/আয়-ব্যয় পেজের প্রারম্ভিক ব্যালেন্সের সাথে একই) =====
+  const _cashHtml = (function() {
+    const nowP = todayStr().slice(0,7), running = prefix === nowP;
+    const sg = n => (n>=0?'':'- ') + '৳ ' + fmt(Math.abs(n));
+    const fl = calcCashBankFlowForPrefix(prefix), mf = calcMfsFlowForPrefix(prefix);
+    const oC = getOpeningCash(prefix, 'month'), oB = getOpeningBank(prefix, 'month'), oM = getOpeningMfs(prefix, 'month');
+    const cC = oC + fl.cashIn - fl.cashOut, cB = oB + fl.bankIn - fl.bankOut, cM = oM + mf.mfsIn - mf.mfsOut;
+    let live = '';
+    if (running) {   // চলতি মাসে হিসাব-করা শেষ ব্যালেন্স আসল লাইভ ব্যালেন্সের সাথে মিলছে কি না — একটা সততা-যাচাই
+      const lb = calcCashBankBalance(), lm = calcTotalMfsBalance();
+      const d = [['নগদ', cC - lb.cash], ['ব্যাংক', cB - lb.bank], ['মোবাইল ব্যাংকিং', cM - lm]].filter(x => Math.abs(x[1]) >= 1);
+      live = d.length ? `<div style="font-size:11px;color:#b45309;margin-bottom:10px">⚠️ লাইভ ব্যালেন্সের সাথে পার্থক্য: ${d.map(x=>x[0]+' '+sg(x[1])).join(', ')} — আগের মাসের কোনো এন্ট্রি/উত্তোলন বদলেছে কি না দেখুন।</div>`
+                    : `<div style="font-size:11px;color:#065f46;margin-bottom:10px">✅ হিসাব-করা শেষ ব্যালেন্স অ্যাপের লাইভ ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং ব্যালেন্সের সাথে হুবহু মিলেছে।</div>`;
+    }
+    const r4 = (label, a, b, c) => `<tr><td>${label}</td><td style="text-align:right">${a}</td><td style="text-align:right">${b}</td><td style="text-align:right">${c}</td></tr>`;
+    return `<h2>১৫. ক্যাশ, ব্যাংক ও মোবাইল ব্যাংকিং — মাসের শুরু ও শেষ</h2>
+    <table>
+      <thead><tr><th>বিষয়</th><th style="text-align:right">নগদ</th><th style="text-align:right">ব্যাংক</th><th style="text-align:right">মোবাইল ব্যাংকিং</th></tr></thead>
+      <tbody>
+        ${r4('মাসের শুরুতে ছিল', sg(oC), sg(oB), sg(oM))}
+        ${r4('মাসে মোট ইন (আয় + ট্রান্সফার)', '+ ৳ '+fmt(fl.cashIn), '+ ৳ '+fmt(fl.bankIn), '+ ৳ '+fmt(mf.mfsIn))}
+        ${r4('মাসে মোট আউট (ব্যয় + ট্রান্সফার)', '- ৳ '+fmt(fl.cashOut), '- ৳ '+fmt(fl.bankOut), '- ৳ '+fmt(mf.mfsOut))}
+      </tbody>
+      <tfoot><tr class="sum-row"><td><strong>${running ? 'আজ পর্যন্ত আছে (চলতি মাসের শেষ দিন পর্যন্ত)' : 'মাস শেষে আছে'}</strong></td><td style="text-align:right"><strong>${sg(cC)}</strong></td><td style="text-align:right"><strong>${sg(cB)}</strong></td><td style="text-align:right"><strong>${sg(cM)}</strong></td></tr></tfoot>
+    </table>
+    ${live}
+    <table>
+      <thead><tr><th>নগদ/ব্যাংকের ভাঙন</th><th style="text-align:right">নগদ</th><th style="text-align:right">ব্যাংক</th></tr></thead>
+      <tbody>
+        <tr><td>আয় (বাকি আদায়সহ, আদায়ের তারিখে)</td><td style="text-align:right">+ ৳ ${fmt(fl.cashRevIn)}</td><td style="text-align:right">+ ৳ ${fmt(fl.bankRevIn)}</td></tr>
+        <tr><td>ট্রান্সফার/অ্যাডজাস্টমেন্ট ইন</td><td style="text-align:right">+ ৳ ${fmt(fl.cashTransIn)}</td><td style="text-align:right">+ ৳ ${fmt(fl.bankTransIn)}</td></tr>
+        <tr><td>ব্যয় (ইনভেন্টরি ক্রয়, ফান্ড, বকেয়া পরিশোধসহ)</td><td style="text-align:right">- ৳ ${fmt(fl.cashExpOut)}</td><td style="text-align:right">- ৳ ${fmt(fl.bankExpOut)}</td></tr>
+        <tr><td>ট্রান্সফার/অ্যাডজাস্টমেন্ট আউট</td><td style="text-align:right">- ৳ ${fmt(fl.cashTransOut)}</td><td style="text-align:right">- ৳ ${fmt(fl.bankTransOut)}</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* ব্যালেন্স অ্যাপের ক্যাশ-ফ্লো হিসাব অনুযায়ী (ব্যালেন্স শিট ও আয়-ব্যয় পেজের প্রারম্ভিক ব্যালেন্সের সাথে একই)। ক্যাম্পের বাকি আদায়সহ সব বাকি আদায়ের টাকা যেদিন হাতে এসেছে সেদিনের মাসে ধরা। সার্জনের পরিশোধ অটো ভাউচারে পরিশোধের দিনে ব্যয়।</div>`;
   })();
 
   const _boardHtml = `
@@ -15445,7 +15471,7 @@ function buildBoardReportHtml(month, year) {
   <table>
     <tr><td>ম্যানুয়াল আয় এন্ট্রি</td><td style="text-align:right">৳ ${fmt(totalManualInc)} (${incomes.length}টি)</td></tr>
     <tr><td>রিসেপশন আয় (ক্যাশ মেমো)</td><td style="text-align:right">৳ ${fmt(totalRecInc)} (${visits.length}জন রোগী)</td></tr>
-    <tr><td>ক্যাম্প আয়</td><td style="text-align:right">৳ ${fmt(totalCampInc)} (${camps.length}টি ক্যাম্প)</td></tr>
+    <tr><td>ক্যাম্প আয়</td><td style="text-align:right">৳ ${fmt(totalCampInc)} (${camps.length}টি ক্যাম্প · ${fmt(totalCampPatients)} জন রোগী)</td></tr>
     <tr><td>অপারেশন ফি</td><td style="text-align:right">৳ ${fmt(totalOpInc)} (${ops.length}টি)</td></tr>
     <tr class="sum-row"><td><strong>মোট আয় (Revenue)</strong></td><td style="text-align:right"><strong>৳ ${fmt(grandInc)}</strong></td></tr>
     <tr><td>পণ্যের ক্রয়মূল্য (COGS) — বিক্রি হওয়া ওষুধ/চশমার ক্রয়মূল্য${campCOGS>0?` (হাসপাতাল ৳ ${fmt(hospCOGS)} + ক্যাম্প ৳ ${fmt(campCOGS)})`:''}</td><td style="text-align:right">৳ ${fmt(totalCOGS)}</td></tr>
@@ -15549,9 +15575,9 @@ function buildBoardReportHtml(month, year) {
   ${camps.length?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্প</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">নিট লাভ/লস</th></tr></thead>
     <tbody>${campRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="4"><strong>মোট (${fmt(camps.length)}টি ক্যাম্প)</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdIncTotal)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdCostTotal)}</strong></td><td style="text-align:right;font-weight:700;color:${cdNetTotal>=0?'#065f46':'#991b1b'}"><strong>${_sg(cdNetTotal)}</strong></td></tr></tfoot>
+    <tfoot><tr class="sum-row"><td colspan="4"><strong>মোট (${fmt(camps.length)}টি ক্যাম্প · ${fmt(totalCampPatients)} জন রোগী)</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdIncTotal)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdCostTotal)}</strong></td><td style="text-align:right;font-weight:700;color:${cdNetTotal>=0?'#065f46':'#991b1b'}"><strong>${_sg(cdNetTotal)}</strong></td></tr></tfoot>
   </table>
-  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* নিট = আয় − ক্যাম্প ব্যয় (পার্টটাইমারসহ) − পণ্যের COGS − ক্যাম্পে যাওয়া নিয়মিত কর্মীর সেদিনের বেতন (মাসিক ÷ ৩০; মাসিক বেতনেও ধরা আছে বলে এটা শুধু ক্যাম্পের হিসাব দেখানোর জন্য)।</div>`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* আয় = ক্যাম্পের দিনে পাওয়া আয়; ক্যাম্পের পরে আদায় হওয়া বাকি আদায়ের মাসে "বাকি আদায়" ক্যাটাগরিতে ধরা। নিট = আয় − ক্যাম্প ব্যয় (পার্টটাইমারসহ) − পণ্যের COGS − ক্যাম্পে যাওয়া নিয়মিত কর্মীর সেদিনের বেতন (মাসিক ÷ ৩০; মাসিক বেতনেও ধরা আছে বলে এটা শুধু ক্যাম্পের হিসাব দেখানোর জন্য)।</div>`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
 
   <!-- অপারেশন -->
   <h2>৮. অপারেশন আয় ও সার্জন পারিশ্রমিক</h2>
@@ -15633,6 +15659,8 @@ function buildBoardReportHtml(month, year) {
   ${_liabHtml}
 
   ${_posHtml}
+
+  ${_cashHtml}
 
   <!-- স্বাক্ষর -->
   <div class="sig-row">
@@ -16036,7 +16064,8 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           o.sub.push('এই মাস ' + c[1] + ' · আগের মাস ' + c[2]);
           break;
         case 'cashbank':
-          o.title = c[0]; o.ie = [['নগদ', c[1], 'n'], ['ব্যাংক', c[2], 'n']];
+          o.title = c[0]; o.ie = [];
+          for (var _k = 1; _k < c.length; _k++) o.ie.push([L[_k], c[_k], 'n']);
           break;
         case 'liab':
           o.title = c[1]; o.amt = c[3]; o.cls = 'neg';
@@ -16079,12 +16108,15 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           if (_dn) o.sub.push('(' + _dn + ')');
           break;
         case 'campdet':
-          o.date = dateOf(c[1]); o.title = c[3]; o.amt = c[6]; o.cls = /^[-−]/.test(c[6]) ? 'neg' : 'pos';
+          o.date = dateOf(c[1]); o.amt = c[6]; o.cls = /^[-−]/.test(c[6]) ? 'neg' : 'pos';
+          var _tc = tr.children[3], _pe = _tc && _tc.querySelector('div');
+          o.title = _pe ? c[3].replace(tx(_pe), '').trim() : c[3];
+          if (_pe) o.chips.push([tx(_pe), '']);
           var _m = function(i){ var e = tr.children[i] && tr.children[i].querySelector('.cd-m'); return e ? tx(e) : c[i]; };
           var _s = function(i){ var a = tr.children[i] ? Array.prototype.map.call(tr.children[i].querySelectorAll('.cd-s'), tx) : []; return a.filter(Boolean); };
           o.ie = [['আয়', _m(4), 'i'], ['ব্যয়', _m(5), 'e']];
           put(o.sub, 'রিসিট', c[2]);
-          _s(4).forEach(function(s){ if (s !== '—') o.sub.push('আয়: ' + s); });
+          _s(4).forEach(function(s, i){ if (s !== '—') o.sub.push((i === 0 ? 'আয়: ' : '') + s); });
           _s(5).forEach(function(s){ o.sub.push(s); });
           break;
         case 'camp':
@@ -16430,16 +16462,17 @@ function getIncomeCategoryBreakdown(prefix) {
     cat[k].total += amt;
   };
   // ম্যানুয়াল/রিসেপশন এন্ট্রি — getTotalRevenueForPrefix()-এর "inc" ফিল্টারের সাথে হুবহু মিল
-  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!e.campVisitId&&!(e.visitId&&e.category!=='বাকি আদায়')).forEach(e=>{
-    bump(canonicalCat(e.category), 'reception', e.amount||0);
+  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!(e.visitId&&e.category!=='বাকি আদায়')).forEach(e=>{
+    bump(canonicalCat(e.category), e.campVisitId ? 'camp' : 'reception', e.amount||0);
   });
   // রিসেপশন ভিজিট বিলিং — getVisitItemBreakdown() (পাই চার্টেও এটাই ব্যবহৃত)
   const vis = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix));
   Object.entries(getVisitItemBreakdown(vis)).forEach(([k,amt])=>bump(k,'reception',amt));
   // ক্যাম্প — getCampCategoryBreakdown() (একক উৎস)
   const cmps = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix));
+  const _cmapP = _campOfVisitMap();
   cmps.forEach(c=>{
-    const bd = getCampCategoryBreakdown(c);
+    const bd = getCampBilledBreakdown(c, _cmapP);
     Object.entries(bd).forEach(([key,amt])=>{
       if (amt>0) bump(canonicalCat(CAMP_INC_KEY_TO_CAT[key]||'অন্যান্য'), 'camp', amt);
     });
@@ -16456,14 +16489,15 @@ function renderReport() {
   // ✅ Filter data for this month — headline টোটালগুলো getTotalRevenueForPrefix()/
   // getVisitBilledCashPaid() (একক উৎস — মাসিক তুলনা স্ট্রিপ, P&L স্ট্রিপেও এই একই ফাংশন)
   // থেকে আসছে, যাতে "মোট আয়" এই পেজে আর বাকি সব জায়গায় হুবহু এক থাকে।
-  const incomes  = appData.income.filter(e => e.date && e.date.startsWith(prefix) && !e.campId && !e.campVisitId && (!e.visitId || e.category==='বাকি আদায়'));
+  const incomes  = appData.income.filter(e => e.date && e.date.startsWith(prefix) && !e.campId && (!e.visitId || e.category==='বাকি আদায়'));
   const expenses = appData.expense.filter(e => expenseCountsInPrefix(e, prefix));
   const visits   = appData.visits.filter(v => v.date && v.date.startsWith(prefix));
   const camps    = appData.camps.filter(c => c.date && c.date.startsWith(prefix));
 
   const totalInc      = incomes.reduce((s,e)=>s+e.amount,0); // ম্যানুয়াল/রিসেপশন এন্ট্রি (ক্যাম্প বাদে)
   const totalRecVisit = visits.reduce((s,v)=>s+getVisitBilledCashPaid(v),0); // রিসেপশন বিলিং, বাকি আদায় দ্বৈত-গণনা এড়াতে
-  const totalCampInc  = camps.reduce((s,c)=>s+(c.totalIncome||0),0);
+  const _cmapR = _campOfVisitMap();
+  const totalCampInc  = camps.reduce((s,c)=>s+getCampBilledIncome(c,_cmapR),0);
   const grandInc     = getTotalRevenueForPrefix(prefix); // = totalInc + totalRecVisit + totalCampInc (একক উৎস)
   const totalExp     = expenses.reduce((s,e)=>s+e.amount,0);
   const totalCOGS    = getCOGSForPrefix(prefix);
@@ -16617,7 +16651,7 @@ function renderRpDetailTable(incomes, expenses, visits, year, month, pad, prefix
       // ✅ "রিসেপশন আয়" কলামে ভিজিট বিলিং (বিলিং-সময়ের cashPaid, বাকি আদায় দ্বৈত-গণনা এড়িয়ে) +
       // ক্যাম্পের totalIncome — দুটোই যোগ, যাতে দিনভিত্তিক যোগফল getTotalRevenueForPrefix()-এর সাথে মিলে
       const dayRecVisit=visits.filter(v=>v.date===dateStr).reduce((s,v)=>s+getVisitBilledCashPaid(v),0);
-      const dayRecCamp=(appData.camps||[]).filter(c=>c.date===dateStr).reduce((s,c)=>s+(c.totalIncome||0),0);
+      const dayRecCamp=(appData.camps||[]).filter(c=>c.date===dateStr).reduce((s,c)=>s+getCampBilledIncome(c),0);
       const dayRec=dayRecVisit+dayRecCamp;
       const dayExp=expenses.filter(e=>e.date===dateStr).reduce((s,e)=>s+e.amount,0);
       const dayTotal=dayInc+dayRec, dayProfit=dayTotal-dayExp;
@@ -18121,10 +18155,23 @@ function getCOGSForPrefix(prefix) {
 // visitId-ট্যাগড হলেও ক্যাটাগরি "বাকি আদায়" হলে বাদ দেওয়া হচ্ছে না (কারণ এই টাকা getVisitBilledCashPaid()-এ
 // আর ধরা নেই), আর vis-সাম এখন v.cashPaid (লাইভ, পরবর্তী আদায়সহ) এর বদলে getVisitBilledCashPaid() ব্যবহার
 // করছে — অর্থাৎ শুধু বিলিং-এর সময়কার টাকা, পরে আদায় যাই হোক না কেন সেটা তার নিজের মাসেই আলাদাভাবে গণনা হবে।
+// ক্যাম্পের বাকি আদায়: আদায়ের এন্ট্রি (campVisitId) আদায়ের মাসে "বাকি আদায়" হিসেবে আয়; ক্যাম্প রেকর্ডের totalIncome-এ সেই টাকা পরে যোগ হয় বলে
+// ক্যাম্পের নিজের মাসের আয় = totalIncome − পরে-আদায় (getCampBilledIncome)। সব মাসের যোগফল আগের মতোই থাকে।
+function getCampLaterCollections(c, map) {
+  map = map || _campOfVisitMap();
+  return (appData.income||[]).filter(e => e.campVisitId && map[e.campVisitId] === c).reduce((s,e) => s + (e.amount||0), 0);
+}
+function getCampBilledIncome(c, map) { return Math.max(0, (c.totalIncome||0) - getCampLaterCollections(c, map)); }
+function getCampBilledBreakdown(c, map) {
+  const bd = Object.assign({}, getCampCategoryBreakdown(c)), later = getCampLaterCollections(c, map);
+  if (later > 0) bd.other = Math.max(0, (bd.other||0) - later);   // পরে আদায় হওয়া টাকা "অন্যান্য"-এ ঢুকে থাকে
+  return bd;
+}
 function getRevenueBreakdownForPrefix(prefix) {
-  const inc = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!e.campVisitId&&!(e.visitId&&e.category!=='বাকি আদায়')).reduce((s,e)=>s+(e.amount||0),0);
+  const map = _campOfVisitMap();
+  const inc = (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!(e.visitId&&e.category!=='বাকি আদায়')).reduce((s,e)=>s+(e.amount||0),0);
   const vis = (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).reduce((s,v)=>s+getVisitBilledCashPaid(v),0);
-  const cmp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+(c.totalIncome||0),0);
+  const cmp = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+getCampBilledIncome(c,map),0);
   return { inc, vis, cmp, total: inc + vis + cmp };
 }
 function getTotalRevenueForPrefix(prefix) { return getRevenueBreakdownForPrefix(prefix).total; }
@@ -18145,9 +18192,10 @@ function calcCashBankBalance() {
   // ⚠️ গুরুত্বপূর্ণ ফিক্স: বিল সেভ হওয়ার সময় "রিসেপশন আয়"/"অ্যাডমিন বিল" ক্যাটাগরিতে যে income এন্ট্রি অটো তৈরি হয়
   // (visitId ট্যাগসহ), সেই একই টাকা নিচের ধাপ ২-এ visit.cashPaid থেকেও যোগ হয় — তাই visitId-ট্যাগড এন্ট্রি এখানে
   // বাদ দেওয়া হচ্ছে, নাহলে একই বিলের ক্যাশ দুইবার যোগ হয়ে ক্যাশ/ব্যাংক ব্যালেন্স ভুলভাবে বেশি দেখাত।
+  const _cmap = _campOfVisitMap();
   (appData.income||[]).forEach(e => {
     if (e.visitId) return;
-    if (e.campVisitId) return; // ক্যাম্পের বাকি আদায় ক্যাম্প রেকর্ডের totalIncome-এ আগেই যোগ হয় (ধাপ ৩) — আলাদা এন্ট্রি আবার যোগ করলে ক্যাশ ডাবল হতো
+    if (e.campVisitId && _cmap[e.campVisitId]) return; // ক্যাম্পের বাকি আদায় ক্যাম্প রেকর্ডের totalIncome-এ আগেই যোগ হয় (ধাপ ৩) — আলাদা এন্ট্রি আবার যোগ করলে ক্যাশ ডাবল হতো
     if (e.payMode === 'bank') bank += (e.amount||0);
     else if (e.payMode === 'mfs') { /* মোবাইল ব্যাংকিং একাউন্টে যোগ হয় — calcMfsAccountBalance()-এ হিসাব */ }
     else cash += (e.amount||0);
@@ -19929,38 +19977,10 @@ function getVisitCashForPrefix(prefix) {
 }
 function getCampCashForPrefix(prefix) {
   const inP = d => !!d && d.startsWith(prefix), map = _campOfVisitMap();
-  const laterOf = c => (appData.income||[]).filter(e => e.campVisitId && map[e.campVisitId] === c).reduce((s,e) => s + (e.amount||0), 0);
-  const billed = (appData.camps||[]).filter(c => inP(c.date)).reduce((s,c) => s + (c.totalIncome||0) - laterOf(c), 0);
-  const coll = (appData.income||[]).filter(e => e.campVisitId && map[e.campVisitId] && inP(e.date)).reduce((s,e) => s + (e.amount||0), 0);
+  const billed = (appData.camps||[]).filter(c => inP(c.date)).reduce((s,c) => s + getCampBilledIncome(c, map), 0);
+  const coll = (appData.income||[]).filter(e => e.campVisitId && inP(e.date)).reduce((s,e) => s + (e.amount||0), 0);
   return billed + coll;
 }
-function getCashBankMovementForPrefix(prefix) {
-  const inP = d => !!d && d.startsWith(prefix);
-  const tx = type => (appData.bankTx||[]).filter(t => t.type === type && inP(t.date)).reduce((s,t) => s + (t.amount||0), 0);
-  const opIncome = (appData.income||[]).filter(e => !e.visitId && !e.campVisitId && e.payMode !== 'bank' && e.payMode !== 'mfs' && inP(e.date)).reduce((s,e) => s + (e.amount||0), 0);
-  const opExpense = (appData.expense||[]).filter(e => !e.campId && e.payMode !== 'bank' && e.payMode !== 'mfs' && inP(expenseEffectiveDate(e))).reduce((s,e) => s + (e.amount||0), 0);
-  const campExpense = (appData.camps||[]).filter(c => inP(c.date)).reduce((s,c) => s + (c.totalExpense||0), 0);
-  const cash = { income: opIncome + getVisitCashForPrefix(prefix) + getCampCashForPrefix(prefix), expense: opExpense + campExpense,
-    fromOther: tx('bank_to_cash') + tx('mfs_to_cash'), toOther: tx('cash_to_bank') + tx('cash_to_mfs'), adjIn: tx('cash_in'), adjOut: tx('cash_out') };
-  cash.net = cash.income + cash.fromOther + cash.adjIn - cash.expense - cash.toOther - cash.adjOut;
-  const bank = {
-    income: (appData.income||[]).filter(e => !e.visitId && !e.campVisitId && e.payMode === 'bank' && inP(e.date)).reduce((s,e) => s + (e.amount||0), 0),
-    expense: (appData.expense||[]).filter(e => e.payMode === 'bank' && e.status !== 'pending' && inP(expenseEffectiveDate(e))).reduce((s,e) => s + (e.amount||0), 0),
-    fromOther: tx('cash_to_bank') + tx('mfs_to_bank'), toOther: tx('bank_to_cash') + tx('bank_to_mfs'), adjIn: tx('bank_in'), adjOut: tx('bank_out') };
-  bank.net = bank.income + bank.fromOther + bank.adjIn - bank.expense - bank.toOther - bank.adjOut;
-  return { cash, bank };
-}
-function getCashBankPositionForPrefix(prefix) {
-  const now = calcCashBankBalance(), nowP = todayStr().slice(0,7);
-  let cashClose = now.cash, bankClose = now.bank;
-  if (prefix < nowP) {
-    let [y, m] = prefix.split('-').map(Number); m++; if (m > 12) { m = 1; y++; }
-    _fbMonthsBetween(`${y}-${String(m).padStart(2,'0')}`, nowP).forEach(mp => { const mv = getCashBankMovementForPrefix(mp); cashClose -= mv.cash.net; bankClose -= mv.bank.net; });
-  }
-  const mv = getCashBankMovementForPrefix(prefix);
-  return { cash: Object.assign({}, mv.cash, { closing: cashClose, opening: cashClose - mv.cash.net }), bank: Object.assign({}, mv.bank, { closing: bankClose, opening: bankClose - mv.bank.net }) };
-}
-
 // ===== রোগীর বাকি পাওনা (নির্দিষ্ট তারিখ পর্যন্ত): বর্তমান বাকি + ঐ তারিখের পরের আদায় ফেরত যোগ =====
 function computeReceivablesAsOf(asOf) {
   const later = (field, id) => (appData.income||[]).filter(e => e[field] === id && e.category === 'বাকি আদায়' && e.date && e.date > asOf).reduce((s,e) => s + (e.amount||0), 0);
@@ -24160,7 +24180,7 @@ function initOwnerPage() {
       const dueVisits2 = (appData.visits||[]).filter(v=>v.due>0);
       const totalDue2 = dueVisits2.reduce((s,v)=>s+v.due,0);
       // ক্যাম্প আয়
-      const campMonthInc2 = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).reduce((s,c)=>s+c.totalIncome,0);
+      const campMonthInc2 = getRevenueBreakdownForPrefix(prefix).cmp;
       const campCount2 = (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).length;
       // ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং
       const { cash: oCash, bank: oBank } = calcCashBankBalance();
@@ -40957,9 +40977,10 @@ function renderMonthlyComparison(){
   const inRange = (d, start, end) => !!d && d>=start && d<=end;
 
   const getTotalRevenueForRange = (start, end) => {
-    const inc = (appData.income||[]).filter(e=>inRange(e.date,start,end)&&!e.campId&&!e.campVisitId&&!(e.visitId&&e.category!=='বাকি আদায়')).reduce((s,e)=>s+(e.amount||0),0);
+    const _cmap = _campOfVisitMap();
+    const inc = (appData.income||[]).filter(e=>inRange(e.date,start,end)&&!e.campId&&!(e.visitId&&e.category!=='বাকি আদায়')).reduce((s,e)=>s+(e.amount||0),0);
     const vis = (appData.visits||[]).filter(v=>inRange(v.date,start,end)).reduce((s,v)=>s+getVisitBilledCashPaid(v),0);
-    const cmp = (appData.camps||[]).filter(c=>inRange(c.date,start,end)).reduce((s,c)=>s+(c.totalIncome||0),0);
+    const cmp = (appData.camps||[]).filter(c=>inRange(c.date,start,end)).reduce((s,c)=>s+getCampBilledIncome(c,_cmap),0);
     return inc + vis + cmp;
   };
   const getCOGSForRange = (start, end) => (appData.stockLog||[]).filter(l=>l.move==='out'&&!l.reversed&&inRange(l.date,start,end)&&l.cogsAmount).reduce((s,l)=>s+(l.cogsAmount||0),0)
@@ -41044,13 +41065,14 @@ function calcCashBankFlowForPrefix(prefix) {
   // ক্যাম্প আয় দুইবার cashIn-এ যোগ হতো)। বাকি আদায় (visitId-ট্যাগড, "বাকি আদায়" ক্যাটাগরি) বাদ দেওয়া হচ্ছে
   // না — এটা আসল আদায়ের তারিখে payMode অনুযায়ী রুট হবে; নিচে ভিজিটের জন্য getVisitBilledCashPaid()
   // ব্যবহার করা হচ্ছে যাতে এই একই টাকা ভিজিটের (ভুল) বিলিং-তারিখে দ্বৈতভাবে/ভুল মাসে না গণনা হয়।
-  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!e.campVisitId&&(!e.visitId||e.category==='বাকি আদায়')).forEach(e=>{
+  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&(!e.visitId||e.category==='বাকি আদায়')).forEach(e=>{
     if (e.payMode==='bank') bankRevIn+=(e.amount||0);
     else if (e.payMode==='mfs') { /* মোবাইল ব্যাংকিং একাউন্টে যোগ হয় */ }
     else cashRevIn+=(e.amount||0);
   });
   (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)).forEach(v=>{cashRevIn+=(getVisitBilledCashPaid(v)-(v.mfsPaid||0));});
-  (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).forEach(c=>{cashRevIn+=(c.totalIncome||0);});
+  { const _cm = _campOfVisitMap(); // ক্যাম্পের বাকি আদায় আদায়ের মাসে (উপরের লুপে), ক্যাম্পের মাসে শুধু ক্যাম্প-দিনের আয়
+    (appData.camps||[]).filter(c=>c.date&&c.date.startsWith(prefix)).forEach(c=>{cashRevIn+=getCampBilledIncome(c,_cm);}); }
   // ব্যয় — payMode অনুযায়ী ক্যাশ, ব্যাংক বা মোবাইল ব্যাংকিং থেকে আউট (ব্যাংকের চেক এখনো পেন্ডিং হলে গণনায় আসবে না)
   (appData.expense||[]).filter(e=>expenseEffectiveDate(e)&&expenseEffectiveDate(e).startsWith(prefix)).forEach(e=>{
     if (e.payMode==='bank') { if (e.status!=='pending') bankExpOut+=(e.amount||0); }
@@ -41090,7 +41112,7 @@ function calcMfsFlowForPrefix(prefix) {
   let mfsIn=0, mfsOut=0;
   // ✅ ফিক্স: campId/campVisitId-ট্যাগড এন্ট্রি বাদ — ক্যাম্প আয় mfsAccountId ট্যাগ করে থাকলেও এটা
   // ক্যাশ ফ্লোর মতোই camp.totalIncome-এর অংশ, এখানে আলাদা করে গণনা করলে দ্বৈত-গণনা হয়ে যেত
-  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&!e.campVisitId&&(!e.visitId||e.category==='বাকি আদায়')&&e.mfsAccountId).forEach(e=>{
+  (appData.income||[]).filter(e=>e.date&&e.date.startsWith(prefix)&&!e.campId&&(!e.visitId||e.category==='বাকি আদায়')&&e.mfsAccountId).forEach(e=>{
     mfsIn += (e.mfsPaid!=null ? e.mfsPaid : (e.payMode==='mfs'?e.amount:0)) || 0;
   });
   (appData.visits||[]).filter(v=>v.date&&v.date.startsWith(prefix)&&v.mfsAccountId).forEach(v=>{ mfsIn += (v.mfsPaid||0); });
