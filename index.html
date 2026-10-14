@@ -13815,11 +13815,23 @@ function buildRecDepositSlipHtml(d) {
   const memos = bills.map(v => v.memoNo||v.rcptNo||'').filter(Boolean).sort();
   const dueCols = (appData.dueHistory||[]).filter(h => h.type==='collect' && h.date===date && _baseBy(h.by)===base);
   const dueColAmt = sum(dueCols, h => h.amount);
-  const exps = (appData.expense||[]).filter(e => _baseBy(e.by)===base && e.date===date && !e.rejected);
+  const allExps = (appData.expense||[]).filter(e => _baseBy(e.by)===base && e.date===date);   // ভাউচার নম্বর বাতিল এন্ট্রিরও খরচ হয়ে যায় — রেঞ্জে সব ধরা
+  const exps = allExps.filter(e => !e.rejected);
   const expAmt = sum(exps, e => e.amount);
+  const vouchers = allExps.map(e => e.voucher||'').filter(Boolean).sort();
+  const _ld = ts => { const x = new Date(ts); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+  const voided = (appData.voidedMemos||[]).filter(m => m.ts && _ld(m.ts)===date && _baseBy(m.by)===base).sort((a,b)=>String(a.memoNo).localeCompare(String(b.memoNo)));
   const sn = d.ccSnap || null;
   const sg = n => (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n));
-  const box = (label, val, color) => `<div class="dp-box"><div class="dp-bl">${label}</div><div class="dp-bv" style="color:${color||'#1a2a3a'}">${val}</div></div>`;
+  const box = (label, val, color, sub, small) => `<div class="dp-box"><div class="dp-bl">${label}</div><div class="dp-bv${small?' sm':''}" style="color:${color||'#1a2a3a'}">${val}</div>${sub?`<div class="dp-bs">${sub}</div>`:''}</div>`;
+  // নম্বর সিরিজের কার্ড: মেমো রেঞ্জ | বাতিল মেমো (থাকলে) | ভাউচার রেঞ্জ
+  const rng = a => a.length ? (a.length>1 && a[0]!==a[a.length-1] ? esc(a[0])+' – '+esc(a[a.length-1]) : esc(a[0])) : '—';
+  const seriesCards = [
+    box('মেমো রেঞ্জ', rng(memos), '#0f4c81', fmt(bills.length)+' টি বিল', true),
+    voided.length ? box('বাতিল মেমো', voided.map(m=>esc(m.memoNo)).join(', '), '#b45309', 'ছেঁড়া/নষ্ট হার্ড কপি — '+fmt(voided.length)+' টি'+(voided.length<=2?'<br>কারণ: '+voided.map(m=>esc(String(m.reason||'').slice(0,40))).join('; '):''), true) : '',
+    box('ভাউচার রেঞ্জ', rng(vouchers), '#7e22ce', vouchers.length ? fmt(vouchers.length)+' টি ভাউচার' : 'আজ কোনো ব্যয় ভাউচার নেই', true)
+  ].filter(Boolean);
+  let secN = 0; const sec = t => `<h4 class="dp-h">${['১','২','৩','৪','৫','৬'][secN++]}. ${t}</h4>`;
   const diff = (d.diff===undefined||d.diff===null) ? null : d.diff;
   const diffTxt = diff===null ? '—' : (diff===0 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
   const diffColor = diff===null ? '#64748b' : (diff===0 ? '#16a34a' : '#dc2626');
@@ -13839,9 +13851,9 @@ function buildRecDepositSlipHtml(d) {
     </div>
     <div style="display:flex;justify-content:space-between;gap:10px;margin:10px 0 4px;font-size:12.5px">
       <div>জমাদানকারী রিসেপশনিস্ট: <strong>${esc(base)}</strong></div>
-      <div>মেমো নং: <strong>${memos.length ? esc(memos[0])+' – '+esc(memos[memos.length-1]) : '—'}</strong></div>
+      <div style="font-weight:800;color:#0f4c81;background:#eef4fa;border:1px solid #bfd3ea;border-radius:20px;padding:2px 12px">@@COPY@@</div>
     </div>
-    <h4 class="dp-h">১. জমার হিসাব</h4>
+    ${sec('জমার হিসাব')}
     <div class="dp-grid">
       ${box('গৃহীত নগদ', sn?sg(sn.cashIn):'—', '#065f46')}
       ${box('নগদ ব্যয়', sn?sg(sn.cashOut):'—', '#991b1b')}
@@ -13851,37 +13863,38 @@ function buildRecDepositSlipHtml(d) {
       ${box('পার্থক্য', diffTxt, diffColor)}
     </div>
     ${sn && (sn.adminCash>0 || sn.mdHeld>0) ? `<div style="font-size:11px;color:#6b7280;margin-bottom:4px">গৃহীত নগদের মধ্যে: নিজস্ব বিল ও আদায় ${sg(sn.ownCash)}${sn.adminCash>0?' | '+esc(_adm('short'))+'-এন্ট্রি বিল (রিসেপশনিস্ট গৃহীত) '+sg(sn.adminCash):''}${sn.mdHeld>0?' | '+esc(_adm('short'))+' নিজে গৃহীত (এই জমার বাইরে) '+sg(sn.mdHeld):''}</div>` : ''}
-    <h4 class="dp-h">২. আজকের এন্ট্রির সারসংক্ষেপ</h4>
+    ${sec('নম্বর সিরিজ (মেমো ও ভাউচার)')}
+    <div class="dp-grid" style="grid-template-columns:repeat(${seriesCards.length},1fr)">${seriesCards.join('')}</div>
+    ${sec('আজকের এন্ট্রির সারসংক্ষেপ')}
     <table class="dp-t">
       <thead><tr><th>বিষয়</th><th style="text-align:right">পরিমাণ</th></tr></thead>
       <tbody>
-        ${row('রোগীর বিল — সংখ্যা', bills.length+' টি')}
+        ${row('রোগীর বিল — সংখ্যা', fmt(bills.length)+' টি')}
         ${row('মোট বিল (ছাড়ের পর)', sg(billTotal))}
         ${row('নগদ আদায় (বিলের সময়)', sg(billCash))}
         ${row('মোবাইল ব্যাংকিং আদায় (ক্যাশে নয়)', sg(billMfs))}
         ${row('বিলে বাকি রয়েছে', sg(billDue))}
-        ${row('বাকি আদায় — '+dueCols.length+' টি', sg(dueColAmt))}
-        ${row('নগদ ব্যয় এন্ট্রি — '+exps.length+' টি', sg(expAmt))}
+        ${row('বাকি আদায় — '+fmt(dueCols.length)+' টি', sg(dueColAmt))}
+        ${row('নগদ ব্যয় এন্ট্রি — '+fmt(exps.length)+' টি', sg(expAmt))}
       </tbody>
     </table>
-    ${exps.length ? `<h4 class="dp-h">৩. ব্যয়ের তালিকা</h4>
+    ${exps.length ? `${sec('ব্যয়ের তালিকা')}
     <table class="dp-t"><thead><tr><th>ভাউচার</th><th>খাত</th><th>বিবরণ</th><th style="text-align:right">টাকা</th></tr></thead><tbody>
       ${exps.slice(0,8).map(e=>`<tr><td>${esc(e.voucher||e.memo||'—')}</td><td>${esc(e.category||'—')}</td><td>${esc((e.note||'').slice(0,40))}${e.needsApproval&&e.status==='pending'?' <small>(অনুমোদনের অপেক্ষায়)</small>':''}</td><td style="text-align:right">${sg(e.amount||0)}</td></tr>`).join('')}
-      ${exps.length>8 ? `<tr><td colspan="4" style="color:#6b7280">… আরও ${exps.length-8} টি ব্যয় এন্ট্রি (মোট উপরে ধরা আছে)</td></tr>` : ''}
+      ${exps.length>8 ? `<tr><td colspan="4" style="color:#6b7280">… আরও ${fmt(exps.length-8)} টি ব্যয় এন্ট্রি (মোট উপরে ধরা আছে)</td></tr>` : ''}
     </tbody></table>` : ''}
-    ${dueBills.length ? `<h4 class="dp-h">${exps.length?'৪':'৩'}. বাকি রোগীর তালিকা</h4>
+    ${dueBills.length ? `${sec('বাকি রোগীর তালিকা')}
     <table class="dp-t"><thead><tr><th>রোগী</th><th>মেমো</th><th style="text-align:right">বাকি</th></tr></thead><tbody>
       ${dueBills.slice(0,8).map(v=>`<tr><td>${esc(v.patName||'—')}</td><td>${esc(v.memoNo||v.rcptNo||'—')}</td><td style="text-align:right">${sg(v.due||0)}</td></tr>`).join('')}
-      ${dueBills.length>8 ? `<tr><td colspan="3" style="color:#6b7280">… আরও ${dueBills.length-8} জন (মোট বাকি উপরে ধরা আছে)</td></tr>` : ''}
+      ${dueBills.length>8 ? `<tr><td colspan="3" style="color:#6b7280">… আরও ${fmt(dueBills.length-8)} জন (মোট বাকি উপরে ধরা আছে)</td></tr>` : ''}
     </tbody></table>` : ''}
     <div style="font-size:11.5px;color:#4b5563;margin-top:8px">স্টক ব্যবহার: ${esc(stockTxt)}</div>
     ${d.note ? `<div style="font-size:11.5px;color:#4b5563;margin-top:4px">মন্তব্য: ${esc(d.note)}</div>` : ''}
-    ${d.lockedBills!=null ? `<div style="font-size:11px;color:#6b7280;margin-top:4px">🔒 জমার পর লক করা বিল: ${d.lockedBills} টি</div>` : ''}`;
+    ${d.lockedBills!=null ? `<div style="font-size:11px;color:#6b7280;margin-top:4px">🔒 জমার পর লক করা বিল: ${fmt(d.lockedBills)} টি</div>` : ''}`;
 
   const page = (copyLabel, signLabel, signName, sigNote) => `
     <div class="a4-page dp-page">
-      <div class="dp-copy">${copyLabel}</div>
-      <div class="dp-body">${body}</div>
+      <div class="dp-body">${body.replace('@@COPY@@', copyLabel)}</div>
       <div class="dp-sigwrap">
         <div style="font-size:11px;color:#6b7280;max-width:95mm">${sigNote}</div>
         <div class="dp-sig"><div class="dp-sigline"></div><div style="font-weight:700">${signLabel}</div>${signName?`<div style="font-size:11.5px">${esc(signName)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
@@ -13891,13 +13904,14 @@ function buildRecDepositSlipHtml(d) {
 
   const css = `
     .dp-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;padding:12mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
-    .dp-copy{align-self:flex-start;font-size:11.5px;font-weight:800;color:#0f4c81;background:#eef4fa;border:1px solid #bfd3ea;border-radius:20px;padding:3px 12px;margin-bottom:8px}
     .dp-body{flex:1}
     .dp-h{font-size:13px;font-weight:800;color:#0f4c81;margin:12px 0 6px}
     .dp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0}
     .dp-box{border:1.5px solid #e5e7eb;border-radius:10px;padding:8px;text-align:center}
     .dp-bl{font-size:10.5px;color:#6b7280;font-weight:700}
     .dp-bv{font-size:16px;font-weight:800;margin-top:3px}
+    .dp-bv.sm{font-size:12.5px;word-break:break-word;line-height:1.35}
+    .dp-bs{font-size:10px;color:#6b7280;margin-top:3px;line-height:1.35}
     .dp-t{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px;border:1px solid #e5e7eb}
     .dp-t th{background:#0f4c81;color:#fff;padding:5px 8px;text-align:left;font-weight:700}
     .dp-t td{padding:4px 8px;border-bottom:1px solid #e5e7eb}
@@ -13908,8 +13922,8 @@ function buildRecDepositSlipHtml(d) {
     .dp-foot{text-align:center;font-size:10.5px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px;margin-top:14px}
   `;
   return `<html><head><meta charset="UTF-8"><style>${css}</style></head><body>`
-    + page('কপি ১ — রিসেপশনিস্টের সংরক্ষণ কপি', 'ব্যবস্থাপনা পরিচালক', mdName, 'ব্যবস্থাপনা পরিচালক টাকা বুঝে পেয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি রিসেপশনিস্ট নিজের কাছে সংরক্ষণ করবেন।')
-    + page('কপি ২ — অফিস / ব্যবস্থাপনা পরিচালকের সংরক্ষণ কপি', 'রিসেপশনিস্ট', base, 'রিসেপশনিস্ট টাকা জমা দিয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি ব্যবস্থাপনা পরিচালক/অফিস সংরক্ষণ করবে।')
+    + page('রিসেপশনিস্টের সংরক্ষণ কপি', 'ব্যবস্থাপনা পরিচালক', mdName, 'ব্যবস্থাপনা পরিচালক টাকা বুঝে পেয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি রিসেপশনিস্ট নিজের কাছে সংরক্ষণ করবেন।')
+    + page('অফিস কপি', 'রিসেপশনিস্ট', base, 'রিসেপশনিস্ট টাকা জমা দিয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি ব্যবস্থাপনা পরিচালক/অফিস সংরক্ষণ করবে।')
     + `</body></html>`;
 }
 function showRecDepositSlip(id) {
@@ -34867,7 +34881,7 @@ function renderRecHome() {
               +'<td title="'+String(r.ref).replace(/"/g,'&quot;')+'">'+r.ref+'</td>'
               +'<td class="num">৳ '+fmt(r.amt)+'</td>'
               +'<td>'+_byWithRole(r.by)+'</td>'
-              +'<td>'+(r.st||'')+'</td></tr>';
+              +'<td>'+(r.st||'')+(r.kind==='dep'?'<button type="button" class="btn btn-outline btn-sm" style="display:block;margin-top:3px;padding:2px 7px;font-size:10.5px" onclick="event.stopPropagation();showRecDepositSlip('+r.id+')">📄 স্লিপ PDF</button>':'')+'</td></tr>';
           }).join('') + '</tbody></table>';
     }
   }
