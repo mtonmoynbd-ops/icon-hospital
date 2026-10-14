@@ -3383,6 +3383,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 
     <!-- RECEPTION DEPOSIT RECORDS -->
     <div id="pg-recdeposit" class="page-view">
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-header"><div class="panel-title">📥 ক্যাম্পেইনারের পাঠানো ক্যাশ জমার স্লিপ</div></div>
+        <div class="panel-body"><div id="camperDepInboxAdmin"></div></div>
+      </div>
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">🏦 রিসেপশনিস্ট ক্যাশ জমার রেকর্ড</div>
@@ -13785,6 +13789,11 @@ function confirmCashSubmit(role) {
     }
   }
 
+  let _camperDep = null;
+  if (role === 'campaigner') {
+    try { const _sn = _camperSnapLive(); if (_sn) _camperDep = _saveCamperDeposit(_sn, amt, note, (camperSession||{}).scheduleId); }
+    catch(e) { console.warn('camper deposit record', e); }
+  }
   saveData();
   updateBankBalances();
   document.getElementById('cashSubmitModalWrap').remove();
@@ -13795,6 +13804,8 @@ function confirmCashSubmit(role) {
     try { const _dep = (appData.recDeposits||[]).slice(-1)[0]; if (_dep) setTimeout(()=>showRecDepositSlip(_dep.id), 250); }
     catch(e) { console.warn('deposit slip', e); }
   }
+  // ✅ ক্যাম্পেইনারের ক্যাশ জমার পরও ২ পেজের জমার স্লিপ (কপি ১: এমডি স্বাক্ষর করবেন; কপি ২: ক্যাম্পেইনার স্বাক্ষর করবেন)
+  if (_camperDep) setTimeout(()=>showCamperDepositSlip(_camperDep.id), 250);
 }
 
 // ===== রিসেপশনিস্ট ক্যাশ জমার স্লিপ — ২ পেজের PDF =====
@@ -13891,18 +13902,13 @@ function buildRecDepositSlipHtml(d) {
     ${d.note ? `<div style="font-size:11.5px;color:#4b5563;margin-top:4px">মন্তব্য: ${esc(d.note)}</div>` : ''}
     ${d.lockedBills!=null ? `<div style="font-size:11px;color:#6b7280;margin-top:4px">🔒 জমার পর লক করা বিল: ${fmt(d.lockedBills)} টি</div>` : ''}`;
 
-  const page = (copyLabel, signLabel, signName, sigNote) => `
-    <div class="a4-page dp-page">
-      <div class="dp-body">${body.replace('@@COPY@@', copyLabel)}</div>
-      <div class="dp-main"><div class="dp-main-l">জমা</div><div class="dp-main-v">${sg(d.amount||0)}</div></div>
-      <div class="dp-sigwrap">
-        <div style="font-size:11px;color:#6b7280;max-width:95mm">${sigNote}</div>
-        <div class="dp-sig"><div class="dp-sigline"></div><div style="font-weight:700">${signLabel}</div>${signName?`<div style="font-size:11.5px">${esc(signName)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
-      </div>
-      <div class="dp-foot">এই স্লিপ ${esc(hospName)} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।</div>
-    </div>`;
+  return depSlipDoc({ body, amount: d.amount||0, hospName, copy1: 'রিসেপশনিস্টের সংরক্ষণ কপি', roleLabel: 'রিসেপশনিস্ট', roleName: base, mdName });
+}
 
-  const css = `
+// ===== জমার স্লিপ — শেয়ার্ড ২ পেজের কাঠামো (রিসেপশনিস্ট ও ক্যাম্পেইনার দুজনের স্লিপই এটা ব্যবহার করে) =====
+// পেজ ১ = জমাদানকারীর সংরক্ষণ কপি (ব্যবস্থাপনা পরিচালক স্বাক্ষর করবেন) | পেজ ২ = অফিস কপি (জমাদানকারী স্বাক্ষর করবেন)
+// "জমা" লাইনটা সবার শেষে, স্বাক্ষরের উপরে — সাধারণ লেখা, শুধু অঙ্কের নিচে ডাবল আন্ডারলাইন।
+const DEP_SLIP_CSS = `
     .dp-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;padding:12mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
     .dp-body{flex:1}
     .dp-h{font-size:13px;font-weight:800;color:#0f4c81;margin:12px 0 6px}
@@ -13911,23 +13917,297 @@ function buildRecDepositSlipHtml(d) {
     .dp-bl{font-size:10.5px;color:#6b7280;font-weight:700}
     .dp-bv{font-size:16px;font-weight:800;margin-top:3px}
     .dp-bv.sm{font-size:12.5px;word-break:break-word;line-height:1.35}
-    .dp-main{display:flex;justify-content:space-between;align-items:center;border:2.5px solid #0f4c81;background:#eef4fa;border-radius:12px;padding:12px 20px;margin-top:16px;page-break-inside:avoid}
-    .dp-main-l{font-size:20px;font-weight:800;color:#0f4c81}
-    .dp-main-v{font-size:30px;font-weight:800;color:#0f4c81}
     .dp-bs{font-size:10px;color:#6b7280;margin-top:3px;line-height:1.35}
     .dp-t{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px;border:1px solid #e5e7eb}
     .dp-t th{background:#0f4c81;color:#fff;padding:5px 8px;text-align:left;font-weight:700}
     .dp-t td{padding:4px 8px;border-bottom:1px solid #e5e7eb}
     .dp-t tr:nth-child(even) td{background:#f8fafc}
-    .dp-sigwrap{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:22px;page-break-inside:avoid}
+    .dp-main{display:flex;justify-content:flex-end;align-items:baseline;gap:10px;margin-top:18px;page-break-inside:avoid}
+    .dp-main-l{font-size:15px;font-weight:700}
+    .dp-main-v{font-size:18px;font-weight:800;border-bottom:4px double #1a2a3a;padding:0 4px 1px}
+    .dp-sigwrap{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:14px;page-break-inside:avoid}
     .dp-sig{text-align:center;width:62mm}
-    .dp-sigline{border-top:1.8px solid #1a2a3a;margin-top:54px;margin-bottom:4px}
+    .dp-sigline{border-top:1.8px solid #1a2a3a;margin-top:44px;margin-bottom:4px}
+    .dp-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .dp-2 .dp-t{font-size:10.5px}
+    .dp-2 .dp-t th,.dp-2 .dp-t td{padding:3px 6px}
+    .dp-2 .dp-h{margin:8px 0 4px}
     .dp-foot{text-align:center;font-size:10.5px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px;margin-top:14px}
   `;
-  return `<html><head><meta charset="UTF-8"><style>${css}</style></head><body>`
-    + page('রিসেপশনিস্টের সংরক্ষণ কপি', 'ব্যবস্থাপনা পরিচালক', mdName, 'ব্যবস্থাপনা পরিচালক টাকা বুঝে পেয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি রিসেপশনিস্ট নিজের কাছে সংরক্ষণ করবেন।')
-    + page('অফিস কপি', 'রিসেপশনিস্ট', base, 'রিসেপশনিস্ট টাকা জমা দিয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি ব্যবস্থাপনা পরিচালক/অফিস সংরক্ষণ করবে।')
+function depSlipDoc(o) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const amt = (o.amount<0?'- ':'') + '৳ ' + fmt(Math.abs(o.amount||0));
+  const page = (copyLabel, signLabel, signName, sigNote) => `
+    <div class="a4-page dp-page">
+      <div class="dp-body">${o.body.replace('@@COPY@@', copyLabel)}</div>
+      <div class="dp-main"><span class="dp-main-l">জমা:</span><span class="dp-main-v">${amt}</span></div>
+      <div class="dp-sigwrap">
+        <div style="font-size:11px;color:#6b7280;max-width:95mm">${sigNote}</div>
+        <div class="dp-sig"><div class="dp-sigline"></div><div style="font-weight:700">${signLabel}</div>${signName?`<div style="font-size:11.5px">${esc(signName)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
+      </div>
+      <div class="dp-foot">এই স্লিপ ${esc(o.hospName)} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।</div>
+    </div>`;
+  return `<html><head><meta charset="UTF-8"><style>${DEP_SLIP_CSS}</style></head><body>`
+    + page(o.copy1, 'ব্যবস্থাপনা পরিচালক', o.mdName, 'ব্যবস্থাপনা পরিচালক টাকা বুঝে পেয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি '+o.roleLabel+' নিজের কাছে সংরক্ষণ করবেন।')
+    + page('অফিস কপি', o.roleLabel, o.roleName, o.roleLabel+' টাকা জমা দিয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি ব্যবস্থাপনা পরিচালক/অফিস সংরক্ষণ করবে।')
     + `</body></html>`;
+}
+// ===== ক্যাম্পেইনার ক্যাশ জমার স্লিপ — ২ পেজের PDF (রিসেপশনিস্টের স্লিপের মতোই) =====
+// ক্যাম্প শেষে ক্যাম্পেইনার ব্যবস্থাপনা পরিচালককে ক্যাশ জমা দেন। ক্যাম্পেইনার প্যানেল মোবাইল-ফ্রেন্ডলি ও সেখান থেকে প্রিন্ট হয় না —
+// তাই ক্যাম্পেইনার স্লিপ শুধু প্রিভিউ করে "রিসেপশনে/অ্যাডমিনে পাঠান" চাপে; রিসেপশন বা অ্যাডমিন প্যানেল থেকে সেটা প্রিন্ট হয়।
+// জমার মুহূর্তের হিসাব (snap) রেকর্ডে রাখা হয়, তাই পরে আবার খুললেও একই থাকে।
+function _camperSnapBuild(o) {
+  const num = x => parseFloat(x)||0;
+  const rcp = (o.visits||[]).map(v => v.receipt).filter(x => x!==undefined && x!==null && x!=='' && x!==0);
+  const allNum = rcp.length && rcp.every(x => !isNaN(Number(x)));
+  const rs = rcp.slice().sort((a,b) => allNum ? Number(a)-Number(b) : String(a).localeCompare(String(b)));
+  const stock = (o.stock||[]).map(i => { const t=num(i.qtyTaken), so=num(i.qtySold), r=num(i.qtyReturned);
+    return { name:i.itemName||i.name||'—', unit:i.unit||'', taken:t, sold:so, returned:r, unsold:Math.max(0,t-so-r) }; }).filter(i=>i.taken>0);
+  return {
+    campName: o.campName||'', location: o.location||'', campDate: o.campDate||'', doctor: o.doctor||'',
+    visitFee: num(o.visitFee), staff: String(o.staff||''),
+    income: num(o.income), expense: num(o.expense),
+    patients: (o.visits||[]).length,
+    billTotal: (o.visits||[]).reduce((t,v)=>t+num(v.total),0),
+    paid: (o.visits||[]).reduce((t,v)=>t+num(v.paid),0),
+    due: (o.visits||[]).reduce((t,v)=>t+num(v.due),0),
+    receiptFrom: rs.length ? String(rs[0]) : '', receiptTo: rs.length ? String(rs[rs.length-1]) : '',
+    duePatients: (o.visits||[]).filter(v=>num(v.due)>0).slice(0,40).map(v=>({ name:v.name||'—', receipt:v.receipt||'', due:num(v.due) })),
+    expList: (o.exps||[]).slice(0,40).map(e=>({ category:e.category||'—', amount:num(e.amount), note:String(e.note||'').slice(0,60) })),
+    vouchers: (o.vouchers||[]).filter(Boolean).sort(),
+    stock: stock.slice(0,40),
+    voided: (appData.voidedMemos||[]).filter(m => {     // বাতিল রিসিট — ছেঁড়া/নষ্ট হার্ড কপির নম্বর
+      if (!m.ts || _baseBy(m.by)!==_baseBy(o.by)) return false;
+      const x = new Date(m.ts), ld = x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+      return ld===o.campDate || ld===todayStr();
+    }).map(m=>({ memoNo:m.memoNo, reason:String(m.reason||'').slice(0,60) }))
+  };
+}
+function _camperStaffNames(reg, part) {
+  const a = (reg||[]).map(x=>x&&x.name).filter(Boolean), b = (part||[]).map(x=>x&&x.name).filter(Boolean);
+  return a.concat(b).join(', ');
+}
+function _camperSnapLive() {
+  const sess = camperSession; if (!sess) return null;
+  const visits = (appData.campVisits||[]).filter(v=>v.scheduleId===sess.scheduleId);
+  const exps = (appData.campExpenses||[]).filter(e=>e.scheduleId===sess.scheduleId);
+  const income = visits.reduce((s,v)=>s+(v.paid||v.netTotal||0),0);          // ক্যাশ-জমা মডালের হিসাবের সাথে একই
+  const expense = exps.reduce((s,e)=>s+(e.amount||0),0);
+  return _camperSnapBuild({
+    campName:sess.name, location:sess.location, campDate:sess.date, doctor:sess.doctor, visitFee:sess.visitFee,
+    staff:_camperStaffNames(sess.regularStaff, sess.parttimers), by:currentUser.name, income, expense, stock:sess.stockTaken,
+    visits: visits.map(v=>({ receipt:v.receiptNo, name:v.patName, total:(v.netTotal!=null?v.netTotal:v.total), paid:(v.paid||0), due:(v.due||0) })),
+    exps: exps.map(e=>({ category:e.category, amount:e.amount, note:e.note })),
+    vouchers: (appData.expense||[]).filter(e=>e.campId===sess.scheduleId && e.voucher).map(e=>e.voucher)
+  });
+}
+function _camperSnapPast(c) {
+  const sch = (appData.campSchedules||[]).find(x=>x.id===c.id) || {};
+  return _camperSnapBuild({
+    campName:c.name, location:c.location, campDate:c.date, doctor:c.doctor, visitFee:(c.visitFee!=null?c.visitFee:sch.visitFee),
+    staff:_camperStaffNames(c.regularStaff, c.parttimers) || c.staff, by:currentUser.name, stock:c.stockTaken,
+    income:c.totalIncome||0, expense:c.totalExpense||0,
+    visits:(c.patients||[]).map(p=>({ receipt:p.receipt, name:p.name, total:(p.total||0)-(p.discAmt||0), paid:(p.paid||0), due:(p.due||0) })),
+    exps:(c.expList||[]),
+    vouchers:(appData.expense||[]).filter(e=>e.campId===c.id && e.voucher).map(e=>e.voucher)
+  });
+}
+function _saveCamperDeposit(snap, amt, note, campRef) {
+  if (!appData.camperDeposits) appData.camperDeposits = [];
+  const expected = snap.income - snap.expense;
+  const rec = { id: Date.now()+2, date: todayStr(), time: new Date().toTimeString().substring(0,5), by: currentUser.name,
+    amount: amt, note: note||'', expected, diff: amt - expected, campRef: campRef||null, snap,
+    sentTo: null, sentAt: null, printedAt: null, printedBy: null };
+  appData.camperDeposits.push(rec);
+  return rec;
+}
+function buildCamperDepositSlipHtml(d) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  const sn = d.snap || {};
+  const base = _baseBy(d.by);
+  const sg = n => (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n));
+  const box = (label, val, color, sub, small) => `<div class="dp-box"><div class="dp-bl">${label}</div><div class="dp-bv${small?' sm':''}" style="color:${color||'#1a2a3a'}">${val}</div>${sub?`<div class="dp-bs">${sub}</div>`:''}</div>`;
+  const row = (a,b) => `<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
+  let secN = 0; const sec = t => `<h4 class="dp-h">${['১','২','৩','৪','৫','৬'][secN++]}. ${t}</h4>`;
+  const diff = (d.diff===undefined||d.diff===null) ? null : d.diff;
+  const diffTxt = diff===null ? '—' : (diff===0 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
+  const diffColor = diff===null ? '#64748b' : (diff===0 ? '#16a34a' : '#dc2626');
+  const logo = (typeof LOGO_B64 !== 'undefined' && LOGO_B64) ? `<img src="${LOGO_B64}" style="height:52px;object-fit:contain;flex-shrink:0">` : '';
+  const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
+  const vouchers = sn.vouchers||[], voided = sn.voided||[], expList = sn.expList||[], duePats = sn.duePatients||[], stock = sn.stock||[];
+  const rcpRange = sn.receiptFrom ? (sn.receiptTo && sn.receiptTo!==sn.receiptFrom ? esc(sn.receiptFrom)+' – '+esc(sn.receiptTo) : esc(sn.receiptFrom)) : '—';
+  const vRange = vouchers.length ? (vouchers.length>1 ? esc(vouchers[0])+' – '+esc(vouchers[vouchers.length-1]) : esc(vouchers[0])) : '—';
+  const seriesCards = [
+    box('রিসিট রেঞ্জ', rcpRange, '#0f4c81', fmt(sn.patients||0)+' টি রিসিট', true),
+    voided.length ? box('বাতিল রিসিট', voided.map(m=>esc(m.memoNo)).join(', '), '#b45309', 'ছেঁড়া/নষ্ট হার্ড কপি — '+fmt(voided.length)+' টি'+(voided.length<=2?'<br>কারণ: '+voided.map(m=>esc(m.reason)).join('; '):''), true) : '',
+    box('ভাউচার রেঞ্জ', vRange, '#7e22ce', vouchers.length ? fmt(vouchers.length)+' টি ভাউচার' : 'কোনো ব্যয় ভাউচার নেই', true)
+  ].filter(Boolean);
+  const staffTxt = String(sn.staff||'').length>130 ? String(sn.staff).slice(0,130)+'…' : String(sn.staff||'');
+  // স্টক সারসংক্ষেপ — নেওয়া/বিক্রি/ফেরত/অবিক্রিত (ছোট করে)
+  const stT = stock.reduce((t,i)=>t+i.taken,0), stS = stock.reduce((t,i)=>t+i.sold,0), stR = stock.reduce((t,i)=>t+i.returned,0), stU = stock.reduce((t,i)=>t+i.unsold,0);
+  const stockBlock = stock.length ? `
+      <div style="font-size:10.5px;color:#4b5563;margin-bottom:3px">${fmt(stock.length)} আইটেম — নেওয়া ${fmt(stT)} | বিক্রি ${fmt(stS)} | ফেরত ${fmt(stR)} | অবিক্রিত ${fmt(stU)}</div>
+      <table class="dp-t"><thead><tr><th>আইটেম</th><th style="text-align:right">নেওয়া</th><th style="text-align:right">বিক্রি</th><th style="text-align:right">ফেরত</th><th style="text-align:right">বাকি</th></tr></thead><tbody>
+        ${stock.slice().sort((a,b)=>b.unsold-a.unsold||b.taken-a.taken).slice(0,5).map(i=>`<tr><td>${esc(String(i.name).slice(0,22))}</td><td style="text-align:right">${fmt(i.taken)}</td><td style="text-align:right">${fmt(i.sold)}</td><td style="text-align:right">${fmt(i.returned)}</td><td style="text-align:right;${i.unsold>0?'color:#b45309;font-weight:700':''}">${fmt(i.unsold)}</td></tr>`).join('')}
+        ${stock.length>5 ? `<tr><td colspan="5" style="color:#6b7280">… আরও ${fmt(stock.length-5)} আইটেম (মোট উপরে ধরা আছে)</td></tr>` : ''}
+      </tbody></table>` : `<div style="font-size:11px;color:#6b7280">এই ক্যাম্পের জন্য কোনো স্টক নেওয়া হয়নি।</div>`;
+  const body = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid #0f4c81;padding-bottom:8px">
+      ${logo}
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
+        <div style="font-size:14px;font-weight:700;margin-top:3px">ক্যাম্পেইনার ক্যাশ জমা — সারসংক্ষেপ</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:1px">জমার তারিখ: ${formatDate(d.date)} &nbsp;|&nbsp; জমার সময়: ${esc(d.time||'—')}</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:10px;margin:8px 0 3px;font-size:12px">
+      <div>জমাদানকারী ক্যাম্পেইনার: <strong>${esc(base)}</strong></div>
+      <div style="font-weight:800;color:#0f4c81;background:#eef4fa;border:1px solid #bfd3ea;border-radius:20px;padding:2px 12px">@@COPY@@</div>
+    </div>
+    <div style="font-size:11.5px;line-height:1.6;border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;background:#fafbfc">
+      <div>ক্যাম্প: <strong>${esc(sn.campName||'—')}</strong> &nbsp;|&nbsp; স্থান: <strong>${esc(sn.location||'—')}</strong> &nbsp;|&nbsp; তারিখ: <strong>${sn.campDate?formatDate(sn.campDate):'—'}</strong></div>
+      <div>ডাক্তার: <strong>${esc(sn.doctor||'—')}</strong> &nbsp;|&nbsp; ভিজিট ফি: <strong>${sn.visitFee>0?sg(sn.visitFee):'—'}</strong></div>
+      <div>ক্যাম্পে উপস্থিত অন্যান্য: ${staffTxt ? esc(staffTxt) : '—'}</div>
+    </div>
+    ${sec('জমার হিসাব')}
+    <div class="dp-grid" style="grid-template-columns:repeat(4,1fr)">
+      ${box('ক্যাম্পের মোট আয়', sg(sn.income||0), '#065f46')}
+      ${box('ক্যাম্পের মোট ব্যয়', sg(sn.expense||0), '#991b1b')}
+      ${box('প্রত্যাশিত জমা', d.expected===undefined?'—':sg(d.expected), '#1a2a3a')}
+      ${box('পার্থক্য', diffTxt, diffColor)}
+    </div>
+    ${sec('নম্বর সিরিজ (রিসিট ও ভাউচার)')}
+    <div class="dp-grid" style="grid-template-columns:repeat(${seriesCards.length},1fr)">${seriesCards.join('')}</div>
+    <div class="dp-2">
+      <div>
+        ${sec('এন্ট্রির সারসংক্ষেপ')}
+        <table class="dp-t">
+          <thead><tr><th>বিষয়</th><th style="text-align:right">পরিমাণ</th></tr></thead>
+          <tbody>
+            ${row('রোগী/রিসিট', fmt(sn.patients||0)+' টি')}
+            ${row('মোট বিল (ছাড়ের পর)', sg(sn.billTotal||0))}
+            ${row('আদায় (রিসিটে পরিশোধিত)', sg(sn.paid||0))}
+            ${row('বাকি রয়েছে', sg(sn.due||0))}
+            ${row('ব্যয় এন্ট্রি — '+fmt(expList.length)+' টি', sg(sn.expense||0))}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        ${sec('স্টক সারসংক্ষেপ')}
+        ${stockBlock}
+      </div>
+    </div>
+    ${(expList.length || duePats.length) ? `<div class="dp-2">
+      <div>${expList.length ? `${sec('ব্যয়ের তালিকা')}
+        <table class="dp-t"><thead><tr><th>খাত</th><th style="text-align:right">টাকা</th></tr></thead><tbody>
+          ${expList.slice(0,5).map(e=>`<tr><td>${esc(e.category)}${e.note?' <small style="color:#6b7280">'+esc(String(e.note).slice(0,18))+'</small>':''}</td><td style="text-align:right">${sg(e.amount||0)}</td></tr>`).join('')}
+          ${expList.length>5 ? `<tr><td colspan="2" style="color:#6b7280">… আরও ${fmt(expList.length-5)} টি (মোট উপরে ধরা আছে)</td></tr>` : ''}
+        </tbody></table>` : ''}</div>
+      <div>${duePats.length ? `${sec('বাকি রোগীর তালিকা')}
+        <table class="dp-t"><thead><tr><th>রোগী</th><th>রিসিট</th><th style="text-align:right">বাকি</th></tr></thead><tbody>
+          ${duePats.slice(0,5).map(v=>`<tr><td>${esc(String(v.name).slice(0,18))}</td><td>${esc(v.receipt||'—')}</td><td style="text-align:right">${sg(v.due||0)}</td></tr>`).join('')}
+          ${duePats.length>5 ? `<tr><td colspan="3" style="color:#6b7280">… আরও ${fmt(duePats.length-5)} জন (মোট উপরে ধরা আছে)</td></tr>` : ''}
+        </tbody></table>` : ''}</div>
+    </div>` : ''}
+    ${d.note ? `<div style="font-size:11px;color:#4b5563;margin-top:6px">মন্তব্য: ${esc(d.note)}</div>` : ''}`;
+  return depSlipDoc({ body, amount: d.amount||0, hospName, copy1: 'ক্যাম্পেইনারের সংরক্ষণ কপি', roleLabel: 'ক্যাম্পেইনার', roleName: base, mdName });
+}
+
+// ===== মোবাইল-ফ্রেন্ডলি স্লিপ প্রিভিউ (পুরো স্ক্রিন, A4 পেজ স্ক্রিনের প্রস্থে ছোট করে) =====
+function closeSlipPreview() { const w = document.getElementById('slipPreviewWrap'); if (w) w.remove(); window.removeEventListener('resize', _slipPvFit); }
+function _slipPvFit() {
+  const sc = document.getElementById('slipPvScroll'), box = document.getElementById('slipPvBox'), sh = document.getElementById('slipPvSheet');
+  if (!sc || !box || !sh) return;
+  const k = Math.min(1, (sc.clientWidth - 20) / 794);
+  sh.style.transform = 'scale(' + k + ')';
+  box.style.width = (794*k) + 'px'; box.style.height = (sh.offsetHeight*k) + 'px';
+}
+function _openSlipPreview(slipHtml, title, footerHtml) {
+  closeSlipPreview();
+  const css = (slipHtml.match(/<style>([\s\S]*?)<\/style>/)||[])[1] || '';
+  const bodyH = (slipHtml.match(/<body>([\s\S]*)<\/body>/)||[])[1] || slipHtml;
+  const wrap = document.createElement('div');
+  wrap.id = 'slipPreviewWrap';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;background:#d1d5db;display:flex;flex-direction:column';
+  wrap.innerHTML = `<style>${css}
+    #slipPvSheet{width:794px;transform-origin:top left}
+    #slipPvSheet .a4-page{width:794px;height:1123px;box-sizing:border-box;background:#fff;margin:0 0 14px;box-shadow:0 2px 10px rgba(0,0,0,.2);overflow:hidden}</style>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid #d1d5db">
+      <div style="font-weight:800;font-size:14px;color:#0f4c81">${title}</div>
+      <button onclick="closeSlipPreview()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>
+    </div>
+    <div id="slipPvScroll" style="flex:1;overflow:auto;padding:10px;-webkit-overflow-scrolling:touch"><div id="slipPvBox" style="margin:0 auto"><div id="slipPvSheet">${bodyH}</div></div></div>
+    <div style="background:#fff;border-top:1px solid #d1d5db;padding:10px 12px">${footerHtml}</div>`;
+  document.body.appendChild(wrap);
+  window.addEventListener('resize', _slipPvFit);
+  setTimeout(_slipPvFit, 0);
+}
+function previewCamperDeposit(id) {
+  const d = (appData.camperDeposits||[]).find(r => r.id === id);
+  if (!d) { showToast('⚠️ জমার রেকর্ড পাওয়া যায়নি'); return; }
+  const isCamper = currentUser && currentUser.role === 'campaigner';
+  const st = d.sentTo ? '✅ '+(d.sentTo==='admin'?'অ্যাডমিনে':'রিসেপশনে')+' পাঠানো হয়েছে'+(d.printedAt?' • প্রিন্ট হয়েছে':'') : (isCamper ? 'এখনো পাঠানো হয়নি — হাসপাতালে এসে নিচের বাটনে চাপুন' : 'ক্যাম্পেইনার এখনো পাঠাননি');
+  const btn = 'flex:1;min-width:140px;justify-content:center';
+  const footer = `<div id="slipPvStatus" style="font-size:12px;color:#475569;margin-bottom:8px;text-align:center">${st}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">`
+    + (isCamper
+      ? `<button class="btn btn-primary" style="${btn}" onclick="sendCamperDeposit(${d.id},'reception')">📤 রিসেপশনে পাঠান</button>
+         <button class="btn btn-primary" style="${btn}" onclick="sendCamperDeposit(${d.id},'admin')">📤 অ্যাডমিনে পাঠান</button>`
+      : `<button class="btn btn-primary" style="${btn}" onclick="printCamperDeposit(${d.id})">🖨️ প্রিন্ট করুন</button>`)
+    + `<button class="btn btn-outline" style="${btn}" onclick="closeSlipPreview()">বন্ধ করুন</button></div>`;
+  _openSlipPreview(buildCamperDepositSlipHtml(d), '📄 ক্যাশ জমার স্লিপ — ' + ((d.snap&&d.snap.campName)||''), footer);
+}
+function showCamperDepositSlip(id) { previewCamperDeposit(id); }
+function showCamperDepositSlipByCamp(campId) {
+  const list = (appData.camperDeposits||[]).filter(r => r.campRef === campId);
+  if (!list.length) { showToast('⚠️ এই ক্যাম্পের জমার স্লিপ পাওয়া যায়নি (আগের জমা, স্লিপ সংরক্ষণ চালুর আগে)'); return; }
+  previewCamperDeposit(list[list.length-1].id);
+}
+function sendCamperDeposit(id, target) {
+  const d = (appData.camperDeposits||[]).find(r => r.id === id); if (!d) return;
+  d.sentTo = target; d.sentAt = new Date().toISOString(); d.printedAt = null; d.printedBy = null;
+  logActivity('edit', 'ক্যাম্পেইনার ক্যাশ জমার স্লিপ', ((d.snap&&d.snap.campName)||'ক্যাম্প')+' — ৳'+fmt(d.amount||0)+' — '+(target==='admin'?'অ্যাডমিনে':'রিসেপশনে')+' পাঠানো হয়েছে');
+  saveData();
+  const el = document.getElementById('slipPvStatus');
+  if (el) el.textContent = '✅ '+(target==='admin'?'অ্যাডমিনে':'রিসেপশনে')+' পাঠানো হয়েছে — প্রিন্টের জন্য সেখানে দেখা যাবে';
+  showToast('✅ স্লিপ '+(target==='admin'?'অ্যাডমিনে':'রিসেপশনে')+' পাঠানো হয়েছে');
+}
+function printCamperDeposit(id) {
+  const d = (appData.camperDeposits||[]).find(r => r.id === id);
+  if (!d) { showToast('⚠️ জমার রেকর্ড পাওয়া যায়নি'); return; }
+  if (!d.printedAt) { d.printedAt = new Date().toISOString(); d.printedBy = currentUser.name; saveData(); }
+  try { renderCamperDepInboxAdmin(); } catch(e) {}
+  try { if (typeof renderRecHome==='function') renderRecHome(); } catch(e) {}
+  const fname = 'camp-cash-deposit-slip-' + d.date + '-' + String((d.snap&&d.snap.campName)||'camp').replace(/\s+/g,'_') + '.pdf';
+  exportDocumentPDF(buildCamperDepositSlipHtml(d), fname, 'ক্যাম্পের ক্যাশ জমার স্লিপ — ' + formatDate(d.date));
+}
+// রিসেপশন হোমে: রিসেপশনে পাঠানো, এখনো প্রিন্ট না হওয়া স্লিপের সতর্কতা
+function _camperSlipInboxHtml(who) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const items = (appData.camperDeposits||[]).filter(r => r.sentTo===who && !r.printedAt).sort((a,b)=>b.id-a.id);
+  if (!items.length) return '';
+  return '<div class="rhd-alert"><div class="rhd-alert-h">📥 ক্যাম্পেইনারের ক্যাশ জমার স্লিপ — '+fmt(items.length)+'টি প্রিন্টের অপেক্ষায় <small>(খুলে প্রিভিউ দেখে প্রিন্ট দিন)</small></div><div class="rhd-alert-list">'
+    + items.slice(0,5).map(r => '<span class="rhd-alert-chip" onclick="previewCamperDeposit('+r.id+')" title="খুলতে ক্লিক করুন">'+esc((r.snap&&r.snap.campName)||'ক্যাম্প')+' · '+esc(_baseBy(r.by))+' · ৳ '+fmt(r.amount||0)+'</span>').join('')
+    + (items.length>5?'<span class="rhd-alert-chip" style="cursor:default">+'+fmt(items.length-5)+' টি আরও</span>':'') + '</div></div>';
+}
+// অ্যাডমিন প্যানেল: ক্যাম্পেইনারের পাঠানো সব জমার স্লিপ
+function renderCamperDepInboxAdmin() {
+  const box = document.getElementById('camperDepInboxAdmin'); if (!box) return;
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const items = (appData.camperDeposits||[]).filter(r => r.sentTo).sort((a,b)=>b.id-a.id);
+  if (!items.length) { box.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px;font-size:13px">ক্যাম্পেইনার এখনো কোনো জমার স্লিপ পাঠাননি।</p>'; return; }
+  box.innerHTML = items.slice(0,30).map(r => {
+    const sn = r.snap||{};
+    const tag = r.printedAt ? '<span style="font-size:11px;font-weight:800;color:#16a34a;background:#dcfce7;border-radius:20px;padding:2px 8px">🖨️ প্রিন্ট হয়েছে</span>' : '<span style="font-size:11px;font-weight:800;color:#b45309;background:#fef3c7;border-radius:20px;padding:2px 8px">প্রিন্টের অপেক্ষায়</span>';
+    const to = r.sentTo==='admin' ? 'অ্যাডমিনে' : 'রিসেপশনে';
+    return '<div style="background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+      + '<div><div style="font-weight:700">'+esc(sn.campName||'ক্যাম্প')+(sn.location?' <small style="color:var(--text-light);font-weight:500">— '+esc(sn.location)+'</small>':'')+'</div>'
+      + '<div style="font-size:12px;color:var(--text-light);margin-top:2px"><span style="font-weight:800;color:var(--success)">৳ '+fmt(r.amount||0)+'</span> &nbsp;|&nbsp; ক্যাম্পেইনার: '+esc(_baseBy(r.by))+' &nbsp;|&nbsp; '+formatDate(r.date)+' '+esc(r.time||'')+' &nbsp;|&nbsp; '+to+' পাঠানো</div></div>'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+tag
+      + '<button class="btn btn-outline btn-sm" onclick="previewCamperDeposit('+r.id+')">👁️ প্রিভিউ</button>'
+      + '<button class="btn btn-primary btn-sm" onclick="printCamperDeposit('+r.id+')">🖨️ প্রিন্ট</button></div></div>';
+  }).join('');
 }
 function showRecDepositSlip(id) {
   const d = (appData.recDeposits||[]).find(r => r.id === id);
@@ -13938,6 +14218,7 @@ function showRecDepositSlip(id) {
 
 // ===== REC DEPOSIT LIST =====
 function renderRecDepositList() {
+  try { renderCamperDepInboxAdmin(); } catch(e) {}
   const container = document.getElementById('recDepositListContainer');
   if (!container) return;
   const vm = (document.getElementById('recDepViewMode')||{}).value||'day';
@@ -18716,7 +18997,7 @@ function buildCashSubmitModal(role) {
       <div style="background:#fef3c7;border-radius:8px;padding:10px;font-size:12px;color:#92400e;margin-bottom:16px">
         ⚠️ এই পরিমাণ প্রধান ক্যাশ ব্যালেন্সে স্বয়ংক্রিয়ভাবে রেকর্ড হবে। ইতোমধ্যে এন্ট্রি করা আয়/ব্যয় আলাদাভাবে গণনা হয়ে আছে — এটি শুধু বাড়তি অ্যাডজাস্টমেন্টের জন্য।
       </div>
-      ${role==='receptionist'?`<div style="background:#eff6ff;border-radius:8px;padding:9px 10px;font-size:12px;color:#1e40af;margin-bottom:14px">📄 জমা নিশ্চিত করলে ২ পেজের জমার স্লিপ PDF তৈরি হবে — ১ম কপিতে ${_adm('title')} স্বাক্ষর করবেন (আপনি রাখবেন), ২য় কপিতে আপনি স্বাক্ষর করবেন (অফিস রাখবে)।</div>`:''}
+      <div style="background:#eff6ff;border-radius:8px;padding:9px 10px;font-size:12px;color:#1e40af;margin-bottom:14px">📄 জমা নিশ্চিত করলে ২ পেজের জমার স্লিপ PDF তৈরি হবে — ১ম কপিতে ${_adm('title')} স্বাক্ষর করবেন (আপনি রাখবেন), ২য় কপিতে আপনি স্বাক্ষর করবেন (অফিস রাখবে)।</div>
       <button class="btn btn-success" style="width:100%" onclick="confirmCashSubmit('${role}')">✅ ক্যাশ জমা নিশ্চিত করুন</button>
     </div>`;
   document.body.appendChild(modal);
@@ -18771,6 +19052,7 @@ function showPastCampCashSubmitModal(campId) {
       <div style="background:#fef3c7;border-radius:8px;padding:10px;font-size:12px;color:#92400e;margin-bottom:16px">
         ⚠️ এই পরিমাণ প্রধান ক্যাশ ব্যালেন্সে স্বয়ংক্রিয়ভাবে রেকর্ড হবে।
       </div>
+      <div style="background:#eff6ff;border-radius:8px;padding:9px 10px;font-size:12px;color:#1e40af;margin-bottom:14px">📄 জমা নিশ্চিত করলে ২ পেজের জমার স্লিপ PDF তৈরি হবে — ১ম কপিতে ${_adm('title')} স্বাক্ষর করবেন (আপনি রাখবেন), ২য় কপিতে আপনি স্বাক্ষর করবেন (অফিস রাখবে)।</div>
       <button class="btn btn-success" style="width:100%" onclick="confirmPastCampCashSubmit(${campId})">✅ ক্যাশ জমা নিশ্চিত করুন</button>
     </div>`;
   document.body.appendChild(modal);
@@ -18789,12 +19071,15 @@ function confirmPastCampCashSubmit(campId) {
     ref: 'duty-submit', by: currentUser.name
   });
   if (c) c.cashSubmitted = true;
+  let _pastDep = null;
+  if (c) { try { _pastDep = _saveCamperDeposit(_camperSnapPast(c), amt, note, c.id); } catch(e) { console.warn('camper deposit record', e); } }
   saveData();
   updateBankBalances();
   const modalEl = document.getElementById('cashSubmitModalWrap');
   if (modalEl) modalEl.remove();
   renderCamperPastCamps();
   showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
+  if (_pastDep) setTimeout(()=>showCamperDepositSlip(_pastDep.id), 250);
 }
 
 function closeAttendModal() {
@@ -24811,6 +25096,7 @@ function renderCamperPastCamps() {
             : '<span style="font-size:10px;color:#16a34a;font-weight:600">✅ স্টক ক্লিয়ার</span>'}
           ${c.cashSubmitted
             ? '<span style="font-size:10px;color:#16a34a;font-weight:600">✅ ক্যাশ জমা হয়েছে</span>'
+              + ((appData.camperDeposits||[]).some(function(r){ return r.campRef===c.id; }) ? '<button class="btn btn-outline btn-sm" style="font-size:11px;padding:5px 9px;width:100%;text-align:center" onclick="showCamperDepositSlipByCamp('+c.id+')">📄 জমার স্লিপ</button>' : '')
             : `<button class="btn btn-outline btn-sm" style="font-size:11px;padding:5px 9px;width:100%;text-align:center;color:#0891b2;border-color:#bff2fb" onclick="showPastCampCashSubmitModal(${c.id})">💵 ক্যাশ জমা</button>`}
         </div>
       </div>
@@ -34778,7 +35064,8 @@ function renderRecHome() {
   var recallBadge = document.getElementById('recRecallBadge');
   var recallN = (recallBadge && recallBadge.style.display!=='none') ? recallBadge.textContent : '০';
   var hardMemos = _pendingHardMemos();
-  var pending = waitingTokens + todayAppts + callCount + dlvOver + returned + myRejected + hardMemos.length;
+  var camperSlipsPending = (appData.camperDeposits||[]).filter(function(r){ return r.sentTo==='reception' && !r.printedAt; }).length;
+  var pending = waitingTokens + todayAppts + callCount + dlvOver + returned + myRejected + hardMemos.length + camperSlipsPending;
   var alEl = document.getElementById('recHomeAlert');
   if (alEl) {
     if (!hardMemos.length) { alEl.innerHTML = ''; }
@@ -34789,6 +35076,8 @@ function renderRecHome() {
             return '<span class="rhd-alert-chip" onclick="recNotifBellGoHardMemo('+v.id+')" title="খুলতে ক্লিক করুন">'+esc2(v.patName||'—')+(v.patPhone?' · '+esc2(v.patPhone):'')+' · ৳ '+fmt(v.cashPaid||0)+' <em style="background:#dbeafe;color:#1d4ed8">পৃষ্ঠা '+esc2(v.memoNo||v.rcptNo||'—')+'</em> <em>'+(v.receivedBy==='md'?'💼 '+_adm('short')+' গৃহীত':'রিসেপশনিস্ট গৃহীত')+'</em></span>';
           }).join('') + (hardMemos.length>5?'<span class="rhd-alert-chip" style="cursor:default">+'+fmt(hardMemos.length-5)+' টি আরও</span>':'') + '</div></div>';
     }
+    // ✅ ক্যাম্পেইনার রিসেপশনে যে ক্যাশ জমার স্লিপ পাঠিয়েছেন (এখনো প্রিন্ট হয়নি) — সতর্কতা ও করণীয় গণনায় যোগ
+    try { alEl.innerHTML += _camperSlipInboxHtml('reception'); } catch(e) {}
   }
   var pEl = document.getElementById('recHomePending'); if (pEl) pEl.textContent = fmt(pending);
   function card(icon, label, val, sub, color, bg, tab, urgent, zero) {
