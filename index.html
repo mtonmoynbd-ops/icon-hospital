@@ -18376,6 +18376,10 @@ function calcCashBankBalance() {
   const _cmap = _campOfVisitMap();
   (appData.income||[]).forEach(e => {
     if (e.visitId) return;
+    // ✅ ফিক্স (ড্যাশবোর্ড কার্ড ≠ মাসিক রিপোর্ট/ব্যালেন্স শিটের কারণ): saveCamp() ক্যাম্পের আয় দুইভাবে সেভ করে — camp.totalIncome (ধাপ ৩-এ যোগ হয়)
+    // এবং খাত-ভিত্তিক income এন্ট্রি (campId + source:'camp' ট্যাগসহ, শুধু রিপোর্টের খাতভিত্তিক ভাঙনের জন্য)। আগে এখানে দ্বিতীয়টাও
+    // ক্যাশে যোগ হতো, ফলে ক্যাম্প আয় দুইবার ধরা পড়ত। calcCashBankFlowForPrefix() আগে থেকেই campId-ট্যাগড এন্ট্রি বাদ দেয় — এখন দুটো এক।
+    if (e.campId) return;
     if (e.campVisitId && _cmap[e.campVisitId]) return; // ক্যাম্পের বাকি আদায় ক্যাম্প রেকর্ডের totalIncome-এ আগেই যোগ হয় (ধাপ ৩) — আলাদা এন্ট্রি আবার যোগ করলে ক্যাশ ডাবল হতো
     if (e.payMode === 'bank') bank += (e.amount||0);
     else if (e.payMode === 'mfs') { /* মোবাইল ব্যাংকিং একাউন্টে যোগ হয় — calcMfsAccountBalance()-এ হিসাব */ }
@@ -41280,6 +41284,12 @@ function calcCashBankFlowForPrefix(prefix) {
     else if(tx.type==='bank_to_cash'){bankTransOut+=tx.amount; cashTransIn+=tx.amount;}
     else if(tx.type==='cash_out') cashTransOut+=tx.amount;
     else if(tx.type==='bank_out') bankTransOut+=tx.amount;
+    // ✅ ফিক্স: মোবাইল ব্যাংকিং ⇄ ক্যাশ/ব্যাংক ট্রান্সফার আগে এখানে ধরা হতো না (শুধু calcCashBankBalance() ধরত) — তাই যেদিন/যে মাসে
+    // এমন ট্রান্সফার হতো, রিপোর্ট ও ব্যালেন্স শিটের ক্যাশ/ব্যাংক ব্যালেন্স লাইভ ব্যালেন্স থেকে সরে যেত। MFS দিকটা calcMfsFlowForPrefix()-এ আগে থেকেই ছিল।
+    else if(tx.type==='mfs_to_cash') cashTransIn+=tx.amount;
+    else if(tx.type==='cash_to_mfs') cashTransOut+=tx.amount;
+    else if(tx.type==='mfs_to_bank') bankTransIn+=tx.amount;
+    else if(tx.type==='bank_to_mfs') bankTransOut+=tx.amount;
   });
   return {
     // সম্মিলিত মোট (আয়/ব্যয় + ট্রান্সফার) — লাইভ ব্যালেন্স-স্টাইল "মোট কত ইন/আউট হলো" দেখার জন্য
