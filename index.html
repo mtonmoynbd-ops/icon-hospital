@@ -2875,12 +2875,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <div class="stat-card-header"><div class="stat-label">ক্যাশ ব্যালেন্স</div></div>
               <div class="stat-value income" id="dashCashBalance">৳ ০</div>
               <div class="stat-change">হাতে নগদ মজুদ</div>
+              <div class="stat-change" id="dashCashOpening" style="font-size:10.5px;color:#64748b;margin-top:2px"></div>
             </div>
             <div data-card-id="dashBankBalance" class="stat-card" style="border-left-color:#3498db;cursor:pointer" onclick="showDashCardModal('dashBankBalance')">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#3498db"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96H24L128,32Z" opacity="0.38"/><path d="M24,104H48v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16H208V104h24a8,8,0,0,0,4.19-14.81l-104-64a8,8,0,0,0-8.38,0l-104,64A8,8,0,0,0,24,104Zm40,0H96v64H64Zm80,0v64H112V104Zm48,64H160V104h32ZM128,41.39,203.74,88H52.26ZM248,208a8,8,0,0,1-8,8H16a8,8,0,0,1,0-16H240A8,8,0,0,1,248,208Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">ব্যাংক ব্যালেন্স</div></div>
               <div class="stat-value" id="dashBankBalance" style="color:#3498db">৳ ০</div>
               <div class="stat-change" id="dashBankName">ব্যাংক একাউন্ট</div>
+              <div class="stat-change" id="dashBankOpening" style="font-size:10.5px;color:#64748b;margin-top:2px"></div>
               <div class="stat-change" id="dashBankFundNote" style="font-size:10.5px;color:#94a3b8;margin-top:2px"></div>
             </div>
             <div data-card-id="dashMfsBalance" class="stat-card" style="border-left-color:#d63384;cursor:pointer" onclick="showDashCardModal('dashMfsBalance')">
@@ -2888,6 +2890,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <div class="stat-card-header"><div class="stat-label">মোবাইল ব্যাংকিং</div></div>
               <div class="stat-value" id="dashMfsBalance" style="color:#d63384">৳ ০</div>
               <div class="stat-change" id="dashMfsAccCount">০টি একাউন্ট</div>
+              <div class="stat-change" id="dashMfsOpening" style="font-size:10.5px;color:#64748b;margin-top:2px"></div>
             </div>
           </div>
           <!-- কার্ড ডিটেইল মোডাল — stats-grid এর ভেতরেই, একই এরিয়া জুড়ে -->
@@ -11368,6 +11371,30 @@ function showPage(name) {
   closeSidebar();
 }
 
+// ===== মাস শুরুর (= আগের মাসের সমাপনি) ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং ব্যালেন্স — ড্যাশবোর্ড কার্ডের এক-লাইনের জন্য =====
+// getOpeningCash/Bank/Mfs(key,'month')-এর হুবহু একই নিয়ম (সেটিংসের প্রারম্ভিক ব্যালেন্স + আগের সব মাসের নেট), শুধু এক পাসে তিনটাই,
+// যাতে ড্যাশবোর্ড রিফ্রেশে বারবার ভারী হিসাব না হয়। ব্যালেন্স শিট ও মাসিক রিপোর্টের "মাসের শুরুতে ছিল" এর সাথে সবসময় সমান।
+function calcOpeningAllForMonth(monthKey) {
+  let cash = parseFloat((appData.settings||{}).cashBalance)||0;
+  let bank = parseFloat((appData.settings||{}).bankBalance)||0;
+  let mfs = (appData.mfsAccounts||[]).reduce((s,a)=>s+(Number(a.openingBalance)||0),0);
+  const months = [...new Set(getAllDatesWithActivity().map(d=>d.substring(0,7)))].sort().filter(m => m < monthKey);
+  months.forEach(m => {
+    const f = calcCashBankFlowForPrefix(m), mf = calcMfsFlowForPrefix(m);
+    cash += f.cashIn - f.cashOut; bank += f.bankIn - f.bankOut; mfs += mf.mfsIn - mf.mfsOut;
+  });
+  return { cash, bank, mfs };
+}
+function _fmtOpeningLine(n) { return 'মাস শুরুর ব্যালেন্স: ' + (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n)); }
+function updateDashOpeningLines() {
+  try {
+    if (typeof calcOpeningAllForMonth !== 'function') return;
+    const o = calcOpeningAllForMonth(todayStr().substring(0,7));
+    [['dashCashOpening',o.cash],['dashBankOpening',o.bank],['dashMfsOpening',o.mfs]].forEach(([id,v])=>{
+      const el = document.getElementById(id); if (el) el.textContent = _fmtOpeningLine(v);
+    });
+  } catch(e) { console.warn('updateDashOpeningLines', e); }
+}
 // ===== DASHBOARD =====
 function renderDashBalanceTable() {
   if (typeof calcCashBankBalance !== 'function') return;
@@ -11378,6 +11405,7 @@ function renderDashBalanceTable() {
   const dme = document.getElementById('dashMfsBalance'); if(dme && typeof calcTotalMfsBalance==='function') dme.textContent = '৳ ' + fmt(calcTotalMfsBalance());
   const dmc = document.getElementById('dashMfsAccCount'); if(dmc) dmc.textContent = `${(appData.mfsAccounts||[]).length}টি একাউন্ট`;
   const ce = document.getElementById('cashBalance'); if(ce) ce.textContent = '৳ ' + fmt(cash);
+  updateDashOpeningLines();
   const be = document.getElementById('bankBalance'); if(be) be.textContent = '৳ ' + fmt(bank);
   const te = document.getElementById('totalBalance'); if(te) te.textContent = '৳ ' + fmt(cash + bank);
   const mfsBalEl2 = document.getElementById('bankPgMfsBalance'); if(mfsBalEl2 && typeof calcTotalMfsBalance==='function') mfsBalEl2.textContent = '৳ ' + fmt(calcTotalMfsBalance());
@@ -11742,6 +11770,7 @@ function refreshDashboard() {
   const dbn=document.getElementById('dashBankName'); if(dbn) dbn.textContent=appData.settings.bankName||'ব্যাংক একাউন্ট';
   const dme=document.getElementById('dashMfsBalance'); if(dme && typeof calcTotalMfsBalance==='function') animateStatText(dme, calcTotalMfsBalance(), v => '৳ '+fmt(v));
   const dmc=document.getElementById('dashMfsAccCount'); if(dmc) dmc.textContent = `${(appData.mfsAccounts||[]).length}টি একাউন্ট`;
+  updateDashOpeningLines();
 
   // Pending camp operations on dashboard
   const pendingOps = [];
@@ -13730,6 +13759,8 @@ function confirmCashSubmit(role) {
     const _cc = _recCashClosing();   // জমা দেওয়ার মুহূর্তের প্রত্যাশিত নগদ (আগের জমা বাদে) — অ্যাডমিন পার্থক্য দেখতে পাবেন
     const recDeposit = {
       expectedCash: _cc.remaining, diff: amt - _cc.remaining,
+      // ✅ জমার মুহূর্তের নগদ হিসাবের স্ন্যাপশট — জমার স্লিপ (২ পেজের PDF) এই মান থেকেই তৈরি হয়, পরে আবার ডাউনলোডেও একই থাকে
+      ccSnap: { cashIn:_cc.cashIn, ownCash:_cc.ownCash, adminCash:_cc.adminCash, mdHeld:_cc.mdHeld, cashOut:_cc.cashOut, prevDeposited:_cc.deposited, mfs:_cc.mfs, dueIn:_cc.dueIn },
       id: Date.now()+1,
       date: today,
       time: timeStr,
@@ -13759,6 +13790,133 @@ function confirmCashSubmit(role) {
   document.getElementById('cashSubmitModalWrap').remove();
   if (role==='receptionist') renderRecDepositList();
   showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
+  // ✅ জমা নিশ্চিত হওয়ার পর ২ পেজের জমার স্লিপ PDF (১ম পেজ: এমডির স্বাক্ষর — রিসেপশনিস্ট রাখবেন; ২য় পেজ: রিসেপশনিস্টের স্বাক্ষর — এমডি/অফিস রাখবে)
+  if (role==='receptionist') {
+    try { const _dep = (appData.recDeposits||[]).slice(-1)[0]; if (_dep) setTimeout(()=>showRecDepositSlip(_dep.id), 250); }
+    catch(e) { console.warn('deposit slip', e); }
+  }
+}
+
+// ===== রিসেপশনিস্ট ক্যাশ জমার স্লিপ — ২ পেজের PDF =====
+// পেজ ১ = রিসেপশনিস্টের সংরক্ষণ কপি (ব্যবস্থাপনা পরিচালক স্বাক্ষর করবেন)
+// পেজ ২ = অফিস/ব্যবস্থাপনা পরিচালকের সংরক্ষণ কপি (রিসেপশনিস্ট স্বাক্ষর করবেন)
+// দুই পেজেই একই সারসংক্ষেপ (জমা ও সেদিনের এন্ট্রি); শুধু শিরোনাম ও স্বাক্ষরের ঘর আলাদা।
+function buildRecDepositSlipHtml(d) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  const base = _baseBy(d.by), date = d.date;
+  const sum = (a,f) => a.reduce((t,x)=>t+(f(x)||0),0);
+  const bills = (appData.visits||[]).filter(v => v.date===date && (_baseBy(v.by)===base || (_roleOfBy(v.by)==='admin' && v.receivedBy!=='md')));
+  const billTotal = sum(bills, v => v.netBill!=null ? v.netBill : v.total);
+  const billMfs = sum(bills, v => v.mfsPaid);
+  const billCash = Math.max(0, sum(bills, v => v.cashPaid) - billMfs);
+  const billDue = sum(bills, v => v.due);
+  const dueBills = bills.filter(v => (v.due||0) > 0);
+  const memos = bills.map(v => v.memoNo||v.rcptNo||'').filter(Boolean).sort();
+  const dueCols = (appData.dueHistory||[]).filter(h => h.type==='collect' && h.date===date && _baseBy(h.by)===base);
+  const dueColAmt = sum(dueCols, h => h.amount);
+  const exps = (appData.expense||[]).filter(e => _baseBy(e.by)===base && e.date===date && !e.rejected);
+  const expAmt = sum(exps, e => e.amount);
+  const sn = d.ccSnap || null;
+  const sg = n => (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n));
+  const box = (label, val, color) => `<div class="dp-box"><div class="dp-bl">${label}</div><div class="dp-bv" style="color:${color||'#1a2a3a'}">${val}</div></div>`;
+  const diff = (d.diff===undefined||d.diff===null) ? null : d.diff;
+  const diffTxt = diff===null ? '—' : (diff===0 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
+  const diffColor = diff===null ? '#64748b' : (diff===0 ? '#16a34a' : '#dc2626');
+  const row = (a,b) => `<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
+  const logo = (typeof LOGO_B64 !== 'undefined' && LOGO_B64) ? `<img src="${LOGO_B64}" style="height:62px;object-fit:contain;flex-shrink:0">` : '';
+  const stock = String(d.stockConsumed||'—'); const stockTxt = stock.length>170 ? stock.slice(0,170)+'…' : stock;
+  const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
+
+  const body = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid #0f4c81;padding-bottom:10px">
+      ${logo}
+      <div style="text-align:right">
+        <div style="font-size:19px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
+        <div style="font-size:14.5px;font-weight:700;margin-top:4px">রিসেপশনিস্ট দৈনিক ক্যাশ জমা — সারসংক্ষেপ</div>
+        <div style="font-size:11.5px;color:#6b7280;margin-top:1px">তারিখ: ${formatDate(date)} &nbsp;|&nbsp; জমার সময়: ${esc(d.time||'—')}</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:10px;margin:10px 0 4px;font-size:12.5px">
+      <div>জমাদানকারী রিসেপশনিস্ট: <strong>${esc(base)}</strong></div>
+      <div>মেমো নং: <strong>${memos.length ? esc(memos[0])+' – '+esc(memos[memos.length-1]) : '—'}</strong></div>
+    </div>
+    <h4 class="dp-h">১. জমার হিসাব</h4>
+    <div class="dp-grid">
+      ${box('গৃহীত নগদ', sn?sg(sn.cashIn):'—', '#065f46')}
+      ${box('নগদ ব্যয়', sn?sg(sn.cashOut):'—', '#991b1b')}
+      ${box('আগে জমা (আজ)', sn?sg(sn.prevDeposited):'—', '#0369a1')}
+      ${box('প্রত্যাশিত জমা', d.expectedCash===undefined?'—':sg(d.expectedCash), '#1a2a3a')}
+      ${box('প্রকৃত জমা', sg(d.amount||0), '#0f4c81')}
+      ${box('পার্থক্য', diffTxt, diffColor)}
+    </div>
+    ${sn && (sn.adminCash>0 || sn.mdHeld>0) ? `<div style="font-size:11px;color:#6b7280;margin-bottom:4px">গৃহীত নগদের মধ্যে: নিজস্ব বিল ও আদায় ${sg(sn.ownCash)}${sn.adminCash>0?' | '+esc(_adm('short'))+'-এন্ট্রি বিল (রিসেপশনিস্ট গৃহীত) '+sg(sn.adminCash):''}${sn.mdHeld>0?' | '+esc(_adm('short'))+' নিজে গৃহীত (এই জমার বাইরে) '+sg(sn.mdHeld):''}</div>` : ''}
+    <h4 class="dp-h">২. আজকের এন্ট্রির সারসংক্ষেপ</h4>
+    <table class="dp-t">
+      <thead><tr><th>বিষয়</th><th style="text-align:right">পরিমাণ</th></tr></thead>
+      <tbody>
+        ${row('রোগীর বিল — সংখ্যা', bills.length+' টি')}
+        ${row('মোট বিল (ছাড়ের পর)', sg(billTotal))}
+        ${row('নগদ আদায় (বিলের সময়)', sg(billCash))}
+        ${row('মোবাইল ব্যাংকিং আদায় (ক্যাশে নয়)', sg(billMfs))}
+        ${row('বিলে বাকি রয়েছে', sg(billDue))}
+        ${row('বাকি আদায় — '+dueCols.length+' টি', sg(dueColAmt))}
+        ${row('নগদ ব্যয় এন্ট্রি — '+exps.length+' টি', sg(expAmt))}
+      </tbody>
+    </table>
+    ${exps.length ? `<h4 class="dp-h">৩. ব্যয়ের তালিকা</h4>
+    <table class="dp-t"><thead><tr><th>ভাউচার</th><th>খাত</th><th>বিবরণ</th><th style="text-align:right">টাকা</th></tr></thead><tbody>
+      ${exps.slice(0,8).map(e=>`<tr><td>${esc(e.voucher||e.memo||'—')}</td><td>${esc(e.category||'—')}</td><td>${esc((e.note||'').slice(0,40))}${e.needsApproval&&e.status==='pending'?' <small>(অনুমোদনের অপেক্ষায়)</small>':''}</td><td style="text-align:right">${sg(e.amount||0)}</td></tr>`).join('')}
+      ${exps.length>8 ? `<tr><td colspan="4" style="color:#6b7280">… আরও ${exps.length-8} টি ব্যয় এন্ট্রি (মোট উপরে ধরা আছে)</td></tr>` : ''}
+    </tbody></table>` : ''}
+    ${dueBills.length ? `<h4 class="dp-h">${exps.length?'৪':'৩'}. বাকি রোগীর তালিকা</h4>
+    <table class="dp-t"><thead><tr><th>রোগী</th><th>মেমো</th><th style="text-align:right">বাকি</th></tr></thead><tbody>
+      ${dueBills.slice(0,8).map(v=>`<tr><td>${esc(v.patName||'—')}</td><td>${esc(v.memoNo||v.rcptNo||'—')}</td><td style="text-align:right">${sg(v.due||0)}</td></tr>`).join('')}
+      ${dueBills.length>8 ? `<tr><td colspan="3" style="color:#6b7280">… আরও ${dueBills.length-8} জন (মোট বাকি উপরে ধরা আছে)</td></tr>` : ''}
+    </tbody></table>` : ''}
+    <div style="font-size:11.5px;color:#4b5563;margin-top:8px">স্টক ব্যবহার: ${esc(stockTxt)}</div>
+    ${d.note ? `<div style="font-size:11.5px;color:#4b5563;margin-top:4px">মন্তব্য: ${esc(d.note)}</div>` : ''}
+    ${d.lockedBills!=null ? `<div style="font-size:11px;color:#6b7280;margin-top:4px">🔒 জমার পর লক করা বিল: ${d.lockedBills} টি</div>` : ''}`;
+
+  const page = (copyLabel, signLabel, signName, sigNote) => `
+    <div class="a4-page dp-page">
+      <div class="dp-copy">${copyLabel}</div>
+      <div class="dp-body">${body}</div>
+      <div class="dp-sigwrap">
+        <div style="font-size:11px;color:#6b7280;max-width:95mm">${sigNote}</div>
+        <div class="dp-sig"><div class="dp-sigline"></div><div style="font-weight:700">${signLabel}</div>${signName?`<div style="font-size:11.5px">${esc(signName)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
+      </div>
+      <div class="dp-foot">এই স্লিপ ${esc(hospName)} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।</div>
+    </div>`;
+
+  const css = `
+    .dp-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;padding:12mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
+    .dp-copy{align-self:flex-start;font-size:11.5px;font-weight:800;color:#0f4c81;background:#eef4fa;border:1px solid #bfd3ea;border-radius:20px;padding:3px 12px;margin-bottom:8px}
+    .dp-body{flex:1}
+    .dp-h{font-size:13px;font-weight:800;color:#0f4c81;margin:12px 0 6px}
+    .dp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0}
+    .dp-box{border:1.5px solid #e5e7eb;border-radius:10px;padding:8px;text-align:center}
+    .dp-bl{font-size:10.5px;color:#6b7280;font-weight:700}
+    .dp-bv{font-size:16px;font-weight:800;margin-top:3px}
+    .dp-t{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px;border:1px solid #e5e7eb}
+    .dp-t th{background:#0f4c81;color:#fff;padding:5px 8px;text-align:left;font-weight:700}
+    .dp-t td{padding:4px 8px;border-bottom:1px solid #e5e7eb}
+    .dp-t tr:nth-child(even) td{background:#f8fafc}
+    .dp-sigwrap{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:22px;page-break-inside:avoid}
+    .dp-sig{text-align:center;width:62mm}
+    .dp-sigline{border-top:1.8px solid #1a2a3a;margin-top:54px;margin-bottom:4px}
+    .dp-foot{text-align:center;font-size:10.5px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px;margin-top:14px}
+  `;
+  return `<html><head><meta charset="UTF-8"><style>${css}</style></head><body>`
+    + page('কপি ১ — রিসেপশনিস্টের সংরক্ষণ কপি', 'ব্যবস্থাপনা পরিচালক', mdName, 'ব্যবস্থাপনা পরিচালক টাকা বুঝে পেয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি রিসেপশনিস্ট নিজের কাছে সংরক্ষণ করবেন।')
+    + page('কপি ২ — অফিস / ব্যবস্থাপনা পরিচালকের সংরক্ষণ কপি', 'রিসেপশনিস্ট', base, 'রিসেপশনিস্ট টাকা জমা দিয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি ব্যবস্থাপনা পরিচালক/অফিস সংরক্ষণ করবে।')
+    + `</body></html>`;
+}
+function showRecDepositSlip(id) {
+  const d = (appData.recDeposits||[]).find(r => r.id === id);
+  if (!d) { showToast('⚠️ জমার রেকর্ড পাওয়া যায়নি'); return; }
+  const fname = 'cash-deposit-slip-' + d.date + '-' + _baseBy(d.by).replace(/\s+/g,'_') + '.pdf';
+  exportDocumentPDF(buildRecDepositSlipHtml(d), fname, 'ক্যাশ জমার স্লিপ — ' + formatDate(d.date));
 }
 
 // ===== REC DEPOSIT LIST =====
@@ -13854,6 +14012,7 @@ function showRecDepositDetail(id) {
       ${(d.duePatients||[]).length?`<div style="margin-top:12px"><div style="font-weight:700;color:#9b59b6;margin-bottom:6px">বাকি রোগীর তালিকা:</div><ul style="margin:0;padding-left:20px;font-size:13px">${dueHtml}</ul></div>`:''}
     </div>
     <div class="modal-footer">
+      <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();showRecDepositSlip(${d.id})">📄 জমার স্লিপ (PDF)</button>
       <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">বন্ধ করুন</button>
     </div>
   </div>`;
@@ -15395,22 +15554,14 @@ function buildBoardReportHtml(month, year) {
     let live = '';
     if (running) {   // চলতি মাসে হিসাব-করা শেষ ব্যালেন্স আসল লাইভ ব্যালেন্সের সাথে মিলছে কি না — একটা সততা-যাচাই
       const lb = calcCashBankBalance(), lm = calcTotalMfsBalance();
+      // ✅ ড্যাশবোর্ড কার্ডও এখন প্রারম্ভিক ব্যালেন্স ধরে — তাই এখানে কোনো পার্থক্য থাকার কথা না; থাকলে সেটা আসল অসঙ্গতি
       const d = [['নগদ', cC - lb.cash], ['ব্যাংক', cB - lb.bank], ['মোবাইল ব্যাংকিং', cM - lm]].filter(x => Math.abs(x[1]) >= 1);
-      live = d.length ? `<div style="font-size:11px;color:#b45309;margin-bottom:10px">⚠️ লাইভ ব্যালেন্সের সাথে পার্থক্য: ${d.map(x=>x[0]+' '+sg(x[1])).join(', ')} — আগের মাসের কোনো এন্ট্রি/উত্তোলন বদলেছে কি না দেখুন।</div>`
-                    : `<div style="font-size:11px;color:#065f46;margin-bottom:10px">✅ হিসাব-করা শেষ ব্যালেন্স অ্যাপের লাইভ ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং ব্যালেন্সের সাথে হুবহু মিলেছে।</div>`;
+      live = d.length
+        ? `<div style="font-size:11px;color:#b45309;margin-bottom:10px">⚠️ লাইভ ব্যালেন্সের সাথে পার্থক্য: ${d.map(x=>x[0]+' '+sg(x[1])).join(', ')} — আগের মাসের কোনো এন্ট্রি/উত্তোলন বদলেছে কি না দেখুন।</div>`
+        : `<div style="font-size:11px;color:#065f46;margin-bottom:10px">✅ হিসাব-করা শেষ ব্যালেন্স অ্যাপের লাইভ ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং ব্যালেন্সের সাথে হুবহু মিলেছে (সেটিংসের প্রারম্ভিক ব্যালেন্সসহ)।</div>`;
     }
     const r4 = (label, a, b, c) => `<tr><td>${label}</td><td style="text-align:right">${a}</td><td style="text-align:right">${b}</td><td style="text-align:right">${c}</td></tr>`;
     return `<h2>১৫. ক্যাশ, ব্যাংক ও মোবাইল ব্যাংকিং — মাসের শুরু ও শেষ</h2>
-    <table>
-      <thead><tr><th>বিষয়</th><th style="text-align:right">নগদ</th><th style="text-align:right">ব্যাংক</th><th style="text-align:right">মোবাইল ব্যাংকিং</th></tr></thead>
-      <tbody>
-        ${r4('মাসের শুরুতে ছিল', sg(oC), sg(oB), sg(oM))}
-        ${r4('মাসে মোট ইন (আয় + ট্রান্সফার)', '+ ৳ '+fmt(fl.cashIn), '+ ৳ '+fmt(fl.bankIn), '+ ৳ '+fmt(mf.mfsIn))}
-        ${r4('মাসে মোট আউট (ব্যয় + ট্রান্সফার)', '- ৳ '+fmt(fl.cashOut), '- ৳ '+fmt(fl.bankOut), '- ৳ '+fmt(mf.mfsOut))}
-      </tbody>
-      <tfoot><tr class="sum-row"><td><strong>${running ? 'আজ পর্যন্ত আছে (চলতি মাসের শেষ দিন পর্যন্ত)' : 'মাস শেষে আছে'}</strong></td><td style="text-align:right"><strong>${sg(cC)}</strong></td><td style="text-align:right"><strong>${sg(cB)}</strong></td><td style="text-align:right"><strong>${sg(cM)}</strong></td></tr></tfoot>
-    </table>
-    ${live}
     <table>
       <thead><tr><th>নগদ/ব্যাংকের ভাঙন</th><th style="text-align:right">নগদ</th><th style="text-align:right">ব্যাংক</th></tr></thead>
       <tbody>
@@ -15420,7 +15571,17 @@ function buildBoardReportHtml(month, year) {
         <tr><td>ট্রান্সফার/অ্যাডজাস্টমেন্ট আউট</td><td style="text-align:right">- ৳ ${fmt(fl.cashTransOut)}</td><td style="text-align:right">- ৳ ${fmt(fl.bankTransOut)}</td></tr>
       </tbody>
     </table>
-    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* ব্যালেন্স অ্যাপের ক্যাশ-ফ্লো হিসাব অনুযায়ী (ব্যালেন্স শিট ও আয়-ব্যয় পেজের প্রারম্ভিক ব্যালেন্সের সাথে একই)। ক্যাম্পের বাকি আদায়সহ সব বাকি আদায়ের টাকা যেদিন হাতে এসেছে সেদিনের মাসে ধরা। সার্জনের পরিশোধ অটো ভাউচারে পরিশোধের দিনে ব্যয়।</div>`;
+    <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* ব্যালেন্স অ্যাপের ক্যাশ-ফ্লো হিসাব অনুযায়ী (ব্যালেন্স শিট ও আয়-ব্যয় পেজের প্রারম্ভিক ব্যালেন্সের সাথে একই)। ক্যাম্পের বাকি আদায়সহ সব বাকি আদায়ের টাকা যেদিন হাতে এসেছে সেদিনের মাসে ধরা। সার্জনের পরিশোধ অটো ভাউচারে পরিশোধের দিনে ব্যয়।</div>
+    ${live}
+    <table>
+      <thead><tr><th>বিষয়</th><th style="text-align:right">নগদ</th><th style="text-align:right">ব্যাংক</th><th style="text-align:right">মোবাইল ব্যাংকিং</th></tr></thead>
+      <tbody>
+        ${r4('মাসের শুরুতে ছিল', sg(oC), sg(oB), sg(oM))}
+        ${r4('মাসে মোট ইন (আয় + ট্রান্সফার)', '+ ৳ '+fmt(fl.cashIn), '+ ৳ '+fmt(fl.bankIn), '+ ৳ '+fmt(mf.mfsIn))}
+        ${r4('মাসে মোট আউট (ব্যয় + ট্রান্সফার)', '- ৳ '+fmt(fl.cashOut), '- ৳ '+fmt(fl.bankOut), '- ৳ '+fmt(mf.mfsOut))}
+      </tbody>
+      <tfoot><tr class="sum-row"><td><strong>${running ? 'আজ পর্যন্ত আছে (চলতি মাসের শেষ দিন পর্যন্ত)' : 'মাস শেষে আছে'}</strong></td><td style="text-align:right"><strong>${sg(cC)}</strong></td><td style="text-align:right"><strong>${sg(cB)}</strong></td><td style="text-align:right"><strong>${sg(cM)}</strong></td></tr></tfoot>
+    </table>`;
   })();
 
   const _boardHtml = `
@@ -15664,9 +15825,8 @@ function buildBoardReportHtml(month, year) {
 
   <!-- স্বাক্ষর -->
   <div class="sig-row">
-    <div class="sig-box"><div class="sig-line"></div><div>প্রস্তুতকারী</div><div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
-    <div class="sig-box"><div class="sig-line"></div><div>হিসাব পরীক্ষক</div><div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
-    <div class="sig-box"><div class="sig-line"></div><div>সভাপতি, বোর্ড</div><div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
+    <div class="sig-box"><div class="sig-line"></div><div>হিসাব রক্ষক</div><div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
+    <div class="sig-box"><div class="sig-line"></div><div>ব্যবস্থাপনা পরিচালক</div><div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
   </div>
   <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">
     এই রিপোর্ট ${hospName} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।
@@ -16324,7 +16484,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
   var script = `
     (function(){
       var h2s=[].slice.call(document.querySelectorAll('h2'));
-      var sig=[].slice.call(document.querySelectorAll('div')).filter(function(d){return /প্রস্তুতকারী/.test(d.textContent)&&d.textContent.length<260;}).sort(function(a,b){return a.textContent.length-b.textContent.length;})[0];
+      var sig=document.querySelector('.sig-row');
       h2s.forEach(function(h,i){
         var body=document.createElement('div'); body.className='m-sec-body';
         var n=h.nextSibling;
@@ -18187,7 +18347,11 @@ function calcProfitLossForPrefix(prefix) {
 function calcCashBankBalance() {
   // ক্যাশ = সব আয় - সব ব্যয় + bankTx অ্যাডজাস্টমেন্ট
   // income: manual income + visit cashPaid + camp totalIncome
-  let cash = 0, bank = 0;
+  // ✅ ফিক্স: সেটিংসের "প্রারম্ভিক ক্যাশ/ব্যাংক ব্যালেন্স" এখন লাইভ ব্যালেন্সের শুরুতেই ধরা হয় — আগে ধরা হতো না,
+  // ফলে ড্যাশবোর্ড কার্ড ≠ ব্যালেন্স শিট ≠ মাসিক রিপোর্ট (১৫ নং সেকশন) হয়ে যেত। getOpeningCash/getOpeningBank
+  // (ব্যালেন্স শিট ও রিপোর্ট) আগে থেকেই এই একই মান দিয়ে শুরু করে, তাই এখন সব জায়গায় এক।
+  let cash = parseFloat((appData.settings||{}).cashBalance)||0;
+  let bank = parseFloat((appData.settings||{}).bankBalance)||0;
   // ১. Manual income → ক্যাশে যোগ
   // ⚠️ গুরুত্বপূর্ণ ফিক্স: বিল সেভ হওয়ার সময় "রিসেপশন আয়"/"অ্যাডমিন বিল" ক্যাটাগরিতে যে income এন্ট্রি অটো তৈরি হয়
   // (visitId ট্যাগসহ), সেই একই টাকা নিচের ধাপ ২-এ visit.cashPaid থেকেও যোগ হয় — তাই visitId-ট্যাগড এন্ট্রি এখানে
@@ -18531,6 +18695,7 @@ function buildCashSubmitModal(role) {
       <div style="background:#fef3c7;border-radius:8px;padding:10px;font-size:12px;color:#92400e;margin-bottom:16px">
         ⚠️ এই পরিমাণ প্রধান ক্যাশ ব্যালেন্সে স্বয়ংক্রিয়ভাবে রেকর্ড হবে। ইতোমধ্যে এন্ট্রি করা আয়/ব্যয় আলাদাভাবে গণনা হয়ে আছে — এটি শুধু বাড়তি অ্যাডজাস্টমেন্টের জন্য।
       </div>
+      ${role==='receptionist'?`<div style="background:#eff6ff;border-radius:8px;padding:9px 10px;font-size:12px;color:#1e40af;margin-bottom:14px">📄 জমা নিশ্চিত করলে ২ পেজের জমার স্লিপ PDF তৈরি হবে — ১ম কপিতে ${_adm('title')} স্বাক্ষর করবেন (আপনি রাখবেন), ২য় কপিতে আপনি স্বাক্ষর করবেন (অফিস রাখবে)।</div>`:''}
       <button class="btn btn-success" style="width:100%" onclick="confirmCashSubmit('${role}')">✅ ক্যাশ জমা নিশ্চিত করুন</button>
     </div>`;
   document.body.appendChild(modal);
@@ -24185,6 +24350,8 @@ function initOwnerPage() {
       // ক্যাশ/ব্যাংক/মোবাইল ব্যাংকিং
       const { cash: oCash, bank: oBank } = calcCashBankBalance();
       const oMfs = (typeof calcTotalMfsBalance==='function') ? calcTotalMfsBalance() : 0;
+      const oOpen = calcOpeningAllForMonth(todayStr().substring(0,7));   // মাস শুরুর ব্যালেন্স (অ্যাডমিন কার্ডের সাথে একই)
+      const oOpenTxt = n => 'মাস শুরু: ' + (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n));
 
       // ✅ সেটিংস → "ড্যাশবোর্ড কার্ড ক্রম"-এ এডমিন যে ক্রম/দৃশ্যমানতা ঠিক করে দিয়েছেন, ওনার প্যানেলেও একই ক্রম/লুকানো-অবস্থা মেনে চলা হবে (আগে এখানে ক্রম হার্ডকোড করা ছিল, সেটিংস থেকে পরিবর্তন করলেও কোনো প্রভাব পড়তো না)
       const ownerCardMeta = {
@@ -24195,9 +24362,9 @@ function initOwnerPage() {
         campIncome:    { icon:'🏕️', label:'ক্যাম্প আয় (এই মাস)', value:'৳ '+fmt(campMonthInc2), color:'#b45309', bg:'#fff7ed', sub:'ক্যাম্প: '+campCount2+'টি' },
         totalDue:      { icon:'⏳', label:'মোট বাকি', value:'৳ '+fmt(totalDue2), color:'#b45309', bg:'#fffbeb', sub:'রোগী: '+dueVisits2.length+'জন' },
         totalDebt:     { icon:'🔴', label:'মোট দেনা', value:'৳ '+fmt(totalDebt2), color:'#c0392b', bg:'#fff0f0', sub:'লোন + সরবরাহকারী' },
-        dashCashBalance: { icon:'💵', label:'ক্যাশ ব্যালেন্স', value:'৳ '+fmt(oCash), color:'#16a34a', bg:'#d1fae5', sub:'হাতে নগদ মজুদ', id:'ownerDashCashBalance' },
-        dashBankBalance: { icon:'🏦', label:'ব্যাংক ব্যালেন্স', value:'৳ '+fmt(oBank), color:'#1d4ed8', bg:'#dbeafe', sub:appData.settings.bankName||'ব্যাংক একাউন্ট', id:'ownerDashBankBalance' },
-        dashMfsBalance:  { icon:'📱', label:'মোবাইল ব্যাংকিং', value:'৳ '+fmt(oMfs), color:'#d63384', bg:'#fce7f3', sub:(appData.mfsAccounts||[]).length+'টি একাউন্ট', id:'ownerDashMfsBalance' },
+        dashCashBalance: { icon:'💵', label:'ক্যাশ ব্যালেন্স', value:'৳ '+fmt(oCash), color:'#16a34a', bg:'#d1fae5', sub:oOpenTxt(oOpen.cash), id:'ownerDashCashBalance' },
+        dashBankBalance: { icon:'🏦', label:'ব্যাংক ব্যালেন্স', value:'৳ '+fmt(oBank), color:'#1d4ed8', bg:'#dbeafe', sub:oOpenTxt(oOpen.bank), id:'ownerDashBankBalance' },
+        dashMfsBalance:  { icon:'📱', label:'মোবাইল ব্যাংকিং', value:'৳ '+fmt(oMfs), color:'#d63384', bg:'#fce7f3', sub:oOpenTxt(oOpen.mfs), id:'ownerDashMfsBalance' },
       };
       const ownerHidden = (typeof getHiddenDashCards==='function') ? getHiddenDashCards() : [];
       const ownerOrder = ((typeof getDashCardOrder==='function') ? getDashCardOrder() : Object.keys(ownerCardMeta))
