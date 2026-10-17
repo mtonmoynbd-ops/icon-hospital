@@ -7614,6 +7614,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </select>
         <!-- Selected camp info -->
         <div id="cpCampInfoBox" style="display:none;background:#f0f9ff;border:1.5px solid var(--accent);border-radius:14px;padding:12px;margin:2px 0 0">
+          <button type="button" onclick="resetCampPick()" style="display:flex;align-items:center;gap:6px;margin:-2px 0 10px;min-height:38px;padding:0 12px;border:1.5px solid #fecaca;background:#fff5f5;color:#b91c1c;border-radius:10px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer">↩️ ভুল ক্যাম্প? ফিরে গিয়ে অন্য ক্যাম্প বাছুন</button>
           <div class="cs-info">
             <div><span>📍 স্থান</span><b id="cpCampLocShow"></b></div>
             <div><span>📅 তারিখ</span><b id="cpCampDateShow"></b></div>
@@ -7632,6 +7633,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <button type="button" class="cs-act" onclick="openCampStockSelectPage(false)">✏️ স্টক নির্বাচন / সম্পাদনা করুন</button>
           <button type="button" class="cs-act sec" onclick="openCampStockSelectPage(true)">🔁 আগের ক্যাম্পের তালিকা থেকে লোড করুন</button>
           <button type="button" class="cs-start" onclick="initCamperSession()">✅ ক্যাম্প শুরু করুন</button>
+          <button type="button" class="cs-act sec" onclick="resetCampPick()" style="margin-top:8px">↩️ ফিরে যান — ক্যাম্প বদলান</button>
         </div>
       </div>
     </div>
@@ -7711,7 +7713,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     </div>
 
     <!-- ক্যাম্প মিনি অ্যাকশন বার — সবসময় HTML-এ থাকবে, JS শুধু show/hide করবে -->
-    <div id="campMiniBar" style="display:none;position:sticky;top:0;z-index:90;flex-direction:column;gap:3px;margin-bottom:8px;padding-top:2px;background:var(--bg)">
+    <div id="campMiniBarSpacer" style="height:0"></div>
+    <div id="campMiniBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:150;flex-direction:column;gap:3px;padding:calc(env(safe-area-inset-top,0px) + 2px) 10px 6px;background:var(--bg);box-sizing:border-box">
       <div id="campMiniBarName" style="text-align:center;font-size:9.5px;font-weight:700;color:var(--primary);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.85"></div>
       <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
         <button onclick="switchCamperSessionTab('history')" style="background:#f8fafc;border:1px solid #eef1f5;border-radius:7px;padding:6px 9px;color:#1a1a1a;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1" title="আজকের এন্ট্রি">
@@ -9592,27 +9595,22 @@ async function listFirebaseBackups() {
   if (listEl) listEl.style.display = 'none';
 
   try {
-    const backupRef = window._fbRef(window._fbDb, 'hms_backups');
-    const snap = await window._fbGet(backupRef);
-    if (!snap.exists()) {
+    // শুধু তারিখের তালিকা (shallow) — ব্যাকআপের ডেটা ডাউনলোড হয় না, তাই Firebase-এর ডাউনলোড কোটা বাঁচে
+    const keys = await _fbShallow('hms_backups');
+    if (!keys || !Object.keys(keys).length) {
       if (statusEl) statusEl.textContent = '⚠️ কোনো ব্যাকআপ পাওয়া যায়নি।'; return;
     }
-    const dates = Object.keys(snap.val()).sort().reverse();
+    const dates = Object.keys(keys).sort().reverse();
     if (listEl) {
       listEl.style.display = 'block';
       listEl.innerHTML = `<div style="font-size:12px;font-weight:700;color:#3730a3;margin-bottom:8px">📅 পাওয়া গেছে ${dates.length}টি ব্যাকআপ:</div>` +
-        dates.map(d => {
-          const val = snap.val()[d];
-          const inc = (val.income||[]).length;
-          const exp = (val.expense||[]).length;
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:white;border:1px solid #e0e7ff;border-radius:8px;margin-bottom:6px">
-            <div>
+        dates.map(d => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:white;border:1px solid #e0e7ff;border-radius:8px;margin-bottom:6px">
+            <div style="min-width:0">
               <span style="font-weight:700;color:#3730a3">${d}</span>
-              <span style="font-size:11px;color:#6b7280;margin-left:8px">আয়: ${inc}টি | ব্যয়: ${exp}টি</span>
+              <span id="bkPeek-${d}" style="font-size:11px;color:#6b7280;margin-left:8px"><a href="#" onclick="peekFirebaseBackup('${d}');return false" style="color:#4f46e5">তথ্য দেখুন</a></span>
             </div>
             <button class="btn btn-primary btn-sm" onclick="restoreSpecificBackup('${d}')">♻️ রিস্টোর</button>
-          </div>`;
-        }).join('');
+          </div>`).join('');
     }
     if (statusEl) statusEl.textContent = '';
   } catch(e) {
@@ -9620,6 +9618,16 @@ async function listFirebaseBackups() {
   }
 }
 
+// একটামাত্র ব্যাকআপের আয়/ব্যয়ের সংখ্যা দেখানো — শুধু চাপলে ওই একটাই নামে
+async function peekFirebaseBackup(d) {
+  const el = document.getElementById('bkPeek-' + d); if (!el) return;
+  el.textContent = '⏳…';
+  try {
+    const snap = await window._fbGet(window._fbRef(window._fbDb, 'hms_backups/' + d));
+    const v = snap.exists() ? snap.val() : {};
+    el.textContent = 'আয়: ' + Object.keys(v.income||{}).length + 'টি | ব্যয়: ' + Object.keys(v.expense||{}).length + 'টি';
+  } catch(e) { el.textContent = '❌ ' + e.message; }
+}
 async function restoreFromFirebaseBackup() {
   const dateVal = document.getElementById('fbBackupDate').value;
   if (!dateVal) { showToast('⚠️ আগে তারিখ বেছে নিন!'); return; }
@@ -10943,7 +10951,10 @@ function startFirebaseSync() {
         if (currentUser.role === 'owner' || currentUser.role === 'campaigner') {
           // ✅ Firebase sync এ camperSession ও restore করো
           if (currentUser.role === 'campaigner' && appData.activeCampSession) {
-            camperSession = appData.activeCampSession;
+            // সার্ভারের কপি পুরনো হতে পারে — স্থানীয় চলমান সেশন থাকলে সেটাই রাখি, দুটোকে এক অবজেক্ট করে বিলের রেকর্ড থেকে কাউন্টার মিলিয়ে নিই
+            if (camperSession && camperSession.scheduleId === appData.activeCampSession.scheduleId) appData.activeCampSession = camperSession;
+            else camperSession = appData.activeCampSession;
+            try { _camperReconcileSession(); } catch(e) {}
           }
           // ✅ পুরো ওনার/ক্যাম্পেইনার প্যানেল (কার্ড + চার্ট) ভারী রিবিল্ড — ডিবাউন্স করা, নাহলে একগুচ্ছ কাছাকাছি
           // সময়ের Firebase ফায়ারে (যেমন একটা বিল সেভ = income+visits+bankTx+activityLog আলাদা write) বারবার
@@ -11079,7 +11090,17 @@ function logActivity(action, module, detail) {
     module, // e.g. 'স্টক', 'আয়', 'ব্যয়', 'ক্যাম্প'
     detail
   });
-  // log সাইজ নিয়ন্ত্রণ — সর্বশেষ ৫০০০ এন্ট্রি রাখা হবে
+  // log সাইজ নিয়ন্ত্রণ — শেষ ৬ মাসের এন্ট্রি রাখা হয় (দিনে একবার, শুধু অ্যাডমিনের ডিভাইস থেকে; ভুল তারিখের ফোন যেন লগ না মুছে)
+  try {
+    const _d = new Date().toISOString().slice(0,10);
+    if (currentUser && currentUser.role === 'admin' && localStorage.getItem('hms_actlog_trim') !== _d) {
+      const cut = new Date(Date.now() - 183*86400000).toISOString();
+      const kept = appData.activityLog.filter(l => !l.ts || l.ts >= cut);
+      if (kept.length < appData.activityLog.length) appData.activityLog = kept;
+      localStorage.setItem('hms_actlog_trim', _d);
+    }
+  } catch(e) {}
+  // log সাইজ নিয়ন্ত্রণ — সর্বোচ্চ ৫০০০ এন্ট্রি
   if (appData.activityLog.length > 5000) {
     appData.activityLog = appData.activityLog.slice(appData.activityLog.length - 5000);
   }
@@ -11366,10 +11387,10 @@ function saveData() {
           const cutoffStr = cutoff.toISOString().slice(0,10);
           const oldKey = 'hms_last_cleanup';
           const lastCleanup = localStorage.getItem(oldKey);
-          if (!lastCleanup || lastCleanup < cutoffStr) {
-            window._fbGet(window._fbRef(window._fbDb, 'hms_backups')).then(snap => {
-              if (!snap.exists()) return;
-              Object.keys(snap.val()).forEach(dateKey => {
+          const weekAgoStr = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
+          if (!lastCleanup || lastCleanup < weekAgoStr) {       // সপ্তাহে একবার — শুধু তারিখের তালিকা (shallow) আনা হয়, ব্যাকআপের ডেটা ডাউনলোড হয় না
+            _fbShallow('hms_backups').then(keys => {
+              if (keys) Object.keys(keys).forEach(dateKey => {
                 if (dateKey < cutoffStr) {
                   window._fbSet(window._fbRef(window._fbDb, 'hms_backups/' + dateKey), null)
                     .then(() => console.log('[HMS] পুরনো backup মুছা হয়েছে:', dateKey))
@@ -14652,11 +14673,13 @@ function renderCamperDepInboxAdmin() {
 
 // ===== ক্যাম্পেইনারের সাধারণ তহবিল =====
 // অ্যাডমিন প্রতিটি ক্যাম্পেইনারের জন্য সাধারণ তহবিলের পরিমাণ সেট করেন; ক্যাম্পেইনারের প্যানেলে আয়/খরচ/নেট ও তহবিল থেকে কত গেল তা দেখায়।
+function dismissCamperFundBar() { if (camperSession) { camperSession.fundDismissed = true; try { saveData(); } catch(e) {} } const el = document.getElementById('camperFundBar'); if (el) el.style.display = 'none'; }
 function renderCamperFundBar() {
   const el = document.getElementById('camperFundBar'); if (!el) return;
   if (typeof camperSession === 'undefined' || !camperSession) { el.style.display = 'none'; return; }
   const sess = camperSession;
   const visits = (appData.campVisits||[]).filter(v=>v.scheduleId===sess.scheduleId);
+  if (sess.fundDismissed || visits.length > 0) { el.style.display = 'none'; return; }      // শুধু ক্যাম্প শুরুর দিকে (প্রথম বিলের আগে) একবার দেখায়
   const inc = visits.reduce((s,v)=>s+(v.paid||v.netTotal||0),0);
   const exp = _camperExpTotal(_camperExpListLive(sess));
   const net = inc - exp;
@@ -14666,7 +14689,7 @@ function renderCamperFundBar() {
   const line = (a,b,c) => `<span style="white-space:nowrap">${a} <strong style="color:${c||'#0f172a'}">৳ ${fmt(b)}</strong></span>`;
   el.style.display = 'block';
   el.innerHTML = `<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;line-height:1.75">
-    <div style="font-weight:800;color:#0369a1;margin-bottom:2px">💼 আপনার তহবিল ও এই ক্যাম্পের হিসাব</div>
+    <div style="font-weight:800;color:#0369a1;margin-bottom:2px;display:flex;justify-content:space-between;align-items:center"><span>💼 আপনার তহবিল ও এই ক্যাম্পের হিসাব</span><button type="button" onclick="dismissCamperFundBar()" style="border:none;background:#e0f2fe;color:#0369a1;border-radius:8px;min-width:32px;min-height:28px;font-size:14px;cursor:pointer">✕</button></div>
     <div style="display:flex;flex-wrap:wrap;gap:4px 14px">
       ${fund>0 ? line('সাধারণ তহবিল', fund) : '<span style="color:#94a3b8">সাধারণ তহবিল: অ্যাডমিন সেট করেননি</span>'}
       ${line('আয়', inc, '#16a34a')} ${line('খরচ', exp, '#dc2626')}
@@ -18148,6 +18171,46 @@ function _campCogsBreakdown(c) {
   out.total = out.med + out.glass;
   return out;
 }
+function _campDerive(c) {
+  const visits = (appData.campVisits||[]).filter(v => v.campName === c.name && v.date === c.date);
+  let maxR = 0; visits.forEach(v => { if ((v.receiptNo||0) > maxR) maxR = v.receiptNo; });
+  const sold = {}; visits.forEach(v => (v.items||[]).forEach(it => { const k = parseInt(it.stockId); sold[k] = (sold[k]||0) + (it.qty||0); }));
+  let mismatch = false;
+  (c.stockTaken||[]).forEach(st => { if ((st.qtySold||0) !== (sold[st.itemId]||0)) mismatch = true; });
+  if (visits.length !== (c.totalPatients||0)) mismatch = true;
+  if (maxR > (c.receiptEnd||0)) mismatch = true;
+  return { visits, maxR, sold, mismatch };
+}
+function repairCampFromVisits(id) {
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'moderator')) { showToast('⚠️ শুধু অ্যাডমিন/মডারেটর ঠিক করতে পারবেন'); return; }
+  const c = (appData.camps||[]).find(x => x.id === id); if (!c) return;
+  const d = _campDerive(c);
+  const sumOld = (c.stockTaken||[]).reduce((t,x) => t + (x.qtySold||0), 0), sumNew = (c.stockTaken||[]).reduce((t,x) => t + (d.sold[x.itemId]||0), 0);
+  _cxAskConfirm('"'+(c.name||'ক্যাম্প')+'" — বিলের রেকর্ড থেকে ঠিক করা হবে:\n• রোগী: '+fmt(c.totalPatients||0)+' → '+fmt(d.visits.length)+' জন\n• রিসিট শেষ: '+(c.receiptEnd||'—')+' → '+(d.maxR||c.receiptEnd||'—')+'\n• বিক্রীত পণ্য (মোট পরিমাণ): '+fmt(sumOld)+' → '+fmt(sumNew)+'\n• COGS ও নেট লাভ নতুন বিক্রি অনুযায়ী আবার হিসাব হবে\n• জমার স্লিপের স্টক সারসংক্ষেপও হালনাগাদ হবে (জমার টাকার অঙ্ক বদলাবে না)', 'ঠিক করুন', function() {
+    const before = { totalPatients:c.totalPatients, receiptEnd:c.receiptEnd, totalCOGS:c.totalCOGS, netProfit:c.netProfit };
+    (c.stockTaken||[]).forEach(st => { st.qtySold = d.sold[st.itemId] || 0; });
+    c.totalPatients = d.visits.length;
+    if (d.maxR > (c.receiptEnd||0)) c.receiptEnd = d.maxR;
+    const itemSales = {};
+    d.visits.forEach(v => (v.items||[]).forEach(item => { if (!itemSales[item.name]) itemSales[item.name] = { qty:0, total:0, cat:(item.stockItem && item.stockItem.cat === 'চশমা/লেন্স') ? 'চশমা/লেন্স' : 'ওষুধ' }; itemSales[item.name].qty += item.qty||1; itemSales[item.name].total += item.subtotal||0; }));
+    c.itemSales = itemSales;
+    c.unsoldStock = (c.stockTaken||[]).map(it => ({ itemId:it.itemId||0, itemName:it.itemName||'', unit:it.unit||'', qtyTaken:it.qtyTaken||0, qtySold:it.qtySold||0, qtyReturned:it.qtyReturned||0, unsold:Math.max(0,(it.qtyTaken||0)-(it.qtySold||0)-(it.qtyReturned||0)) })).filter(i => i.unsold > 0);
+    c.totalCOGS = Math.round(_campCogsBreakdown(c).total);
+    c.netProfit = _campNetTrue(c);
+    (appData.camperDeposits||[]).filter(dp => dp.campRef === c.id).forEach(dp => {
+      dp.snap = dp.snap || {};
+      dp.snap.stock = _camperStockNorm(c.stockTaken).slice(0,200);
+      dp.snap.patients = d.visits.length;
+      const rcp = d.visits.map(v => v.receiptNo).filter(Boolean).sort((a,b) => a-b);
+      if (rcp.length) { dp.snap.receiptFrom = String(rcp[0]); dp.snap.receiptTo = String(rcp[rcp.length-1]); }
+    });
+    if (typeof saveEditHistory === 'function') saveEditHistory('camps', c.id, c.name||'ক্যাম্প', before, { totalPatients:c.totalPatients, receiptEnd:c.receiptEnd, totalCOGS:c.totalCOGS, netProfit:c.netProfit }, 'বিলের রেকর্ড থেকে পুনর্গণনা');
+    logActivity('edit', 'ক্যাম্প ডেটা মেরামত', (c.name||'') + ': রোগী ' + d.visits.length + ', রিসিট শেষ ' + c.receiptEnd + ', COGS ৳' + fmt(c.totalCOGS));
+    saveData(); try { updateBankBalances(); } catch(e) {}
+    document.querySelectorAll('.camp-modal-wrap').forEach(m => m.remove());
+    showCampDetail(c.id); showToast('✅ বিলের রেকর্ড থেকে ক্যাম্পের হিসাব ঠিক করা হয়েছে');
+  });
+}
 function recalcCampCOGS(id) {
   if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'moderator')) { showToast('⚠️ শুধু অ্যাডমিন/মডারেটর পুনর্হিসাব করতে পারবেন'); return; }
   const c = (appData.camps||[]).find(x => x.id === id); if (!c) return;
@@ -18194,6 +18257,7 @@ function showCampDetail(id) {
   const netProfit        = _campNetTrue(c);
   const hasDetailedCalc  = c.totalCOGS !== undefined;
   const _cogsB           = _campCogsBreakdown(c);
+  const _derive          = _campDerive(c);
   const isLoss           = netProfit < 0;
   // মোট ডিসকাউন্ট — পুরনো রেকর্ডে totalDiscount ফিল্ড না থাকলে রোগীদের ডিসকাউন্ট যোগ করে বের করা হচ্ছে
   const totalDiscount    = c.totalDiscount!=null ? c.totalDiscount : (c.patients||[]).reduce((s,p)=>s+(p.discAmt||0),0);
@@ -18208,6 +18272,7 @@ function showCampDetail(id) {
         <div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444;border-bottom:1px solid #f1f5f9">
           <span>পণ্যের ক্রয়মূল্য (COGS)</span><span>- ৳${fmt(totalCOGS)}</span>
         </div>
+        ${(_derive.mismatch && currentUser && (currentUser.role==='admin'||currentUser.role==='moderator')) ? `<div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:12px;color:#9a3412">⚠️ বিলের রেকর্ডের (${fmt(_derive.visits.length)} জন রোগী, রিসিট #${_derive.maxR||'—'} পর্যন্ত) সাথে ক্যাম্পের সংরক্ষিত রোগী/রিসিট/বিক্রি মিলছে না। <button type="button" class="btn btn-outline btn-sm" style="margin-left:6px" onclick="repairCampFromVisits(${c.id})">🛠️ বিলের রেকর্ড থেকে ঠিক করুন</button></div>` : ''}
         ${(c.stockTaken||[]).length ? `<div style="font-size:11.5px;color:#64748b;padding:3px 0 6px;border-bottom:1px solid #f1f5f9">
           💊 ওষুধ/অন্যান্য ৳${fmt(Math.round(_cogsB.med))} &nbsp;·&nbsp; 👓 চশমা/লেন্স ৳${fmt(Math.round(_cogsB.glass))} <span style="color:#94a3b8">(স্টকের বর্তমান ক্রয়মূল্য অনুযায়ী)</span>
           ${_cogsB.notes.map(n=>`<div style="color:#b45309;margin-top:2px">⚠️ ${n}</div>`).join('')}
@@ -19927,6 +19992,7 @@ function showRecCashSubmitModal() {
   buildCashSubmitModal('receptionist');
 }
 function showCamperCashSubmitModal() {
+  try { _camperReconcileSession(); } catch(e) {}
   buildCashSubmitModal('campaigner');
 }
 
@@ -26235,6 +26301,20 @@ function savePastCampReturn(campId) {
 }
 
 // ক্যাম্প সেশন চলাকালীন টপ হেডার (লোগো+লগআউট) লুকিয়ে নিল মিনি-বারকেই হেডার বানানো — মোবাইলে স্ক্রল বাঁচাতে
+// ফিক্সড টপ বার — উচ্চতা মেপে নিচে সমান ফাঁকা জায়গা (spacer) রাখা হয়, যাতে কনটেন্ট বারের নিচে ঢুকে না যায়
+(function() {
+  function sync() {
+    const mb = document.getElementById('campMiniBar'), sp = document.getElementById('campMiniBarSpacer'); if (!mb || !sp) return;
+    sp.style.height = (mb.style.display === 'none' || !mb.offsetHeight) ? '0px' : (mb.offsetHeight + 6) + 'px';
+  }
+  function init() {
+    const mb = document.getElementById('campMiniBar'); if (!mb) return;
+    try { new ResizeObserver(sync).observe(mb); } catch(e) {}
+    try { new MutationObserver(sync).observe(mb, { attributes:true, attributeFilter:['style'] }); } catch(e) {}
+    window.addEventListener('resize', sync); sync();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 function applyCamperHeaderVisibility() {
   const th = document.getElementById('camperTopHeader');
   if (!th) return;
@@ -26254,6 +26334,7 @@ function injectCamperHomeTab() {
 
 // ক্যাম্প সক্রিয় থাকা অবস্থায় "হোম" ওভারভিউ — সক্রিয় ক্যাম্প ব্যানার + বিগত ক্যাম্প রেকর্ড দেখাবে, বিলিং/সেশন ভিউ লুকিয়ে
 function openCamperHomeOverview() {
+  setTimeout(function(){ try { updateCamperBottomBarVisibility(); } catch(e) {} }, 60);
   const ros = document.getElementById('camperReadOnlySection');
   if (ros) ros.style.display = 'none';
   ['camper-billing','camper-history','camper-expense','camper-oppatient','camper-returnstock','camper-lookup']
@@ -27042,6 +27123,19 @@ function renderCampPickCards() {
     </div>`;
   }).join('');
 }
+// নির্বাচন বাতিল — ক্যাম্প শুরু না করা পর্যন্ত যেকোনো সময় তালিকায় ফিরে অন্য ক্যাম্প বাছা যায়
+function resetCampPick() {
+  const doReset = function() {
+    _cpPickedCampId = null; campStockSelection = {};
+    const sel = document.getElementById('cpCampSelect'); if (sel) sel.value = '';
+    try { onCampScheduleSelect(); } catch(e) {}
+    _cpCardsOpen = true; renderCampPickCards();
+    try { document.getElementById('cpCampToggle').scrollIntoView({ behavior:'smooth', block:'start' }); } catch(e) {}
+  };
+  const n = Object.values(campStockSelection||{}).filter(q => q > 0).length;
+  if (n > 0) _cxAskConfirm('এই ক্যাম্পের জন্য ' + n + 'টি পণ্যের স্টক বাছাই করা আছে।\nফিরে গেলে সেই বাছাই মুছে যাবে।', 'ফিরে যান', doReset);
+  else doReset();
+}
 function pickCampCard(id) {
   const sel = document.getElementById('cpCampSelect'); if (!sel) return;
   _cpCardsOpen = false;
@@ -27367,6 +27461,18 @@ function initCamperSessionConfirmed(selId) {
 }
 
 // ===== CAMPER SESSION BOTTOM BAR =====
+// বিল চলমান থাকলে নিচের বার লুকিয়ে জায়গা বাড়ানো — বিল সেভ/সাফ হলে বা অন্য ট্যাবে গেলে ফিরে আসে
+function updateCamperBottomBarVisibility() {
+  const tb = document.getElementById('camperBottomTabBar'); if (!tb || !camperSession) return;
+  const billing = document.getElementById('camper-billing');
+  const onBilling = billing && billing.style.display !== 'none' && billing.offsetParent !== null;
+  const nm = (document.getElementById('cpPatName') || {}).value || '';
+  const hide = !!(onBilling && (nm.trim() || document.querySelector('#camper-billing .cb-in:focus')));
+  tb.style.display = hide ? 'none' : 'flex';
+  try { document.documentElement.style.setProperty('--cbar-h', hide ? '0px' : ((tb.offsetHeight || 56) + 'px')); } catch(e) {}
+}
+document.addEventListener('input', function(e) { if (e.target && e.target.closest && e.target.closest('#camper-billing')) updateCamperBottomBarVisibility(); });
+document.addEventListener('focusin', function(e) { if (e.target && e.target.closest && e.target.closest('#camper-billing')) updateCamperBottomBarVisibility(); });
 function renderCamperSessionBottomBar() {
   // শুধু দেখাও — innerHTML touch করব না
   const _tb = document.getElementById('camperBottomTabBar'); _tb.style.display = 'flex';
@@ -27381,6 +27487,7 @@ function setCamperBottomActive(tab) {
 }
 
 function switchCamperSessionTab(tab) {
+  setTimeout(function(){ try { updateCamperBottomBarVisibility(); } catch(e) {} }, 60);
   if (!camperSession) return;
   if (tab === 'more') { showCamperSessionMoreSheet(); return; }
   setCamperBottomActive(tab);
@@ -27432,6 +27539,7 @@ function closeCamperCamp() {
 }
 
 function showCampCloseModal() {
+  try { _camperReconcileSession(); } catch(e) {}
   const old = document.getElementById('campCloseModal'); if (old) old.remove();
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const visits = (appData.campVisits||[]).filter(v => v.campName === camperSession.name && v.date === camperSession.date);
@@ -27509,6 +27617,7 @@ function campCloseGoTab(tab) {
 }
 
 function finalizeCampClose() {
+  try { _camperReconcileSession(); } catch(e) {}
   const rating = document.querySelector('input[name="campRating"]:checked');
   if (!rating) { showToast('⚠️ ক্যাম্পের মতামত বেছে নিন!'); return; }
   const note     = document.getElementById('campCloseNote').value.trim();
@@ -27689,6 +27798,7 @@ function finalizeCampClose() {
 
 // ===== CAMPER BILLING =====
 function switchCamperTab(tab, btn) {
+  setTimeout(function(){ try { updateCamperBottomBarVisibility(); } catch(e) {} }, 60);
   document.querySelectorAll('#camperTabsRow .rec-tab').forEach(t => t.classList.remove('active'));
   ['billing','history','expense','oppatient','returnstock','lookup'].forEach(t => {
     const el = document.getElementById('camper-' + t); if (el) el.style.display = 'none';
@@ -27983,6 +28093,7 @@ function cycleCamperGender() {
 }
 function clearCamperBill() {
   _cpGender = ''; try { _paintCamperGender(); } catch(e) {}
+  setTimeout(function(){ try { updateCamperBottomBarVisibility(); } catch(e) {} }, 0);
   ['cpPatName','cpPatAge','cpPatPhone','cpCashPaid','cpDiscTaka'].forEach(id => {
     const el = document.getElementById(id); if (el) { el.value=''; el.disabled=false; }
   });
@@ -28138,11 +28249,24 @@ function showCamperBillPreview(b) {
   window._pendingCamperBill = b;
 }
 
+// রিসিট কাউন্টার ও বিক্রীত পরিমাণ (qtySold) সেশনের নিজস্ব কাউন্টারের উপর নির্ভর না করে বিলের রেকর্ড (campVisits) থেকে নির্ধারণ —
+// সার্ভার থেকে পুরনো সেশন কপি এসে কাউন্টার পিছিয়ে দিলেও রিসিট নম্বর ও বিক্রি/COGS হারাবে না
+function _camperReconcileSession(sess) {
+  sess = sess || camperSession; if (!sess) return;
+  const visits = (appData.campVisits||[]).filter(v => v.campName === sess.name && v.date === sess.date);
+  let maxR = 0; visits.forEach(v => { if ((v.receiptNo||0) > maxR) maxR = v.receiptNo; });
+  if (maxR + 1 > (sess.receiptCurrent||0)) sess.receiptCurrent = maxR + 1;
+  const sold = {}; visits.forEach(v => (v.items||[]).forEach(it => { const k = parseInt(it.stockId); sold[k] = (sold[k]||0) + (it.qty||0); }));
+  (sess.stockTaken||[]).forEach(st => { st.qtySold = sold[st.itemId] || 0; });
+  if (appData.activeCampSession !== sess && appData.activeCampSession && appData.activeCampSession.scheduleId === sess.scheduleId) appData.activeCampSession = sess;
+  try { const rr = document.getElementById('cpReceiptRange'); if (rr) rr.textContent = sess.receiptStart + '–' + (sess.receiptCurrent - 1); } catch(e) {}
+}
 function confirmSaveCamperBill() {
   const b = window._pendingCamperBill;
   const modalEl = document.getElementById('camperBillPreviewModal');
   if (modalEl) modalEl.remove();
   if (!b || !camperSession) return;
+  _camperReconcileSession();
   const { patName, isFree, items, testItems, addVisit, visitFee, total, discAmt, netTotal, paid, due } = b;
   const receiptNo = camperSession.receiptCurrent;
 
@@ -28177,11 +28301,11 @@ function confirmSaveCamperBill() {
     ? `✅ ফ্রি রিসিট #${receiptNo} — ${patName}`
     : `✅ বিল সেভ! রিসিট #${receiptNo} | মোট: ৳${fmt(netTotal)}`
   );
-  showCamperUndoBar(campVisitEntry.id, receiptNo, patName);
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) {}
 }
 
 function renderCamperHistory() {
+  try { _camperReconcileSession(); } catch(e) {}
   try { renderCamperFundBar(); } catch(e) {}
   if (!camperSession) return;
   const visits = (appData.campVisits||[]).filter(v => v.campName === camperSession.name && v.date === camperSession.date);
@@ -37681,7 +37805,7 @@ function getPatientHistoryRows(key) {
   // ✅ id ও srcType রাখা হয় যাতে রোগীর প্রোফাইল মোডালে এই সারিতে ক্লিক করলে সরাসরি সেই নির্দিষ্ট বিলের প্রিন্ট খোলা যায়
   (appData.visits||[]).forEach(v=>{ if(matches(v.patPhone,v.patName)) rows.push({id:v.id,srcType:'visit',date:v.date,patName:v.patName,patPhone:v.patPhone,age:v.patAge,doctor:v.doctorName||v.patDoc,gender:v.patGender,address:v.patAddress,amount:v.netBill||v.total||0,paid:v.cashPaid||0,due:v.due||0,sourceLabel:'👁️ OPD ভিজিট'}); });
   (appData.adminBills||[]).forEach(b=>{ if(matches(b.patPhone,b.patName)) rows.push({id:b.id,srcType:'adminBill',date:b.date,patName:b.patName,patPhone:b.patPhone,age:b.patAge,doctor:b.doctorName||b.patDoc,gender:b.patGender,address:b.patAddress,amount:b.netBill||0,paid:b.cashPaid||0,due:b.due||0,sourceLabel:'🧾 অ্যাডমিন বিল'}); });
-  (appData.campVisits||[]).forEach(v=>{ if(matches(v.patPhone,v.patName)) rows.push({id:v.id,srcType:'camp',date:v.date,patName:v.patName,patPhone:v.patPhone,age:v.patAge,doctor:'',gender:'',address:'',amount:v.netTotal||0,paid:v.paid||0,due:v.due||0,sourceLabel:'🏕️ '+(v.campName||'ক্যাম্প')}); });
+  (appData.campVisits||[]).forEach(v=>{ if(matches(v.patPhone,v.patName)) rows.push({id:v.id,srcType:'camp',date:v.date,patName:v.patName,patPhone:v.patPhone,age:v.patAge,doctor:'',gender:v.patGender||'',address:'',amount:v.netTotal||0,paid:v.paid||0,due:v.due||0,sourceLabel:'🏕️ '+(v.campName||'ক্যাম্প')}); });
   return rows;
 }
 
@@ -37829,6 +37953,7 @@ function showPatientDetail(key) {
   if (pInfo.address) address = pInfo.address;
   if (pInfo.doctor) doctor = pInfo.doctor;
   if (pInfo.age) age = pInfo.age;
+  if (!gender && pInfo.gender) gender = pInfo.gender;
   const rx = profile.prescriptions||[];
   const dOrders = getPatientDeliveryOrders(key);
   const appts = getPatientSerialEntries(key);
