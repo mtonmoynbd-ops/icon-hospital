@@ -2777,6 +2777,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <span class="today-badge-label" id="todayBadgeLabel">📅 09 জুন, 2026</span>
         <input type="date" id="dashDatePicker" onchange="onDashDateChange(this.value)" title="তারিখ বাছুন">
       </div>
+      <button type="button" class="notif-bell-btn" onclick="hardRefreshApp()" title="হার্ড রিফ্রেশ — ক্যাশ মুছে নতুন করে লোড" style="margin-right:8px;font-size:17px">🔄</button>
       <div class="notif-bell-wrap" id="notifBellWrap" style="display:none">
         <button type="button" class="notif-bell-btn" onclick="toggleNotifBell(event)" title="নোটিফিকেশন">
           🔔<span class="notif-bell-badge" id="notifBellBadge" style="display:none">0</span>
@@ -7955,6 +7956,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="rec-user-name">রিসেপশনিস্ট</div>
         <div class="rec-user-role" id="recUserName"></div>
       </button>
+      <button type="button" class="notif-bell-btn" onclick="hardRefreshApp()" title="হার্ড রিফ্রেশ — ক্যাশ মুছে নতুন করে লোড" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:white;font-size:17px;margin-right:-6px">🔄</button>
       <div class="notif-bell-wrap" id="recNotifBellWrap">
         <button type="button" class="notif-bell-btn" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:white" onclick="toggleRecNotifBell(event)" title="নোটিফিকেশন">
           🔔<span class="notif-bell-badge" id="recNotifBellBadge" style="display:none">0</span>
@@ -10812,10 +10814,11 @@ const debouncedRealtimeReceptionistRefresh = debounce(() => {
     try { RECEPTIONIST_SAFE_TAB_REFRESH[activeTab](); } catch(e) { console.warn('[HMS] রিসেপশন রিয়েল-টাইম রিফ্রেশ ব্যর্থ:', e); }
   }
 }, 500);
+let _fbDepSeen = false;
 function startFirebaseSync() {
   if (!window._fbDb || !window._fbRef || !window._fbOnValue) { setTimeout(startFirebaseSync, 500); return; }
   const dataRef = window._fbRef(window._fbDb, window._fbDBREF);
-  window._fbOnValue(dataRef, (snapshot) => {
+  const _fbApply = (snapshot) => {
     const data = snapshot.val();
     _fbInitialSyncDone = true; // ✅ প্রথম স্ন্যাপশট (খালি হোক বা ভরা) এসে পৌঁছালেই সিঙ্ক "সম্পন্ন" ধরা হয়
     if (data) {
@@ -10855,6 +10858,7 @@ function startFirebaseSync() {
           console.warn('[HMS] "' + m + '" মডিউল এখনো পেন্ডিং/লেখা চলছে বলে সার্ভারের নতুন ডাটা এই মুহূর্তে প্রয়োগ হলো না (isModuleWriting=' + isModuleWriting(m) + ', pendingKey=' + _fbPendingKeys.has(m) + ')');
         }
       });
+      const _prevDepIds = new Set((appData.camperDeposits||[]).filter(r => r && r.sentTo).map(r => r.id));
       appData = newAppData;
       // ✅ দুই ভিন্ন ডিভাইস থেকে (যেমন এডমিন ও রিসেপশনিস্ট) একই মুহূর্তে বিল সেভ হলে বিরল ক্ষেত্রে একই মেমো নম্বর
       // দুইটা বিলে চলে যেতে পারে — এই দুই বিলই যখন একসাথে সিঙ্ক হয়ে এই ডিভাইসে আসে, তখন স্বয়ংক্রিয়ভাবে সংঘর্ষ
@@ -10885,6 +10889,19 @@ function startFirebaseSync() {
       }
       rebuildUsers();
       if (currentUser) {
+        // 📥 ক্যাম্পেইনারের নতুন জমার স্লিপ এলে অ্যাডমিন/রিসেপশনে সাথে সাথে জানানো ও তালিকা-বেল হালনাগাদ (রিফ্রেশ ছাড়াই)
+        try {
+          if (currentUser.role === 'admin' || currentUser.role === 'moderator' || currentUser.role === 'receptionist') {
+            const _isRecU = currentUser.role === 'receptionist';
+            const _fresh = _fbDepSeen ? (appData.camperDeposits||[]).filter(r => r && r.sentTo && !_prevDepIds.has(r.id) && (!_isRecU || r.sentTo === 'receptionist')) : [];
+            if (_fresh.length) { const r0 = _fresh[0]; showToast('📥 নতুন ক্যাম্প ক্যাশ জমার স্লিপ — ' + ((r0.snap && r0.snap.campName) || 'ক্যাম্প') + ' · ' + _baseBy(r0.by) + (_fresh.length > 1 ? ' (+' + (_fresh.length-1) + ')' : '')); }
+            if (anyModuleApplied) {
+              if (_isRecU) { if (typeof renderRecHome === 'function') renderRecHome(); }
+              else { if (typeof renderCamperDepInboxAdmin === 'function') renderCamperDepInboxAdmin(); if (typeof updateNotifBell === 'function') updateNotifBell(); if (typeof renderCustodyBar === 'function') renderCustodyBar(); }
+            }
+          }
+        } catch(e) { console.warn('[HMS] জমা-স্লিপ রিয়েল-টাইম রিফ্রেশ ব্যর্থ:', e); }
+        _fbDepSeen = true;
         debouncedRealtimeDashboardRefresh();
         // ✅ শুধু "পড়ার জন্য" তালিকা/হিস্ট্রি পেজগুলো — যেখানে ফর্ম-ইনপুট নেই যা এই রিফ্রেশে হারিয়ে যেতে পারে —
         // নতুন ডাটা সিঙ্ক হলে স্বয়ংক্রিয়ভাবে রিফ্রেশ হয়ে যায়। যেসব পেজে সক্রিয় এন্ট্রি-ফর্ম আছে (আয়/ব্যয়/বিল/ডাক্তার
@@ -10917,8 +10934,27 @@ function startFirebaseSync() {
         // 🔕 "ডেটা sync হয়েছে" টোস্ট আর দেখানো হয় না
       }
     }
-  });
+  };
+  window._fbOnValue(dataRef, _fbApply);
+  window._fbSoftResync = function(silent) {      // সার্ভার থেকে জোর করে সর্বশেষ ডেটা এনে একই লজিকে প্রয়োগ (পেজ রিলোড ছাড়া)
+    if (!window._fbGet) return Promise.reject(new Error('no get'));
+    return window._fbGet(dataRef).then(function(snap){ _fbApply(snap); if (!silent) showToast('✅ সর্বশেষ ডেটা আনা হয়েছে'); });
+  };
 }
+// ফোন ব্যাকগ্রাউন্ডে গেলে/নেট গেলে ব্রাউজার রিয়েল-টাইম সংযোগ থামিয়ে দিতে পারে — ফিরে এলেই সার্ভার থেকে সর্বশেষ ডেটা টেনে নেওয়া
+(function() {
+  let hiddenAt = 0, lastPull = 0;
+  function pull() {
+    const now = Date.now(); if (now - lastPull < 8000) return; lastPull = now;
+    try { if (window._fbSoftResync && currentUser) window._fbSoftResync(true).catch(function(){}); } catch(e) {}
+  }
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    if (hiddenAt && Date.now() - hiddenAt > 15000) pull();
+  });
+  window.addEventListener('online', pull);
+  window.addEventListener('focus', function() { if (hiddenAt && Date.now() - hiddenAt > 15000) pull(); });
+})();
 // ---- Edit History ----
 function saveEditHistory(module, entryId, label, before, after, reason, meta) {
   if (!appData.editHistory) appData.editHistory = [];
@@ -18075,6 +18111,37 @@ function renderCampList() {
 }
 
 
+// ক্যাম্পের COGS — ওষুধ ও চশমা/লেন্স আলাদা, সাথে কোন আইটেম কেন ০ ধরা হলো তার কারণ (ক্রয়মূল্য ০ / আগে-থেকে-ব্যয়-হওয়া স্টক)
+function _campCogsBreakdown(c) {
+  const out = { med:0, glass:0, notes:[] };
+  (c.stockTaken||[]).forEach(st => {
+    const sold = st.qtySold||0; if (!(sold > 0)) return;
+    const si = (appData.stock||[]).find(x => x.id === st.itemId);
+    const nm = st.itemName || (si && si.name) || 'আইটেম';
+    if (!si) { out.notes.push(nm + ': স্টক আইটেম এখন পাওয়া যাচ্ছে না — COGS ধরা যায়নি'); return; }
+    const cost = (si.avgCost > 0) ? si.avgCost : (si.buyPrice||0);
+    const frac = st.qtyTaken > 0 ? (st.exemptQtyTaken||0) / st.qtyTaken : 0;
+    const amt = sold * (1 - frac) * cost;
+    if (si.cat === 'চশমা/লেন্স') out.glass += amt; else out.med += amt;
+    if (!cost) out.notes.push(nm + ': ক্রয়মূল্য ০ — COGS ধরা যায়নি (স্টকে ক্রয়মূল্য দিন)');
+    else if (frac > 0) out.notes.push(nm + ': বিক্রির ' + fmt(Math.round(sold*frac)) + ' টি "আগে থেকে ব্যয় হওয়া" স্টক — এই অংশের COGS ধরা হয় না');
+  });
+  out.total = out.med + out.glass;
+  return out;
+}
+function recalcCampCOGS(id) {
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'moderator')) { showToast('⚠️ শুধু অ্যাডমিন/মডারেটর পুনর্হিসাব করতে পারবেন'); return; }
+  const c = (appData.camps||[]).find(x => x.id === id); if (!c) return;
+  const b = _campCogsBreakdown(c), old = c.totalCOGS||0, nw = Math.round(b.total);
+  _cxAskConfirm('"'+(c.name||'ক্যাম্প')+'" ক্যাম্পের COGS পুনর্হিসাব:\nবর্তমান ৳ '+fmt(old)+'  →  নতুন ৳ '+fmt(nw)+'\n(ওষুধ ৳ '+fmt(Math.round(b.med))+' + চশমা/লেন্স ৳ '+fmt(Math.round(b.glass))+', স্টকের বর্তমান ক্রয়মূল্য অনুযায়ী)\n\nনেট লাভ ও মাসিক রিপোর্টের COGS সেই অনুযায়ী বদলাবে।', 'পুনর্হিসাব করুন', function() {
+    if (typeof saveEditHistory === 'function') saveEditHistory('camps', c.id, c.name||'ক্যাম্প', { totalCOGS: old, netProfit: c.netProfit }, { totalCOGS: nw }, 'COGS পুনর্হিসাব (চশমাসহ)');
+    c.totalCOGS = nw; c.netProfit = _campNetTrue(c);
+    logActivity('edit', 'ক্যাম্প COGS পুনর্হিসাব', (c.name||'') + ': ৳' + fmt(old) + ' → ৳' + fmt(nw));
+    saveData(); try { updateBankBalances(); } catch(e) {}
+    document.querySelectorAll('.camp-modal-wrap').forEach(m => m.remove());
+    showCampDetail(c.id); showToast('✅ COGS পুনর্হিসাব হয়েছে');
+  });
+}
 function showCampDetail(id) {
   const c = appData.camps.find(c=>c.id===id);
   if (!c) return;
@@ -18107,6 +18174,7 @@ function showCampDetail(id) {
   const totalExpense     = c.totalCOGS === undefined ? totalExpenseAll : Math.max(0, totalExpenseAll - parttimeCost);
   const netProfit        = _campNetTrue(c);
   const hasDetailedCalc  = c.totalCOGS !== undefined;
+  const _cogsB           = _campCogsBreakdown(c);
   const isLoss           = netProfit < 0;
   // মোট ডিসকাউন্ট — পুরনো রেকর্ডে totalDiscount ফিল্ড না থাকলে রোগীদের ডিসকাউন্ট যোগ করে বের করা হচ্ছে
   const totalDiscount    = c.totalDiscount!=null ? c.totalDiscount : (c.patients||[]).reduce((s,p)=>s+(p.discAmt||0),0);
@@ -18121,6 +18189,11 @@ function showCampDetail(id) {
         <div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444;border-bottom:1px solid #f1f5f9">
           <span>পণ্যের ক্রয়মূল্য (COGS)</span><span>- ৳${fmt(totalCOGS)}</span>
         </div>
+        ${(c.stockTaken||[]).length ? `<div style="font-size:11.5px;color:#64748b;padding:3px 0 6px;border-bottom:1px solid #f1f5f9">
+          💊 ওষুধ/অন্যান্য ৳${fmt(Math.round(_cogsB.med))} &nbsp;·&nbsp; 👓 চশমা/লেন্স ৳${fmt(Math.round(_cogsB.glass))} <span style="color:#94a3b8">(স্টকের বর্তমান ক্রয়মূল্য অনুযায়ী)</span>
+          ${_cogsB.notes.map(n=>`<div style="color:#b45309;margin-top:2px">⚠️ ${n}</div>`).join('')}
+          ${(Math.abs(Math.round(_cogsB.total) - totalCOGS) > 1 && currentUser && (currentUser.role==='admin'||currentUser.role==='moderator')) ? `<button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="recalcCampCOGS(${c.id})">🔄 COGS পুনর্হিসাব (৳${fmt(totalCOGS)} → ৳${fmt(Math.round(_cogsB.total))})</button>` : ''}
+        </div>` : ''}
         ${totalExpense>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444">
           <span>ক্যাম্প খরচ (যাতায়াত, রেন্ট ইত্যাদি)</span><span>- ৳${fmt(totalExpense)}</span>
         </div>`:''}
@@ -19301,6 +19374,18 @@ function renderCustodyBar() {
     + seg('camp','🏕️','ক্যাম্প ক্যাশ', d.campTotal, '#b45309') + '</div>';
   refreshCustodyModal();
 }
+// ===== হার্ড রিফ্রেশ: ক্যাশ/সার্ভিস-ওয়ার্কার মুছে ক্যাশ-বাস্ট করে পেজ নতুন করে লোড (লগইন ও সেভ করা ডাটা অক্ষত) =====
+function _doHardRefresh() {
+  try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); }); } catch(e) {}
+  try { if (window.caches && caches.keys) caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); }); } catch(e) {}
+  setTimeout(function() { try { const u = new URL(location.href); u.searchParams.set('_r', String(Date.now())); location.replace(u.toString()); } catch(e) { location.reload(); } }, 300);
+}
+function hardRefreshApp() {
+  let busy = false;
+  try { busy = (typeof hasSyncPending === 'function' && hasSyncPending()) || Object.keys(_fbModuleWriteCounts||{}).some(function(k){ return _fbModuleWriteCounts[k] > 0; }); } catch(e) {}
+  if (busy) { _cxAskConfirm('⚠️ কিছু পরিবর্তন এখনো সার্ভারে সেভ হচ্ছে।\nএখন রিফ্রেশ করলে সেগুলো হারাতে পারে। কয়েক সেকেন্ড অপেক্ষা করে আবার চাপুন, বা তবুও রিফ্রেশ করুন।', 'তবুও রিফ্রেশ', _doHardRefresh); return; }
+  showToast('🔄 নতুন করে লোড হচ্ছে…'); _doHardRefresh();
+}
 function _custGroup(list, key) { const m = {}; list.forEach(e => { const k = e[key] || 'অন্যান্য'; m[k] = (m[k]||0) + (e.amount||0); }); return Object.keys(m).map(k => [k, m[k]]).sort((x,y) => y[1]-x[1]); }
 function _custRange(arr) { const a = arr.filter(Boolean).map(String).sort(); return a.length ? (a.length===1 ? a[0] : a[0]+' – '+a[a.length-1]) : '—'; }
 // পূর্বের তারিখের জমা-না-হওয়া অংক: জমাকে পুরনো দিন থেকে মিলিয়ে বাকিটা চিপ আকারে
@@ -19320,6 +19405,10 @@ function _custRecHolderHtml(name, h, label) {
   const exps = (appData.expense||[]).filter(e => !isPool && !e.campDeferred && !e.campId && _roleOfBy(e.by)==='receptionist' && _baseBy(e.by)===name && expenseEffectiveDate(e)===today);
   const refs = (appData.camperRefunds||[]).filter(r => r.ledger && r.paidRole==='receptionist' && _baseBy(r.paidBy)===name && r.date===today);
   const catI = _custGroup(incs.filter(e => !e.visitId || e.category==='বাকি আদায়'), 'category');
+  const _tl = { med:'ওষুধ', medicine:'ওষুধ', glass:'চশমা/লেন্স', lens:'চশমা/লেন্স', surgical:'সার্জিক্যাল আইটেম', test:'টেস্ট/পরীক্ষা', service:'সার্ভিস/ফি', visit:'ভিজিট/কনসালটেশন', operation:'অপারেশন', other:'অন্যান্য' };
+  const _bt = {};
+  vs.forEach(v => { (v.services||[]).forEach(sv => { const k = _tl[sv.type] || sv.type || 'অন্যান্য'; _bt[k] = (_bt[k]||0) + Math.max(0, (sv.subtotal != null ? sv.subtotal : (sv.price||0)*(sv.qty||1)) - (sv.discAmt||0)); }); });
+  const billCats = Object.keys(_bt).map(k => [k, _bt[k]]).filter(r => r[1] > 0).sort((a,b) => b[1]-a[1]);
   const visitIncome = vs.reduce((t,v) => t + getVisitBilledCashPaid(v) - (v.mfsPaid||0), 0);
   const catE = _custGroup(exps, 'category'); const refAmt = refs.reduce((t,r)=>t+(r.amount||0),0);
   const td = h.days[today] || { in:0, out:0 };
@@ -19336,7 +19425,7 @@ function _custRecHolderHtml(name, h, label) {
     + kv('ভাউচার রেঞ্জ', esc(_custRange(exps.map(e => e.voucher).concat(refs.map(r => r.voucher)))))
     + kv('আজ গৃহীত নগদ', '৳ '+fmt(td.in), '#15803d') + kv('আজ নগদ ব্যয়/রিফিল', '৳ '+fmt(td.out), '#be123c') + kv('মোট জমা দিয়েছেন', '৳ '+fmt(h.dep||0), '#0369a1') + '</div>'
     + (isPool ? '' : '<div style="display:flex;gap:16px;flex-wrap:wrap">'
-      + tbl('আয়ের খাত (আজ)', [['বিল/রোগী থেকে নগদ ('+fmt(vs.length)+' জন)', visitIncome]].filter(r=>r[1]).concat(catI), '#15803d')
+      + tbl('আয়ের খাত — আজকের বিল ('+fmt(vs.length)+' জন, ছাড়ের পর)', billCats.concat(catI), '#15803d')
       + tbl('ব্যয়ের খাত (আজ)', catE.concat(refAmt ? [['ক্যাম্পেইনার তহবিল রিফিল', refAmt]] : []), '#be123c') + '</div>')
     + (old.length ? '<div style="margin-top:10px;font-size:11.5px;color:#92400e;font-weight:700">⏳ আগের দিনের জমা-না-হওয়া নগদ</div><div>'
       + old.map(o => '<span style="display:inline-block;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:3px 11px;font-size:12px;margin:4px 6px 0 0">'+formatDate(o[0])+' · <b>'+(o[1]<0?'− ':'')+'৳ '+fmt(Math.abs(o[1]))+'</b></span>').join('') + '</div>' : '')
@@ -27344,7 +27433,7 @@ function finalizeCampClose() {
   (camperSession.stockTaken||[]).forEach(st => {
     const stockItem = (appData.stock||[]).find(s => s.id === st.itemId);
     if (!stockItem) return;
-    const unitCost = stockItem.avgCost!=null ? stockItem.avgCost : (stockItem.buyPrice||0);
+    const unitCost = (stockItem.avgCost > 0) ? stockItem.avgCost : (stockItem.buyPrice||0);   // avgCost ০ থাকলে ক্রয়মূল্যে ফলব্যাক — নাহলে ওই পণ্যের COGS নিঃশব্দে ০ হয়ে যায়
     if (!unitCost) return;
     const exemptFraction = st.qtyTaken > 0 ? (st.exemptQtyTaken||0) / st.qtyTaken : 0;
     const nonExemptSoldQty = (st.qtySold||0) * (1 - exemptFraction);
