@@ -15013,6 +15013,7 @@ function renderDashRecentEntries() {
   try { renderCustodyBar(); } catch(e) { console.warn('custody bar', e); }
   const tbody = document.getElementById('recentTable');
   if (!tbody) return;
+  const _pend = _custodyPending();
   const vm = (document.getElementById('dashRecentViewMode')||{}).value||'day';
 
   const bankTxLabels = { cash_in:'ক্যাশ যোগ', bank_in:'ব্যাংক যোগ', cash_to_bank:'ক্যাশ→ব্যাংক', bank_to_cash:'ব্যাংক→ক্যাশ', cash_out:'ক্যাশ ব্যয়', bank_out:'ব্যাংক ব্যয়' };
@@ -15045,6 +15046,7 @@ function renderDashRecentEntries() {
       campId: e.campId||null,
       opId,
       visitId: e.visitId||null,
+      pend: _pend.inc.has(e.id) || (!!e.campId && _pend.camp(e.campId)),
       amt: e.amount, by: e.by||'—', cls:'badge-income'
     };}),
     ...(appData.expense||[]).map(e=>{
@@ -15056,6 +15058,7 @@ function renderDashRecentEntries() {
       ref: e.campId ? (campMap[e.campId]||'ক্যাম্প') : (e.forMonth ? `📅 ${_fbMonthLabel(e.forMonth)} এর বিল` : (e.ref||'—')),
       campId: e.campId||null,
       opId,
+      pend: _pend.exp.has(e.id) || (!!e.campId && _pend.camp(e.campId)),
       amt: e.amount, by: e.by||'—', cls:'badge-expense'
     };}),
     // ⚠️ রিসেপশনিস্ট ডিউটি-সাবমিট bankTx (ref:'duty-submit') এখানে বাদ — নিচে recDeposits থেকে
@@ -15194,14 +15197,14 @@ function renderDashRecentEntries() {
 
     // non-camp/non-op rows (income, expense, transfer, deposit)
     nonCampItems.forEach(e => {
-      const amtColor = e.cls==='badge-expense'?'var(--danger)':e.cls==='badge-transfer'?'#1e40af':e.cls==='badge-deposit'?'#7c3aed':e.cls==='badge-cheque'?'#9a3412':e.cls==='badge-waive'?'#d97706':e.cls==='badge-refill'?'#c2410c':'var(--success)';
+      const amtColor = e.pend ? (e.cls==='badge-expense'?'#d3a0a4':'#9fbba9') : e.cls==='badge-expense'?'var(--danger)':e.cls==='badge-transfer'?'#1e40af':e.cls==='badge-deposit'?'#7c3aed':e.cls==='badge-cheque'?'#9a3412':e.cls==='badge-waive'?'#d97706':e.cls==='badge-refill'?'#c2410c':'var(--success)';
       html += `<tr class="dash-grp-row" data-grp="${gid}" style="">
         <td style="white-space:nowrap">${formatDate(e.date)}</td>
         <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${formatVoucherRefDisplay(e.vouchRef)}</td>
         <td><span class="badge ${e.cls}">${e.type}</span></td>
         <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
         <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
-        <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
+        <td style="font-weight:700;color:${amtColor}"${e.pend?' title="জমা/নিষ্পত্তি হয়নি — এখনো মূল ক্যাশে যোগ হয়নি"':''}>৳ ${fmt(e.amt)}</td>
         <td style="font-size:12px;color:var(--text-light);padding-right:44px">${_byWithRole(e.by)}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
       </tr>`;
     });
@@ -15232,14 +15235,14 @@ function renderDashRecentEntries() {
         <td colspan="2" style="color:#64748b;text-align:right;padding:6px 12px"><span id="dashGrpIcon-${cgid}">▼</span></td>
       </tr>`;
       cRows.forEach(e => {
-        const amtColor = e.cls==='badge-expense'?'var(--danger)':'var(--success)';
+        const amtColor = e.pend ? (e.cls==='badge-expense'?'#d3a0a4':'#9fbba9') : (e.cls==='badge-expense'?'var(--danger)':'var(--success)');
         html += `<tr class="dash-grp-row" data-grp="${gid} ${cgid}" style="background:#f0faf0">
           <td style="white-space:nowrap;padding-left:36px">${formatDate(e.date)}</td>
           <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${formatVoucherRefDisplay(e.vouchRef)}</td>
           <td><span class="badge ${e.cls}">${e.type}</span></td>
           <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
           <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
-          <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
+          <td style="font-weight:700;color:${amtColor}"${e.pend?' title="জমা/নিষ্পত্তি হয়নি — এখনো মূল ক্যাশে যোগ হয়নি"':''}>৳ ${fmt(e.amt)}</td>
           <td style="font-size:12px;color:var(--text-light);padding-right:44px">${_byWithRole(e.by)}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
         </tr>`;
       });
@@ -15260,14 +15263,14 @@ function renderDashRecentEntries() {
         <td colspan="2" style="color:#64748b;text-align:right;padding:6px 12px"><span id="dashGrpIcon-${ogid}">▼</span></td>
       </tr>`;
       oRows.forEach(e => {
-        const amtColor = e.cls==='badge-expense'?'var(--danger)':'var(--success)';
+        const amtColor = e.pend ? (e.cls==='badge-expense'?'#d3a0a4':'#9fbba9') : (e.cls==='badge-expense'?'var(--danger)':'var(--success)');
         html += `<tr class="dash-grp-row" data-grp="${gid} ${ogid}" style="background:#fffbeb">
           <td style="white-space:nowrap;padding-left:36px">${formatDate(e.date)}</td>
           <td style="font-size:12px;color:var(--warning);font-weight:600;white-space:nowrap">${formatVoucherRefDisplay(e.vouchRef)}</td>
           <td><span class="badge ${e.cls}">${e.type}</span></td>
           <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cat}</td>
           <td style="color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.ref}</td>
-          <td style="font-weight:700;color:${amtColor}">৳ ${fmt(e.amt)}</td>
+          <td style="font-weight:700;color:${amtColor}"${e.pend?' title="জমা/নিষ্পত্তি হয়নি — এখনো মূল ক্যাশে যোগ হয়নি"':''}>৳ ${fmt(e.amt)}</td>
           <td style="font-size:12px;color:var(--text-light);padding-right:44px">${_byWithRole(e.by)}${['badge-income','badge-expense','badge-transfer'].includes(e.cls) ? `<span class="row-actions"><button class="row-icon-btn" onclick="dashEditEntry('${e.cls}','${e.id}')" title="সংশোধন করুন">✏️</button><button class="row-icon-btn" onclick="dashShowEditHistoryFor('${e.cls}','${e.id}','${(e.cat||'').replace(/'/g,"\\'")}',${e.visitId?e.visitId:'null'})" title="এডিট হিস্ট্রি">🕐</button></span>` : ''}</td>
         </tr>`;
       });
@@ -19143,28 +19146,29 @@ function _custodyCalc(prefix) {
   const from = _custodyFrom(), res = { byHolder:{}, inAmt:0, outAmt:0, depAmt:0 };
   if (!from) return res;
   const ok = d => !!d && d >= from && (!prefix || String(d).startsWith(prefix));
-  const H = n => (res.byHolder[n] = res.byHolder[n] || { in:0, out:0, dep:0 });
+  const H = n => (res.byHolder[n] = res.byHolder[n] || { in:0, out:0, dep:0, days:{} });
+  const DY = (n, d) => { const h = H(n); return (h.days[d] = h.days[d] || { in:0, out:0 }); };
   const cashMode = e => e.payMode !== 'bank' && e.payMode !== 'mfs';
   const vMap = {}; (appData.visits||[]).forEach(v => { vMap[v.id] = v; });
   (appData.visits||[]).forEach(v => {
     if (!ok(v.date)) return; const h = _custodyHolderOfVisit(v); if (!h) return;
-    const a = getVisitBilledCashPaid(v) - (v.mfsPaid||0); H(h).in += a; res.inAmt += a;
+    const a = getVisitBilledCashPaid(v) - (v.mfsPaid||0); H(h).in += a; DY(h, v.date).in += a; res.inAmt += a;
   });
   (appData.income||[]).forEach(e => {
     if (!ok(e.date) || e.campId || (e.visitId && e.category !== 'বাকি আদায়') || !cashMode(e)) return;
     let h = ''; const r = _roleOfBy(e.by);
     if (r === 'receptionist') h = _baseBy(e.by);
     else if (e.visitId && vMap[e.visitId] && _custodyHolderOfVisit(vMap[e.visitId]) === '__pool__') h = '__pool__';
-    if (!h) return; const a = e.amount||0; H(h).in += a; res.inAmt += a;
+    if (!h) return; const a = e.amount||0; H(h).in += a; DY(h, e.date).in += a; res.inAmt += a;
   });
   (appData.expense||[]).forEach(e => {
     if (e.campDeferred || !cashMode(e)) return;
     const d = expenseEffectiveDate(e); if (!ok(d) || _roleOfBy(e.by) !== 'receptionist') return;
-    const a = e.amount||0; H(_baseBy(e.by)).out += a; res.outAmt += a;
+    const a = e.amount||0; H(_baseBy(e.by)).out += a; DY(_baseBy(e.by), d).out += a; res.outAmt += a;
   });
   (appData.camperRefunds||[]).forEach(r => {      // রিসেপশনের নগদ থেকে রিফিল — মূল ক্যাশের 'camp-refill' বিয়োগের সাথে মিলিয়ে কাস্টডি থেকে বাদ
     if (!r.ledger || r.paidRole !== 'receptionist' || !ok(r.date)) return;
-    const a = r.amount||0; H(_baseBy(r.paidBy)).out += a; res.outAmt += a;
+    const a = r.amount||0; H(_baseBy(r.paidBy)).out += a; DY(_baseBy(r.paidBy), r.date).out += a; res.outAmt += a;
   });
   (appData.recDeposits||[]).forEach(d => {
     if (!ok(d.date)) return; const a = d.amount||0;
@@ -19176,6 +19180,43 @@ function _custodyCalc(prefix) {
   return res;
 }
 // ক্যাম্পেইনার-ওয়ারি হাতে থাকা নগদ = সাধারণ তহবিল + (জমা/রিফিল না হওয়া ক্যাম্পের নিট)
+// জমা/নিষ্পত্তির আগ পর্যন্ত যে এন্ট্রিগুলো মূল ক্যাশে যোগ হয়নি — সাম্প্রতিক এন্ট্রিতে হালকা রঙে দেখানোর জন্য
+function _custodyPending() {
+  const res = { inc:new Set(), exp:new Set(), camp:function(){ return false; } };
+  const from = _custodyFrom();
+  const campOpen = {};
+  (appData.camps||[]).forEach(c => { if (c.deferredCash && !c.cashSubmitted && !(appData.camperDeposits||[]).some(d => d.campRef === c.id)) campOpen[c.id] = true; });
+  const sess = appData.activeCampSession; if (sess && sess.scheduleId != null) campOpen[sess.scheduleId] = true;
+  res.camp = id => !!(id && campOpen[id]);
+  if (!from) return res;
+  const cu = _custodyCalc('');
+  const cashMode = e => e.payMode !== 'bank' && e.payMode !== 'mfs';
+  const vMap = {}; (appData.visits||[]).forEach(v => { vMap[v.id] = v; });
+  const byHolder = {};
+  (appData.income||[]).forEach(e => {
+    if (!e.date || e.date < from || e.campId || !cashMode(e)) return;
+    let h = ''; const r = _roleOfBy(e.by);
+    if (r === 'receptionist') h = _baseBy(e.by);
+    else if (e.visitId && vMap[e.visitId] && _custodyHolderOfVisit(vMap[e.visitId]) === '__pool__') h = '__pool__';
+    if (!h) return; (byHolder[h] = byHolder[h] || []).push(e);
+  });
+  Object.keys(byHolder).forEach(h => {
+    const hh = cu.byHolder[h] || { in:0, out:0, dep:0 };
+    let outstanding = hh.in - hh.out - hh.dep;
+    if (outstanding <= 0) return;
+    byHolder[h].sort((a,b) => (String(b.date).localeCompare(String(a.date))) || ((b.id||0) - (a.id||0)));      // সবচেয়ে নতুন এন্ট্রি আগে — সেগুলোই জমা হয়নি
+    for (let i=0; i<byHolder[h].length && outstanding > 0; i++) { res.inc.add(byHolder[h][i].id); outstanding -= (byHolder[h][i].amount||0); }
+  });
+  const lastDep = {};
+  (appData.recDeposits||[]).forEach(d => { if (!d.date || d.date < from) return; const b = _baseBy(d.by); if (!lastDep[b] || (d.id||0) > (lastDep[b].id||0)) lastDep[b] = d; });
+  (appData.expense||[]).forEach(e => {
+    if (e.campDeferred || e.campId || !cashMode(e) || _roleOfBy(e.by) !== 'receptionist') return;
+    const d = expenseEffectiveDate(e); if (!d || d < from) return;
+    const ld = lastDep[_baseBy(e.by)];
+    if (!ld || (typeof e.id === 'number' && typeof ld.id === 'number' ? e.id > ld.id : e.date > ld.date)) res.exp.add(e.id);
+  });
+  return res;
+}
 function _camperCustodyList() {
   const names = [];
   const add = n => { n = _baseBy(n); if (n && names.indexOf(n) < 0) names.push(n); };
@@ -19258,26 +19299,133 @@ function renderCustodyBar() {
   el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--border,#e5e7eb);border-bottom:1px solid var(--border,#e5e7eb)">'
     + seg('rec','🧾','রিসেপশন ক্যাশ', d.recTotal, '#0f766e')
     + seg('camp','🏕️','ক্যাম্প ক্যাশ', d.campTotal, '#b45309') + '</div>';
+  refreshCustodyModal();
+}
+function _custGroup(list, key) { const m = {}; list.forEach(e => { const k = e[key] || 'অন্যান্য'; m[k] = (m[k]||0) + (e.amount||0); }); return Object.keys(m).map(k => [k, m[k]]).sort((x,y) => y[1]-x[1]); }
+function _custRange(arr) { const a = arr.filter(Boolean).map(String).sort(); return a.length ? (a.length===1 ? a[0] : a[0]+' – '+a[a.length-1]) : '—'; }
+// পূর্বের তারিখের জমা-না-হওয়া অংক: জমাকে পুরনো দিন থেকে মিলিয়ে বাকিটা চিপ আকারে
+function _custOldDays(h, today) {
+  if (!h) return [];
+  let dep = h.dep||0;
+  const days = Object.keys(h.days||{}).sort(); const out = [];
+  days.forEach(d => { let net = h.days[d].in - h.days[d].out; if (dep > 0 && net > 0) { const use = Math.min(dep, net); net -= use; dep -= use; } if (d < today && Math.abs(net) > 0.5) out.push([d, net]); });
+  return out;
+}
+function _custRecHolderHtml(name, h, label) {
+  const today = todayStr(), esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  h = h || { in:0, out:0, dep:0, days:{} };
+  const held = h.in - h.out - h.dep, isPool = name === '__pool__';
+  const vs = (appData.visits||[]).filter(v => v.date === today && (isPool ? _custodyHolderOfVisit(v)==='__pool__' : _custodyHolderOfVisit(v)===name));
+  const incs = (appData.income||[]).filter(e => e.date === today && !e.campId && (e.payMode!=='bank'&&e.payMode!=='mfs') && (isPool ? false : _baseBy(e.by)===name && _roleOfBy(e.by)==='receptionist'));
+  const exps = (appData.expense||[]).filter(e => !isPool && !e.campDeferred && !e.campId && _roleOfBy(e.by)==='receptionist' && _baseBy(e.by)===name && expenseEffectiveDate(e)===today);
+  const refs = (appData.camperRefunds||[]).filter(r => r.ledger && r.paidRole==='receptionist' && _baseBy(r.paidBy)===name && r.date===today);
+  const catI = _custGroup(incs.filter(e => !e.visitId || e.category==='বাকি আদায়'), 'category');
+  const visitIncome = vs.reduce((t,v) => t + getVisitBilledCashPaid(v) - (v.mfsPaid||0), 0);
+  const catE = _custGroup(exps, 'category'); const refAmt = refs.reduce((t,r)=>t+(r.amount||0),0);
+  const td = h.days[today] || { in:0, out:0 };
+  const old = _custOldDays(h, today);
+  const kv = (k, v, c) => '<div style="background:#f8fafc;border-radius:8px;padding:6px 10px"><div style="font-size:10.5px;color:#64748b">'+k+'</div><div style="font-size:13.5px;font-weight:800;color:'+(c||'#1f2937')+'">'+v+'</div></div>';
+  const tbl = (title, rows, color) => '<div style="flex:1;min-width:190px"><div style="font-size:11.5px;font-weight:700;color:'+color+';margin-bottom:3px">'+title+'</div>'
+    + (rows.length ? rows.map(r => '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;border-bottom:1px dashed #eef2f7"><span>'+esc(r[0])+'</span><b>৳ '+fmt(r[1])+'</b></div>').join('') : '<div style="font-size:11.5px;color:#94a3b8">আজ কিছু নেই</div>') + '</div>';
+  return '<div style="border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b style="font-size:15px">'+esc(label||name)+'</b> <span style="font-size:11px;color:#16a34a;background:#dcfce7;border-radius:999px;padding:1px 8px;margin-left:4px">● লাইভ — আজ</span></div>'
+    + '<div style="text-align:right"><div style="font-size:10.5px;color:#64748b">এখন হাতে (জমা বাকি)</div><b style="font-size:21px;color:'+(held<0?'#b91c1c':'#0f766e')+'">'+(held<0?'− ':'')+'৳ '+fmt(Math.abs(held))+'</b></div></div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:10px 0">'
+    + kv('আজকের রোগী', fmt(vs.length)+' জন')
+    + kv('মেমো/রিসিট রেঞ্জ', esc(_custRange(vs.map(v => v.memoNo||v.rcptNo))))
+    + kv('ভাউচার রেঞ্জ', esc(_custRange(exps.map(e => e.voucher).concat(refs.map(r => r.voucher)))))
+    + kv('আজ গৃহীত নগদ', '৳ '+fmt(td.in), '#15803d') + kv('আজ নগদ ব্যয়/রিফিল', '৳ '+fmt(td.out), '#be123c') + kv('মোট জমা দিয়েছেন', '৳ '+fmt(h.dep||0), '#0369a1') + '</div>'
+    + (isPool ? '' : '<div style="display:flex;gap:16px;flex-wrap:wrap">'
+      + tbl('আয়ের খাত (আজ)', [['বিল/রোগী থেকে নগদ ('+fmt(vs.length)+' জন)', visitIncome]].filter(r=>r[1]).concat(catI), '#15803d')
+      + tbl('ব্যয়ের খাত (আজ)', catE.concat(refAmt ? [['ক্যাম্পেইনার তহবিল রিফিল', refAmt]] : []), '#be123c') + '</div>')
+    + (old.length ? '<div style="margin-top:10px;font-size:11.5px;color:#92400e;font-weight:700">⏳ আগের দিনের জমা-না-হওয়া নগদ</div><div>'
+      + old.map(o => '<span style="display:inline-block;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:3px 11px;font-size:12px;margin:4px 6px 0 0">'+formatDate(o[0])+' · <b>'+(o[1]<0?'− ':'')+'৳ '+fmt(Math.abs(o[1]))+'</b></span>').join('') + '</div>' : '')
+    + '</div>';
+}
+function _custCampDetail(c, live) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  let visits = [], expList = [], staff = '', rs, re_, visitFee = c.visitFee||0, doctor = c.doctor||'';
+  if (live) {
+    visits = (appData.campVisits||[]).filter(v => v.scheduleId === c.scheduleId);
+    expList = _camperExpListLive(c);
+    staff = [...(c.regularStaff||[]).map(x=>x.name), ...(c.parttimers||[]).map(x=>x.name)].filter(Boolean).join(', ');
+    rs = c.receiptStart; re_ = c.receiptCurrent > c.receiptStart ? c.receiptCurrent - 1 : '—';
+  } else {
+    expList = _camperExpListPast(c); staff = c.staff||''; rs = c.receiptStart; re_ = c.receiptEnd;
+    const sc = (appData.campSchedules||[]).find(x => x.id === c.id); if (sc && !visitFee) visitFee = sc.visitFee||0;
+  }
+  const inc = live ? visits.reduce((t,v) => t + (v.paid||v.netTotal||0), 0) : (c.settleIncome != null ? c.settleIncome : (c.totalIncome||0));
+  const patients = live ? visits.length : (c.totalPatients||0);
+  const vfTotal = live ? visits.filter(v=>v.addVisit).reduce((t,v)=>t+(v.visitFee||0),0) : (c.visitFeeTotal||0);
+  let med = 0, gl = 0, tst = 0;
+  if (live) { visits.forEach(v => { (v.items||[]).forEach(i => { const t = i.subtotal||0; if (i.stockItem && i.stockItem.cat==='চশমা/লেন্স') gl += t; else med += t; }); (v.testItems||[]).forEach(i => { tst += i.price||0; }); }); }
+  else { Object.keys(c.itemSales||{}).forEach(k => { const it = c.itemSales[k]; if (it.cat==='চশমা/লেন্স') gl += it.total||0; else med += it.total||0; }); Object.keys(c.testSales||{}).forEach(k => { tst += (c.testSales[k]||{}).total||0; }); }
+  const incRows = [['ভিজিট ফি', vfTotal], ['ওষুধ বিক্রি', med], ['চশমা/লেন্স বিক্রি', gl], ['টেস্ট/সার্ভিস', tst]].filter(r => r[1] > 0);
+  const expRows = _custGroup(expList, 'category'); const expT = _camperExpTotal(expList);
+  const kv = (k, v) => '<div style="background:#f8fafc;border-radius:8px;padding:6px 10px"><div style="font-size:10.5px;color:#64748b">'+k+'</div><div style="font-size:13px;font-weight:800;color:#1f2937">'+v+'</div></div>';
+  const tbl = (title, rows, color) => '<div style="flex:1;min-width:190px"><div style="font-size:11.5px;font-weight:700;color:'+color+';margin-bottom:3px">'+title+'</div>'
+    + (rows.length ? rows.map(r => '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;border-bottom:1px dashed #eef2f7"><span>'+esc(r[0])+'</span><b>৳ '+fmt(r[1])+'</b></div>').join('') : '<div style="font-size:11.5px;color:#94a3b8">কিছু নেই</div>') + '</div>';
+  return '<div style="background:#fffdf7;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;margin-top:8px">'
+    + '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="font-size:13.5px">'+(live?'<span style="font-size:11px;color:#16a34a;background:#dcfce7;border-radius:999px;padding:1px 8px;margin-right:6px">● চলমান</span>':'')+esc(c.name||'ক্যাম্প')+'</b><span style="font-size:11.5px;color:#64748b">📍 '+esc(c.location||'—')+' · 📅 '+formatDate(c.date)+'</span></div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:8px 0">'
+    + kv('উপস্থিত কর্মী', esc(staff||'—')) + kv('ভিজিট ফি', visitFee ? '৳ '+fmt(visitFee) : '—') + kv('রিসিট রেঞ্জ', rs ? '#'+rs+' – '+(re_||'—') : '—') + kv('রোগীর সংখ্যা', fmt(patients)+' জন')
+    + kv('মোট আয়', '৳ '+fmt(inc)) + kv('মোট খরচ', '৳ '+fmt(expT)) + kv(inc-expT>=0 ? 'জমাযোগ্য নিট' : 'রিফিল পাওনা', '৳ '+fmt(Math.abs(inc-expT))) + (doctor ? kv('ডাক্তার', esc(doctor)) : '') + '</div>'
+    + '<div style="display:flex;gap:16px;flex-wrap:wrap">' + tbl('আয়ের খাত', incRows, '#15803d') + tbl('ব্যয়ের খাত', expRows, '#be123c') + '</div></div>';
+}
+function _custCampHolderHtml(o) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const sess = appData.activeCampSession;
+  const live = (sess && sess.by && _baseBy(sess.by) === o.name) ? _custCampDetail(sess, true) : '';
+  const pastCamps = (appData.camps||[]).filter(c => c.deferredCash && !c.cashSubmitted && _baseBy(c.closedBy) === o.name && !(appData.camperDeposits||[]).some(d => d.campRef === c.id));
+  const chips = pastCamps.map(c => { const net = (c.settleIncome != null ? c.settleIncome : (c.totalIncome||0)) - _camperExpTotal(_camperExpListPast(c));
+    return '<span title="'+esc((c.location||'')+' — রোগী '+(c.totalPatients||0)+' জন')+'" style="display:inline-block;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:3px 11px;font-size:12px;margin:4px 6px 0 0">'+esc(c.name||'ক্যাম্প')+' · '+formatDate(c.date)+' · <b>'+(net<0?'রিফিল পাওনা ':'জমা বাকি ')+'৳ '+fmt(Math.abs(net))+'</b></span>'; }).join('');
+  const dueChip = o.refillDue > 0 ? '<span style="display:inline-block;background:#ffedd5;border:1px solid #fdba74;color:#c2410c;border-radius:999px;padding:3px 11px;font-size:12px;margin:4px 6px 0 0">রিফিল পাওনা <b>৳ '+fmt(o.refillDue)+'</b></span>' : '';
+  return '<div style="border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b style="font-size:15px">'+esc(o.name)+'</b>'
+    + '<div style="text-align:right"><div style="font-size:10.5px;color:#64748b">এখন হাতে থাকার কথা (তহবিল ৳ '+fmt(o.fund)+' + নিট ৳ '+fmt(o.pending)+')</div><b style="font-size:21px;color:'+(o.held<0?'#b91c1c':'#b45309')+'">'+(o.held<0?'− ':'')+'৳ '+fmt(Math.abs(o.held))+'</b></div></div>'
+    + live
+    + ((chips || dueChip) ? '<div style="margin-top:10px;font-size:11.5px;color:#92400e;font-weight:700">⏳ আগের ক্যাম্পের জমা/নিষ্পত্তি বাকি</div><div>'+chips+dueChip+'</div>' : '')
+    + ((!live && !chips && !dueChip) ? '<div style="font-size:12px;color:#94a3b8;margin-top:6px">এখন কোনো চলমান বা জমা-বাকি ক্যাম্প নেই — শুধু সাধারণ তহবিল হাতে আছে</div>' : '')
+    + '</div>';
+}
+function _custModalBody(kind) {
+  const isRec = kind === 'rec', color = isRec ? '#0f766e' : '#b45309';
+  const d = _custodyData(), total = isRec ? d.recTotal : d.campTotal;
+  const head = '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;background:#f8fafc;border-radius:12px;padding:10px 14px;margin-bottom:12px"><span style="font-size:12.5px;color:#475569">'+(isRec?'রিসেপশনিস্টদের হাতে থাকা, এখনো মূল ক্যাশে জমা না হওয়া মোট নগদ':'ক্যাম্পেইনারদের হাতে থাকা মোট তহবিল ও জমা/রিফিল-না-হওয়া নিট')+'</span><b style="font-size:22px;color:'+color+'">৳ '+fmt(total)+'</b></div>';
+  let body = '';
+  if (isRec) {
+    const cu = _custodyCalc(''); const names = d.rec.map(r => r.name);
+    const real = Object.keys(cu.byHolder).filter(n => n !== '__pool__');
+    const recNames = [];
+    Object.keys(USERS||{}).forEach(k => { const u = USERS[k]; if (u && u.role==='receptionist' && recNames.indexOf(_baseBy(u.name))<0) recNames.push(_baseBy(u.name)); });
+    real.forEach(n => { if (recNames.indexOf(n)<0) recNames.push(n); });
+    recNames.forEach(n => { body += _custRecHolderHtml(n, cu.byHolder[n]); });
+    if (cu.byHolder['__pool__']) body += _custRecHolderHtml('__pool__', cu.byHolder['__pool__'], _adm('short')+'-এন্ট্রি বিল (রিসেপশনে গৃহীত)');
+    if (!body) body = '<div style="text-align:center;color:#94a3b8;padding:24px">কারো হাতে নগদ নেই</div>';
+  } else {
+    const list = _camperCustodyList();
+    body = list.length ? list.map(_custCampHolderHtml).join('') : '<div style="text-align:center;color:#94a3b8;padding:24px">কোনো ক্যাম্পেইনারের তহবিল/নগদ নেই</div>';
+  }
+  const foot = '<div style="font-size:11.5px;color:#64748b;border-top:1px dashed #e5e7eb;padding-top:8px">মূল ক্যাশ (বাস্তবে জমা) ৳ '+fmt(d.mainCash)+' + রিসেপশন ক্যাশ ৳ '+fmt(d.recTotal)+' + ক্যাম্প ক্যাশ ৳ '+fmt(d.campTotal)+' = প্রতিষ্ঠানের মোট নগদ <b>৳ '+fmt(d.mainCash+d.recTotal+d.campTotal)+'</b> · নিয়ম চালু: '+formatDate(_custodyFrom())+'</div>';
+  return head + body + foot;
 }
 function showCustodyModal(kind) {
-  const d = _custodyData(), esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const isRec = kind === 'rec', list = isRec ? d.rec : d.camp, total = isRec ? d.recTotal : d.campTotal, color = isRec ? '#0f766e' : '#b45309';
-  const old = document.getElementById('custodyModal'); if (old) old.remove();
-  const m = document.createElement('div'); m.id = 'custodyModal';
-  m.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.55);z-index:10100;display:flex;align-items:center;justify-content:center;padding:16px';
-  m.onclick = e => { if (e.target === m) m.remove(); };
-  const rows = list.length ? list.map(r => '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;margin-bottom:8px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:13.5px">'+esc(r.name)+'</b><b style="font-size:15px;color:'+(r.v<0?'#b91c1c':color)+'">'+(r.v<0?'− ':'')+'৳ '+fmt(Math.abs(r.v))+'</b></div>'
-      + r.lines.map(l => l[1]===null ? '<div style="font-size:11px;color:#64748b;margin-top:1px">'+esc(l[0])+'</div>' : '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#64748b;margin-top:2px"><span>'+esc(l[0])+'</span><span>'+(l[1]<0?'− ':'')+'৳ '+fmt(Math.abs(l[1]))+'</span></div>').join('')
-      + '</div>').join('') : '<div style="text-align:center;color:#94a3b8;padding:18px;font-size:12.5px">'+(isRec?'কারো হাতে নগদ নেই':'কোনো ক্যাম্পেইনারের তহবিল/নগদ নেই')+'</div>';
-  m.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:460px;width:100%;max-height:88vh;overflow:auto;padding:18px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;font-size:16px;color:'+color+'">'+(isRec?'🧾 রিসেপশন ক্যাশ':'🏕️ ক্যাম্প ক্যাশ')+'</h3><button onclick="document.getElementById(\'custodyModal\').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button></div>'
-    + '<div style="font-size:12px;color:#64748b;margin-bottom:12px">'+(isRec?'রিসেপশনিস্টের হাতে থাকা, এখনো মূল ক্যাশে জমা না হওয়া নগদ':'ক্যাম্পেইনারের হাতে থাকা তহবিল ও জমা/রিফিল-না-হওয়া ক্যাম্পের নিট')+'</div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:baseline;background:#f8fafc;border-radius:10px;padding:8px 12px;margin-bottom:12px"><span style="font-size:12.5px;color:#475569">মোট</span><b style="font-size:20px;color:'+color+'">৳ '+fmt(total)+'</b></div>'
-    + rows
-    + '<div style="font-size:11.5px;color:#64748b;border-top:1px dashed #e5e7eb;padding-top:8px;margin-top:4px">মূল ক্যাশ (বাস্তবে জমা) ৳ '+fmt(d.mainCash)+' + রিসেপশন ক্যাশ ৳ '+fmt(d.recTotal)+' + ক্যাম্প ক্যাশ ৳ '+fmt(d.campTotal)+' = প্রতিষ্ঠানের মোট নগদ <b>৳ '+fmt(d.mainCash+d.recTotal+d.campTotal)+'</b><br>নিয়ম চালু: '+formatDate(_custodyFrom())+'</div>'
-    + '</div>';
-  document.body.appendChild(m);
+  let modal = document.getElementById('custodyModal');
+  if (!modal) { modal = document.createElement('div'); modal.id = 'custodyModal'; modal.className = 'modal-overlay'; document.body.appendChild(modal); }
+  const bar = document.getElementById('dashCustodyBar'), pnl = bar ? (bar.closest('.panel') || bar) : null;
+  const rect = pnl ? pnl.getBoundingClientRect() : null;
+  const left = rect ? Math.max(8, Math.round(rect.left)) : 0, width = rect ? Math.round(rect.width) : 900;
+  modal.dataset.kind = kind;
+  modal.style.cssText = 'display:flex;align-items:center;justify-content:flex-start;box-sizing:border-box;padding:16px 16px 16px ' + left + 'px;';
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = '<div class="modal" style="width:'+width+'px;max-width:100%;max-height:86vh;margin:0;display:flex;flex-direction:column;position:relative;flex-shrink:0">'
+    + '<button class="btn btn-outline btn-sm" onclick="document.getElementById(\'custodyModal\').remove()" style="position:absolute;top:14px;right:14px;padding:4px 12px;z-index:2;background:white">✕ বন্ধ করুন</button>'
+    + '<div class="modal-title" style="padding-right:110px">'+(kind==='rec'?'🧾 রিসেপশন ক্যাশ — লাইভ':'🏕️ ক্যাম্প ক্যাশ — লাইভ')+'</div>'
+    + '<div id="custodyModalBody" style="overflow-y:auto;flex:1;padding-right:4px">'+_custModalBody(kind)+'</div></div>';
+}
+function refreshCustodyModal() {
+  const m = document.getElementById('custodyModal'), b = document.getElementById('custodyModalBody');
+  if (m && b) { try { b.innerHTML = _custModalBody(m.dataset.kind || 'rec'); } catch(e) {} }
 }
 function calcCashBankBalance() {
   // ক্যাশ = সব আয় - সব ব্যয় + bankTx অ্যাডজাস্টমেন্ট
