@@ -838,6 +838,17 @@
   .rn-patron-toggle { display:flex; background:#eef1f6; border-radius:9px; padding:3px; gap:2px; }
   .rn-patron-btn { border:none; background:transparent; padding:7px 11px; border-radius:7px; font-family:'Hind Siliguri',sans-serif; font-size:12px; font-weight:700; color:#64748b; cursor:pointer; white-space:nowrap; transition:background .15s,color .15s; }
   .rn-patron-btn.active { background:var(--primary); color:#fff; }
+  /* ✅ বিলের হেডারে "কীভাবে জানলেন" ড্রপডাউন (রোগী/ক্রেতা টগলের বামে) */
+  .rn-ref-box { display:flex; align-items:center; gap:6px; min-width:0; }
+  .rn-ref-box select, .rn-ref-box input { padding:7px 9px; border:1.5px solid var(--border); border-radius:7px; font-family:'Hind Siliguri',sans-serif; font-size:12px; background:#fff; min-width:0; }
+  .rn-ref-box select { width:178px; }
+  .rn-ref-box input { width:150px; }
+  @media(max-width:1050px) { .rn-ref-box select, .rn-ref-box input { flex:1; width:auto; } }
+  /* ✅ ব্যয়ের ভাউচার মার্ক/প্রিন্ট বার */
+  .exp-vbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .exp-vbar .exp-vcnt { font-size:12px; font-weight:700; color:#0f4c81; }
+  .exp-vlbl { display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; font-weight:inherit; }
+  .exp-vlbl input { width:16px; height:16px; margin:0; flex-shrink:0; cursor:pointer; }
   /* ✅ ডাক্তার সিলেক্ট করলে/কমিশন টিক দিলে যেন প্যানেল-হেডারের উচ্চতা না বাড়ে — after-duty চেকবক্স ও কমিশন প্রিভিউ
      এখন সিলেক্ট বক্সের ঠিক নিচে একটা ছোট ভাসমান (floating) প্যানেলে দেখানো হয়, নরমাল ফ্লো-তে জায়গা নেয় না */
   /* ✅ "ডিউটি পরে" অপশনটা এখন ডাক্তার সিলেক্ট ড্রপডাউনের ভেতরেই একটা আলাদা অপশন হিসেবে থাকে (নিচে দেখুন
@@ -3221,6 +3232,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 ব্যয়ের তালিকা</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <div class="exp-vbar"><span class="exp-vcnt">মার্ক করা নেই</span><button class="btn btn-warning btn-sm exp-vprint" onclick="printExpenseVouchers()" style="opacity:.55" disabled>🖨️ মার্ক করা ভাউচার প্রিন্ট</button><button class="btn btn-outline btn-sm exp-vclear" onclick="expVClear()" style="display:none">✕ মার্ক মুছুন</button></div>
             <select id="expViewMode" onchange="expViewModeChanged()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="day">ডে ওয়াইজ</option>
               <option value="month">মান্থ ওয়াইজ</option>
@@ -3244,7 +3256,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>ক্যাটাগরি</th><th>সাব-ক্যাটাগরি</th><th>পেমেন্ট</th><th>ব্যক্তি/চেক</th><th>বিবরণ</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th><label class="exp-vlbl" title="দেখানো সবগুলো মার্ক/আনমার্ক"><input type="checkbox" class="exp-vall" onchange="expVToggleAll(this)"><span>ভাউচার নং</span></label></th><th>ক্যাটাগরি</th><th>সাব-ক্যাটাগরি</th><th>পেমেন্ট</th><th>ব্যক্তি/চেক</th><th>বিবরণ</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="expenseTable"></tbody>
         </table></div></div>
       </div>
@@ -3740,6 +3752,18 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="panel-header">
           <div class="panel-title">🧾 নতুন বিল তৈরি করুন</div>
           <div id="nb_RecentPatients" class="rn-header-chips"></div>
+          <div class="rn-ref-box" id="nb_RefBox" title="রোগী/ক্রেতা কীভাবে জানলেন — মার্কেটিং হিসাবের জন্য (ঐচ্ছিক)">
+            <select id="nb_ReferralSource" onchange="onBillReferralChange('nb_')">
+              <option value="">💎 কীভাবে জানলেন?</option>
+              <option value="megaphone">📢 প্রচার মাইক/বিজ্ঞাপন</option>
+              <option value="marketing">🧑‍💼 মার্কেটিং কর্মীর মাধ্যমে</option>
+              <option value="camp">⛺ ক্যাম্প থেকে</option>
+              <option value="referral">🗣️ অন্য রোগীর মাধ্যমে</option>
+              <option value="general">🚶 সাধারণভাবে/নিজে থেকে</option>
+              <option value="other">অন্যান্য</option>
+            </select>
+            <input type="text" id="nb_ReferralDetail" style="display:none">
+          </div>
           <div class="rn-patron-toggle" id="nb_PatronToggle">
             <button type="button" id="nb_PatronBtnPatient" class="rn-patron-btn active" onclick="setPatronType('nb_','patient')">🧑‍⚕️ রোগী</button>
             <button type="button" id="nb_PatronBtnCustomer" class="rn-patron-btn" onclick="setPatronType('nb_','customer')">🛍️ ক্রেতা</button>
@@ -3776,7 +3800,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><div style="position:relative"><input type="text" id="nb_MemoNo" placeholder="Memo-0001" title="এই নম্বরই হার্ড মেমো বইয়ের পৃষ্ঠা নম্বর" style="font-weight:600;color:var(--accent);padding-right:34px"><button type="button" onclick="skipMemoNumber('nb_')" title="হার্ড মেমোর পৃষ্ঠা নষ্ট/ছেঁড়া/বাতিল হলে পরবর্তী নম্বরে যান (কারণ আবশ্যক)" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);width:24px;height:24px;border:none;background:#e0f2fe;color:#0369a1;border-radius:6px;cursor:pointer;font-size:12px;padding:0;line-height:1;font-family:inherit">⏭</button></div></div>
           </div>
 
-          <!-- ✅ ৩য় সারি: বামে পণ্য ও সার্ভিস (পুরো কলাম), ডানে ডিসকাউন্ট (অ্যাডমিনের নিজস্ব লজিক) → নগদ প্রদান → মোট বিল -->
+          <!-- ✅ ৩য় সারি: বামে পণ্য ও সার্ভিস (পুরো কলাম), ডানে ডিসকাউন্ট (অ্যাডমিনের নিজস্ব লজিক) → মোট বিল → মোবাইল ব্যাংকিং + নগদ প্রদান -->
           <div class="rn-2col">
             <div class="rn-left-col">
               <div class="rn-svc-head">
@@ -3826,7 +3850,16 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                 </div>
                 <div style="margin-top:5px;font-size:10px;color:#0369a1">ℹ️ ভিজিট ফি আগে কাটবে, তারপর বাকি সার্ভিস — মেডিসিন/চশমা/সার্জিক্যালে কখনো না।</div>
               </div>
-              <!-- মোবাইল ব্যাংকিং ও নগদ প্রদান পাশাপাশি -->
+              <!-- মোট বিল -->
+              <div class="receipt-summary" style="margin-top:0">
+                <div class="receipt-row"><span>মোট বিল</span><span id="nb_Total">৳ ০</span></div>
+                <div class="receipt-row" id="nb_DiscountRow" style="display:none;color:#f59e0b;font-weight:600"><span>ডিসকাউন্ট</span><span id="nb_DiscountShow">- ৳ ০</span></div>
+                <div class="receipt-row" style="font-weight:600;color:var(--primary)"><span>নেট বিল</span><span id="nb_NetBill">৳ ০</span></div>
+                <div class="receipt-row paid-row"><span>নগদ প্রদান</span><span id="nb_Paid">৳ ০</span></div>
+                <div class="receipt-row due-row"><span>বাকি</span><span id="nb_Due">৳ ০</span></div>
+                <div class="receipt-row total"><span>নেট বাকি</span><span id="nb_NetDue">৳ ০</span></div>
+              </div>
+              <!-- মোবাইল ব্যাংকিং ও নগদ প্রদান পাশাপাশি (মোট বিল কার্ডের নিচে) -->
               <div class="rn-mfs-cash-row">
                 <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:8px;padding:9px 11px">
                   <label style="font-size:11.5px;font-weight:700;color:#9d174d;display:block;margin-bottom:5px">📱 মোবাইল ব্যাংকিং (ঐচ্ছিক)</label>
@@ -3837,15 +3870,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                   <div id="nb_MfsPaidHint" style="font-size:10px;color:#9d174d;margin-top:4px"></div>
                 </div>
                 <div class="field amt-hl" style="margin-bottom:0"><label>নগদ প্রদান (৳) *</label><div style="position:relative"><input type="number" id="nb_CashPaid" placeholder="০.০০" min="0" style="padding-right:104px" oninput="nbUpdateSummary(); onNbMfsPaidChange()"><span id="nb_CashPaidWho" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:800;color:#0369a1;pointer-events:none;white-space:nowrap"></span></div></div>
-              </div>
-              <!-- মোট বিল -->
-              <div class="receipt-summary" style="margin-top:10px">
-                <div class="receipt-row"><span>মোট বিল</span><span id="nb_Total">৳ ০</span></div>
-                <div class="receipt-row" id="nb_DiscountRow" style="display:none;color:#f59e0b;font-weight:600"><span>ডিসকাউন্ট</span><span id="nb_DiscountShow">- ৳ ০</span></div>
-                <div class="receipt-row" style="font-weight:600;color:var(--primary)"><span>নেট বিল</span><span id="nb_NetBill">৳ ০</span></div>
-                <div class="receipt-row paid-row"><span>নগদ প্রদান</span><span id="nb_Paid">৳ ০</span></div>
-                <div class="receipt-row due-row"><span>বাকি</span><span id="nb_Due">৳ ০</span></div>
-                <div class="receipt-row total"><span>নেট বাকি</span><span id="nb_NetDue">৳ ০</span></div>
               </div>
             </div>
           </div>
@@ -6075,7 +6099,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
 
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">💎 রোগী কীভাবে জানলেন (রেফারেল উৎস)</div></div>
+        <div class="panel-header"><div class="panel-title">💎 রোগী/ক্রেতা কীভাবে জানলেন (ইনকোয়ারি ও বিল মিলিয়ে)</div></div>
         <div class="panel-body"><div id="referralStats" style="display:flex;gap:10px;flex-wrap:wrap"></div></div>
       </div>
 
@@ -8054,6 +8078,18 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="panel-header">
           <div class="panel-title">🧾 নতুন ক্যাশ মেমো / বিল</div>
           <div id="recRecentPatients" class="rn-header-chips"></div>
+          <div class="rn-ref-box" id="rRefBox" title="রোগী/ক্রেতা কীভাবে জানলেন — মার্কেটিং হিসাবের জন্য (ঐচ্ছিক)">
+            <select id="rReferralSource" onchange="onBillReferralChange('r')">
+              <option value="">💎 কীভাবে জানলেন?</option>
+              <option value="megaphone">📢 প্রচার মাইক/বিজ্ঞাপন</option>
+              <option value="marketing">🧑‍💼 মার্কেটিং কর্মীর মাধ্যমে</option>
+              <option value="camp">⛺ ক্যাম্প থেকে</option>
+              <option value="referral">🗣️ অন্য রোগীর মাধ্যমে</option>
+              <option value="general">🚶 সাধারণভাবে/নিজে থেকে</option>
+              <option value="other">অন্যান্য</option>
+            </select>
+            <input type="text" id="rReferralDetail" style="display:none">
+          </div>
           <div class="rn-patron-toggle" id="rPatronToggle">
             <button type="button" id="rPatronBtnPatient" class="rn-patron-btn active" onclick="setPatronType('r','patient')">🧑‍⚕️ রোগী</button>
             <button type="button" id="rPatronBtnCustomer" class="rn-patron-btn" onclick="setPatronType('r','customer')">🛍️ ক্রেতা</button>
@@ -8090,7 +8126,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <div class="field"><label>মেমো নং <span style="font-size:10px;color:var(--accent)">(অটো)</span></label><div style="position:relative"><input type="text" id="rMemoNo" placeholder="Memo-0001" title="এই নম্বরই হার্ড মেমো বইয়ের পৃষ্ঠা নম্বর" style="font-weight:600;color:var(--accent);padding-right:34px"><button type="button" onclick="skipMemoNumber('r')" title="হার্ড মেমোর পৃষ্ঠা নষ্ট/ছেঁড়া/বাতিল হলে পরবর্তী নম্বরে যান (কারণ আবশ্যক)" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);width:24px;height:24px;border:none;background:#e0f2fe;color:#0369a1;border-radius:6px;cursor:pointer;font-size:12px;padding:0;line-height:1;font-family:inherit">⏭</button></div></div>
           </div>
 
-          <!-- ✅ ৩য় সারি: বামে পণ্য ও সার্ভিস (পুরো কলাম), ডানে ডিসকাউন্ট → মোবাইল ব্যাংকিং+নগদ প্রদান পাশাপাশি → মোট বিল -->
+          <!-- ✅ ৩য় সারি: বামে পণ্য ও সার্ভিস (পুরো কলাম), ডানে ডিসকাউন্ট → মোট বিল → মোবাইল ব্যাংকিং+নগদ প্রদান পাশাপাশি -->
           <div class="rn-2col">
             <div class="rn-left-col">
               <div class="rn-svc-head">
@@ -8140,7 +8176,16 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                 </div>
                 <div style="margin-top:5px;font-size:10px;color:#0369a1">ℹ️ ভিজিট ফি আগে কাটবে, তারপর বাকি সার্ভিস — মেডিসিন/চশমা/সার্জিক্যালে কখনো না।</div>
               </div>
-              <!-- মোবাইল ব্যাংকিং ও নগদ প্রদান পাশাপাশি -->
+              <!-- মোট বিল -->
+              <div class="receipt-summary" style="margin-top:0">
+                <div class="receipt-row"><span>মোট বিল</span><span id="rTotal">৳ ০</span></div>
+                <div class="receipt-row" id="rDiscountRow" style="display:none;color:#f59e0b;font-weight:600"><span>ডিসকাউন্ট</span><span id="rDiscountShow">- ৳ ০</span></div>
+                <div class="receipt-row" style="font-weight:600;color:var(--primary)"><span>নেট বিল (ডিসকাউন্ট পরে)</span><span id="rNetBill">৳ ০</span></div>
+                <div class="receipt-row paid-row"><span>নগদ প্রদান</span><span id="rPaid">৳ ০</span></div>
+                <div class="receipt-row due-row"><span>বাকি</span><span id="rDue">৳ ০</span></div>
+                <div class="receipt-row total"><span>নেট বাকি</span><span id="rNetDue">৳ ০</span></div>
+              </div>
+              <!-- মোবাইল ব্যাংকিং ও নগদ প্রদান পাশাপাশি (মোট বিল কার্ডের নিচে) -->
               <div class="rn-mfs-cash-row">
                 <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:8px;padding:9px 11px">
                   <label style="font-size:11.5px;font-weight:700;color:#9d174d;display:block;margin-bottom:5px">📱 মোবাইল ব্যাংকিং (ঐচ্ছিক)</label>
@@ -8151,15 +8196,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                   <div id="rMfsPaidHint" style="font-size:10px;color:#9d174d;margin-top:4px"></div>
                 </div>
                 <div class="field amt-hl" style="margin-bottom:0"><label>নগদ প্রদান (৳) *</label><input type="number" id="rCashPaid" placeholder="০.০০" min="0" oninput="updateSummary(); onRMfsPaidChange()"></div>
-              </div>
-              <!-- মোট বিল -->
-              <div class="receipt-summary">
-                <div class="receipt-row"><span>মোট বিল</span><span id="rTotal">৳ ০</span></div>
-                <div class="receipt-row" id="rDiscountRow" style="display:none;color:#f59e0b;font-weight:600"><span>ডিসকাউন্ট</span><span id="rDiscountShow">- ৳ ০</span></div>
-                <div class="receipt-row" style="font-weight:600;color:var(--primary)"><span>নেট বিল (ডিসকাউন্ট পরে)</span><span id="rNetBill">৳ ০</span></div>
-                <div class="receipt-row paid-row"><span>নগদ প্রদান</span><span id="rPaid">৳ ০</span></div>
-                <div class="receipt-row due-row"><span>বাকি</span><span id="rDue">৳ ০</span></div>
-                <div class="receipt-row total"><span>নেট বাকি</span><span id="rNetDue">৳ ০</span></div>
               </div>
             </div>
           </div>
@@ -8305,14 +8341,17 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 আমার এন্ট্রি</div>
-          <select id="recExpRange" onchange="renderRecExpenseList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
-            <option value="today">আজ</option>
-            <option value="week">এই সপ্তাহ</option>
-            <option value="month">এই মাস</option>
-          </select>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div class="exp-vbar"><span class="exp-vcnt">মার্ক করা নেই</span><button class="btn btn-warning btn-sm exp-vprint" onclick="printExpenseVouchers()" style="opacity:.55" disabled>🖨️ মার্ক করা ভাউচার প্রিন্ট</button><button class="btn btn-outline btn-sm exp-vclear" onclick="expVClear()" style="display:none">✕ মার্ক মুছুন</button></div>
+            <select id="recExpRange" onchange="renderRecExpenseList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+              <option value="today">আজ</option>
+              <option value="week">এই সপ্তাহ</option>
+              <option value="month">এই মাস</option>
+            </select>
+          </div>
         </div>
         <div class="panel-body"><div class="table-wrap"><table>
-          <thead><tr><th>তারিখ</th><th>ভাউচার নং</th><th>খাত</th><th>বিবরণ</th><th>পেমেন্ট</th><th>পরিমাণ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
+          <thead><tr><th>তারিখ</th><th><label class="exp-vlbl" title="দেখানো সবগুলো মার্ক/আনমার্ক"><input type="checkbox" class="exp-vall" onchange="expVToggleAll(this)"><span>ভাউচার নং</span></label></th><th>খাত</th><th>বিবরণ</th><th>পেমেন্ট</th><th>পরিমাণ</th><th>স্ট্যাটাস</th><th>অ্যাকশন</th></tr></thead>
           <tbody id="recExpMyTable"></tbody>
         </table></div></div>
       </div>
@@ -13066,15 +13105,16 @@ function renderRecExpenseList() {
         : `<span class="badge badge-income">✅ অনুমোদিত</span>`;
     return `<tr id="rec-exp-row-${e.id}">
       <td>${formatDate(e.date)}</td>
-      <td style="font-weight:600;color:var(--warning)">${e.voucher || '—'}</td>
+      <td style="font-weight:600;color:var(--warning)">${e.rejected ? (e.voucher || '—') : expVCellHtml(e, e.voucher || '—')}</td>
       <td>${e.category}${e.subCategory ? ' / ' + e.subCategory : ''}${campTag}</td>
       <td style="color:var(--text-light)">${e.note || '—'}</td>
       <td>${payLabel}</td>
       <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
       <td>${statusBadge}</td>
-      <td>${e.rejected ? (e.preCamp ? `<button class="btn btn-outline btn-sm" onclick="editPreCampExpense(${e.id})">✏️ সংশোধন</button>` : `<button class="btn btn-outline btn-sm" onclick="editRecExpense(${e.id})">✏️ সংশোধন</button>`) : '—'}</td>
+      <td style="white-space:nowrap">${e.rejected ? (e.preCamp ? `<button class="btn btn-outline btn-sm" onclick="editPreCampExpense(${e.id})">✏️ সংশোধন</button>` : `<button class="btn btn-outline btn-sm" onclick="editRecExpense(${e.id})">✏️ সংশোধন</button>`) : expVBtnHtml(e)}</td>
     </tr>`;
   }).join('');
+  try { expVUpdateBar(); const _hd=tbody.closest('table').querySelector('.exp-vall'); if(_hd) _hd.checked=false; } catch(_e){}
 }
 
 // পেমেন্ট মাধ্যম পরিবর্তন
@@ -13556,7 +13596,7 @@ function renderExpenseTable() {
       const overdue = e.clearDate < todayStr();
       pendingHtml += `<tr style="background:#fffbeb">
         <td>${formatDate(e.date)}</td>
-        <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
+        <td style="color:var(--warning);font-weight:600;font-size:12px">${expVCellHtml(e, e.voucher||'—')}</td>
         <td>${e.category}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
         <td><span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🏦 ব্যাংক</span></td>
@@ -13564,7 +13604,7 @@ function renderExpenseTable() {
         <td style="color:var(--text-light)">ভাঙ্গানোর তারিখ: <strong style="color:${overdue?'var(--danger)':'#92400e'}">${formatDate(e.clearDate)}</strong>${e.note?' — '+e.note:''}</td>
         <td style="font-weight:700;color:var(--danger)">৳ ${fmt(e.amount)}</td>
         <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
-        <td><button class="btn btn-success btn-sm" onclick="markExpenseCleared(${e.id})">✅ ভাঙ্গানো হয়েছে</button></td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-success btn-sm" onclick="markExpenseCleared(${e.id})">✅ ভাঙ্গানো হয়েছে</button>${expVBtnHtml(e)}</td>
       </tr>`;
     });
   }
@@ -13671,7 +13711,7 @@ function renderExpenseTable() {
       const origDateNote = (effDate!==e.date) ? `<span style="color:#94a3b8;font-size:11px"> (মূল এন্ট্রি: ${formatDate(e.date)})</span>` : '';
       html += `<tr class="exp-grp-row"${e.isFundExpense?' style="background:#faf5ff"':''} data-grp="${gid}" id="exp-row-${e.id}">
         <td>${formatDate(effDate)}</td>
-        <td style="color:var(--warning);font-weight:600;font-size:12px">${e.voucher||'—'}</td>
+        <td style="color:var(--warning);font-weight:600;font-size:12px">${expVCellHtml(e, e.voucher||'—')}</td>
         <td>${e.category}${fundBadge}${invBadge}${fixedBadge}${forMonthBadge}</td>
         <td style="color:var(--text-light);font-size:12px">${e.subCategory||'—'}</td>
         <td>${payBadge}${statusBadge}</td>
@@ -13681,6 +13721,7 @@ function renderExpenseTable() {
         <td style="font-size:12px;color:var(--text-light)">${e.by||'—'}</td>
         <td style="display:flex;gap:4px;flex-wrap:wrap">
           ${e.status==='pending' ? `<button class="btn btn-success btn-sm" onclick="markExpenseCleared(${e.id})">✅ ভাঙ্গানো হয়েছে</button>` : ''}
+          ${expVBtnHtml(e)}
           ${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">🗑️</button>`:''}
         </td>
       </tr>`;
@@ -13707,6 +13748,7 @@ function renderExpenseTable() {
     });
   });
   tbody.innerHTML=html;
+  try { expVUpdateBar(); const _hd=document.querySelector('#expenseTable').closest('table').querySelector('.exp-vall'); if(_hd) _hd.checked=false; } catch(_e){}
 }
 function markExpenseCleared(id) {
   const e=(appData.expense||[]).find(x=>x.id===id); if (!e) return;
@@ -14521,6 +14563,120 @@ function printCamperRefundVoucher(refundId) {
   const r = (appData.camperRefunds||[]).find(x => x.id === refundId);
   if (!r) { showToast('⚠️ ভাউচার পাওয়া যায়নি'); return; }
   exportDocumentPDF(buildCamperRefundVoucherHtml(r), 'camper-refill-voucher-' + r.voucher + '.pdf', 'ক্যাম্পেইনার তহবিল রিফিল ভাউচার — ' + r.voucher);
+}
+
+// ===== ব্যয়ের ভাউচার প্রিন্ট — মার্ক করে একাধিক ভাউচার এক পেজে (অ্যাডমিন ও রিসেপশন — উভয় ব্যয়ের তালিকায়) =====
+// একই A4 পেজে ৩টি কমপ্যাক্ট ভাউচার (ক্যাম্পেইনার রিফিল ভাউচারের ডিজাইনে), মাঝে কাটার ড্যাশ লাইন। ৩টির বেশি মার্ক করলে পরের পেজে যায়।
+var _expVSel = {};   // মার্ক করা ব্যয়ের id → true (দুই তালিকায় একই সিলেকশন, ফিল্টার/রিফ্রেশে হারায় না)
+var EXP_VOUCHER_CSS = `
+    .ev-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:12px;color:#1a2a3a;padding:7mm 11mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
+    .ev-slot{flex:1;min-height:0;display:flex;flex-direction:column;padding:2.5mm 0;border-bottom:1.5px dashed #94a3b8}
+    .ev-slot:last-child{border-bottom:none}
+    .ev-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #0f4c81;padding-bottom:5px}
+    .ev-hosp{font-size:15px;font-weight:800;color:#0f4c81}
+    .ev-ttl{font-size:12.5px;font-weight:700;margin-top:1px}
+    .ev-meta{text-align:right;font-size:12px;line-height:1.5}
+    .ev-t{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+    .ev-t td{padding:3px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    .ev-t td:first-child{width:27%;color:#475569}
+    .ev-t td:last-child{font-weight:700}
+    .ev-amt{display:flex;justify-content:flex-end;align-items:baseline;gap:8px;margin-top:8px}
+    .ev-amt-l{font-size:13px;font-weight:700}
+    .ev-amt-v{font-size:16px;font-weight:800;border-bottom:4px double #1a2a3a;padding:0 4px 1px}
+    .ev-warn{font-size:10.5px;color:#92400e;background:#fef3c7;border-radius:4px;padding:2px 6px;margin-top:5px;text-align:center}
+    .ev-sigs{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:auto;padding-top:6px}
+    .ev-sig{text-align:center;width:48mm;font-size:11px}
+    .ev-sigline{border-top:1.6px solid #1a2a3a;margin-top:22px;margin-bottom:3px}
+  `;
+function _expVFind(id) { return (appData.expense||[]).find(function(x){ return String(x.id)===String(id); }); }
+function buildExpenseVoucherCard(e) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(err){ return ''; } })();
+  const row = (a,b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+  let payTxt = '💵 ক্যাশ', ttlKind = 'ক্যাশ ভাউচার';
+  if (e.payMode==='bank') {
+    payTxt = '🏦 ব্যাংক (চেক)' + (e.checkNo ? ' — চেক নং ' + esc(e.checkNo) : '') + (e.clearDate && e.clearDate!==e.date ? ' — ভাঙ্গানোর তারিখ ' + formatDate(e.clearDate) : '');
+    ttlKind = 'ব্যাংক ভাউচার';
+  } else if (e.payMode==='mfs') {
+    const acc = (appData.mfsAccounts||[]).find(a => String(a.id)===String(e.mfsAccountId));
+    payTxt = '📱 মোবাইল ব্যাংকিং' + (acc ? ' — ' + esc(acc.name||acc.label||acc.type||'') : '');
+    ttlKind = 'মোবাইল ব্যাংকিং ভাউচার';
+  }
+  const cat = esc(e.category||'—') + (e.subCategory ? ' / ' + esc(e.subCategory) : '');
+  const payee = e.payPerson ? esc(e.payPerson) : '';
+  const pendingNote = (e.needsApproval && e.status==='pending' && !e.rejected)
+    ? '<div class="ev-warn">⏳ অ্যাডমিনের অনুমোদন অপেক্ষমাণ — অনুমোদনের আগে এই ভাউচার চূড়ান্ত নয়</div>' : '';
+  const sig = (label, name) => `<div class="ev-sig"><div class="ev-sigline"></div><div style="font-weight:700">${label}</div>${name?`<div style="font-size:10.5px">${esc(name)}</div>`:''}<div style="font-size:10px;color:#6b7280">তারিখ: ________</div></div>`;
+  return `<div class="ev-head">
+      <div><div class="ev-hosp">${esc(hospName)}</div><div class="ev-ttl">ব্যয় ${ttlKind}</div></div>
+      <div class="ev-meta">ভাউচার নং: <strong>${esc(e.voucher||'—')}</strong><br>তারিখ: <strong>${formatDate(e.date)}</strong></div>
+    </div>
+    <table class="ev-t"><tbody>
+      ${row('খাত', cat)}
+      ${row('বিবরণ', e.note ? esc(e.note) : '—')}
+      ${row('পেমেন্ট মাধ্যম', payTxt)}
+      ${payee ? row('প্রদানকারী/বাহক', payee) : ''}
+    </tbody></table>
+    <div class="ev-amt"><span class="ev-amt-l">পরিমাণ:</span><span class="ev-amt-v">৳ ${fmt(e.amount)}</span></div>
+    ${pendingNote}
+    <div class="ev-sigs">${sig('প্রস্তুতকারী', e.by)}${sig('গ্রহণকারী', '')}${sig('ব্যবস্থাপনা পরিচালক', mdName)}</div>`;
+}
+function buildExpenseVouchersHtml(list) {
+  const PER = 3, pages = [];
+  for (let i=0; i<list.length; i+=PER) {
+    const chunk = list.slice(i, i+PER);
+    let slots = chunk.map(e => `<div class="ev-slot">${buildExpenseVoucherCard(e)}</div>`).join('');
+    for (let k=chunk.length; k<PER; k++) slots += '<div class="ev-slot"></div>';   // শেষ পেজে খালি জায়গা — ভাউচার যেন টেনে বড় না হয়
+    pages.push(`<div class="a4-page ev-page">${slots}</div>`);
+  }
+  return `<html><head><meta charset="UTF-8"><style>${EXP_VOUCHER_CSS}</style></head><body>${pages.join('')}</body></html>`;
+}
+// ids না দিলে মার্ক করা সবগুলো প্রিন্ট হবে; সিঙ্গেল বাটন থেকে [id] পাঠানো হয়
+function printExpenseVouchers(ids) {
+  const useIds = (ids && ids.length) ? ids : Object.keys(_expVSel).filter(k => _expVSel[k]);
+  const list = useIds.map(_expVFind).filter(Boolean)
+    .filter(e => !e.rejected)
+    .sort((a,b) => (a.date||'')<(b.date||'') ? -1 : (a.date||'')>(b.date||'') ? 1 : (a.id-b.id));
+  if (!list.length) { showToast('⚠️ প্রিন্টের জন্য কোনো ভাউচার মার্ক করা নেই!'); return; }
+  const pageCnt = Math.ceil(list.length/3);
+  exportDocumentPDF(buildExpenseVouchersHtml(list), 'expense-vouchers-' + todayStr() + '.pdf',
+    'ব্যয় ভাউচার — ' + list.length + 'টি (' + pageCnt + ' পেজ)');
+}
+function expVUpdateBar() {
+  const n = Object.keys(_expVSel).filter(k => _expVSel[k]).length;
+  document.querySelectorAll('.exp-vcnt').forEach(el => { el.textContent = n ? ('✔ ' + n + 'টি মার্ক করা') : 'মার্ক করা নেই'; });
+  document.querySelectorAll('.exp-vprint').forEach(b => { b.disabled = !n; b.style.opacity = n ? '' : '.55'; });
+  document.querySelectorAll('.exp-vclear').forEach(b => { b.style.display = n ? '' : 'none'; });
+}
+function expVToggle(id, el) {
+  if (el.checked) _expVSel[id] = true; else delete _expVSel[id];
+  expVUpdateBar();
+  // হেডারের "সব মার্ক" চেকবক্স সিঙ্ক
+  const tb = el.closest('tbody'); const tbl = el.closest('table');
+  const all = tb ? tb.querySelectorAll('.exp-vsel') : [];
+  const hd = tbl ? tbl.querySelector('.exp-vall') : null;
+  if (hd && all.length) hd.checked = Array.prototype.every.call(all, c => c.checked);
+}
+function expVToggleAll(hdEl) {
+  const tbl = hdEl.closest('table'); if (!tbl) return;
+  tbl.querySelectorAll('tbody .exp-vsel').forEach(c => {
+    c.checked = hdEl.checked;
+    const id = c.getAttribute('data-id');
+    if (hdEl.checked) _expVSel[id] = true; else delete _expVSel[id];
+  });
+  expVUpdateBar();
+}
+function expVClear() {
+  _expVSel = {};
+  document.querySelectorAll('.exp-vsel,.exp-vall').forEach(c => { c.checked = false; });
+  expVUpdateBar();
+}
+function expVCellHtml(e, inner) {
+  return `<label class="exp-vlbl" title="প্রিন্টের জন্য মার্ক করুন"><input type="checkbox" class="exp-vsel" data-id="${e.id}" ${_expVSel[e.id]?'checked':''} onchange="expVToggle(${e.id},this)"><span>${inner}</span></label>`;
+}
+function expVBtnHtml(e) {
+  return `<button class="btn btn-outline btn-sm" title="এই ভাউচার প্রিন্ট" onclick="printExpenseVouchers([${e.id}])">🖨️</button>`;
 }
 
 // ===== মোবাইল-ফ্রেন্ডলি স্লিপ প্রিভিউ (পুরো স্ক্রিন, A4 পেজ স্ক্রিনের প্রস্থে ছোট করে) =====
@@ -34431,6 +34587,7 @@ function saveBill() {
   const patGender = (document.getElementById('rPatGender')||{}).value||'';
   const patAddress= (document.getElementById('rPatAddress')||{}).value?.trim()||'';
   const patDoc    = document.getElementById('rPatDoc').value.trim();
+  const _billRef  = getBillReferral('r');
   const date      = document.getElementById('rBillDate').value;
   const note      = document.getElementById('rNote').value.trim();
   const nextSerialDate = (document.getElementById('rNextSerial')||{}).value||'';
@@ -34468,6 +34625,7 @@ function saveBill() {
   const isCustomer = isPatronCustomer('r');
   const visit   = {
     id:Date.now(), date, patName, patPhone, patAge, patGender, patAddress, patDoc,
+    referralSource:_billRef.referralSource, referralDetail:_billRef.referralDetail,
     services:servicesFinal, total, discAmt:totalDiscAmt, netBill, cashPaid, due, note, memoNo, rcptNo:memoNo,
     nextSerialDate: isCustomer ? undefined : (nextSerialDate||undefined),
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
@@ -34537,6 +34695,7 @@ function clearBillForm() {
     const el=document.getElementById(id); if(el){ el.value=''; el.readOnly=false; el.style.background=''; }
   });
   const mfsAccEl=document.getElementById('rMfsAccount'); if(mfsAccEl) mfsAccEl.value='';
+  resetBillReferral('r');
   const mfsHintEl=document.getElementById('rMfsPaidHint'); if(mfsHintEl) mfsHintEl.textContent='';
   const genderEl=document.getElementById('rPatGender'); if(genderEl) genderEl.value='';
   const rMemo=document.getElementById('rMemoNo'); if(rMemo) rMemo.value=generateNextMemoNo();
@@ -35021,6 +35180,31 @@ function onReferralSourceChange() {
   }
 }
 
+// ✅ বিলের হেডারের "কীভাবে জানলেন" ড্রপডাউন (রিসেপশন 'r' ও অ্যাডমিন 'nb_' — দুই নতুন বিলেই; ইনকোয়ারির মতো একই উৎস-কী)
+var _BILL_REF_DETAIL_LABELS = { marketing:'কোন কর্মী (নাম)', referral:'কোন রোগী (নাম, ঐচ্ছিক)', camp:'কোন ক্যাম্প (ঐচ্ছিক)', other:'বিস্তারিত লিখুন' };
+function onBillReferralChange(prefix) {
+  var sel = document.getElementById(prefix+'ReferralSource');
+  var inp = document.getElementById(prefix+'ReferralDetail');
+  if (!sel || !inp) return;
+  var lb = _BILL_REF_DETAIL_LABELS[sel.value];
+  if (lb) { inp.style.display = ''; inp.placeholder = lb; }
+  else { inp.style.display = 'none'; inp.value = ''; }
+}
+function getBillReferral(prefix) {
+  var s = (document.getElementById(prefix+'ReferralSource')||{}).value || '';
+  var d = ((document.getElementById(prefix+'ReferralDetail')||{}).value || '').trim();
+  return { referralSource: s || undefined, referralDetail: (s && _BILL_REF_DETAIL_LABELS[s] && d) ? d : undefined };
+}
+function setBillReferral(prefix, src, detail) {
+  var sel = document.getElementById(prefix+'ReferralSource');
+  var inp = document.getElementById(prefix+'ReferralDetail');
+  if (sel) sel.value = src || '';
+  if (sel && sel.value !== (src||'')) sel.value = '';
+  onBillReferralChange(prefix);
+  if (inp && sel && sel.value) inp.value = detail || '';
+}
+function resetBillReferral(prefix) { setBillReferral(prefix, '', ''); }
+
 // ===== ইনকোয়ারি লগ (ফোনে বা সরাসরি রিসেপশনে এসে জিজ্ঞাসা) =====
 var _INQ_CAT_LABELS = { price:'💰 মূল্য/ফি', treatment:'🩺 চিকিৎসা/অপারেশন', doctor:'👨‍⚕️ ডাক্তার সংক্রান্ত', appointment:'📅 সিরিয়াল/অ্যাপয়েন্টমেন্ট', delivery:'🚚 ডেলিভারি', report:'📋 রিপোর্ট/টেস্ট', general:'ℹ️ সাধারণ তথ্য', other:'অন্যান্য' };
 
@@ -35143,15 +35327,17 @@ function renderInquiryCategoryStats() {
   }).join('');
 }
 
-// ✅ visit.referralSource থেকে হিসাব — রোগী কীভাবে জানলো তার পরিসংখ্যান
+// ✅ রোগী/ক্রেতা কীভাবে জানলেন — ইনকোয়ারি + বিল (রিসেপশন/অ্যাডমিন নতুন বিলের হেডার ড্রপডাউন) মিলিয়ে পরিসংখ্যান
 function renderReferralStats() {
   var wrap = document.getElementById('referralStats');
   if (!wrap) return;
-  var entries = (appData.inquiries||[]).filter(function(q){ return q.referralSource; });
+  var inqE = (appData.inquiries||[]).filter(function(q){ return q.referralSource; });
+  var billE = (appData.visits||[]).concat(appData.adminBills||[]).filter(function(v){ return v && v.referralSource; });
   var counts = {};
-  entries.forEach(function(q){ counts[q.referralSource] = (counts[q.referralSource]||0)+1; });
-  var total = entries.length;
-  if (!total) { wrap.innerHTML = '<p style="color:#aaa;padding:10px">এখনো কোনো ইনকোয়ারিতে রেফারেল উৎস টুকা হয়নি</p>'; return; }
+  inqE.forEach(function(q){ counts[q.referralSource] = (counts[q.referralSource]||0)+1; });
+  billE.forEach(function(v){ counts[v.referralSource] = (counts[v.referralSource]||0)+1; });
+  var total = inqE.length + billE.length;
+  if (!total) { wrap.innerHTML = '<p style="color:#aaa;padding:10px">এখনো কোনো ইনকোয়ারি/বিলে রেফারেল উৎস টুকা হয়নি</p>'; return; }
   wrap.innerHTML = Object.keys(_REFERRAL_LABELS).filter(function(k){ return counts[k]>0; }).sort(function(a,b){ return (counts[b]||0)-(counts[a]||0); }).map(function(k){
     var c = counts[k]||0;
     var pct = total ? Math.round(c/total*100) : 0;
@@ -35159,7 +35345,7 @@ function renderReferralStats() {
       +'<div style="font-size:12px;color:#666;font-weight:600">'+_REFERRAL_LABELS[k]+'</div>'
       +'<div style="font-size:20px;font-weight:800;color:#059669">'+c+'<span style="font-size:12px;color:#999;font-weight:400"> ('+pct+'%)</span></div>'
       +'</div>';
-  }).join('') + '<div style="background:#f8fafc;border:1.5px dashed var(--border);border-radius:8px;padding:10px 16px;min-width:150px"><div style="font-size:12px;color:#666;font-weight:600">মোট (উৎস উল্লেখসহ)</div><div style="font-size:20px;font-weight:800;color:#334155">'+total+'</div></div>';
+  }).join('') + '<div style="background:#f8fafc;border:1.5px dashed var(--border);border-radius:8px;padding:10px 16px;min-width:150px"><div style="font-size:12px;color:#666;font-weight:600">মোট (উৎস উল্লেখসহ)</div><div style="font-size:20px;font-weight:800;color:#334155">'+total+'</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">ইনকোয়ারি '+inqE.length+' + বিল '+billE.length+'</div></div>';
 }
 
 function renderInquiryLogAdmin() {
@@ -37216,6 +37402,7 @@ function sendDraftToAdmin() {
     patName, patPhone:(document.getElementById('rPatPhone')||{}).value?.trim()||'',
     patAge:(document.getElementById('rPatAge')||{}).value?.trim()||'',
     patDoc:(document.getElementById('rPatDoc')||{}).value?.trim()||'',
+    referralSource:getBillReferral('r').referralSource, referralDetail:getBillReferral('r').referralDetail,
     note:(document.getElementById('rNote')||{}).value?.trim()||'',
     services:items, total, recDiscAmt:discAmt,
     by:currentUser.name, sentAt:new Date().toLocaleTimeString('bn-BD')
@@ -37233,6 +37420,7 @@ function loadReturnedDraft() {
   const genderEl=document.getElementById('rPatGender'); if(genderEl) genderEl.value=d.patGender||'';
   const addrEl=document.getElementById('rPatAddress'); if(addrEl) addrEl.value=d.patAddress||'';
   document.getElementById('rPatDoc').value=d.patDoc||'';
+  setBillReferral('r', d.referralSource, d.referralDetail);
   document.getElementById('rNote').value=d.note||'';
   document.getElementById('rBillDate').value=d.date||todayStr();
   const adminDisc=d.adminDiscAmt||d.recDiscAmt||0;
@@ -38788,6 +38976,7 @@ function nbClearForm() {
   });
   const genderEl=document.getElementById('nb_PatGender'); if(genderEl) genderEl.value='';
   const mfsAccEl=document.getElementById('nb_MfsAccount'); if(mfsAccEl) mfsAccEl.value='';
+  resetBillReferral('nb_');
   const mfsHintEl=document.getElementById('nb_MfsPaidHint'); if(mfsHintEl) mfsHintEl.textContent='';
   document.getElementById('nb_BillDate').value=todayStr();
   if(document.getElementById('nb_MemoNo')) document.getElementById('nb_MemoNo').value=generateNextMemoNo();
@@ -38856,6 +39045,7 @@ function nbSendBackToRec() {
   d.patGender=(document.getElementById('nb_PatGender')||{}).value||'';
   d.patAddress=(document.getElementById('nb_PatAddress')||{}).value?.trim()||'';
   d.patDoc=(document.getElementById('nb_PatDoc')||{}).value?.trim()||'';
+  { const _r=getBillReferral('nb_'); d.referralSource=_r.referralSource; d.referralDetail=_r.referralDetail; }
   d.note=(document.getElementById('nb_Note')||{}).value?.trim()||'';
   d.status='returned'; d.returnedAt=new Date().toLocaleTimeString('bn-BD');
   saveData(); window._adminDraftId=null;
@@ -38881,6 +39071,7 @@ function nbSendToReception() {
     patGender:(document.getElementById('nb_PatGender')||{}).value||'',
     patAddress:(document.getElementById('nb_PatAddress')||{}).value?.trim()||'',
     patDoc:(document.getElementById('nb_PatDoc')||{}).value?.trim()||'',
+    referralSource:getBillReferral('nb_').referralSource, referralDetail:getBillReferral('nb_').referralDetail,
     note:(document.getElementById('nb_Note')||{}).value?.trim()||'',
     services:items.map(i=>({name:i.name,qty:i.qty,price:i.price,subtotal:i.subtotal,type:i.type||'manual',sellMin:i.sellMin||0,stockId:i.stockId||null})),
     total, adminDiscAmt:discAmt, adminDiscPct:discPct,
@@ -39702,9 +39893,10 @@ function _billSave(p) {
   const patGender=(document.getElementById(p+'PatGender')||{}).value||'';
   const patAddress=(document.getElementById(p+'PatAddress')||{}).value?.trim()||'';
   const patDoc=(document.getElementById(p+'PatDoc')||{}).value?.trim()||'';
+  const _billRef=getBillReferral(p);
 
   const isCustomer = isPatronCustomer(nb?'nb_':'r');
-  const _newVisit = {id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,services:itemsFinal,total,discAmt:totalDiscAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
+  const _newVisit = {id:_billVisitId,date,patName,patPhone,patAge,patGender,patAddress,patDoc,referralSource:_billRef.referralSource,referralDetail:_billRef.referralDetail,services:itemsFinal,total,discAmt:totalDiscAmt,netBill,cashPaid,due,note,memoNo,rcptNo:memoNo,
     nextSerialDate: isCustomer ? undefined : (nextSerialDate||undefined),
     mfsPaid: mfsPaid||undefined, mfsAccountId: mfsPaid>0?mfsAccountId:undefined,
     by:byLabel,time:new Date().toLocaleTimeString('bn-BD'),adminApproved,
@@ -39853,6 +40045,7 @@ function adminLoadDraft(draftId) {
   document.getElementById('nb_PatPhone').value=d.patPhone||'';
   document.getElementById('nb_PatAge').value=d.patAge||'';
   document.getElementById('nb_PatDoc').value=d.patDoc||'';
+  setBillReferral('nb_', d.referralSource, d.referralDetail);
   document.getElementById('nb_BillDate').value=d.date||todayStr();
   document.getElementById('nb_Note').value=d.note||'';
   const discAmt=d.adminDiscAmt||d.recDiscAmt||0;
@@ -39894,7 +40087,7 @@ function adminSaveDraftDirect(draftId) {
   (d.services||[]).filter(i=>i.stockId).forEach(item=>{
     deductStockForSale(item.stockId, item.qty, d.date||todayStr(), 'বিল (ড্রাফট অনুমোদিত)', _draftVisitId);
   });
-  appData.visits.push({id:_draftVisitId,date:d.date||todayStr(),patName:d.patName,patPhone:d.patPhone||'',patAge:d.patAge||'',patDoc:d.patDoc||'',services:d.services,total,discAmt,netBill,cashPaid:netBill,due:0,note:d.note||'',memoNo,rcptNo:memoNo,by:`${d.by} (অ্যাডমিন অনুমোদিত)`,time:new Date().toLocaleTimeString('bn-BD'),adminApproved:true});
+  appData.visits.push({id:_draftVisitId,date:d.date||todayStr(),patName:d.patName,patPhone:d.patPhone||'',patAge:d.patAge||'',patDoc:d.patDoc||'',referralSource:d.referralSource,referralDetail:d.referralDetail,services:d.services,total,discAmt,netBill,cashPaid:netBill,due:0,note:d.note||'',memoNo,rcptNo:memoNo,by:`${d.by} (অ্যাডমিন অনুমোদিত)`,time:new Date().toLocaleTimeString('bn-BD'),adminApproved:true});
   // ✅ income এ যোগ (শুধু তালিকায় দেখানোর জন্য — visitId ট্যাগ করা আছে, তাই ডাবল-কাউন্ট হবে না)
   if(netBill>0) appData.income.push({id:Date.now()+1,date:d.date||todayStr(),category:'রিসেপশন আয়',amount:netBill,memo:memoNo,ref:d.patName,note:`${memoNo} — ${d.patName} (অ্যাডমিন অনুমোদিত)`,by:currentUser.name,visitId:_draftVisitId});
   appData.draftBills=(appData.draftBills||[]).filter(x=>x.id!==draftId);
