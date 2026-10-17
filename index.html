@@ -2876,14 +2876,12 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <div class="stat-card-header"><div class="stat-label">ক্যাশ ব্যালেন্স</div></div>
               <div class="stat-value income" id="dashCashBalance">৳ ০</div>
               <div class="stat-change">হাতে নগদ মজুদ</div>
-              <div class="stat-change" id="dashCashOpening" style="font-size:10.5px;color:#64748b;margin-top:2px"></div>
             </div>
             <div data-card-id="dashBankBalance" class="stat-card" style="border-left-color:#3498db;cursor:pointer" onclick="showDashCardModal('dashBankBalance')">
               <span class="stat-card-bg-icon" style="--wm-icon-color:#3498db"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96H24L128,32Z" opacity="0.38"/><path d="M24,104H48v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16H208V104h24a8,8,0,0,0,4.19-14.81l-104-64a8,8,0,0,0-8.38,0l-104,64A8,8,0,0,0,24,104Zm40,0H96v64H64Zm80,0v64H112V104Zm48,64H160V104h32ZM128,41.39,203.74,88H52.26ZM248,208a8,8,0,0,1-8,8H16a8,8,0,0,1,0-16H240A8,8,0,0,1,248,208Z"/></svg></span>
               <div class="stat-card-header"><div class="stat-label">ব্যাংক ব্যালেন্স</div></div>
               <div class="stat-value" id="dashBankBalance" style="color:#3498db">৳ ০</div>
               <div class="stat-change" id="dashBankName">ব্যাংক একাউন্ট</div>
-              <div class="stat-change" id="dashBankOpening" style="font-size:10.5px;color:#64748b;margin-top:2px"></div>
               <div class="stat-change" id="dashBankFundNote" style="font-size:10.5px;color:#94a3b8;margin-top:2px"></div>
             </div>
             <div data-card-id="dashMfsBalance" class="stat-card" style="border-left-color:#d63384;cursor:pointer" onclick="showDashCardModal('dashMfsBalance')">
@@ -2891,7 +2889,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
               <div class="stat-card-header"><div class="stat-label">মোবাইল ব্যাংকিং</div></div>
               <div class="stat-value" id="dashMfsBalance" style="color:#d63384">৳ ০</div>
               <div class="stat-change" id="dashMfsAccCount">০টি একাউন্ট</div>
-              <div class="stat-change" id="dashMfsOpening" style="font-size:10.5px;color:#64748b;margin-top:2px"></div>
             </div>
           </div>
           <!-- কার্ড ডিটেইল মোডাল — stats-grid এর ভেতরেই, একই এরিয়া জুড়ে -->
@@ -2991,7 +2988,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <tbody id="pendingOpsTable"></tbody>
         </table></div></div>
       </div>
-      <div id="dashCustodyBar"></div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 সাম্প্রতিক এন্ট্রি</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -3002,6 +2998,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             <button class="btn btn-primary btn-sm" onclick="showPage(&#39;income&#39;)">+ নতুন এন্ট্রি</button>
           </div>
         </div>
+        <div id="dashCustodyBar"></div>
         <div class="panel-body"><div class="table-wrap"><table>
           <thead><tr><th>তারিখ</th><th>ভাউচার/মেমো/Receipt</th><th>ধরন</th><th>খাত</th><th>রেফ/রোগী/ক্যাম্প</th><th>পরিমাণ</th><th>এন্ট্রিকারী</th></tr></thead>
           <tbody id="recentTable"></tbody>
@@ -12104,7 +12101,8 @@ function showDashCardModal(cardId, modalId) {
     icon='📱'; title='মোবাইল ব্যাংকিং'; sub=`${accs.length}টি একাউন্ট`;
     amtText='৳ '+fmt(total); amtColor='#d63384';
     body = accs.length
-      ? accs.map(a=>row(`${a.name} <span style="font-size:10.5px;color:#94a3b8">(${a.provider||''})</span>`, '৳ '+fmt(a.balance), a.balance<0?'#e74c3c':'#d63384')).join('')
+      ? (function(){ let om = null; try { om = calcOpeningAllForMonth(todayStr().substring(0,7)).mfs; } catch(e) {} return om===null ? '' : row('মাস শুরুর ব্যালেন্স', '৳ '+fmt(om)); })()
+        + accs.map(a=>row(`${a.name} <span style="font-size:10.5px;color:#94a3b8">(${a.provider||''})</span>`, '৳ '+fmt(a.balance), a.balance<0?'#e74c3c':'#d63384')).join('')
         + row('<strong>সর্বমোট</strong>', '<strong>৳ '+fmt(total)+'</strong>', '#d63384')
       : '<p style="text-align:center;color:#aaa;padding:16px;font-size:13px">কোনো একাউন্ট যোগ করা হয়নি — সেটিংস থেকে যোগ করুন</p>';
   }
@@ -19229,32 +19227,57 @@ function enableCashCustody() {
     showToast('✅ নতুন ক্যাশ-নিয়ম চালু হয়েছে');
   });
 }
-// অ্যাডমিন ড্যাশবোর্ডের "রিসেপশন ক্যাশ ও ক্যাম্প ক্যাশ" বার — কার কাছে কত নগদ আছে, রিয়েল-টাইম
-function renderCustodyBar() {
-  const el = document.getElementById('dashCustodyBar'); if (!el) return;
-  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  if (!_custodyFrom()) {
-    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#92400e"><span>💼 <b>রিসেপশন ক্যাশ ও ক্যাম্প ক্যাশ</b> — বাস্তব জমার নিয়ম এখনো চালু হয়নি (এখন রিসেপশনের গৃহীত নগদ সাথে সাথেই মূল ক্যাশে ধরা হচ্ছে)।</span><button type="button" class="btn btn-primary btn-sm" onclick="enableCashCustody()">চালু করুন</button></div>';
-    return;
-  }
+// অ্যাডমিন ড্যাশবোর্ডের "রিসেপশন ক্যাশ | ক্যাম্প ক্যাশ" — সাম্প্রতিক এন্ট্রি প্যানেলের ভেতরে পাতলা স্ট্রিপ; ক্লিকে মোডালে বিস্তারিত
+function _custodyData() {
   const cu = _custodyCalc('');
   const recNames = [];
-  Object.keys(USERS||{}).forEach(k => { const u = USERS[k]; if (u && u.role === 'receptionist') recNames.push(_baseBy(u.name)); });
+  Object.keys(USERS||{}).forEach(k => { const u = USERS[k]; if (u && u.role === 'receptionist' && recNames.indexOf(_baseBy(u.name)) < 0) recNames.push(_baseBy(u.name)); });
   (appData.users||[]).forEach(u => { if (u && u.role === 'receptionist' && recNames.indexOf(_baseBy(u.name)) < 0) recNames.push(_baseBy(u.name)); });
   Object.keys(cu.byHolder).forEach(n => { if (n !== '__pool__' && recNames.indexOf(n) < 0) recNames.push(n); });
-  const chip = (label, v, tip, color) => '<span title="'+esc(tip)+'" style="display:inline-flex;gap:6px;align-items:baseline;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:3px 10px;font-size:12px;margin:3px 4px 0 0"><span style="color:#475569">'+esc(label)+'</span><b style="color:'+(v<0?'#b91c1c':color)+'">'+(v<0?'− ':'')+'৳ '+fmt(Math.abs(v))+'</b></span>';
-  let recTotal = 0, recChips = '';
+  const rec = []; let recTotal = 0;
   recNames.forEach(n => { const h = cu.byHolder[n] || { in:0, out:0, dep:0 }; const v = h.in - h.out - h.dep; recTotal += v;
-    recChips += chip(n, v, 'গৃহীত ৳'+fmt(h.in)+' − নগদ খরচ/রিফিল ৳'+fmt(h.out)+' − জমা দিয়েছেন ৳'+fmt(h.dep), '#0f766e'); });
-  const pl = cu.byHolder['__pool__']; if (pl) { const v = pl.in - pl.out - pl.dep; recTotal += v; recChips += chip(_adm('short')+'-এন্ট্রি বিল (রিসেপশনে)', v, 'গৃহীত ৳'+fmt(pl.in)+' − জমা ৳'+fmt(pl.dep), '#0f766e'); }
-  const camp = _camperCustodyList(); let campTotal = 0, campChips = '';
-  camp.forEach(o => { campTotal += o.held; campChips += chip(o.name, o.held, 'তহবিল ৳'+fmt(o.fund)+' + ক্যাম্পের নিট ৳'+fmt(o.pending)+(o.parts.length?' ('+o.parts.join('; ')+')':'')+(o.refillDue>0?' | রিফিল পাওনা ৳'+fmt(o.refillDue):''), '#b45309'); });
-  const mainCash = calcCashBankBalance().cash;
-  const card = (icon, title, total, color, bg, chips, empty) => '<div style="flex:1;min-width:250px;border:1.5px solid '+color+'44;border-left:5px solid '+color+';background:'+bg+';border-radius:12px;padding:9px 13px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:13px;color:'+color+'">'+icon+' '+title+'</b><b style="font-size:20px;color:'+color+'">৳ '+fmt(total)+'</b></div><div style="margin-top:2px">'+(chips||'<span style="font-size:11.5px;color:#94a3b8">'+empty+'</span>')+'</div></div>';
-  el.innerHTML = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
-    + card('🧾','রিসেপশন ক্যাশ', recTotal, '#0f766e', '#f0fdfa', recChips, 'কারো হাতে নগদ নেই')
-    + card('🏕️','ক্যাম্প ক্যাশ', campTotal, '#b45309', '#fffbeb', campChips, 'কোনো ক্যাম্পেইনারের তহবিল/নগদ নেই')
-    + '</div><div style="font-size:11.5px;color:#64748b;margin:0 2px 14px">মূল ক্যাশ (বাস্তবে জমা) ৳ '+fmt(mainCash)+' + রিসেপশন ক্যাশ ৳ '+fmt(recTotal)+' + ক্যাম্প ক্যাশ ৳ '+fmt(campTotal)+' = প্রতিষ্ঠানের মোট নগদ ৳ '+fmt(mainCash+recTotal+campTotal)+' · নিয়ম চালু: '+formatDate(_custodyFrom())+'</div>';
+    rec.push({ name:n, v, lines:[['গৃহীত নগদ', h.in], ['নগদ খরচ / রিফিল', -h.out], ['জমা দিয়েছেন', -h.dep]] }); });
+  const pl = cu.byHolder['__pool__'];
+  if (pl) { const v = pl.in - pl.out - pl.dep; recTotal += v; rec.push({ name:_adm('short')+'-এন্ট্রি বিল (রিসেপশনে)', v, lines:[['গৃহীত নগদ', pl.in], ['জমা দিয়েছেন', -pl.dep]] }); }
+  const camp = _camperCustodyList(); let campTotal = 0;
+  const campRows = camp.map(o => { campTotal += o.held;
+    const lines = [['সাধারণ তহবিল', o.fund], ['জমা/রিফিল-না-হওয়া ক্যাম্পের নিট', o.pending]];
+    o.parts.forEach(t => lines.push(['· ' + t, null]));
+    if (o.refillDue > 0) lines.push(['রিফিল পাওনা (তহবিল কম)', -o.refillDue]);
+    return { name:o.name, v:o.held, lines }; });
+  return { rec, recTotal, camp:campRows, campTotal, mainCash: calcCashBankBalance().cash };
+}
+function renderCustodyBar() {
+  const el = document.getElementById('dashCustodyBar'); if (!el) return;
+  if (!_custodyFrom()) {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 14px;background:#fffbeb;border-bottom:1px solid #fde68a;font-size:12px;color:#92400e"><span>💼 রিসেপশন/ক্যাম্প ক্যাশ ট্র্যাকিং এখনো চালু হয়নি</span><button type="button" class="btn btn-primary btn-sm" style="padding:3px 12px;font-size:11.5px" onclick="enableCashCustody()">চালু করুন</button></div>';
+    return;
+  }
+  const d = _custodyData();
+  const seg = (kind, icon, label, total, color) => '<button type="button" onclick="showCustodyModal(\''+kind+'\')" style="flex:1;min-width:150px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 12px;border:none;border-left:3px solid '+color+';background:#fff;cursor:pointer;font-family:inherit;text-align:left"><span style="font-size:12px;color:#475569">'+icon+' '+label+'</span><span style="display:flex;align-items:center;gap:6px"><b style="font-size:14px;color:'+color+'">৳ '+fmt(total)+'</b><span style="color:#94a3b8;font-size:13px">›</span></span></button>';
+  el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--border,#e5e7eb);border-bottom:1px solid var(--border,#e5e7eb)">'
+    + seg('rec','🧾','রিসেপশন ক্যাশ', d.recTotal, '#0f766e')
+    + seg('camp','🏕️','ক্যাম্প ক্যাশ', d.campTotal, '#b45309') + '</div>';
+}
+function showCustodyModal(kind) {
+  const d = _custodyData(), esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const isRec = kind === 'rec', list = isRec ? d.rec : d.camp, total = isRec ? d.recTotal : d.campTotal, color = isRec ? '#0f766e' : '#b45309';
+  const old = document.getElementById('custodyModal'); if (old) old.remove();
+  const m = document.createElement('div'); m.id = 'custodyModal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.55);z-index:10100;display:flex;align-items:center;justify-content:center;padding:16px';
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  const rows = list.length ? list.map(r => '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;margin-bottom:8px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:13.5px">'+esc(r.name)+'</b><b style="font-size:15px;color:'+(r.v<0?'#b91c1c':color)+'">'+(r.v<0?'− ':'')+'৳ '+fmt(Math.abs(r.v))+'</b></div>'
+      + r.lines.map(l => l[1]===null ? '<div style="font-size:11px;color:#64748b;margin-top:1px">'+esc(l[0])+'</div>' : '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#64748b;margin-top:2px"><span>'+esc(l[0])+'</span><span>'+(l[1]<0?'− ':'')+'৳ '+fmt(Math.abs(l[1]))+'</span></div>').join('')
+      + '</div>').join('') : '<div style="text-align:center;color:#94a3b8;padding:18px;font-size:12.5px">'+(isRec?'কারো হাতে নগদ নেই':'কোনো ক্যাম্পেইনারের তহবিল/নগদ নেই')+'</div>';
+  m.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:460px;width:100%;max-height:88vh;overflow:auto;padding:18px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;font-size:16px;color:'+color+'">'+(isRec?'🧾 রিসেপশন ক্যাশ':'🏕️ ক্যাম্প ক্যাশ')+'</h3><button onclick="document.getElementById(\'custodyModal\').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#aaa">✕</button></div>'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:12px">'+(isRec?'রিসেপশনিস্টের হাতে থাকা, এখনো মূল ক্যাশে জমা না হওয়া নগদ':'ক্যাম্পেইনারের হাতে থাকা তহবিল ও জমা/রিফিল-না-হওয়া ক্যাম্পের নিট')+'</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;background:#f8fafc;border-radius:10px;padding:8px 12px;margin-bottom:12px"><span style="font-size:12.5px;color:#475569">মোট</span><b style="font-size:20px;color:'+color+'">৳ '+fmt(total)+'</b></div>'
+    + rows
+    + '<div style="font-size:11.5px;color:#64748b;border-top:1px dashed #e5e7eb;padding-top:8px;margin-top:4px">মূল ক্যাশ (বাস্তবে জমা) ৳ '+fmt(d.mainCash)+' + রিসেপশন ক্যাশ ৳ '+fmt(d.recTotal)+' + ক্যাম্প ক্যাশ ৳ '+fmt(d.campTotal)+' = প্রতিষ্ঠানের মোট নগদ <b>৳ '+fmt(d.mainCash+d.recTotal+d.campTotal)+'</b><br>নিয়ম চালু: '+formatDate(_custodyFrom())+'</div>'
+    + '</div>';
+  document.body.appendChild(m);
 }
 function calcCashBankBalance() {
   // ক্যাশ = সব আয় - সব ব্যয় + bankTx অ্যাডজাস্টমেন্ট
