@@ -844,11 +844,29 @@
   .rn-ref-box select { width:178px; }
   .rn-ref-box input { width:150px; }
   @media(max-width:1050px) { .rn-ref-box select, .rn-ref-box input { flex:1; width:auto; } }
+  /* ✅ অ্যাডমিন → রিসেপশন ছোট বার্তা (রিসেপশন হোমের হিরো প্যানেলের মাঝে) */
+  #rec-home .rhd-msgwrap { flex:1 1 280px; min-width:0; display:flex; flex-direction:column; gap:6px; align-items:stretch; }
+  #rec-home .rhd-msg { display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-radius:11px; padding:7px 12px; background:#fffbeb; border:1.5px solid #fcd34d; }
+  #rec-home .rhd-msg.new { background:#fef3c7; border-color:#f59e0b; animation:rhdMsgBlink 1s ease-in-out infinite; }
+  #rec-home .rhd-msg.pinned { background:#eff6ff; border-color:#93c5fd; }
+  #rec-home .rhd-msg-t { flex:1 1 160px; min-width:0; font-size:13.5px; font-weight:700; color:#78350f; line-height:1.4; word-break:break-word; }
+  #rec-home .rhd-msg.pinned .rhd-msg-t { color:#1e3a8a; }
+  #rec-home .rhd-msg-m { font-size:10.5px; font-weight:600; color:#a16207; display:block; }
+  #rec-home .rhd-msg.pinned .rhd-msg-m { color:#3b82f6; }
+  #rec-home .rhd-msg-b { display:flex; gap:6px; flex-shrink:0; }
+  #rec-home .rhd-msg-b button { border:none; border-radius:8px; padding:5px 11px; font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; background:#fff; color:#334155; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  #rec-home .rhd-msg-b button.ok { background:#16a34a; color:#fff; }
+  @keyframes rhdMsgBlink { 0%,100% { box-shadow:0 0 0 0 rgba(245,158,11,.65); background:#fef3c7; } 50% { box-shadow:0 0 0 6px rgba(245,158,11,0); background:#fde68a; } }
+  .qm-badge { position:absolute; top:-6px; right:-8px; min-width:15px; height:15px; border-radius:8px; background:#dc2626; color:#fff; font-size:9.5px; font-weight:800; display:none; align-items:center; justify-content:center; padding:0 3px; box-sizing:border-box; }
   /* ✅ ব্যয়ের ভাউচার মার্ক/প্রিন্ট বার */
   .exp-vbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .exp-vbar .exp-vcnt { font-size:12px; font-weight:700; color:#0f4c81; }
   .exp-vlbl { display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; font-weight:inherit; }
-  .exp-vlbl input { width:16px; height:16px; margin:0; flex-shrink:0; cursor:pointer; }
+  .exp-vlbl input { width:16px; height:16px; margin:0; flex-shrink:0; cursor:pointer; display:none; }
+  body.exp-vmark-on .exp-vlbl input { display:inline-block; }
+  .exp-vbar .exp-von { display:none; }
+  body.exp-vmark-on .exp-vbar .btn.exp-von { display:inline-flex; align-items:center; }
+  body.exp-vmark-on .exp-vbar .exp-vcnt.exp-von { display:inline; }
   /* ✅ ডাক্তার সিলেক্ট করলে/কমিশন টিক দিলে যেন প্যানেল-হেডারের উচ্চতা না বাড়ে — after-duty চেকবক্স ও কমিশন প্রিভিউ
      এখন সিলেক্ট বক্সের ঠিক নিচে একটা ছোট ভাসমান (floating) প্যানেলে দেখানো হয়, নরমাল ফ্লো-তে জায়গা নেয় না */
   /* ✅ "ডিউটি পরে" অপশনটা এখন ডাক্তার সিলেক্ট ড্রপডাউনের ভেতরেই একটা আলাদা অপশন হিসেবে থাকে (নিচে দেখুন
@@ -3232,7 +3250,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 ব্যয়ের তালিকা</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <div class="exp-vbar"><span class="exp-vcnt">মার্ক করা নেই</span><button class="btn btn-warning btn-sm exp-vprint" onclick="printExpenseVouchers()" style="opacity:.55" disabled>🖨️ মার্ক করা ভাউচার প্রিন্ট</button><button class="btn btn-outline btn-sm exp-vclear" onclick="expVClear()" style="display:none">✕ মার্ক মুছুন</button></div>
+            <div class="exp-vbar"><button class="btn btn-outline btn-sm exp-vmarkbtn" onclick="expVToggleMode()" title="একাধিক ব্যয়ের ভাউচার মার্ক করে এক সাথে প্রিন্ট করুন">☑️ মার্ক করুন</button><span class="exp-vcnt exp-von">মার্ক করা নেই</span><button class="btn btn-warning btn-sm exp-vprint exp-von" onclick="printExpenseVouchers()" style="opacity:.55" disabled>🖨️ মার্ক করা ভাউচার প্রিন্ট</button><button class="btn btn-outline btn-sm exp-vclear exp-von" onclick="expVClear()" style="display:none">✕ মার্ক মুছুন</button></div>
             <select id="expViewMode" onchange="expViewModeChanged()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="day">ডে ওয়াইজ</option>
               <option value="month">মান্থ ওয়াইজ</option>
@@ -7634,6 +7652,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
       <div class="panel-body" style="padding:12px">
         <button type="button" id="cpCampToggle" class="cs-toggle" onclick="toggleCampCards()"><span id="cpCampToggleLbl">১. ক্যাম্প বাছুন</span><span id="cpCampToggleArrow">▾</span></button>
+        <div id="cpCampBody" style="display:none">
         <div id="cpCampCards" style="display:none"></div>
         <select id="cpCampSelect" onchange="onCampScheduleSelect()" style="display:none">
           <option value="">-- ক্যাম্প বেছে নিন --</option>
@@ -7661,6 +7680,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <button type="button" class="cs-start" onclick="initCamperSession()">✅ ক্যাম্প শুরু করুন</button>
           <button type="button" class="cs-act sec" onclick="resetCampPick()" style="margin-top:8px">↩️ ফিরে যান — ক্যাম্প বদলান</button>
         </div>
+        </div><!-- /cpCampBody -->
       </div>
     </div>
 
@@ -8047,6 +8067,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="rhd-name" id="recHomeName"></div>
           <div class="rhd-date" id="recHomeDate"></div>
         </div>
+        <div class="rhd-msgwrap" id="recHomeMsg"></div>
         <div class="rhd-pill"><b id="recHomePending">০</b><span>আজ করণীয় বাকি</span></div>
       </div>
       <div id="recHomeAlert"></div>
@@ -8342,7 +8363,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel">
         <div class="panel-header"><div class="panel-title">📋 আমার এন্ট্রি</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <div class="exp-vbar"><span class="exp-vcnt">মার্ক করা নেই</span><button class="btn btn-warning btn-sm exp-vprint" onclick="printExpenseVouchers()" style="opacity:.55" disabled>🖨️ মার্ক করা ভাউচার প্রিন্ট</button><button class="btn btn-outline btn-sm exp-vclear" onclick="expVClear()" style="display:none">✕ মার্ক মুছুন</button></div>
+            <div class="exp-vbar"><button class="btn btn-outline btn-sm exp-vmarkbtn" onclick="expVToggleMode()" title="একাধিক ব্যয়ের ভাউচার মার্ক করে এক সাথে প্রিন্ট করুন">☑️ মার্ক করুন</button><span class="exp-vcnt exp-von">মার্ক করা নেই</span><button class="btn btn-warning btn-sm exp-vprint exp-von" onclick="printExpenseVouchers()" style="opacity:.55" disabled>🖨️ মার্ক করা ভাউচার প্রিন্ট</button><button class="btn btn-outline btn-sm exp-vclear exp-von" onclick="expVClear()" style="display:none">✕ মার্ক মুছুন</button></div>
             <select id="recExpRange" onchange="renderRecExpenseList()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
               <option value="today">আজ</option>
               <option value="week">এই সপ্তাহ</option>
@@ -9241,7 +9262,7 @@ function changeOwnerReadOnlyMonth(val) {
 }
 let currentCamperActiveFeature = 'camp';
 let currentActivePage = 'dashboard';
-let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
+let appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], quickMessages:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
 let activeDueId = null;
 let activeDueSource = 'visit'; // 'visit' | 'camp'
 let serviceCount = 0;
@@ -9689,7 +9710,7 @@ async function restoreSpecificBackup(dateStr) {
       if (statusEl) statusEl.textContent = `❌ ${dateStr} তারিখের কোনো ব্যাকআপ নেই।`;
       showToast('❌ ব্যাকআপ পাওয়া যায়নি!'); return;
     }
-    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
+    const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], quickMessages:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
     appData = { ...def, ...snap.val() };
     rebuildUsers();
     saveData();
@@ -10683,7 +10704,7 @@ function loadData() {
     const saved = localStorage.getItem('hms_data');
     if (saved) {
       const d = JSON.parse(saved);
-      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} }, ...d };
+      appData = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], quickMessages:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} }, ...d };
     }
   } catch(e) {}
   rebuildUsers();
@@ -10896,7 +10917,7 @@ function startFirebaseSync() {
         showToast('⚠️ Firebase এ খালি ডাটা পাওয়া গেছে — লোকাল ডাটা সুরক্ষিত রাখা হয়েছে।');
         return;
       }
-      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
+      const def = { income:[], expense:[], visits:[], camps:[], stock:[], stockLog:[], staff:[], salaries:{}, attendance:[], leaveRecords:[], demands:[], surgeons:[], operations:[], vendors:[], vouchers:[], bankTx:[], mfsAccounts:[], mfsTx:[], loans:[], shareholders:[], dividends:[], monthClosings:[], shareholderWithdrawals:[], investors:[], investorWithdrawals:[], investorCapitalInflows:[], boardPositions:[{id:1,title:'চেয়ারম্যান',shareholderId:null,order:1},{id:2,title:'ব্যবস্থাপনা পরিচালক',shareholderId:null,order:2}], users:[], passwords:{}, patientProfiles:{}, patientMerges:{}, patientMRNs:{}, featureAccess:{}, featureGroups:[], sidebarGroups:[], sidebarPageGroup:{}, quickAccess:[], campSchedules:[], campVisits:[], campExpenses:[], campOpPatients:[], memoDocs:[], padNotices:[], recDeposits:[], camperDeposits:[], camperRefunds:[], quickMessages:[], deliveryOrders:[], checkbooks:[], issuedChecks:[], activityLog:[], deletedVisits:[], notifSeen:[], rcvChanges:[], voidedMemos:[], unlockRequests:[], editHistory:[], dueHistory:[], appointments:[], tokenQueue:[], referralHospitals:[], serviceCatalog:[], inquiries:[], activeCampSession: null, doctors:[], doctorCommissions:[], doctorDayPayments:[], staffAdvances:[], waOutbox:[], tgOutbox:[], testFees:[], settings:{ hospName:'ICON Eye Hospital', address:'', rent:0, utility:0, otherFixed:0, medProfit:20, glassMinProfit:30, glassMaxProfit:80, recDiscount:10, adminDiscount:30, camperDiscount:5, bankName:'', bankAccNo:'', bankBranch:'', cashBalance:0, bankBalance:0, serviceFees:[], profitAllocationFunds:[], accumulatedLoss:0, investorPoolPercent:0, investorUnitPrice:0, adminDisplayName:'', adminDisplayTitle:'', regularDutyEndTime:'17:00', staffDesignations:[], priceRoundingMode:'floor', inquiryRetentionDays:90, ownerIdentityPasscodes:{} } };
       // ✅ path-synced প্রতিটা মডিউল (income/expense/bankTx) Firebase-এ array অথবা id-keyed object — যেকোনো ফরম্যাটেই থাকতে পারে, সবসময় array এ নরমালাইজ করা হচ্ছে
       const normalizedOverrides = {};
       const legacyMigrations = [];
@@ -10965,7 +10986,7 @@ function startFirebaseSync() {
             if (_fresh.length) { const r0 = _fresh[0]; showToast('📥 নতুন ক্যাম্প ক্যাশ জমার স্লিপ — ' + ((r0.snap && r0.snap.campName) || 'ক্যাম্প') + ' · ' + _baseBy(r0.by) + (_fresh.length > 1 ? ' (+' + (_fresh.length-1) + ')' : '')); }
             if (anyModuleApplied) {
               if (_isRecU) { if (typeof renderRecHome === 'function') renderRecHome(); }
-              else { if (typeof renderCamperDepInboxAdmin === 'function') renderCamperDepInboxAdmin(); if (typeof updateNotifBell === 'function') updateNotifBell(); if (typeof renderCustodyBar === 'function') renderCustodyBar(); }
+              else { try { updateQuickMsgBadge(); if (document.getElementById('qmModal')) renderQuickMsgHistory(); } catch(e) {} if (typeof renderCamperDepInboxAdmin === 'function') renderCamperDepInboxAdmin(); if (typeof updateNotifBell === 'function') updateNotifBell(); if (typeof renderCustodyBar === 'function') renderCustodyBar(); }
             }
           }
         } catch(e) { console.warn('[HMS] জমা-স্লিপ রিয়েল-টাইম রিফ্রেশ ব্যর্থ:', e); }
@@ -11212,7 +11233,7 @@ const PATH_SYNCED_MODULES = [
   'income', 'expense', 'bankTx', 'visits', 'camps', 'stock', 'stockLog',
   'demands', 'vouchers', 'loans', 'dividends', 'campSchedules', 'campVisits',
   'campExpenses', 'campOpPatients', 'memoDocs', 'padNotices', 'recDeposits', 'camperDeposits', 'camperRefunds',
-  'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory', 'deletedVisits', 'notifSeen', 'rcvChanges', 'voidedMemos', 'unlockRequests',
+  'deliveryOrders', 'checkbooks', 'issuedChecks', 'activityLog', 'editHistory', 'deletedVisits', 'notifSeen', 'rcvChanges', 'voidedMemos', 'unlockRequests', 'quickMessages',
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
   'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox', 'tgOutbox',
@@ -14086,14 +14107,14 @@ function buildRecDepositSlipHtml(d) {
   const diffTxt = diff===null ? '—' : (diff===0 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
   const diffColor = diff===null ? '#64748b' : (diff===0 ? '#16a34a' : '#dc2626');
   const row = (a,b) => `<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
-  const logo = (typeof LOGO_B64 !== 'undefined' && LOGO_B64) ? `<img src="${LOGO_B64}" style="height:62px;object-fit:contain;flex-shrink:0">` : '';
+  const logo = '';   // জমার স্লিপ/রিফিল ভাউচারে লোগো নেই (লোগো ৬০০ কেবির বেশি — ফাইল ভারী হয়)
   const stock = String(d.stockConsumed||'—'); const stockTxt = stock.length>170 ? stock.slice(0,170)+'…' : stock;
   const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
 
   const body = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid #0f4c81;padding-bottom:10px">
       ${logo}
-      <div style="text-align:right">
+      <div style="text-align:left">
         <div style="font-size:19px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
         <div style="font-size:14.5px;font-weight:700;margin-top:4px">রিসেপশনিস্ট দৈনিক ক্যাশ জমা — সারসংক্ষেপ</div>
         <div style="font-size:11.5px;color:#6b7280;margin-top:1px">তারিখ: ${formatDate(date)} &nbsp;|&nbsp; জমার সময়: ${esc(d.time||'—')}</div>
@@ -14354,7 +14375,7 @@ function buildCamperDepositSlipHtml(d) {
   const diff = (d.diff===undefined||d.diff===null) ? null : d.diff;
   const diffTxt = diff===null ? '—' : (diff===0 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
   const diffColor = diff===null ? '#64748b' : (diff===0 ? '#16a34a' : '#dc2626');
-  const logo = (typeof LOGO_B64 !== 'undefined' && LOGO_B64) ? `<img src="${LOGO_B64}" style="height:52px;object-fit:contain;flex-shrink:0">` : '';
+  const logo = '';   // জমার স্লিপ/রিফিল ভাউচারে লোগো নেই (লোগো ৬০০ কেবির বেশি — ফাইল ভারী হয়)
   const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
   const vouchers = sn.vouchers||[], voided = sn.voided||[], expList = sn.expList||[], duePats = sn.duePatients||[], stock = _camperStockNow(d);
   const rcpRange = sn.receiptFrom ? (sn.receiptTo && sn.receiptTo!==sn.receiptFrom ? esc(sn.receiptFrom)+' – '+esc(sn.receiptTo) : esc(sn.receiptFrom)) : '—';
@@ -14396,7 +14417,7 @@ function buildCamperDepositSlipHtml(d) {
   const body = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid #0f4c81;padding-bottom:8px">
       ${logo}
-      <div style="text-align:right">
+      <div style="text-align:left">
         <div style="font-size:18px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
         <div style="font-size:14px;font-weight:700;margin-top:3px">ক্যাম্পেইনার ক্যাশ জমা — সারসংক্ষেপ</div>
         <div style="font-size:11px;color:#6b7280;margin-top:1px">জমার তারিখ: ${formatDate(d.date)} &nbsp;|&nbsp; জমার সময়: ${esc(d.time||'—')}</div>
@@ -14531,7 +14552,7 @@ function confirmCamperRefund(depId) {
 function buildCamperRefundVoucherHtml(r) {
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
-  const logo = (typeof LOGO_B64 !== 'undefined' && LOGO_B64) ? `<img src="${LOGO_B64}" style="height:56px;object-fit:contain;flex-shrink:0">` : '';
+  const logo = '';   // জমার স্লিপ/রিফিল ভাউচারে লোগো নেই (লোগো ৬০০ কেবির বেশি — ফাইল ভারী হয়)
   const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
   const row = (a,b) => `<tr><td style="width:38%;color:#475569">${a}</td><td style="font-weight:700">${b}</td></tr>`;
   const sig = (label, name) => `<div class="dp-sig" style="width:52mm"><div class="dp-sigline"></div><div style="font-weight:700">${label}</div>${name?`<div style="font-size:11.5px">${esc(name)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>`;
@@ -14541,7 +14562,7 @@ function buildCamperRefundVoucherHtml(r) {
       <div class="dp-body">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid #0f4c81;padding-bottom:8px">
           ${logo}
-          <div style="text-align:right"><div style="font-size:18px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
+          <div style="text-align:left"><div style="font-size:18px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
           <div style="font-size:14.5px;font-weight:700;margin-top:3px">ক্যাশ ভাউচার — ক্যাম্পেইনার তহবিল রিফিল</div></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin:12px 0;font-size:13px"><div>ভাউচার নং: <strong>${esc(r.voucher)}</strong></div><div>তারিখ: <strong>${formatDate(r.date)}</strong> &nbsp;${esc(r.time||'')}</div></div>
@@ -14570,8 +14591,8 @@ function printCamperRefundVoucher(refundId) {
 var _expVSel = {};   // মার্ক করা ব্যয়ের id → true (দুই তালিকায় একই সিলেকশন, ফিল্টার/রিফ্রেশে হারায় না)
 var EXP_VOUCHER_CSS = `
     .ev-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:12px;color:#1a2a3a;padding:7mm 11mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
-    .ev-slot{flex:1;min-height:0;display:flex;flex-direction:column;padding:2.5mm 0;border-bottom:1.5px dashed #94a3b8}
-    .ev-slot:last-child{border-bottom:none}
+    .ev-slot{flex:1;min-height:0;display:flex;flex-direction:column;padding:2.5mm 0}
+    .ev-slot.ev-cut{border-bottom:1.5px dashed #94a3b8}
     .ev-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #0f4c81;padding-bottom:5px}
     .ev-hosp{font-size:15px;font-weight:800;color:#0f4c81}
     .ev-ttl{font-size:12.5px;font-weight:700;margin-top:1px}
@@ -14584,8 +14605,9 @@ var EXP_VOUCHER_CSS = `
     .ev-amt-l{font-size:13px;font-weight:700}
     .ev-amt-v{font-size:16px;font-weight:800;border-bottom:4px double #1a2a3a;padding:0 4px 1px}
     .ev-warn{font-size:10.5px;color:#92400e;background:#fef3c7;border-radius:4px;padding:2px 6px;margin-top:5px;text-align:center}
-    .ev-sigs{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:auto;padding-top:6px}
-    .ev-sig{text-align:center;width:48mm;font-size:11px}
+    .ev-sigs{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:auto;padding-top:6px}
+    .ev-sigs.one{justify-content:flex-end}
+    .ev-sig{text-align:center;width:70mm;font-size:11px}
     .ev-sigline{border-top:1.6px solid #1a2a3a;margin-top:22px;margin-bottom:3px}
   `;
 function _expVFind(id) { return (appData.expense||[]).find(function(x){ return String(x.id)===String(id); }); }
@@ -14607,7 +14629,13 @@ function buildExpenseVoucherCard(e) {
   const payee = e.payPerson ? esc(e.payPerson) : '';
   const pendingNote = (e.needsApproval && e.status==='pending' && !e.rejected)
     ? '<div class="ev-warn">⏳ অ্যাডমিনের অনুমোদন অপেক্ষমাণ — অনুমোদনের আগে এই ভাউচার চূড়ান্ত নয়</div>' : '';
-  const sig = (label, name) => `<div class="ev-sig"><div class="ev-sigline"></div><div style="font-weight:700">${label}</div>${name?`<div style="font-size:10.5px">${esc(name)}</div>`:''}<div style="font-size:10px;color:#6b7280">তারিখ: ________</div></div>`;
+  // সব সই-ঘরে লাইন সংখ্যা সমান (লেবেল + নাম + তারিখ) — তাই সই-লাইনগুলো একই উচ্চতায় সমান্তরালে থাকে
+  const sig = (label, name) => `<div class="ev-sig"><div class="ev-sigline"></div><div style="font-weight:700">${label}</div><div style="font-size:10.5px;min-height:1.3em">${name?esc(name):'&nbsp;'}</div><div style="font-size:10px;color:#6b7280">তারিখ: ________</div></div>`;
+  // রিসেপশন থেকে প্রিন্ট: প্রস্তুতকারী (রিসেপশনিস্ট) + ব্যবস্থাপনা পরিচালক পাশাপাশি; অ্যাডমিন/মড থেকে: শুধু ব্যবস্থাপনা পরিচালক
+  const isRecPrint = !!(currentUser && currentUser.role==='receptionist');
+  const sigsHtml = isRecPrint
+    ? `<div class="ev-sigs">${sig('প্রস্তুতকারী (রিসেপশনিস্ট)', currentUser.name)}${sig('ব্যবস্থাপনা পরিচালক', mdName)}</div>`
+    : `<div class="ev-sigs one">${sig('ব্যবস্থাপনা পরিচালক', mdName)}</div>`;
   return `<div class="ev-head">
       <div><div class="ev-hosp">${esc(hospName)}</div><div class="ev-ttl">ব্যয় ${ttlKind}</div></div>
       <div class="ev-meta">ভাউচার নং: <strong>${esc(e.voucher||'—')}</strong><br>তারিখ: <strong>${formatDate(e.date)}</strong></div>
@@ -14620,13 +14648,14 @@ function buildExpenseVoucherCard(e) {
     </tbody></table>
     <div class="ev-amt"><span class="ev-amt-l">পরিমাণ:</span><span class="ev-amt-v">৳ ${fmt(e.amount)}</span></div>
     ${pendingNote}
-    <div class="ev-sigs">${sig('প্রস্তুতকারী', e.by)}${sig('গ্রহণকারী', '')}${sig('ব্যবস্থাপনা পরিচালক', mdName)}</div>`;
+    ${sigsHtml}`;
 }
 function buildExpenseVouchersHtml(list) {
   const PER = 3, pages = [];
   for (let i=0; i<list.length; i+=PER) {
     const chunk = list.slice(i, i+PER);
-    let slots = chunk.map(e => `<div class="ev-slot">${buildExpenseVoucherCard(e)}</div>`).join('');
+    // ড্যাশ কাটার লাইন শুধু দুই ভাউচারের মাঝে — একটি ভাউচার হলে সেই পেজে কোনো লাইন থাকে না
+    let slots = chunk.map((e, idx) => `<div class="ev-slot${idx<chunk.length-1?' ev-cut':''}">${buildExpenseVoucherCard(e)}</div>`).join('');
     for (let k=chunk.length; k<PER; k++) slots += '<div class="ev-slot"></div>';   // শেষ পেজে খালি জায়গা — ভাউচার যেন টেনে বড় না হয়
     pages.push(`<div class="a4-page ev-page">${slots}</div>`);
   }
@@ -14666,6 +14695,12 @@ function expVToggleAll(hdEl) {
     if (hdEl.checked) _expVSel[id] = true; else delete _expVSel[id];
   });
   expVUpdateBar();
+}
+function expVToggleMode() {
+  const on = !document.body.classList.contains('exp-vmark-on');
+  document.body.classList.toggle('exp-vmark-on', on);
+  document.querySelectorAll('.exp-vmarkbtn').forEach(b => { b.textContent = on ? '✔ মার্ক বন্ধ করুন' : '☑️ মার্ক করুন'; });
+  if (on) expVUpdateBar(); else expVClear();
 }
 function expVClear() {
   _expVSel = {};
@@ -24539,6 +24574,25 @@ function editUserForm(username) {
   document.getElementById('addUserForm').scrollIntoView({behavior:'smooth'});
 }
 
+// ক্যাম্প বাকি (ক্যাম্পেইনার/ওনার) — গ্রুপ খোলা/বন্ধ মনে রাখে (আদায়ের পর লিস্ট রিফ্রেশ হলেও খোলা গ্রুপ খোলাই থাকে)
+function cdueToggle(btn, key) {
+  if (!window._cdueOpen) window._cdueOpen = {};
+  const body = btn.nextElementSibling, arrow = btn.querySelector('.camp-toggle-arrow');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (arrow) arrow.textContent = open ? '▲' : '▼';
+  window._cdueOpen[key] = open;
+}
+function cdueFilter(q) {
+  q = (q||'').trim().toLowerCase();
+  document.querySelectorAll('.cdue-grp').forEach(g => {
+    let any = false;
+    g.querySelectorAll('.cdue-card').forEach(c => { const ok = !q || (c.getAttribute('data-q')||'').includes(q); c.style.display = ok ? '' : 'none'; if (ok) any = true; });
+    g.style.display = any ? '' : 'none';
+    const body = g.querySelector('.camp-collapsible'), arrow = g.querySelector('.camp-toggle-arrow');
+    if (q && any && body) { body.style.display = 'block'; if (arrow) arrow.textContent = '▲'; }
+  });
+}
 function toggleCampSection(btn) {
   const body = btn.nextElementSibling;
   const arrow = btn.querySelector('.camp-toggle-arrow');
@@ -25548,6 +25602,112 @@ function qaSvgIcon(item) {
   return QA_SVG[QA_ICON_MAP[item.id]] || QA_SVG.gear;
 }
 
+// ===== অ্যাডমিন → রিসেপশন ছোট বার্তা =====
+// appData.quickMessages: { id, text, by, ts, ackBy, ackAt, ackSeen, pinned, hidden }
+//  • অ্যাডমিন/মড কুইক এক্সেস বারের 💬 বাটন থেকে পাঠান → রিসেপশন হোমের হিরো প্যানেলের মাঝে হাইলাইট + ব্লিঙ্ক করে
+//  • রিসেপশনিস্ট "ওকে" চাপলে ব্লিঙ্ক থামে ও অ্যাডমিন দেখতে পান (দেখেছেন — নাম, সময়)
+//  • ওকে-র পর: 📌 পিন (থেকে যায়) বা ✕ সরান (মুছে যায়); পিন না করলে পরের দিন নিজে থেকেই সরে যায়
+function _qmEsc(x) { return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _qmDayOf(ts) { try { const d = new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); } catch(e) { return ''; } }
+function _qmTimeTxt(ts) { try { return new Date(ts).toLocaleString('bn-BD',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}); } catch(e) { return ''; } }
+var _qmKnown = null;
+// রিসেপশন হোম — বার্তার বক্স
+function renderRecMsgBox() {
+  const wrap = document.getElementById('recHomeMsg');
+  if (!wrap) return;
+  const today = todayStr();
+  const all = (appData.quickMessages||[]).filter(m => m && !m.hidden);
+  // দেখানো হবে: এখনো ওকে না চাপা সব + পিন করা সব + আজ ওকে চাপা
+  const list = all.filter(m => !m.ackAt || m.pinned || _qmDayOf(m.ackAt)===today)
+    .sort((a,b) => (!a.ackAt?0:1)-(!b.ackAt?0:1) || (b.pinned?1:0)-(a.pinned?1:0) || b.id-a.id);
+  // নতুন বার্তা এলে টোস্ট (হোম ট্যাবে না থাকলেও চোখে পড়ে)
+  const ids = new Set(all.filter(m => !m.ackAt).map(m => m.id));
+  if (_qmKnown) { ids.forEach(id => { if (!_qmKnown.has(id)) { try { showToast('💬 অ্যাডমিনের নতুন বার্তা — ড্যাশবোর্ডে দেখুন'); } catch(e){} } }); }
+  _qmKnown = ids;
+  if (!list.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = list.slice(0,4).map(m => {
+    const meta = '<span class="rhd-msg-m">'+(m.pinned?'📌 পিন করা · ':'')+'💬 '+_qmEsc(m.by||'অ্যাডমিন')+' · '+_qmEsc(_qmTimeTxt(m.ts))+'</span>';
+    if (!m.ackAt) {
+      return '<div class="rhd-msg new"><div class="rhd-msg-t">'+_qmEsc(m.text)+meta+'</div><div class="rhd-msg-b"><button type="button" class="ok" onclick="qmAck('+m.id+')">✔ ওকে</button></div></div>';
+    }
+    return '<div class="rhd-msg'+(m.pinned?' pinned':'')+'"><div class="rhd-msg-t">'+_qmEsc(m.text)+meta+'</div><div class="rhd-msg-b">'
+      +'<button type="button" onclick="qmTogglePin('+m.id+')">'+(m.pinned?'📌 পিন খুলুন':'📌 পিন')+'</button>'
+      +'<button type="button" onclick="qmDismiss('+m.id+')">✕ সরান</button></div></div>';
+  }).join('');
+}
+function _qmFind(id) { return (appData.quickMessages||[]).find(m => String(m.id)===String(id)); }
+function qmAck(id) {
+  const m = _qmFind(id); if (!m || m.ackAt) return;
+  m.ackAt = Date.now(); m.ackBy = (currentUser && currentUser.name) || 'রিসেপশন'; m.ackSeen = false;
+  saveData(); renderRecMsgBox();
+  showToast('✅ অ্যাডমিন জানতে পারবেন — চাইলে 📌 পিন করুন বা ✕ সরান');
+}
+function qmTogglePin(id) {
+  const m = _qmFind(id); if (!m) return;
+  m.pinned = !m.pinned; saveData(); renderRecMsgBox();
+}
+function qmDismiss(id) {
+  const m = _qmFind(id); if (!m) return;
+  m.hidden = true; m.pinned = false; m.hiddenAt = Date.now(); saveData(); renderRecMsgBox();
+}
+// অ্যাডমিন/মড — কুইক এক্সেস বারের ব্যাজ: কতগুলো বার্তা রিসেপশন "ওকে" করেছে কিন্তু এখনো দেখা হয়নি
+function updateQuickMsgBadge() {
+  const b = document.getElementById('qmBadge'); if (!b) return;
+  const n = (appData.quickMessages||[]).filter(m => m && m.ackAt && !m.ackSeen && !m.adminCleared).length;
+  b.textContent = n>9 ? '৯+' : fmt(n); b.style.display = n ? 'flex' : 'none';
+}
+const _QM_PRESETS = ['কাস্টমার/রোগী অপেক্ষা করছে, দ্রুত আসুন','আজ ক্যাশ জমা দিতে হবে','স্টক কম — তালিকা পাঠান','আমার রুমে একটু আসুন'];
+function openQuickMsgModal() {
+  if (!currentUser || (currentUser.role!=='admin' && currentUser.role!=='moderator')) return;
+  const old = document.getElementById('qmModal'); if (old) old.remove();
+  // মোডাল খুললে "ওকে" হওয়া বার্তাগুলো দেখা হয়ে গেল ধরা হয়
+  let changed = false;
+  (appData.quickMessages||[]).forEach(m => { if (m && m.ackAt && !m.ackSeen) { m.ackSeen = true; changed = true; } });
+  if (changed) { saveData(); updateQuickMsgBadge(); }
+  const ov = document.createElement('div'); ov.id = 'qmModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(8,20,35,.55);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;width:100%;max-width:520px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);font-size:13.5px">
+    <div style="padding:13px 18px;border-bottom:1px solid #eee;font-weight:800;color:#0f4c81;display:flex;justify-content:space-between;align-items:center"><span>💬 রিসেপশনে ছোট বার্তা পাঠান</span><button type="button" onclick="document.getElementById('qmModal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b">✕</button></div>
+    <div style="padding:14px 18px">
+      <textarea id="qmText" rows="3" maxlength="200" placeholder="ছোট বার্তা লিখুন (সর্বোচ্চ ২০০ অক্ষর)…" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;font-size:14px"></textarea>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${_QM_PRESETS.map((p,i)=>`<button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('qmText').value=_QM_PRESETS[${i}];document.getElementById('qmText').focus()" style="font-size:11.5px">${_qmEsc(p)}</button>`).join('')}</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn btn-primary" onclick="qmSend()">📨 পাঠান</button></div>
+      <div style="font-weight:800;color:#334155;margin:16px 0 6px;border-top:1px dashed #e2e8f0;padding-top:10px">সাম্প্রতিক বার্তা</div>
+      <div id="qmHistory"></div>
+    </div></div>`;
+  ov.addEventListener('click', e => { if (e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+  renderQuickMsgHistory();
+  setTimeout(() => { const t = document.getElementById('qmText'); if (t) t.focus(); }, 50);
+}
+function renderQuickMsgHistory() {
+  const box = document.getElementById('qmHistory'); if (!box) return;
+  const list = (appData.quickMessages||[]).filter(m => m && !m.adminCleared).sort((a,b) => b.id-a.id).slice(0,10);
+  if (!list.length) { box.innerHTML = '<div style="color:#94a3b8;font-size:12.5px">এখনো কোনো বার্তা পাঠানো হয়নি</div>'; return; }
+  box.innerHTML = list.map(m => {
+    const st = m.ackAt
+      ? '<span style="color:#16a34a;font-weight:800">✅ দেখেছেন — '+_qmEsc(m.ackBy||'রিসেপশন')+' · '+_qmEsc(_qmTimeTxt(m.ackAt))+'</span>'+(m.hidden?' <span style="color:#94a3b8">· সরিয়ে ফেলেছেন</span>':(m.pinned?' <span style="color:#2563eb">· 📌 পিন করা</span>':''))
+      : '<span style="color:#d97706;font-weight:800">⏳ এখনো দেখেননি</span>';
+    return '<div style="border:1px solid #e5e7eb;border-radius:9px;padding:7px 10px;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start"><div style="flex:1;min-width:0"><div style="font-weight:700;word-break:break-word">'+_qmEsc(m.text)+'</div><div style="font-size:11.5px;margin-top:2px;color:#64748b">'+_qmEsc(_qmTimeTxt(m.ts))+' · '+st+'</div></div><button type="button" class="btn btn-outline btn-sm" title="তালিকা থেকে সরান (রিসেপশনের স্ক্রিন থেকেও সরে যাবে)" onclick="qmAdminRemove('+m.id+')">🗑️</button></div>';
+  }).join('');
+}
+function qmSend() {
+  const t = document.getElementById('qmText'); const text = ((t&&t.value)||'').trim();
+  if (!text) { showToast('⚠️ বার্তা লিখুন!'); return; }
+  if (!appData.quickMessages) appData.quickMessages = [];
+  appData.quickMessages.push({ id: Date.now(), text: text.slice(0,200), by: currentUser.name, role: currentUser.role, ts: Date.now() });
+  if (appData.quickMessages.length > 100) appData.quickMessages = appData.quickMessages.slice(-100);
+  saveData();
+  if (t) t.value = '';
+  renderQuickMsgHistory();
+  showToast('📨 রিসেপশনে বার্তা পাঠানো হয়েছে');
+}
+function qmAdminRemove(id) {
+  const m = _qmFind(id); if (!m) return;
+  m.adminCleared = true; m.hidden = true; saveData();   // অ্যাডমিন সরালে রিসেপশনের স্ক্রিন থেকেও চলে যায়
+  renderQuickMsgHistory(); updateQuickMsgBadge();
+}
+
 function renderQuickAccessBar(activeFeature) {
   const bar = document.getElementById('quickAccessBar');
   if (!bar || !currentUser) return;
@@ -25566,7 +25726,9 @@ function renderQuickAccessBar(activeFeature) {
   bar.innerHTML = allowed.map(item => {
     const isActive = item.type === 'page' ? item.targetId === active : (item.page === active);
     return `<button type="button" class="qa-btn ${isActive?'active':''}" onclick="goQuickAccess('${item.id}')" title="${item.label}"><span class="qa-content"><span class="qa-icon">${qaSvgIcon(item)}</span><span class="qa-label-wrap"><span class="qa-label">${item.label}</span></span></span></button>`;
-  }).join('');
+  }).join('')
+    + `<button type="button" class="qa-btn" onclick="openQuickMsgModal()" title="রিসেপশনে ছোট বার্তা পাঠান"><span class="qa-content"><span class="qa-icon" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg><span class="qm-badge" id="qmBadge"></span></span><span class="qa-label-wrap"><span class="qa-label">রিসেপশনে বার্তা</span></span></span></button>`;
+  updateQuickMsgBadge();
   // বার এবং টপ-বারের ফাঁকা জায়গায় (কোনো আইকন/বাটনের উপরে না) ক্লিক করলে ড্যাশবোর্ডে ফিরে যাবে
   const goHome = (e) => { if (e.target === topBarEl || e.target === bar) goQuickAccess('dashboard'); };
   bar.onclick = goHome;
@@ -26687,31 +26849,39 @@ function buildReadOnlyHTML(feature, role) {
       groups[key].visits.push(v);
     });
     const sorted = Object.values(groups).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+    const dueClr = isOwnerMonthly ? '#991b1b' : '#e74c3c';
+    const miniCell = (lbl, val, clr) => `<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:6px 8px;text-align:center;min-width:0"><div style="font-size:10.5px;color:var(--text-light)">${lbl}</div><div style="font-weight:800;font-size:13.5px;color:${clr||'#1e293b'}">৳${fmt2(val)}</div></div>`;
     const cardsHtml = sorted.map(g => {
       const totalDue = g.visits.reduce((s,v)=>s+(v.due||0),0);
-      const rows = g.visits.map(v=>`
-        <tr>
-          <td style="padding:5px 8px;font-weight:600">${v.patName}</td>
-          <td style="padding:5px 8px;color:#888">${v.patPhone||'—'}</td>
-          <td style="padding:5px 8px;text-align:center">${v.receiptNo?'#'+v.receiptNo:'—'}</td>
-          <td style="padding:5px 8px;text-align:right">৳${fmt2(v.netTotal||v.total||0)}</td>
-          <td style="padding:5px 8px;text-align:right;color:${isOwnerMonthly?'#991b1b':'#e74c3c'};font-weight:700">৳${fmt2(v.due)}</td>
-          <td style="padding:5px 8px;text-align:right"><button class="btn btn-purple btn-sm" style="font-size:11px;padding:4px 8px" onclick="openCampDueModal(${v.id})">💳 আদায়</button></td>
-        </tr>`).join('');
-      return `<div style="margin-bottom:10px;border:1.5px solid #fde8e8;border-radius:10px;overflow:hidden">
-        <button onclick="toggleCampSection(this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f8;border:none;font-family:inherit;font-size:13px;font-weight:700;color:${isOwnerMonthly?'#991b1b':'#e74c3c'};cursor:pointer">
-          <span>🏕️ ${g.campName} <span style="font-weight:400;color:#999;font-size:11px">— ${formatDate(g.date)}</span></span>
-          <span style="display:flex;align-items:center;gap:8px"><span style="font-size:12px">৳${fmt2(totalDue)}</span><span class="camp-toggle-arrow">▼</span></span>
+      const gkey = (g.campName||'') + '|' + (g.date||'');
+      const isOpenG = !!(window._cdueOpen && window._cdueOpen[gkey]);
+      const cards = g.visits.map(v => {
+        const q = ((v.patName||'') + ' ' + (v.patPhone||'')).toLowerCase().replace(/"/g,'');
+        return `<div class="cx-card cdue-card" data-q="${q}" style="margin:0 0 10px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="min-width:0">
+              <div style="font-weight:800;font-size:15px;color:#1e293b;word-break:break-word">${v.patName}</div>
+              ${v.patPhone ? `<a href="tel:${v.patPhone}" style="font-size:13px;color:#0369a1;font-weight:700;text-decoration:none">📞 ${v.patPhone}</a>` : '<span style="font-size:12px;color:#94a3b8">ফোন নেই</span>'}
+            </div>
+            ${v.receiptNo ? `<span style="flex-shrink:0;font-size:11px;font-weight:800;background:#eef2ff;color:#3730a3;border-radius:999px;padding:3px 10px">রিসিট #${v.receiptNo}</span>` : ''}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0">
+            ${miniCell('বিল', v.netTotal||v.total||0)}${miniCell('পরিশোধিত', v.paid||0, '#16a34a')}${miniCell('বাকি', v.due||0, dueClr)}
+          </div>
+          <button type="button" class="cx-add" style="margin:0;border-style:solid;background:#7c3aed;border-color:#7c3aed;color:#fff" onclick="openCampDueModal(${v.id})">💳 বাকি আদায় করুন</button>
+        </div>`;
+      }).join('');
+      return `<div class="cdue-grp" style="margin-bottom:10px;border:1.5px solid #fde8e8;border-radius:14px;overflow:hidden">
+        <button type="button" onclick="cdueToggle(this,'${String(gkey).replace(/'/g,"\\'")}')" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:54px;padding:10px 14px;background:#fff8f8;border:none;font-family:inherit;font-size:14px;font-weight:800;color:${dueClr};cursor:pointer;text-align:left">
+          <span style="min-width:0">🏕️ ${g.campName}<br><span style="font-weight:500;color:#999;font-size:11.5px">${formatDate(g.date)} · ${fmt2(g.visits.length)} জন</span></span>
+          <span style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span style="font-size:14px">৳${fmt2(totalDue)}</span><span class="camp-toggle-arrow">${isOpenG?'▲':'▼'}</span></span>
         </button>
-        <div class="camp-collapsible" style="display:none">
-          <table style="width:100%;border-collapse:collapse;font-size:13px">
-            <thead><tr style="background:#fff0f0"><th style="padding:6px 8px;text-align:left">নাম</th><th style="padding:6px 8px;text-align:left">ফোন</th><th style="padding:6px 8px;text-align:center">রিসিট</th><th style="padding:6px 8px;text-align:right">বিল</th><th style="padding:6px 8px;text-align:right">বাকি</th><th></th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
+        <div class="camp-collapsible" style="display:${isOpenG?'block':'none'};padding:10px">${cards}</div>
       </div>`;
     }).join('');
-    return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🏕️ ক্যাম্প বাকি তালিকা</div>${cardsHtml}`;
+    return `<div style="font-weight:800;color:var(--primary);margin-bottom:10px;font-size:16px">🏕️ ক্যাম্প বাকি তালিকা</div>
+      <input type="search" class="cx-in" placeholder="🔎 নাম বা ফোন দিয়ে খুঁজুন" oninput="cdueFilter(this.value)" style="margin-bottom:12px">
+      ${cardsHtml}`;
   }
   if (feature === 'stock') {
     const allItems = (appData.stock||[]).filter(s=>s.status!=='inactive');
@@ -26802,45 +26972,17 @@ function buildReadOnlyHTML(feature, role) {
         </div>` : `<div style="padding:24px;text-align:center;color:#aaa">কোনো ডিমান্ড নোট নেই</div>`}`;
     }
     const rows = (appData.demands||[]).filter(d=>d.by===currentUser.name).slice().sort((a,b)=>b.id-a.id).slice(0,30);
-    const cats = ['ওষুধ','সার্জিক্যাল সামগ্রী','অফিস সামগ্রী','যন্ত্রপাতি','আসবাবপত্র','অন্যান্য'];
     const statusBadgeStyle2 = {
       pending:  'background:#fef3c7;color:#92400e',
       approved: 'background:#dcfce7;color:#166534',
       rejected: 'background:#fee2e2;color:#991b1b',
       partial:  'background:#dbeafe;color:#1e40af'
     };
-    return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-weight:700;color:var(--primary);font-size:15px">📝 ডিমান্ড নোট</div>
-        <button class="btn btn-primary btn-sm" onclick="toggleCdmForm()" id="cdmToggleBtn">+ নতুন ডিমান্ড নোট</button>
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div style="font-weight:800;color:var(--primary);font-size:16px">📝 ডিমান্ড নোট</div>
+        <button type="button" class="cx-mini" onclick="toggleCdmForm()" id="cdmToggleBtn" style="background:#0f4c81;color:#fff;border-color:#0f4c81">+ নতুন ডিমান্ড নোট</button>
       </div>
-      <div id="cdmFormArea" style="display:none;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px;margin:10px 0">
-        <div class="form-row three">
-          <div class="field"><label>ক্যাটাগরি *</label>
-            <select id="cdmCat"><option value="">-- ক্যাটাগরি --</option>${cats.map(c=>`<option>${c}</option>`).join('')}</select>
-          </div>
-          <div class="field"><label>অগ্রাধিকার</label>
-            <select id="cdmPriority">
-              <option value="normal">সাধারণ</option><option value="urgent">🔴 জরুরি</option><option value="low">🟢 কম জরুরি</option>
-            </select>
-          </div>
-          <div class="field"><label>তারিখ</label><input type="date" id="cdmDate"></div>
-        </div>
-        <div class="form-row full" style="grid-template-columns:1fr">
-          <div class="field"><label>বিষয় / শিরোনাম *</label><input type="text" id="cdmTitle" placeholder="যেমন: আগামী মাসের ওষুধ চাহিদা"></div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 8px">
-          <p style="font-weight:700;font-size:13px;color:var(--primary)">📦 আইটেম তালিকা</p>
-          <button class="btn btn-outline btn-sm" onclick="addCdmItem()">+ আইটেম যোগ করুন</button>
-        </div>
-        <div id="cdmItemRows"></div>
-        <div class="form-row full" style="grid-template-columns:1fr;margin-top:8px">
-          <div class="field"><label>অতিরিক্ত মন্তব্য</label><textarea id="cdmNote" rows="2" placeholder="বিশ্লেষণ বা অন্য কোনো তথ্য..." style="resize:vertical;width:100%"></textarea></div>
-        </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-          <button class="btn btn-outline" onclick="clearCdmForm()">🔄 রিসেট</button>
-          <button class="btn btn-success" onclick="saveCdmNote()">✅ সাবমিট করুন</button>
-        </div>
-      </div>
+      ${_cdmFormHtml()}
       <div style="margin-top:10px">
         ${rows.length ? `<div style="display:flex;flex-direction:column;gap:10px">${rows.map(d=>{
           const badgeStyle = statusBadgeStyle2[d.status] || 'background:#f1f5f9;color:#475569';
@@ -27256,11 +27398,16 @@ function populateCampScheduleDropdown() {
   if (_cpPickedCampId && schedules.some(s => s.id === _cpPickedCampId)) sel.value = String(_cpPickedCampId); else _cpPickedCampId = null;
   renderCampPickCards();
   // একটাই ক্যাম্প থাকলে নিজে থেকেই বাছাই (এক ট্যাপ কম)
-  if (!_cpPickedCampId && schedules.length === 1) pickCampCard(schedules[0].id);
+  if (!_cpPickedCampId && schedules.length === 1) { pickCampCard(schedules[0].id); _cpBodyOpen = false; renderCampPickCards(); }   // নিজে বাছা হলেও পুরোটা কলাপ্সডই থাকে
 }
 // ক্যাম্প কার্ড — শুরুতে কলাপ্সড; খুললে কাছের তারিখ আগে (আজ/আসন্ন উপরে, তারিখ-পেরোনো সবার নিচে)
 let _cpCardsOpen = false;
-function toggleCampCards() { _cpCardsOpen = !_cpCardsOpen; renderCampPickCards(); }
+let _cpBodyOpen = false;   // "১. ক্যাম্প বাছুন" — শুরুতে পুরোটা কলাপ্সড; বাটনে ট্যাপ করলে ক্যাম্প তালিকা/তথ্য/স্টক অংশ খোলে
+function toggleCampCards() {
+  _cpBodyOpen = !_cpBodyOpen;
+  _cpCardsOpen = _cpBodyOpen && !_cpPickedCampId;   // ক্যাম্প বাছা না থাকলে খুলেই তালিকা দেখায়
+  renderCampPickCards();
+}
 function renderCampPickCards() {
   const box = document.getElementById('cpCampCards'); if (!box) return;
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
@@ -27275,8 +27422,9 @@ function renderCampPickCards() {
   if (lbl) lbl.innerHTML = picked
     ? '✅ ' + esc(picked.name) + ' <small style="font-weight:600;color:var(--text-light)">— ' + formatDate(picked.date) + '</small>'
     : '১. ক্যাম্প বাছুন <small style="font-weight:600;color:var(--text-light)">(' + fmt(schedules.length) + ' টি শিডিউল)</small>';
-  if (arr) arr.textContent = _cpCardsOpen ? '▴' : '▾';
-  box.style.display = _cpCardsOpen ? 'block' : 'none';
+  if (arr) arr.textContent = _cpBodyOpen ? '▴' : '▾';
+  const bodyEl = document.getElementById('cpCampBody'); if (bodyEl) bodyEl.style.display = _cpBodyOpen ? 'block' : 'none';
+  box.style.display = (_cpBodyOpen && _cpCardsOpen) ? 'block' : 'none';
   if (!schedules.length) { box.innerHTML = '<div style="text-align:center;color:#aaa;padding:22px 8px;border:1.5px dashed var(--border);border-radius:14px">অ্যাডমিন এখনো কোনো ক্যাম্প নির্ধারণ করেননি</div>'; return; }
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   box.innerHTML = schedules.map(s => {
@@ -27293,7 +27441,7 @@ function resetCampPick() {
     _cpPickedCampId = null; campStockSelection = {};
     const sel = document.getElementById('cpCampSelect'); if (sel) sel.value = '';
     try { onCampScheduleSelect(); } catch(e) {}
-    _cpCardsOpen = true; renderCampPickCards();
+    _cpBodyOpen = true; _cpCardsOpen = true; renderCampPickCards();
     try { document.getElementById('cpCampToggle').scrollIntoView({ behavior:'smooth', block:'start' }); } catch(e) {}
   };
   const n = Object.values(campStockSelection||{}).filter(q => q > 0).length;
@@ -27302,7 +27450,7 @@ function resetCampPick() {
 }
 function pickCampCard(id) {
   const sel = document.getElementById('cpCampSelect'); if (!sel) return;
-  _cpCardsOpen = false;
+  _cpCardsOpen = false; _cpBodyOpen = true;
   if (_cpPickedCampId === id && document.getElementById('cpCampInfoBox').style.display !== 'none') { renderCampPickCards(); return; }   // একই কার্ডে আবার চাপলে স্টক নির্বাচন মুছবে না
   _cpPickedCampId = id; sel.value = String(id);
   onCampScheduleSelect(); renderCampPickCards();
@@ -28857,7 +29005,49 @@ function renderCamperStockList() {
 let demandItemCount = 0;
 
 // ===== CAMPAIGNER: ফাংশনাল ডিমান্ড নোট ফর্ম (read-only সেকশনের ভেতরে) =====
-let cdmItemCount = 0;
+// ===== ক্যাম্পেইনার ডিমান্ড নোট — মোবাইল ফ্রেন্ডলি (ক্যাম্প বিল/খরচ এন্ট্রির মতো বড় ফিল্ড, স্টেপার, স্টিকি সাবমিট বার) =====
+// আইটেম আসে স্টকের তালিকা (ওষুধ / চশমা-লেন্স / সার্জিক্যাল) থেকে বেছে পরিমাণ সেট করে; "অন্যান্য" চাপলে নিজে লেখার কাস্টম ঘর।
+var _cdmItems = [], _cdmSeq = 0, _cdmPick = null;
+const _CDM_UNITS = ['পিস','বোতল','বক্স','প্যাকেট','পেয়ার'];
+const _CDM_CATS = ['ওষুধ','চশমা/লেন্স','সার্জিক্যাল সরঞ্জাম','অফিস সামগ্রী','যন্ত্রপাতি','আসবাবপত্র','অন্যান্য'];
+function _cdmEsc(x) { return String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function _cdmFormHtml() {
+  return `<div id="cdmFormArea" style="display:none;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px;margin:10px 0">
+    <div class="cx-sec" style="margin-top:0">বিষয় / শিরোনাম <span>ঐচ্ছিক</span></div>
+    <input type="text" id="cdmTitle" class="cx-in" placeholder="যেমন: আগামী ক্যাম্পের ওষুধ চাহিদা">
+    <div class="cx-sec">অগ্রাধিকার</div>
+    <div class="cx-chips" id="cdmPrioChips">
+      <button type="button" class="cx-chip on" data-p="normal" onclick="setCdmPriority('normal')">সাধারণ</button>
+      <button type="button" class="cx-chip" data-p="urgent" onclick="setCdmPriority('urgent')">🔴 জরুরি</button>
+      <button type="button" class="cx-chip" data-p="low" onclick="setCdmPriority('low')">🟢 কম জরুরি</button>
+    </div>
+    <input type="hidden" id="cdmPriority" value="normal">
+    <div class="cx-sec">তারিখ</div>
+    <input type="date" id="cdmDate" class="cx-in">
+    <div class="cx-sec">📦 কী কী লাগবে <span>তালিকা থেকে বাছুন</span></div>
+    <div class="cx-chips">
+      <button type="button" class="cx-chip" onclick="openCdmPicker('ওষুধ')">💊 ওষুধ</button>
+      <button type="button" class="cx-chip" onclick="openCdmPicker('চশমা/লেন্স')">👓 চশমা/লেন্স</button>
+      <button type="button" class="cx-chip" onclick="openCdmPicker('সার্জিক্যাল সরঞ্জাম')">🔪 সার্জিক্যাল</button>
+      <button type="button" class="cx-chip" onclick="addCdmCustomItem()" style="border-style:dashed">✏️ অন্যান্য</button>
+    </div>
+    <div id="cdmItemRows"></div>
+    <div class="cx-sec">অতিরিক্ত মন্তব্য <span>ঐচ্ছিক</span></div>
+    <textarea id="cdmNote" class="cx-in" rows="2" placeholder="অন্য কোনো তথ্য..."></textarea>
+    <div class="cx-sec">ক্যাটাগরি <span>ঐচ্ছিক — না দিলে আইটেম দেখে নিজেই ঠিক হবে</span></div>
+    <select id="cdmCat" class="cx-in"><option value="">-- নিজে থেকে ঠিক হবে --</option>${_CDM_CATS.map(c => `<option>${c}</option>`).join('')}</select>
+    <button type="button" class="cx-add" style="margin-top:12px" onclick="clearCdmForm()">🔄 ফর্ম রিসেট করুন</button>
+    <div style="height:92px"></div>
+    <div class="cx-sticky">
+      <div class="cx-sum"><div class="n">মোট আইটেম <b id="cdmBarCnt">০</b> টি</div><div class="d">সাবমিট করলে অ্যাডমিনের কাছে যাবে</div></div>
+      <button type="button" class="cx-save" onclick="saveCdmNote()">✅ সাবমিট</button>
+    </div>
+  </div>`;
+}
+function setCdmPriority(v) {
+  const h = document.getElementById('cdmPriority'); if (h) h.value = v;
+  document.querySelectorAll('#cdmPrioChips .cx-chip').forEach(c => c.classList.toggle('on', c.getAttribute('data-p') === v));
+}
 function toggleCdmForm() {
   const area = document.getElementById('cdmFormArea');
   if (!area) return;
@@ -28867,57 +29057,160 @@ function toggleCdmForm() {
   if (btn) btn.textContent = isOpen ? '+ নতুন ডিমান্ড নোট' : '✕ বন্ধ করুন';
   if (!isOpen) {
     const dEl = document.getElementById('cdmDate'); if (dEl && !dEl.value) dEl.value = todayStr();
-    if (document.getElementById('cdmItemRows').children.length === 0) addCdmItem();
+    renderCdmItems();
   }
 }
-function addCdmItem() {
-  cdmItemCount++;
-  const id = cdmItemCount;
-  const div = document.createElement('div');
-  div.id = 'cdmir-'+id;
-  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:8px;margin-bottom:8px;align-items:center';
-  div.innerHTML = `
-    <input type="text" placeholder="আইটেমের নাম" id="cdiName-${id}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%" />
-    <input type="number" placeholder="পরিমাণ" id="cdiQty-${id}" min="1" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%" />
-    <select id="cdiUnit-${id}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%">
-      <option>পিস</option><option>বোতল</option><option>বক্স</option><option>প্যাকেট</option><option>পেয়ার</option>
-    </select>
-    <input type="text" placeholder="কারণ / বিশ্লেষণ" id="cdiReason-${id}" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%" />
-    <button class="btn-icon-del" onclick="document.getElementById('cdmir-${id}').remove()">✕</button>`;
-  document.getElementById('cdmItemRows').appendChild(div);
+function renderCdmItems() {
+  const box = document.getElementById('cdmItemRows'); if (!box) return;
+  if (!_cdmItems.length) {
+    box.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:16px 10px;border:1.5px dashed var(--border);border-radius:12px;font-size:13px;margin-bottom:10px">এখনো কিছু যোগ করা হয়নি — উপরের বোতাম চাপুন</div>';
+  } else {
+    box.innerHTML = _cdmItems.map(it => {
+      const k = it.k;
+      const head = it.custom
+        ? `<input type="text" class="cx-in" id="cdmName-${k}" placeholder="জিনিসের নাম *" value="${_cdmEsc(it.name)}" oninput="cdmSet(${k},'name',this.value)" style="flex:1;min-width:0">`
+        : `<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14.5px;color:#1e293b;word-break:break-word;line-height:1.35">${_cdmEsc(it.name)}</div><div style="font-size:11.5px;color:var(--text-light);margin-top:2px">${_cdmEsc(it.cat||'')}${it.stockQty!=null?' · স্টকে: '+fmt(it.stockQty)+' '+_cdmEsc(it.unit||''):''}</div></div>`;
+      const unitCell = it.custom
+        ? `<select class="cx-in" onchange="cdmSet(${k},'unit',this.value)">${_CDM_UNITS.map(u => `<option ${u===it.unit?'selected':''}>${u}</option>`).join('')}</select>`
+        : `<div style="font-weight:800;color:#475569;font-size:14px;padding-left:4px">${_cdmEsc(it.unit||'পিস')}</div>`;
+      return `<div class="cx-card">
+        <div class="cx-top">${head}<button type="button" class="cx-del" onclick="cdmRemove(${k})">🗑</button></div>
+        <div class="cx-bot">
+          <div class="cx-step"><button type="button" onclick="cdmStep(${k},-1)">−</button><input type="number" inputmode="numeric" id="cdmQty-${k}" min="1" value="${it.qty}" oninput="cdmSet(${k},'qty',this.value)"><button type="button" onclick="cdmStep(${k},1)">+</button></div>
+          ${unitCell}
+        </div>
+        <input type="text" class="cx-in" style="margin-top:8px;min-height:44px;font-size:14px" placeholder="কারণ / মন্তব্য (ঐচ্ছিক)" value="${_cdmEsc(it.reason)}" oninput="cdmSet(${k},'reason',this.value)">
+      </div>`;
+    }).join('');
+  }
+  cdmUpdateBar();
 }
-function getCdmItems() {
-  return Array.from(document.querySelectorAll('#cdmItemRows > div')).map(r => {
-    const rid = r.id.split('-')[1];
-    return {
-      name:   (document.getElementById('cdiName-'+rid)||{}).value||'',
-      qty:    parseFloat((document.getElementById('cdiQty-'+rid)||{}).value)||1,
-      unit:   (document.getElementById('cdiUnit-'+rid)||{}).value||'পিস',
-      reason: (document.getElementById('cdiReason-'+rid)||{}).value||'',
-    };
-  }).filter(i => i.name.trim());
+function cdmUpdateBar() {
+  const n = _cdmItems.filter(i => (i.name||'').trim() && (parseFloat(i.qty)||0) > 0).length;
+  const el = document.getElementById('cdmBarCnt'); if (el) el.textContent = fmt(n);
+}
+function cdmSet(k, f, v) {
+  const it = _cdmItems.find(x => x.k === k); if (!it) return;
+  it[f] = (f === 'qty') ? (parseFloat(v) || 0) : v;
+  cdmUpdateBar();
+}
+function cdmStep(k, d) {
+  const it = _cdmItems.find(x => x.k === k); if (!it) return;
+  it.qty = Math.max(1, (parseFloat(it.qty) || 0) + d);
+  const inp = document.getElementById('cdmQty-' + k); if (inp) inp.value = it.qty;
+}
+function cdmRemove(k) { _cdmItems = _cdmItems.filter(x => x.k !== k); renderCdmItems(); }
+function addCdmCustomItem() {
+  const k = ++_cdmSeq;
+  _cdmItems.push({ k, name:'', qty:1, unit:'পিস', reason:'', custom:true });
+  renderCdmItems();
+  setTimeout(() => { const el = document.getElementById('cdmName-' + k); if (el) { try { el.scrollIntoView({ block:'center', behavior:'smooth' }); } catch(e){} el.focus(); } }, 60);
+}
+// --- স্টক থেকে বাছাই (ফুল-স্ক্রিন) ---
+function openCdmPicker(cat) {
+  const qty = {};
+  _cdmItems.forEach(it => { if (it.stockId != null) qty[String(it.stockId)] = it.qty; });
+  _cdmPick = { cat, qty };
+  renderCdmPicker();
+}
+function renderCdmPicker() {
+  if (!_cdmPick) return;
+  let page = document.getElementById('cdmPickPage');
+  if (!page) {
+    page = document.createElement('div'); page.id = 'cdmPickPage';
+    page.style.cssText = 'position:fixed;inset:0;background:#f0f4f8;z-index:10040;overflow-y:auto;-webkit-overflow-scrolling:touch';
+    document.body.appendChild(page);
+  }
+  const cat = _cdmPick.cat;
+  const icon = cat === 'ওষুধ' ? '💊' : (cat === 'চশমা/লেন্স' ? '👓' : '🔪');
+  const items = (appData.stock||[]).filter(s => s.cat === cat && s.status !== 'inactive').sort((a,b) => (a.name||'').localeCompare(b.name||'', 'bn'));
+  const cards = items.map(s => {
+    const cur = _cdmPick.qty[String(s.id)] || 0;
+    const low = (s.qty||0) <= (s.minQty||0);
+    return `<div class="cx-card" id="cdmPc-${s.id}" data-q="${_cdmEsc((s.name||'').toLowerCase())}" style="margin:0 0 10px;${cur>0?'border-color:#16a34a;background:#f0fff4':''}">
+      <div style="font-weight:800;font-size:14.5px;color:#1e293b;word-break:break-word;line-height:1.35">${_cdmEsc(s.name)}</div>
+      <div style="font-size:12px;margin:3px 0 8px;color:${low?'#dc2626':'var(--text-light)'}">স্টকে আছে: <b>${fmt(s.qty||0)}</b> ${_cdmEsc(s.unit||'')}${low?' · ⚠️ কম':''}</div>
+      <div class="cx-step"><button type="button" onclick="cdmPickStep(${s.id},-1)">−</button><input type="number" inputmode="numeric" id="cdmPq-${s.id}" min="0" value="${cur}" oninput="cdmPickSet(${s.id},this.value)"><button type="button" onclick="cdmPickStep(${s.id},1)">+</button></div>
+    </div>`;
+  }).join('');
+  page.innerHTML = `<div style="max-width:640px;margin:0 auto;min-height:100vh;background:white;padding:0 0 100px">
+    <div style="position:sticky;top:0;z-index:10;background:white;border-bottom:1.5px solid #e2e8f0;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:800;font-size:16px;color:var(--primary)">${icon} ${_cdmEsc(cat)} — কত লাগবে?</div>
+        <button type="button" onclick="closeCdmPicker()" style="background:#f1f5f9;border:none;border-radius:10px;min-height:40px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;color:#475569;font-family:inherit">✕ বন্ধ</button>
+      </div>
+      <input type="text" class="cx-in" placeholder="🔎 নাম দিয়ে খুঁজুন" oninput="cdmPickFilter(this.value)">
+    </div>
+    <div style="padding:12px 14px">${cards || '<div style="text-align:center;color:#94a3b8;padding:30px 10px">এই তালিকায় কোনো পণ্য নেই — "✏️ অন্যান্য" দিয়ে নিজে লিখুন</div>'}</div>
+    <div class="cx-sticky" style="bottom:0"><div class="cx-sum"><div class="n">বাছা হয়েছে <b id="cdmPickCnt">০</b> টি</div></div><button type="button" class="cx-save" onclick="cdmPickDone()">✅ যোগ করুন</button></div>
+  </div>`;
+  cdmPickCount();
+}
+function cdmPickCount() {
+  const n = Object.values(_cdmPick.qty).filter(q => q > 0).length;
+  const el = document.getElementById('cdmPickCnt'); if (el) el.textContent = fmt(n);
+}
+function cdmPickMark(id) {
+  const q = _cdmPick.qty[String(id)] || 0;
+  const c = document.getElementById('cdmPc-' + id);
+  if (c) { c.style.borderColor = q > 0 ? '#16a34a' : ''; c.style.background = q > 0 ? '#f0fff4' : ''; }
+  cdmPickCount();
+}
+function cdmPickSet(id, v) { _cdmPick.qty[String(id)] = Math.max(0, parseFloat(v) || 0); cdmPickMark(id); }
+function cdmPickStep(id, d) {
+  const cur = _cdmPick.qty[String(id)] || 0;
+  const q = Math.max(0, cur + d);
+  _cdmPick.qty[String(id)] = q;
+  const inp = document.getElementById('cdmPq-' + id); if (inp) inp.value = q;
+  cdmPickMark(id);
+}
+function cdmPickFilter(q) {
+  q = (q||'').trim().toLowerCase();
+  document.querySelectorAll('#cdmPickPage .cx-card').forEach(c => { c.style.display = (!q || (c.getAttribute('data-q')||'').includes(q)) ? '' : 'none'; });
+}
+function closeCdmPicker() { const p = document.getElementById('cdmPickPage'); if (p) p.remove(); _cdmPick = null; }
+function cdmPickDone() {
+  if (!_cdmPick) return;
+  const cat = _cdmPick.cat;
+  (appData.stock||[]).filter(s => s.cat === cat).forEach(s => {
+    const q = _cdmPick.qty[String(s.id)] || 0;
+    const ex = _cdmItems.find(i => i.stockId != null && String(i.stockId) === String(s.id));
+    if (q > 0) {
+      if (ex) ex.qty = q;
+      else _cdmItems.push({ k: ++_cdmSeq, name: s.name, qty: q, unit: s.unit || 'পিস', reason: '', stockId: s.id, cat: s.cat, stockQty: s.qty||0 });
+    } else if (ex) {
+      _cdmItems = _cdmItems.filter(i => i !== ex);
+    }
+  });
+  closeCdmPicker();
+  renderCdmItems();
 }
 function clearCdmForm() {
-  ['cdmCat','cdmPriority','cdmTitle','cdmNote'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { if (el.tagName==='SELECT') el.value=el.options[0]?.value||''; else el.value=''; }
-  });
+  _cdmItems = []; _cdmSeq = 0;
+  ['cdmTitle','cdmNote'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const c = document.getElementById('cdmCat'); if (c) c.value = '';
   const dEl = document.getElementById('cdmDate'); if (dEl) dEl.value = todayStr();
-  const rowsEl = document.getElementById('cdmItemRows'); if (rowsEl) rowsEl.innerHTML = '';
-  cdmItemCount = 0;
-  addCdmItem();
+  setCdmPriority('normal');
+  renderCdmItems();
 }
 function saveCdmNote() {
-  const cat      = (document.getElementById('cdmCat')||{}).value||'';
   const priority = (document.getElementById('cdmPriority')||{}).value||'normal';
   const date     = (document.getElementById('cdmDate')||{}).value||todayStr();
-  const title    = ((document.getElementById('cdmTitle')||{}).value||'').trim();
+  let   title    = ((document.getElementById('cdmTitle')||{}).value||'').trim();
   const note     = ((document.getElementById('cdmNote')||{}).value||'').trim();
-  const items    = getCdmItems();
-  if (!cat)   { showToast('⚠️ ক্যাটাগরি নির্বাচন করুন!'); return; }
-  if (!title) { showToast('⚠️ শিরোনাম দিন!'); return; }
-  if (!items.length) { showToast('⚠️ কমপক্ষে একটি আইটেম যোগ করুন!'); return; }
-  if (!appData.demands) appData.demands=[];
+  let   cat      = (document.getElementById('cdmCat')||{}).value||'';
+  const items = _cdmItems.map(i => ({
+    name: (i.name||'').trim(), qty: parseFloat(i.qty)||0, unit: i.unit||'পিস', reason: (i.reason||'').trim(),
+    stockId: i.stockId, cat: i.cat
+  })).filter(i => i.name && i.qty > 0);
+  if (!items.length) { showToast('⚠️ কমপক্ষে একটি আইটেম ও পরিমাণ দিন!'); return; }
+  if (!cat) {   // ক্যাটাগরি না দিলে আইটেমের স্টক-ক্যাটাগরির সবচেয়ে বেশি যেটা, নইলে "অন্যান্য"
+    const cnt = {}; items.forEach(i => { if (i.cat) cnt[i.cat] = (cnt[i.cat]||0) + 1; });
+    const top = Object.keys(cnt).sort((a,b) => cnt[b]-cnt[a])[0];
+    cat = top || 'অন্যান্য';
+  }
+  if (!title) title = currentUser.name + ' — ডিমান্ড (' + formatDate(date) + ')';
+  if (!appData.demands) appData.demands = [];
   appData.demands.push({
     id: Date.now(), date, cat, priority, title, items, note,
     status: 'pending', by: currentUser.name,
@@ -28925,6 +29218,7 @@ function saveCdmNote() {
   });
   saveData();
   showToast('✅ ডিমান্ড নোট সাবমিট হয়েছে!');
+  _cdmItems = []; _cdmSeq = 0;
   updateDemandBadge();
   initCamperReadOnlySection('demand');
 }
@@ -29335,7 +29629,7 @@ function viewDemand(id) {
           <td style="padding:6px"><input type="number" value="${item.qty}" min="0" id="dmEdQty-${i}" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;text-align:center"></td>
           <td style="padding:6px">
             <select id="dmEdUnit-${i}" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px">
-              ${['পিস','বোতল','বক্স','প্যাকেট','পেয়ার'].map(u=>`<option ${u===item.unit?'selected':''}>${u}</option>`).join('')}
+              ${['পিস','বোতল','বক্স','প্যাকেট','পেয়ার'].concat(item.unit && !['পিস','বোতল','বক্স','প্যাকেট','পেয়ার'].includes(item.unit) ? [item.unit] : []).map(u=>`<option ${u===item.unit?'selected':''}>${u}</option>`).join('')}
             </select>
           </td>
           <td style="padding:6px"><input type="text" value="${(item.reason||'').replace(/"/g,'&quot;')}" id="dmEdReason-${i}" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px"></td>
@@ -36802,6 +37096,7 @@ function renderRecHome() {
   var greet = h>=4&&h<12 ? 'শুভ সকাল' : h<15 ? 'শুভ দুপুর' : h<18 ? 'শুভ বিকাল' : h<20 ? 'শুভ সন্ধ্যা' : 'শুভ রাত্রি';
   var gEl = document.getElementById('recHomeGreet'); if (gEl) gEl.textContent = greet;
   var nEl = document.getElementById('recHomeName'); if (nEl) nEl.textContent = (currentUser && currentUser.name) || '';
+  try { renderRecMsgBox(); } catch(e) { console.warn('[HMS] বার্তা বক্স ব্যর্থ:', e); }
   var dEl = document.getElementById('recHomeDate'); if (dEl) dEl.textContent = '📅 ' + formatDate(today);
   var quickEl = document.getElementById('recHomeQuick');
   if (quickEl && !quickEl.firstChild) {
