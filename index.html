@@ -13982,6 +13982,8 @@ function confirmCashSubmit(role) {
   const now = new Date();
   const timeStr = now.toTimeString().substring(0,5);
   const today = todayStr();
+  const _kindEl = document.querySelector('input[name="cashDepKind"]:checked');
+  const _kind = (role==='receptionist' && _kindEl && _kindEl.value==='interim') ? 'interim' : 'final';
 
   // ক্যাম্পেইনার একই ক্যাম্পে আগেই জমা দিয়ে থাকলে আবার না দেওয়ার জন্য সতর্কতা
   if (role === 'campaigner' && camperSession && camperSession.cashSubmittedDepId && !confirm('এই ক্যাম্পের ক্যাশ জমা আগেই নেওয়া হয়েছে। আবার জমা দিতে চান?')) return;
@@ -13993,7 +13995,7 @@ function confirmCashSubmit(role) {
     type: 'cash_in',
     amount: amt,
     date: today,
-    note: note || `${roleLabel} ডিউটি শেষে ক্যাশ জমা — ${currentUser.name}`,
+    note: note || `${roleLabel} ${_kind==='interim'?'ডিউটি চলাকালীন (মধ্যবর্তী)':'ডিউটি শেষে'} ক্যাশ জমা — ${currentUser.name}`,
     ref: 'duty-submit',
     by: currentUser.name
   });
@@ -14013,7 +14015,9 @@ function confirmCashSubmit(role) {
 
     const _cc = _recCashClosing();   // জমা দেওয়ার মুহূর্তের প্রত্যাশিত নগদ (আগের জমা বাদে) — অ্যাডমিন পার্থক্য দেখতে পাবেন
     const recDeposit = {
-      expectedCash: _cc.remaining, diff: amt - _cc.remaining,
+      expectedCash: _cc.remaining, diff: _kind==='interim' ? null : amt - _cc.remaining,   // মধ্যবর্তী জমায় 'ঘাটতি' হিসাব হয় না — বাকি নগদ হাতেই থাকে (handLeft)
+      kind: _kind, seq: _recPrevDeps(currentUser.name, today, Infinity).length + 1, prevDeps: _recPrevDeps(currentUser.name, today, Infinity), handLeft: _cc.remaining - amt,
+      entSnap: _recSlipEntries(currentUser.name, today),
       // ✅ জমার মুহূর্তের নগদ হিসাবের স্ন্যাপশট — জমার স্লিপ (২ পেজের PDF) এই মান থেকেই তৈরি হয়, পরে আবার ডাউনলোডেও একই থাকে
       ccSnap: { cashIn:_cc.cashIn, ownCash:_cc.ownCash, adminCash:_cc.adminCash, mdHeld:_cc.mdHeld, cashOut:_cc.cashOut, prevDeposited:_cc.deposited, mfs:_cc.mfs, dueIn:_cc.dueIn, carry:_cc.carry||0, poolHeld:_cc.poolHeld||0 },
       id: Date.now()+1,
@@ -14057,7 +14061,7 @@ function confirmCashSubmit(role) {
   updateBankBalances();
   document.getElementById('cashSubmitModalWrap').remove();
   if (role==='receptionist') renderRecDepositList();
-  showToast(`✅ ৳ ${fmt(amt)} ক্যাশ জমা রেকর্ড হয়েছে!`);
+  showToast(`✅ ৳ ${fmt(amt)} ${_kind==='interim'?'মধ্যবর্তী ':''}ক্যাশ জমা রেকর্ড হয়েছে!`);
   // ✅ জমা নিশ্চিত হওয়ার পর ২ পেজের জমার স্লিপ PDF (১ম পেজ: এমডির স্বাক্ষর — রিসেপশনিস্ট রাখবেন; ২য় পেজ: রিসেপশনিস্টের স্বাক্ষর — এমডি/অফিস রাখবে)
   if (role==='receptionist') {
     try { const _dep = (appData.recDeposits||[]).slice(-1)[0]; if (_dep) setTimeout(()=>showRecDepositSlip(_dep.id), 250); }
@@ -14071,43 +14075,75 @@ function confirmCashSubmit(role) {
 // পেজ ১ = রিসেপশনিস্টের সংরক্ষণ কপি (ব্যবস্থাপনা পরিচালক স্বাক্ষর করবেন)
 // পেজ ২ = অফিস/ব্যবস্থাপনা পরিচালকের সংরক্ষণ কপি (রিসেপশনিস্ট স্বাক্ষর করবেন)
 // দুই পেজেই একই সারসংক্ষেপ (জমা ও সেদিনের এন্ট্রি); শুধু শিরোনাম ও স্বাক্ষরের ঘর আলাদা।
+// জমার মুহূর্তে সেদিনের এন্ট্রির সারসংক্ষেপ — রেকর্ডে (entSnap) সংরক্ষিত হয়; তাই একাধিক জমার প্রতিটি স্লিপে ওই জমার সময় পর্যন্ত হিসাবই থাকে
+function _recSlipEntries(by, date) {
+  const base = _baseBy(by);
+  const sum = (a,f) => a.reduce((t,x)=>t+(f(x)||0),0);
+  const bills = (appData.visits||[]).filter(v => v.date===date && (_baseBy(v.by)===base || (_roleOfBy(v.by)==='admin' && v.receivedBy!=='md')));
+  const billMfs = sum(bills, v => v.mfsPaid);
+  const dueBills = bills.filter(v => (v.due||0) > 0);
+  const memos = bills.map(v => v.memoNo||v.rcptNo||'').filter(Boolean).sort();
+  const dueCols = (appData.dueHistory||[]).filter(h => h.type==='collect' && h.date===date && _baseBy(h.by)===base);
+  const allExps = (appData.expense||[]).filter(e => _baseBy(e.by)===base && e.date===date);
+  const exps = allExps.filter(e => !e.rejected);
+  const refills = (appData.camperRefunds||[]).filter(r => r.paidRole==='receptionist' && _baseBy(r.paidBy)===base && r.date===date);
+  const vouchers = allExps.map(e => e.voucher||'').concat(refills.map(r => r.voucher||'')).filter(Boolean).sort();
+  const _ld = ts => { const x = new Date(ts); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+  const voided = (appData.voidedMemos||[]).filter(m => m.ts && _ld(m.ts)===date && _baseBy(m.by)===base).sort((a,b)=>String(a.memoNo).localeCompare(String(b.memoNo)));
+  const ends = a => a.length>1 ? [a[0], a[a.length-1]] : a.slice();
+  return {
+    nBills: bills.length, billTotal: sum(bills, v => v.netBill!=null ? v.netBill : v.total), billMfs: billMfs,
+    billCash: Math.max(0, sum(bills, v => v.cashPaid) - billMfs), billDue: sum(bills, v => v.due),
+    memos: ends(memos), nDueCols: dueCols.length, dueColAmt: sum(dueCols, h => h.amount),
+    nExps: exps.length, expAmt: sum(exps, e => e.amount),
+    exps: exps.slice(0,8).map(e => ({ voucher:e.voucher||e.memo||'', category:e.category||'', note:String(e.note||'').slice(0,40), amount:e.amount||0, pending:!!(e.needsApproval&&e.status==='pending') })),
+    nRefills: refills.length, refAmt: sum(refills, r => r.amount),
+    refills: refills.slice(0,6).map(r => ({ voucher:r.voucher||'', camper:r.camper||'', campName:String(r.campName||'').slice(0,30), amount:r.amount||0 })),
+    nDueBills: dueBills.length, dueBills: dueBills.slice(0,8).map(v => ({ patName:v.patName||'', memo:v.memoNo||v.rcptNo||'', due:v.due||0 })),
+    nVouchers: vouchers.length, vouchers: ends(vouchers),
+    voided: voided.map(m => ({ memoNo:m.memoNo||'', reason:String(m.reason||'').slice(0,40) }))
+  };
+}
+// ওই তারিখে এই রিসেপশনিস্টের আগের জমাগুলো (স্লিপে ১-২ লাইনের সূত্র ও জমার শিটের তালিকা)
+function _recPrevDeps(by, date, beforeId) {
+  const base = _baseBy(by);
+  return (appData.recDeposits||[]).filter(x => x.date===date && _baseBy(x.by)===base && x.id < beforeId).sort((a,b)=>a.id-b.id)
+    .map((x,i) => ({ seq: x.seq || (i+1), time: x.time||'', amount: x.amount||0, kind: x.kind||'final' }));
+}
+function _bnOrd(n) { return ['','১ম','২য়','৩য়','৪র্থ','৫ম','৬ষ্ঠ','৭ম','৮ম','৯ম','১০ম'][n] || (fmt(n)+'-তম'); }
 function buildRecDepositSlipHtml(d) {
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const hospName = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
   const base = _baseBy(d.by), date = d.date;
-  const sum = (a,f) => a.reduce((t,x)=>t+(f(x)||0),0);
-  const bills = (appData.visits||[]).filter(v => v.date===date && (_baseBy(v.by)===base || (_roleOfBy(v.by)==='admin' && v.receivedBy!=='md')));
-  const billTotal = sum(bills, v => v.netBill!=null ? v.netBill : v.total);
-  const billMfs = sum(bills, v => v.mfsPaid);
-  const billCash = Math.max(0, sum(bills, v => v.cashPaid) - billMfs);
-  const billDue = sum(bills, v => v.due);
-  const dueBills = bills.filter(v => (v.due||0) > 0);
-  const memos = bills.map(v => v.memoNo||v.rcptNo||'').filter(Boolean).sort();
-  const dueCols = (appData.dueHistory||[]).filter(h => h.type==='collect' && h.date===date && _baseBy(h.by)===base);
-  const dueColAmt = sum(dueCols, h => h.amount);
-  const allExps = (appData.expense||[]).filter(e => _baseBy(e.by)===base && e.date===date);   // ভাউচার নম্বর বাতিল এন্ট্রিরও খরচ হয়ে যায় — রেঞ্জে সব ধরা
-  const exps = allExps.filter(e => !e.rejected);
-  const expAmt = sum(exps, e => e.amount);
-  const refills = (appData.camperRefunds||[]).filter(r => r.paidRole==='receptionist' && _baseBy(r.paidBy)===base && r.date===date);
-  const refAmt = sum(refills, r => r.amount);
-  const vouchers = allExps.map(e => e.voucher||'').concat(refills.map(r => r.voucher||'')).filter(Boolean).sort();
-  const _ld = ts => { const x = new Date(ts); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
-  const voided = (appData.voidedMemos||[]).filter(m => m.ts && _ld(m.ts)===date && _baseBy(m.by)===base).sort((a,b)=>String(a.memoNo).localeCompare(String(b.memoNo)));
+  const ent = d.entSnap || _recSlipEntries(d.by, date);   // পুরনো রেকর্ডে (স্ন্যাপশট নেই) লাইভ হিসাব
+  const billTotal = ent.billTotal||0, billMfs = ent.billMfs||0, billCash = ent.billCash||0, billDue = ent.billDue||0;
+  const dueColAmt = ent.dueColAmt||0, expAmt = ent.expAmt||0, refAmt = ent.refAmt||0;
+  const nBills = ent.nBills||0, nDueCols = ent.nDueCols||0, nExps = ent.nExps||0, nRefills = ent.nRefills||0, nDueBills = ent.nDueBills||0;
+  const exps = ent.exps||[], refills = ent.refills||[], dueBills = ent.dueBills||[], voided = ent.voided||[];
+  const memos = ent.memos||[], vouchers = ent.vouchers||[];
   const sn = d.ccSnap || null;
   const sg = n => (n<0?'- ':'') + '৳ ' + fmt(Math.abs(n));
   const box = (label, val, color, sub, small) => `<div class="dp-box"><div class="dp-bl">${label}</div><div class="dp-bv${small?' sm':''}" style="color:${color||'#1a2a3a'}">${val}</div>${sub?`<div class="dp-bs">${sub}</div>`:''}</div>`;
   // নম্বর সিরিজের কার্ড: মেমো রেঞ্জ | বাতিল মেমো (থাকলে) | ভাউচার রেঞ্জ
   const rng = a => a.length ? (a.length>1 && a[0]!==a[a.length-1] ? esc(a[0])+' – '+esc(a[a.length-1]) : esc(a[0])) : '—';
   const seriesCards = [
-    box('মেমো রেঞ্জ', rng(memos), '#0f4c81', fmt(bills.length)+' টি বিল', true),
+    box('মেমো রেঞ্জ', rng(memos), '#0f4c81', fmt(nBills)+' টি বিল', true),
     voided.length ? box('বাতিল মেমো', voided.map(m=>esc(m.memoNo)).join(', '), '#b45309', 'ছেঁড়া/নষ্ট হার্ড কপি — '+fmt(voided.length)+' টি'+(voided.length<=2?'<br>কারণ: '+voided.map(m=>esc(String(m.reason||'').slice(0,40))).join('; '):''), true) : '',
-    box('ভাউচার রেঞ্জ', rng(vouchers), '#7e22ce', vouchers.length ? fmt(vouchers.length)+' টি ভাউচার' : 'আজ কোনো ব্যয় ভাউচার নেই', true)
+    box('ভাউচার রেঞ্জ', rng(vouchers), '#7e22ce', ent.nVouchers ? fmt(ent.nVouchers)+' টি ভাউচার' : 'আজ কোনো ব্যয় ভাউচার নেই', true)
   ].filter(Boolean);
   let secN = 0; const sec = t => `<h4 class="dp-h">${['১','২','৩','৪','৫','৬'][secN++]}. ${t}</h4>`;
   const diff = (d.diff===undefined||d.diff===null) ? null : d.diff;
   const diffTxt = diff===null ? '—' : (Math.abs(diff)<0.005 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
   const diffColor = diff===null ? '#64748b' : (Math.abs(diff)<0.005 ? '#16a34a' : '#dc2626');
   const row = (a,b) => `<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
+  const interim = d.kind==='interim';
+  const prev = d.prevDeps || _recPrevDeps(d.by, date, d.id);
+  const prevSum = prev.reduce((t,p)=>t+(p.amount||0),0);
+  const dSeq = d.seq || (prev.length+1);
+  const hasSeq = interim || prev.length>0 || d.seq>1;
+  const handLeft = d.handLeft!=null ? d.handLeft : ((d.expectedCash||0)-(d.amount||0));
+  const titleTxt = interim ? 'রিসেপশনিস্ট ক্যাশ জমা — মধ্যবর্তী (ডিউটি চলাকালীন)' : (hasSeq ? 'রিসেপশনিস্ট ক্যাশ জমা — চূড়ান্ত (ডিউটি শেষ)' : 'রিসেপশনিস্ট দৈনিক ক্যাশ জমা — সারসংক্ষেপ');
+  const prevLine = prev.length ? `<div style="font-size:11px;color:#1e40af;background:#eff6ff;border-radius:6px;padding:4px 8px;margin:4px 0;line-height:1.5">আজকের আগের জমা: ${prev.map(p=>_bnOrd(p.seq)+' — '+esc(_slipTime12(p.time))+' ৳ '+fmt(p.amount)+(p.kind==='interim'?' (মধ্যবর্তী)':'')).join(' &nbsp;·&nbsp; ')} &nbsp;|&nbsp; আগে মোট ৳ ${fmt(prevSum)}${interim?'':' &nbsp;|&nbsp; দিনের মোট জমা (এটিসহ) ৳ '+fmt(prevSum+(d.amount||0))}</div>` : '';
   const logo = '';   // জমার স্লিপ/রিফিল ভাউচারে লোগো নেই (লোগো ৬০০ কেবির বেশি — ফাইল ভারী হয়)
   const stock = String(d.stockConsumed||'—'); const stockTxt = stock.length>170 ? stock.slice(0,170)+'…' : stock;
   const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
@@ -14117,12 +14153,12 @@ function buildRecDepositSlipHtml(d) {
       ${logo}
       <div style="text-align:left">
         <div style="font-size:19px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
-        <div style="font-size:14.5px;font-weight:700;margin-top:4px">রিসেপশনিস্ট দৈনিক ক্যাশ জমা — সারসংক্ষেপ</div>
+        <div style="font-size:14.5px;font-weight:700;margin-top:4px">${titleTxt}</div>
         <div style="font-size:11.5px;color:#6b7280;margin-top:1px">তারিখ: ${formatDate(date)} &nbsp;|&nbsp; জমার সময়: ${esc(_slipTime12(d.time))}</div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:10px;margin:10px 0 4px;font-size:12.5px">
-      <div>জমাদানকারী রিসেপশনিস্ট: <strong>${esc(base)}</strong></div>
+      <div>জমাদানকারী রিসেপশনিস্ট: <strong>${esc(base)}</strong>${hasSeq ? ' &nbsp;·&nbsp; <span style="color:#0f4c81;font-weight:700">আজকের '+_bnOrd(dSeq)+' জমা ('+(interim?'মধ্যবর্তী':'চূড়ান্ত')+')</span>' : ''}</div>
       <div style="font-weight:800;color:#0f4c81;background:#eef4fa;border:1px solid #bfd3ea;border-radius:20px;padding:2px 12px">@@COPY@@</div>
     </div>
     ${sec('জমার হিসাব')}
@@ -14131,30 +14167,31 @@ function buildRecDepositSlipHtml(d) {
       ${box('নগদ ব্যয়', sn?sg(sn.cashOut):'—', '#991b1b')}
       ${box('আগে জমা (আজ)', sn?sg(sn.prevDeposited):'—', '#0369a1')}
       ${box('প্রত্যাশিত জমা', d.expectedCash===undefined?'—':sg(d.expectedCash), '#1a2a3a')}
-      ${box('পার্থক্য', diffTxt, diffColor)}
+      ${interim ? box('জমার পর হাতে অবশিষ্ট', sg(handLeft), handLeft>0?'#b45309':'#16a34a', 'ডিউটি চলছে — বাকি নগদ হাতে') : box('পার্থক্য', diffTxt, diffColor)}
     </div>
+    ${prevLine}
     ${sn && sn.carry>0 ? `<div style="font-size:11px;color:#b45309;margin-bottom:4px">এই জমায় আগের দিনের জমা-না-হওয়া নগদ ${sg(sn.carry)} অন্তর্ভুক্ত</div>` : ''}
     ${sn && (sn.adminCash>0 || sn.mdHeld>0) ? `<div style="font-size:11px;color:#6b7280;margin-bottom:4px">গৃহীত নগদের মধ্যে: নিজস্ব বিল ও আদায় ${sg(sn.ownCash)}${sn.adminCash>0?' | '+esc(_adm('short'))+'-এন্ট্রি বিল (রিসেপশনিস্ট গৃহীত) '+sg(sn.adminCash):''}${sn.mdHeld>0?' | '+esc(_adm('short'))+' নিজে গৃহীত (এই জমার বাইরে) '+sg(sn.mdHeld):''}</div>` : ''}
     ${sec('নম্বর সিরিজ (মেমো ও ভাউচার)')}
     <div class="dp-grid" style="grid-template-columns:repeat(${seriesCards.length},1fr)">${seriesCards.join('')}</div>
-    ${sec('আজকের এন্ট্রির সারসংক্ষেপ')}
+    ${sec('আজকের এন্ট্রির সারসংক্ষেপ'+(d.entSnap?' ('+esc(_slipTime12(d.time))+' পর্যন্ত)':''))}
     <table class="dp-t">
       <thead><tr><th>বিষয়</th><th style="text-align:right">পরিমাণ</th></tr></thead>
       <tbody>
-        ${row('রোগীর বিল — সংখ্যা', fmt(bills.length)+' টি')}
+        ${row('রোগীর বিল — সংখ্যা', fmt(nBills)+' টি')}
         ${row('মোট বিল (ছাড়ের পর)', sg(billTotal))}
         ${row('নগদ আদায় (বিলের সময়)', sg(billCash))}
         ${row('মোবাইল ব্যাংকিং আদায় (ক্যাশে নয়)', sg(billMfs))}
         ${row('বিলে বাকি রয়েছে', sg(billDue))}
-        ${row('বাকি আদায় — '+fmt(dueCols.length)+' টি', sg(dueColAmt))}
-        ${row('নগদ ব্যয় এন্ট্রি — '+fmt(exps.length)+' টি', sg(expAmt))}
-        ${refills.length ? row('ক্যাম্পেইনার তহবিল রিফিল (নিজের নগদ থেকে) — '+fmt(refills.length)+' টি', sg(refAmt)) : ''}
+        ${row('বাকি আদায় — '+fmt(nDueCols)+' টি', sg(dueColAmt))}
+        ${row('নগদ ব্যয় এন্ট্রি — '+fmt(nExps)+' টি', sg(expAmt))}
+        ${nRefills ? row('ক্যাম্পেইনার তহবিল রিফিল (নিজের নগদ থেকে) — '+fmt(nRefills)+' টি', sg(refAmt)) : ''}
       </tbody>
     </table>
     ${exps.length ? `${sec('ব্যয়ের তালিকা')}
     <table class="dp-t"><thead><tr><th>ভাউচার</th><th>খাত</th><th>বিবরণ</th><th style="text-align:right">টাকা</th></tr></thead><tbody>
-      ${exps.slice(0,8).map(e=>`<tr><td>${esc(e.voucher||e.memo||'—')}</td><td>${esc(e.category||'—')}</td><td>${esc((e.note||'').slice(0,40))}${e.needsApproval&&e.status==='pending'?' <small>(অনুমোদনের অপেক্ষায়)</small>':''}</td><td style="text-align:right">${sg(e.amount||0)}</td></tr>`).join('')}
-      ${exps.length>8 ? `<tr><td colspan="4" style="color:#6b7280">… আরও ${fmt(exps.length-8)} টি ব্যয় এন্ট্রি (মোট উপরে ধরা আছে)</td></tr>` : ''}
+      ${exps.slice(0,8).map(e=>`<tr><td>${esc(e.voucher||'—')}</td><td>${esc(e.category||'—')}</td><td>${esc((e.note||'').slice(0,40))}${e.pending?' <small>(অনুমোদনের অপেক্ষায়)</small>':''}</td><td style="text-align:right">${sg(e.amount||0)}</td></tr>`).join('')}
+      ${nExps>8 ? `<tr><td colspan="4" style="color:#6b7280">… আরও ${fmt(nExps-8)} টি ব্যয় এন্ট্রি (মোট উপরে ধরা আছে)</td></tr>` : ''}
     </tbody></table>` : ''}
     ${refills.length ? `${sec('ক্যাম্পেইনার তহবিল রিফিল (ভাউচারসহ)')}
     <table class="dp-t"><thead><tr><th>ভাউচার</th><th>ক্যাম্পেইনার</th><th>ক্যাম্প</th><th style="text-align:right">টাকা</th></tr></thead><tbody>
@@ -14162,14 +14199,14 @@ function buildRecDepositSlipHtml(d) {
     </tbody></table>` : ''}
     ${dueBills.length ? `${sec('বাকি রোগীর তালিকা')}
     <table class="dp-t"><thead><tr><th>রোগী</th><th>মেমো</th><th style="text-align:right">বাকি</th></tr></thead><tbody>
-      ${dueBills.slice(0,8).map(v=>`<tr><td>${esc(v.patName||'—')}</td><td>${esc(v.memoNo||v.rcptNo||'—')}</td><td style="text-align:right">${sg(v.due||0)}</td></tr>`).join('')}
-      ${dueBills.length>8 ? `<tr><td colspan="3" style="color:#6b7280">… আরও ${fmt(dueBills.length-8)} জন (মোট বাকি উপরে ধরা আছে)</td></tr>` : ''}
+      ${dueBills.slice(0,8).map(v=>`<tr><td>${esc(v.patName||'—')}</td><td>${esc(v.memo||'—')}</td><td style="text-align:right">${sg(v.due||0)}</td></tr>`).join('')}
+      ${nDueBills>8 ? `<tr><td colspan="3" style="color:#6b7280">… আরও ${fmt(nDueBills-8)} জন (মোট বাকি উপরে ধরা আছে)</td></tr>` : ''}
     </tbody></table>` : ''}
     <div style="font-size:11.5px;color:#4b5563;margin-top:8px">স্টক ব্যবহার: ${esc(stockTxt)}</div>
     ${d.note ? `<div style="font-size:11.5px;color:#4b5563;margin-top:4px">মন্তব্য: ${esc(d.note)}</div>` : ''}
     ${d.lockedBills!=null ? `<div style="font-size:11px;color:#6b7280;margin-top:4px">🔒 জমার পর লক করা বিল: ${fmt(d.lockedBills)} টি</div>` : ''}`;
 
-  return depSlipDoc({ body, amount: d.amount||0, hospName, copy1: 'রিসেপশনিস্টের সংরক্ষণ কপি', roleLabel: 'রিসেপশনিস্ট', roleName: base, mdName });
+  return depSlipDoc({ body, amount: d.amount||0, hospName, copy1: 'রিসেপশনিস্টের সংরক্ষণ কপি', roleLabel: 'রিসেপশনিস্ট', roleName: base, mdName, mainLbl: interim ? 'মধ্যবর্তী জমা:' : (prev.length ? 'চূড়ান্ত জমা:' : '') });
 }
 
 // ===== জমার স্লিপ — শেয়ার্ড ২ পেজের কাঠামো (রিসেপশনিস্ট ও ক্যাম্পেইনার দুজনের স্লিপই এটা ব্যবহার করে) =====
@@ -14205,10 +14242,10 @@ const DEP_SLIP_CSS = `
     .dp-sig{text-align:center;width:62mm}
     .dp-sigline{border-top:1.8px solid #1a2a3a;margin-top:44px;margin-bottom:4px}
     .dp-sig.md .dp-sigline{margin-top:24mm}
-    .dp-hd{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;align-items:stretch;border-bottom:3px solid #0f4c81;padding-bottom:8px}
-    .dp-hd>div{border:1px solid #d6e2ef;border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;justify-content:center;gap:1px;min-height:74px;box-sizing:border-box}
-    .dp-hd .l{background:#f3f8fd}
-    .dp-hd .r{background:#fafbfc;font-size:11.5px;line-height:1.55}
+    .dp-hd{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:stretch;border-bottom:3px solid #0f4c81;padding-bottom:8px}
+    .dp-hd>div{display:flex;flex-direction:column;justify-content:center;gap:1px;min-height:74px;box-sizing:border-box}
+    .dp-hd .l{font-size:11.5px;line-height:1.55;text-align:left}
+    .dp-hd .r{text-align:right;align-items:flex-end}
     .dp-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .dp-2 .dp-t{font-size:10.5px}
     .dp-2 .dp-t th,.dp-2 .dp-t td{padding:3px 6px}
@@ -14221,7 +14258,7 @@ const DEP_SLIP_CSS = `
 function depSlipDoc(o) {
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const amt = '৳ ' + fmt(Math.abs(o.amount||0));
-  const mainLbl = o.amount<0 ? 'রিফিল পাওনা (তহবিল থেকে বাড়তি খরচ):' : 'জমা:';
+  const mainLbl = o.mainLbl || (o.amount<0 ? 'রিফিল পাওনা (তহবিল থেকে বাড়তি খরচ):' : 'জমা:');
   const page = (copyLabel, signLabel, signName, sigNote, sigCls) => `
     <div class="a4-page dp-page">
       <div class="dp-body">${o.body.replace('@@COPY@@', copyLabel)}</div>
@@ -14432,17 +14469,17 @@ function buildCamperDepositSlipHtml(d) {
   const body = `
     <div class="dp-hd">
       <div class="l">
-        ${logo}
-        <div style="font-size:18px;font-weight:800;color:#0f4c81;line-height:1.25">${esc(hospName)}</div>
-        <div style="font-size:13.5px;font-weight:700">ক্যাম্পেইনার ক্যাশ জমা — সারসংক্ষেপ</div>
-        <div style="font-size:11.5px;color:#4b5563">তারিখ: <strong>${formatDate(d.date)}</strong></div>
-        <div style="font-size:11.5px;color:#4b5563">সময়: <strong>${esc(_slipTime12(d.time))}</strong></div>
-      </div>
-      <div class="r">
-        <div>ক্যাম্প: <strong>${esc(sn.campName||'—')}</strong></div>
+        <div style="font-size:14px;font-weight:800;color:#0f4c81">ক্যাম্প: ${esc(sn.campName||'—')}</div>
         <div>স্থান: <strong>${esc(sn.location||'—')}</strong> &nbsp;|&nbsp; তারিখ: <strong>${sn.campDate?formatDate(sn.campDate):'—'}</strong></div>
         <div>ডাক্তার: <strong>${esc(sn.doctor||'—')}</strong> &nbsp;|&nbsp; ভিজিট ফি: <strong>${sn.visitFee>0?sg(sn.visitFee):'—'}</strong>${sn.fund>0?' &nbsp;|&nbsp; সাধারণ তহবিল: <strong>'+sg(sn.fund)+'</strong>':''}</div>
         <div>উপস্থিত অন্যান্য: ${staffTxt ? esc(staffTxt) : '—'}</div>
+      </div>
+      <div class="r">
+        ${logo}
+        <div style="font-size:18px;font-weight:800;color:#0f4c81;line-height:1.25">${esc(hospName)}</div>
+        <div style="font-size:13px;font-weight:700">ক্যাম্পেইনার ক্যাশ জমা — সারসংক্ষেপ</div>
+        <div style="font-size:11.5px;color:#4b5563">তারিখ: <strong>${formatDate(d.date)}</strong></div>
+        <div style="font-size:11.5px;color:#4b5563">সময়: <strong>${esc(_slipTime12(d.time))}</strong></div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:10px;margin:8px 0 3px;font-size:12px">
@@ -15009,7 +15046,8 @@ function renderRecDepositList() {
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <span style="font-weight:700;color:var(--success)">৳ ${fmt(d.amount||0)}</span>
-            <span style="color:var(--text-light);font-size:12px;margin-left:8px">জমা দিয়েছেন: ${d.by||'—'} | সময়: ${d.time||'—'}</span>
+            <span style="color:var(--text-light);font-size:12px;margin-left:8px">জমা দিয়েছেন: ${d.by||'—'} | সময়: ${_slipTime12(d.time)}</span>
+            ${d.kind==='interim'?`<span style="font-size:11px;font-weight:800;color:#0369a1;background:#e0f2fe;border-radius:20px;padding:2px 8px;margin-left:6px">🕑 মধ্যবর্তী · হাতে ৳ ${fmt(d.handLeft||0)}</span>`:(d.seq>1?`<span style="font-size:11px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:20px;padding:2px 8px;margin-left:6px">চূড়ান্ত (${_bnOrd(d.seq)})</span>`:'')}
             ${(d.diff===undefined||d.diff===null)?'':(d.diff===0?'<span style="font-size:11px;font-weight:800;color:#16a34a;background:#dcfce7;border-radius:20px;padding:2px 8px;margin-left:6px">✓ হিসাব মিলেছে</span>':`<span style="font-size:11px;font-weight:800;color:${d.diff<0?'#b91c1c':'#b45309'};background:${d.diff<0?'#fee2e2':'#fef3c7'};border-radius:20px;padding:2px 8px;margin-left:6px">${d.diff<0?'ঘাটতি':'বেশি'} ৳ ${fmt(Math.abs(d.diff))}</span>`)}
           </div>
           <button class="btn btn-primary btn-sm">বিস্তারিত দেখুন</button>
@@ -15051,10 +15089,11 @@ function showRecDepositDetail(id) {
         </div>
       </div>
       <table style="width:100%;font-size:13px;border-collapse:collapse">
-        <tr><td style="padding:6px 0;color:#666;width:180px">জমা দেওয়ার সময়</td><td style="font-weight:600">${d.time||'—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;width:180px">জমা দেওয়ার সময়</td><td style="font-weight:600">${_slipTime12(d.time)}</td></tr>
+        ${d.kind?`<tr><td style="padding:6px 0;color:#666">জমার ধরন</td><td style="font-weight:600">${d.kind==='interim'?'🕑 মধ্যবর্তী':'✅ চূড়ান্ত'}${d.seq?' — আজকের '+_bnOrd(d.seq)+' জমা':''}</td></tr>`:''}
         <tr><td style="padding:6px 0;color:#666">জমাদানকারী</td><td style="font-weight:600">${d.by||'—'}</td></tr>
         ${(d.lockedBills==null)?'':`<tr><td style="padding:6px 0;color:#666">লক করা বিল</td><td style="font-weight:600">🔒 ${d.lockedBills}টি (পরিবর্তনে অ্যাডমিনের অনুমোদন লাগবে)</td></tr>`}
-        ${(d.expectedCash===undefined)?'':`<tr><td style="padding:6px 0;color:#666">প্রত্যাশিত নগদ (সিস্টেম হিসাবে)</td><td style="font-weight:600">৳ ${fmt(d.expectedCash)} ${d.diff===0?'<span style="color:#16a34a">— মিলেছে</span>':`<span style="color:${d.diff<0?'#b91c1c':'#b45309'}">— ${d.diff<0?'ঘাটতি':'বেশি'} ৳ ${fmt(Math.abs(d.diff))}</span>`}</td></tr>`}
+        ${(d.expectedCash===undefined)?'':(d.kind==='interim'?`<tr><td style="padding:6px 0;color:#666">প্রত্যাশিত নগদ / জমার পর হাতে</td><td style="font-weight:600">৳ ${fmt(d.expectedCash)} <span style="color:#0369a1">— হাতে অবশিষ্ট ৳ ${fmt(d.handLeft||0)}</span></td></tr>`:`<tr><td style="padding:6px 0;color:#666">প্রত্যাশিত নগদ (সিস্টেম হিসাবে)</td><td style="font-weight:600">৳ ${fmt(d.expectedCash)} ${d.diff===0?'<span style="color:#16a34a">— মিলেছে</span>':`<span style="color:${d.diff<0?'#b91c1c':'#b45309'}">— ${d.diff<0?'ঘাটতি':'বেশি'} ৳ ${fmt(Math.abs(d.diff))}</span>`}</td></tr>`)}
         <tr><td style="padding:6px 0;color:#666">মেমো ব্যবহার</td><td style="font-weight:600">${d.memoFrom||'—'} থেকে ${d.memoTo||'—'}</td></tr>
         <tr><td style="padding:6px 0;color:#666">মোট রিসেপশন আয়</td><td style="font-weight:600;color:var(--success)">৳ ${fmt(d.totalRecIncome||0)}</td></tr>
         <tr><td style="padding:6px 0;color:#666">মোট বাকি</td><td style="font-weight:600;color:#9b59b6">৳ ${fmt(d.totalDue||0)}</td></tr>
@@ -20141,6 +20180,7 @@ function _cashSheet(opts) {
           </div>
         </div>
         ${net<0 ? `<div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#9a3412;margin-bottom:12px;line-height:1.5">⚠️ নেট নেগেটিভ — আপনি সাধারণ তহবিল থেকে বাড়তি ৳ ${fmt(Math.abs(net))} খরচ করেছেন। অঙ্কটা নেগেটিভই থাকুক; অ্যাডমিন/রিসেপশন এটা আপনাকে ফেরত (রিফিল) দেবেন ও আলাদা ভাউচার হবে।</div>` : ''}
+        ${opts.extra || ''}
         <label style="font-size:13px;font-weight:800;color:var(--primary);display:block;margin-bottom:6px">প্রকৃত জমার পরিমাণ (৳) *</label>
         <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px">
           <input type="number" id="cashSubmitAmt" class="cx-in" value="${net}" inputmode="numeric" style="font-size:22px;font-weight:800;min-height:58px">
@@ -20201,7 +20241,18 @@ function buildCashSubmitModal(role) {
     : (net < 0
         ? '⚠️ ক্যাম্পের আয়-ব্যয় ক্যাম্পেইনারের হাতে থাকা পর্যন্ত প্রধান ক্যাশে ধরা হয় না। নেগেটিভ জমায় এখন প্রধান ক্যাশ বদলায় না — অ্যাডমিন/রিসেপশন রিফিল দিলে তখন ক্যাশ থেকে বাদ যাবে।'
         : '⚠️ ক্যাম্পের আয়-ব্যয় ক্যাম্পেইনারের হাতে থাকা পর্যন্ত প্রধান ক্যাশে ধরা হয় না — এই জমা নিশ্চিত করলেই প্রধান ক্যাশে যোগ হবে।');
-  _cashSheet({ title: label, rows, net, banner, warn, notePlaceholder: 'যেমন: শিফট শেষে জমা', confirm: `confirmCashSubmit('${role}')` });
+  let extra = '';
+  if (role==='receptionist') {
+    const _pd = _recPrevDeps(currentUser.name, today, Infinity);
+    const _lb = 'display:flex;gap:8px;align-items:flex-start;background:#fff;border:1.5px solid #cbd5e1;border-radius:12px;padding:9px 11px;margin-bottom:6px;font-size:12.5px;line-height:1.5;cursor:pointer';
+    extra = `<div style="margin-bottom:12px">
+      ${_pd.length ? `<div style="background:#eff6ff;border-radius:10px;padding:8px 10px;font-size:12px;color:#1e40af;margin-bottom:8px;line-height:1.6">আজ আগে জমা দিয়েছেন: ${_pd.map(p=>_bnOrd(p.seq)+' — '+_slipTime12(p.time)+' ৳ '+fmt(p.amount)+(p.kind==='interim'?' (মধ্যবর্তী)':'')).join(' · ')}</div>` : ''}
+      <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:6px">জমার ধরন</div>
+      <label style="${_lb}"><input type="radio" name="cashDepKind" value="interim" style="margin-top:3px"><span><b>🕑 মধ্যবর্তী জমা</b> — ডিউটি চলছে, এখন কিছু টাকা জমা দিচ্ছি। এরপরও আয়-ব্যয় ও আবার জমা হতে পারে।</span></label>
+      <label style="${_lb}"><input type="radio" name="cashDepKind" value="final" checked style="margin-top:3px"><span><b>✅ চূড়ান্ত জমা</b> — ডিউটি শেষ। স্লিপে আজকের আগের সব জমার সূত্র (সময়, অঙ্ক) থাকবে।</span></label>
+    </div>`;
+  }
+  _cashSheet({ title: label, rows, net, banner, warn, extra, notePlaceholder: 'যেমন: শিফট শেষে জমা', confirm: `confirmCashSubmit('${role}')` });
 }
 
 function showRecCashSubmitModal() {
@@ -36874,7 +36925,7 @@ function _recMyRecentEntries(limit) {
   (appData.visits||[]).forEach(function(v){ if (_baseBy(v.by)===me || _roleOfBy(v.by)==='admin') rows.push({kind:'visit', id:v.id, k:v.id, by:v.by, date:v.date, time:v.time, memo:v.memoNo||v.rcptNo||'', tag:'🧾 বিল', bg:'#dbeafe', fg:'#1d4ed8', cat:'রোগীর বিল'+(_roleOfBy(v.by)==='admin'?(v.receivedBy==='md'?' <small style="color:#b45309;font-weight:800">· 💼 '+_adm('short')+' গৃহীত</small>':' <small style="color:#0369a1">· গ্রহণ: রিসেপশনিস্ট</small>'):''), ref:v.patName||'—', amt:v.netBill||v.total||0, st:(v.due>0?'<span style="color:#9333ea">বাকি ৳ '+fmt(v.due)+'</span>':'<span style="color:#16a34a">পরিশোধিত</span>')}); });
   (appData.dueHistory||[]).forEach(function(h){ if (_baseBy(h.by)===me && h.type==='collect') rows.push({kind:'due', id:h.id, k:h.ts||h.id, by:h.by, date:h.date, time:'', memo:h.memoNo||'', tag:'💵 বাকি আদায়', bg:'#dcfce7', fg:'#15803d', cat:'বাকি আদায়', ref:h.patName||'—', amt:h.amount||0, st:(h.remainingDue>0?'<span style="color:#9333ea">অবশিষ্ট ৳ '+fmt(h.remainingDue)+'</span>':'<span style="color:#16a34a">সম্পূর্ণ</span>')}); });
   (appData.expense||[]).forEach(function(e){ if (_baseBy(e.by)===me) { var st = e.rejected ? '<span style="color:#dc2626">❌ বাতিল</span>' : (e.needsApproval && e.status==='pending' ? '<span style="color:#b45309">⏳ অনুমোদনের অপেক্ষায়</span>' : '<span style="color:#16a34a">✓ গৃহীত</span>'); rows.push({kind:'exp', id:e.id, k:e.id, by:e.by, date:e.date, time:'', memo:e.voucher||e.memo||'', tag:'💸 ব্যয়', bg:'#ffe4e6', fg:'#be123c', cat:(e.category||'—')+(e.subCategory?(' › '+e.subCategory):''), ref:e.ref||e.note||'—', amt:e.amount||0, st:st}); } });
-  (appData.recDeposits||[]).forEach(function(d){ if (_baseBy(d.by)===me) rows.push({kind:'dep', id:d.id, k:d.id, by:d.by, date:d.date, time:d.time||'', memo:(d.memoFrom&&d.memoFrom!=='—')?(d.memoFrom+'–'+d.memoTo):'', tag:'🏦 ক্যাশ জমা', bg:'#f3e8ff', fg:'#7e22ce', cat:'ডিউটি শেষে জমা', ref:(d.visitCount||0)+' জন রোগী', amt:d.amount||0, st:(d.diff===undefined||d.diff===null)?'':(d.diff===0?'<span style="color:#16a34a">✓ মিলেছে</span>':'<span style="color:'+(d.diff<0?'#dc2626':'#b45309')+'">'+(d.diff<0?'ঘাটতি':'বেশি')+' ৳ '+fmt(Math.abs(d.diff))+'</span>')}); });
+  (appData.recDeposits||[]).forEach(function(d){ if (_baseBy(d.by)===me) rows.push({kind:'dep', id:d.id, k:d.id, by:d.by, date:d.date, time:d.time||'', memo:(d.memoFrom&&d.memoFrom!=='—')?(d.memoFrom+'–'+d.memoTo):'', tag:'🏦 ক্যাশ জমা', bg:'#f3e8ff', fg:'#7e22ce', cat:(d.kind==='interim'?'মধ্যবর্তী জমা':(d.seq>1?'চূড়ান্ত জমা':'ডিউটি শেষে জমা'))+(d.seq?' ('+_bnOrd(d.seq)+')':''), ref:(d.visitCount||0)+' জন রোগী', amt:d.amount||0, st:(d.diff===undefined||d.diff===null)?(d.kind==='interim'?'<span style="color:#0369a1">হাতে ৳ '+fmt(d.handLeft||0)+'</span>':''):(d.diff===0?'<span style="color:#16a34a">✓ মিলেছে</span>':'<span style="color:'+(d.diff<0?'#dc2626':'#b45309')+'">'+(d.diff<0?'ঘাটতি':'বেশি')+' ৳ '+fmt(Math.abs(d.diff))+'</span>')}); });
   rows.sort(function(a,b){ return (b.k||0)-(a.k||0); });
   return rows.slice(0, limit||10).map(function(r){ r.today = r.date===today; return r; });
 }
