@@ -13974,7 +13974,8 @@ function expViewModeChanged() {
 function confirmCashSubmit(role) {
   const amt = parseFloat(document.getElementById('cashSubmitAmt').value)||0;
   const note = document.getElementById('cashSubmitNote').value.trim();
-  if (amt === 0) { showToast('⚠️ পরিমাণ দিন!'); return; }
+  const _rawAmt = String((document.getElementById('cashSubmitAmt')||{}).value==null?'':document.getElementById('cashSubmitAmt').value).trim();
+  if (_rawAmt === '' || isNaN(parseFloat(_rawAmt))) { showToast('⚠️ পরিমাণ দিন! (জমা না থাকলে ০ লিখুন)'); return; }
   if (!appData.bankTx) appData.bankTx = [];
   if (!appData.recDeposits) appData.recDeposits = [];
   const roleLabel = role === 'receptionist' ? 'রিসেপশনিস্ট' : 'ক্যাম্পেইনার';
@@ -13987,7 +13988,7 @@ function confirmCashSubmit(role) {
 
   // Bank TX record — রিসেপশনিস্টের ডিউটি-সাবমিট শুধু অডিট লগ (ক্যাশ-হিসাবে গণ্য হয় না, বিলের টাকা আগেই গণনায় আছে)।
   // ক্যাম্পেইনারের জমা আলাদা: নিচে ('camp-settle') — ক্যাম্পের আয়-ব্যয় নিষ্পত্তির আগে মেইন ব্যালেন্সে ছিল না।
-  if (role === 'receptionist') appData.bankTx.push({
+  if (role === 'receptionist' && amt !== 0) appData.bankTx.push({
     id: Date.now(),
     type: 'cash_in',
     amount: amt,
@@ -14104,8 +14105,8 @@ function buildRecDepositSlipHtml(d) {
   ].filter(Boolean);
   let secN = 0; const sec = t => `<h4 class="dp-h">${['১','২','৩','৪','৫','৬'][secN++]}. ${t}</h4>`;
   const diff = (d.diff===undefined||d.diff===null) ? null : d.diff;
-  const diffTxt = diff===null ? '—' : (diff===0 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
-  const diffColor = diff===null ? '#64748b' : (diff===0 ? '#16a34a' : '#dc2626');
+  const diffTxt = diff===null ? '—' : (Math.abs(diff)<0.005 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
+  const diffColor = diff===null ? '#64748b' : (Math.abs(diff)<0.005 ? '#16a34a' : '#dc2626');
   const row = (a,b) => `<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
   const logo = '';   // জমার স্লিপ/রিফিল ভাউচারে লোগো নেই (লোগো ৬০০ কেবির বেশি — ফাইল ভারী হয়)
   const stock = String(d.stockConsumed||'—'); const stockTxt = stock.length>170 ? stock.slice(0,170)+'…' : stock;
@@ -14117,7 +14118,7 @@ function buildRecDepositSlipHtml(d) {
       <div style="text-align:left">
         <div style="font-size:19px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
         <div style="font-size:14.5px;font-weight:700;margin-top:4px">রিসেপশনিস্ট দৈনিক ক্যাশ জমা — সারসংক্ষেপ</div>
-        <div style="font-size:11.5px;color:#6b7280;margin-top:1px">তারিখ: ${formatDate(date)} &nbsp;|&nbsp; জমার সময়: ${esc(d.time||'—')}</div>
+        <div style="font-size:11.5px;color:#6b7280;margin-top:1px">তারিখ: ${formatDate(date)} &nbsp;|&nbsp; জমার সময়: ${esc(_slipTime12(d.time))}</div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:10px;margin:10px 0 4px;font-size:12.5px">
@@ -14174,6 +14175,15 @@ function buildRecDepositSlipHtml(d) {
 // ===== জমার স্লিপ — শেয়ার্ড ২ পেজের কাঠামো (রিসেপশনিস্ট ও ক্যাম্পেইনার দুজনের স্লিপই এটা ব্যবহার করে) =====
 // পেজ ১ = জমাদানকারীর সংরক্ষণ কপি (ব্যবস্থাপনা পরিচালক স্বাক্ষর করবেন) | পেজ ২ = অফিস কপি (জমাদানকারী স্বাক্ষর করবেন)
 // "জমা" লাইনটা সবার শেষে, স্বাক্ষরের উপরে — সাধারণ লেখা, শুধু অঙ্কের নিচে ডাবল আন্ডারলাইন।
+// জমার স্লিপের সময় সবসময় ১২ ঘণ্টা ফরমেটে ('HH:MM' ২৪-ঘণ্টা বা আগে থেকে AM/PM — দুটোই সামলায়)
+function _slipTime12(t) {
+  t = String(t==null?'':t).trim(); if (!t) return '—';
+  const ap = t.match(/([ap])\.?m/i), m = t.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return t;
+  let h = parseInt(m[1],10), mer = ap ? ap[1].toUpperCase()+'M' : (h>=12 ? 'PM' : 'AM');
+  h = h%12; if (h===0) h = 12;
+  return String(h).padStart(2,'0')+':'+m[2]+' '+mer;
+}
 const DEP_SLIP_CSS = `
     .dp-page{font-family:'Hind Siliguri',Arial,sans-serif;font-size:13px;color:#1a2a3a;padding:12mm;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
     .dp-body{flex:1}
@@ -14191,9 +14201,14 @@ const DEP_SLIP_CSS = `
     .dp-main{display:flex;justify-content:flex-end;align-items:baseline;gap:10px;margin-top:18px;page-break-inside:avoid}
     .dp-main-l{font-size:15px;font-weight:700}
     .dp-main-v{font-size:18px;font-weight:800;border-bottom:4px double #1a2a3a;padding:0 4px 1px}
-    .dp-sigwrap{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:14px;page-break-inside:avoid}
+    .dp-sigwrap{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:10px;page-break-inside:avoid}
     .dp-sig{text-align:center;width:62mm}
     .dp-sigline{border-top:1.8px solid #1a2a3a;margin-top:44px;margin-bottom:4px}
+    .dp-sig.md .dp-sigline{margin-top:24mm}
+    .dp-hd{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;align-items:stretch;border-bottom:3px solid #0f4c81;padding-bottom:8px}
+    .dp-hd>div{border:1px solid #d6e2ef;border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;justify-content:center;gap:1px;min-height:74px;box-sizing:border-box}
+    .dp-hd .l{background:#f3f8fd}
+    .dp-hd .r{background:#fafbfc;font-size:11.5px;line-height:1.55}
     .dp-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .dp-2 .dp-t{font-size:10.5px}
     .dp-2 .dp-t th,.dp-2 .dp-t td{padding:3px 6px}
@@ -14207,19 +14222,19 @@ function depSlipDoc(o) {
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const amt = '৳ ' + fmt(Math.abs(o.amount||0));
   const mainLbl = o.amount<0 ? 'রিফিল পাওনা (তহবিল থেকে বাড়তি খরচ):' : 'জমা:';
-  const page = (copyLabel, signLabel, signName, sigNote) => `
+  const page = (copyLabel, signLabel, signName, sigNote, sigCls) => `
     <div class="a4-page dp-page">
       <div class="dp-body">${o.body.replace('@@COPY@@', copyLabel)}</div>
       <div class="dp-main"><span class="dp-main-l">${mainLbl}</span><span class="dp-main-v">${amt}</span></div>
       ${o.negNote ? `<div style="text-align:right;font-size:10.5px;color:#92400e;margin-top:4px">${o.negNote}</div>` : ''}
       <div class="dp-sigwrap">
         <div style="font-size:11px;color:#6b7280;max-width:95mm">${sigNote}</div>
-        <div class="dp-sig"><div class="dp-sigline"></div><div style="font-weight:700">${signLabel}</div>${signName?`<div style="font-size:11.5px">${esc(signName)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
+        <div class="dp-sig${sigCls||''}"><div class="dp-sigline"></div><div style="font-weight:700">${signLabel}</div>${signName?`<div style="font-size:11.5px">${esc(signName)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>
       </div>
       <div class="dp-foot">এই স্লিপ ${esc(o.hospName)} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।</div>
     </div>`;
   return `<html><head><meta charset="UTF-8"><style>${DEP_SLIP_CSS}</style></head><body>`
-    + page(o.copy1, 'ব্যবস্থাপনা পরিচালক', o.mdName, 'ব্যবস্থাপনা পরিচালক টাকা বুঝে পেয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি '+o.roleLabel+' নিজের কাছে সংরক্ষণ করবেন।')
+    + page(o.copy1, 'ব্যবস্থাপনা পরিচালক', o.mdName, 'ব্যবস্থাপনা পরিচালক টাকা বুঝে পেয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি '+o.roleLabel+' নিজের কাছে সংরক্ষণ করবেন।', ' md')
     + page('অফিস কপি', o.roleLabel, o.roleName, o.roleLabel+' টাকা জমা দিয়ে এই কপিতে স্বাক্ষর করবেন; এই কপি ব্যবস্থাপনা পরিচালক/অফিস সংরক্ষণ করবে।')
     + `</body></html>`;
 }
@@ -14373,8 +14388,8 @@ function buildCamperDepositSlipHtml(d) {
   const row = (a,b) => `<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
   let secN = 0; const sec = t => `<h4 class="dp-h">${['১','২','৩','৪','৫','৬'][secN++]}. ${t}</h4>`;
   const diff = (d.diff===undefined||d.diff===null) ? null : d.diff;
-  const diffTxt = diff===null ? '—' : (diff===0 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
-  const diffColor = diff===null ? '#64748b' : (diff===0 ? '#16a34a' : '#dc2626');
+  const diffTxt = diff===null ? '—' : (Math.abs(diff)<0.005 ? 'মিলেছে' : (diff>0 ? 'বেশি '+sg(diff) : 'কম '+sg(Math.abs(diff))));
+  const diffColor = diff===null ? '#64748b' : (Math.abs(diff)<0.005 ? '#16a34a' : '#dc2626');
   const logo = '';   // জমার স্লিপ/রিফিল ভাউচারে লোগো নেই (লোগো ৬০০ কেবির বেশি — ফাইল ভারী হয়)
   const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
   const vouchers = sn.vouchers||[], voided = sn.voided||[], expList = sn.expList||[], duePats = sn.duePatients||[], stock = _camperStockNow(d);
@@ -14415,22 +14430,24 @@ function buildCamperDepositSlipHtml(d) {
           ${duePats.length>5 ? `<tr><td colspan="3" style="color:#6b7280">… আরও ${fmt(duePats.length-5)} জন (মোট উপরে ধরা আছে)</td></tr>` : ''}
         </tbody></table>` : '';
   const body = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid #0f4c81;padding-bottom:8px">
-      ${logo}
-      <div style="text-align:left">
-        <div style="font-size:18px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
-        <div style="font-size:14px;font-weight:700;margin-top:3px">ক্যাম্পেইনার ক্যাশ জমা — সারসংক্ষেপ</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:1px">জমার তারিখ: ${formatDate(d.date)} &nbsp;|&nbsp; জমার সময়: ${esc(d.time||'—')}</div>
+    <div class="dp-hd">
+      <div class="l">
+        ${logo}
+        <div style="font-size:18px;font-weight:800;color:#0f4c81;line-height:1.25">${esc(hospName)}</div>
+        <div style="font-size:13.5px;font-weight:700">ক্যাম্পেইনার ক্যাশ জমা — সারসংক্ষেপ</div>
+        <div style="font-size:11.5px;color:#4b5563">তারিখ: <strong>${formatDate(d.date)}</strong></div>
+        <div style="font-size:11.5px;color:#4b5563">সময়: <strong>${esc(_slipTime12(d.time))}</strong></div>
+      </div>
+      <div class="r">
+        <div>ক্যাম্প: <strong>${esc(sn.campName||'—')}</strong></div>
+        <div>স্থান: <strong>${esc(sn.location||'—')}</strong> &nbsp;|&nbsp; তারিখ: <strong>${sn.campDate?formatDate(sn.campDate):'—'}</strong></div>
+        <div>ডাক্তার: <strong>${esc(sn.doctor||'—')}</strong> &nbsp;|&nbsp; ভিজিট ফি: <strong>${sn.visitFee>0?sg(sn.visitFee):'—'}</strong>${sn.fund>0?' &nbsp;|&nbsp; সাধারণ তহবিল: <strong>'+sg(sn.fund)+'</strong>':''}</div>
+        <div>উপস্থিত অন্যান্য: ${staffTxt ? esc(staffTxt) : '—'}</div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:10px;margin:8px 0 3px;font-size:12px">
       <div>জমাদানকারী ক্যাম্পেইনার: <strong>${esc(base)}</strong></div>
       <div style="font-weight:800;color:#0f4c81;background:#eef4fa;border:1px solid #bfd3ea;border-radius:20px;padding:2px 12px">@@COPY@@</div>
-    </div>
-    <div style="font-size:11.5px;line-height:1.6;border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;background:#fafbfc">
-      <div>ক্যাম্প: <strong>${esc(sn.campName||'—')}</strong> &nbsp;|&nbsp; স্থান: <strong>${esc(sn.location||'—')}</strong> &nbsp;|&nbsp; তারিখ: <strong>${sn.campDate?formatDate(sn.campDate):'—'}</strong></div>
-      <div>ডাক্তার: <strong>${esc(sn.doctor||'—')}</strong> &nbsp;|&nbsp; ভিজিট ফি: <strong>${sn.visitFee>0?sg(sn.visitFee):'—'}</strong>${sn.fund>0?' &nbsp;|&nbsp; ক্যাম্পেইনারের সাধারণ তহবিল: <strong>'+sg(sn.fund)+'</strong>':''}</div>
-      <div>ক্যাম্পে উপস্থিত অন্যান্য: ${staffTxt ? esc(staffTxt) : '—'}</div>
     </div>
     ${sec('জমার হিসাব')}
     <div class="dp-grid" style="grid-template-columns:repeat(4,1fr)">
@@ -14555,7 +14572,7 @@ function buildCamperRefundVoucherHtml(r) {
   const logo = '';   // জমার স্লিপ/রিফিল ভাউচারে লোগো নেই (লোগো ৬০০ কেবির বেশি — ফাইল ভারী হয়)
   const mdName = (function(){ try { const i=_adminIdentity(); return i.mode==='badge' ? i.name : ''; } catch(e){ return ''; } })();
   const row = (a,b) => `<tr><td style="width:38%;color:#475569">${a}</td><td style="font-weight:700">${b}</td></tr>`;
-  const sig = (label, name) => `<div class="dp-sig" style="width:52mm"><div class="dp-sigline"></div><div style="font-weight:700">${label}</div>${name?`<div style="font-size:11.5px">${esc(name)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>`;
+  const sig = (label, name, cls) => `<div class="dp-sig${cls||''}" style="width:52mm"><div class="dp-sigline"></div><div style="font-weight:700">${label}</div>${name?`<div style="font-size:11.5px">${esc(name)}</div>`:''}<div style="font-size:11px;color:#6b7280">তারিখ: ___________</div></div>`;
   const srcTxt = r.paidRole==='receptionist' ? 'রিসেপশনের নগদ থেকে' : 'অ্যাডমিন/ব্যবস্থাপনা পরিচালকের নগদ থেকে';
   return `<html><head><meta charset="UTF-8"><style>${DEP_SLIP_CSS}</style></head><body>
     <div class="a4-page dp-page">
@@ -14565,7 +14582,7 @@ function buildCamperRefundVoucherHtml(r) {
           <div style="text-align:left"><div style="font-size:18px;font-weight:800;color:#0f4c81">${esc(hospName)}</div>
           <div style="font-size:14.5px;font-weight:700;margin-top:3px">ক্যাশ ভাউচার — ক্যাম্পেইনার তহবিল রিফিল</div></div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin:12px 0;font-size:13px"><div>ভাউচার নং: <strong>${esc(r.voucher)}</strong></div><div>তারিখ: <strong>${formatDate(r.date)}</strong> &nbsp;${esc(r.time||'')}</div></div>
+        <div style="display:flex;justify-content:space-between;margin:12px 0;font-size:13px"><div>ভাউচার নং: <strong>${esc(r.voucher)}</strong></div><div>তারিখ: <strong>${formatDate(r.date)}</strong> &nbsp;${r.time?esc(_slipTime12(r.time)):''}</div></div>
         <table class="dp-t" style="font-size:13px"><tbody>
           ${row('গ্রহণকারী ক্যাম্পেইনার', esc(r.camper))}
           ${row('ক্যাম্প', esc(r.campName||'—')+(r.campDate?' ('+formatDate(r.campDate)+')':''))}
@@ -14576,7 +14593,7 @@ function buildCamperRefundVoucherHtml(r) {
         </tbody></table>
       </div>
       <div class="dp-main"><span class="dp-main-l">রিফিল প্রদত্ত:</span><span class="dp-main-v">৳ ${fmt(r.amount)}</span></div>
-      <div class="dp-sigwrap" style="justify-content:space-between">${sig('প্রদানকারী', r.paidBy)}${sig('গ্রহণকারী ক্যাম্পেইনার', r.camper)}${sig('ব্যবস্থাপনা পরিচালক', mdName)}</div>
+      <div class="dp-sigwrap" style="justify-content:space-between">${sig('প্রদানকারী', r.paidBy)}${sig('গ্রহণকারী ক্যাম্পেইনার', r.camper)}${sig('ব্যবস্থাপনা পরিচালক', mdName, ' md')}</div>
       <div class="dp-foot">এই ভাউচার ${esc(hospName)} ম্যানেজমেন্ট সিস্টেম থেকে স্বয়ংক্রিয়ভাবে তৈরি হয়েছে।</div>
     </div></body></html>`;
 }
@@ -20218,7 +20235,8 @@ function confirmPastCampCashSubmit(campId) {
   const c = (appData.camps||[]).find(x=>x.id===campId);
   const amt = parseFloat(document.getElementById('cashSubmitAmt').value)||0;
   const note = document.getElementById('cashSubmitNote').value.trim();
-  if (amt === 0) { showToast('⚠️ পরিমাণ দিন!'); return; }
+  const _rawAmt = String((document.getElementById('cashSubmitAmt')||{}).value==null?'':document.getElementById('cashSubmitAmt').value).trim();
+  if (_rawAmt === '' || isNaN(parseFloat(_rawAmt))) { showToast('⚠️ পরিমাণ দিন! (জমা না থাকলে ০ লিখুন)'); return; }
   if (!appData.bankTx) appData.bankTx = [];
   const _deferred = !!(c && c.deferredCash);     // নতুন নিয়মের ক্যাম্প: জমা/রিফিলেই ব্যালেন্স বদলায়; পুরনো ক্যাম্পে আয়-ব্যয় ক্লোজের সময়ই গণ্য
   if (c) c.cashSubmitted = true;
@@ -20227,7 +20245,7 @@ function confirmPastCampCashSubmit(campId) {
   if (_deferred) {
     if (amt > 0) appData.bankTx.push({ id: Date.now()+1, type:'cash_in', amount: amt, date: todayStr(), ref:'camp-settle', by: currentUser.name,
       note: note || `ক্যাম্পেইনার ক্যাম্পের ক্যাশ জমা — ${currentUser.name}`, campDepositId: _pastDep ? _pastDep.id : null });
-  } else {
+  } else if (amt !== 0) {
     appData.bankTx.push({
       id: Date.now(), type: 'cash_in', amount: amt, date: todayStr(),
       note: note || `ক্যাম্পেইনার ডিউটি শেষে ক্যাশ জমা — ${currentUser.name}`,
