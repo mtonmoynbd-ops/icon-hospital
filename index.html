@@ -44282,15 +44282,18 @@ function renderOwnerBarChart(){
 <div id="adminMobPage">
   <div class="am-top">
     <div><div class="t1" id="amHosp">হাসপাতাল</div><div class="t2" id="amSub">এডমিন</div></div>
-    <button type="button" class="am-bell" onclick="amGo('appr')" aria-label="অনুমোদন">&#128276;<b id="amBellN" style="display:none">0</b></button>
+    <div style="display:flex;gap:8px">
+      <button type="button" class="am-bell" id="amMsgBtn" onclick="openQuickMsgModal()" aria-label="রিসেপশনে বার্তা"><span class="am-ic" id="amMsgIc"></span><b id="amMsgN" style="display:none">0</b></button>
+      <button type="button" class="am-bell" onclick="amGo('appr')" aria-label="অনুমোদন"><span class="am-ic" id="amBellIc"></span><b id="amBellN" style="display:none">0</b></button>
+    </div>
   </div>
   <div id="amMain"></div>
   <div class="am-tabs" id="amTabs">
-    <button type="button" data-t="home" onclick="amGo('home')"><i>&#127968;</i>হোম</button>
-    <button type="button" data-t="appr" onclick="amGo('appr')"><i>&#9989;</i>অনুমোদন<em id="amTabN" style="display:none">0</em></button>
-    <button type="button" data-t="bill" onclick="amGo('bill')"><i>&#129534;</i>বিল</button>
-    <button type="button" data-t="camp" onclick="amGo('camp')"><i>&#9962;</i>ক্যাম্প</button>
-    <button type="button" data-t="more" onclick="amGo('more')"><i>&#9776;</i>আরও</button>
+    <button type="button" data-t="home" onclick="amGo('home')"><i class="am-ic" data-ic="home"></i>হোম</button>
+    <button type="button" data-t="appr" onclick="amGo('appr')"><i class="am-ic" data-ic="appr"></i>অনুমোদন<em id="amTabN" style="display:none">0</em></button>
+    <button type="button" data-t="bill" onclick="amGo('bill')"><i class="am-ic" data-ic="bill"></i>বিল</button>
+    <button type="button" data-t="camp" onclick="amGo('camp')"><i class="am-ic" data-ic="camp"></i>ক্যাম্প</button>
+    <button type="button" data-t="more" onclick="amGo('more')"><i class="am-ic" data-ic="more"></i>আরও</button>
   </div>
   <div class="am-back" id="amBack" onclick="amCloseSheet()"></div>
   <div class="am-sheet" id="amSheet"></div>
@@ -44304,6 +44307,15 @@ body.adm-mob #toast{bottom:86px !important;left:12px !important;right:12px !impo
 .am-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:var(--am-card);border-bottom:1px solid var(--am-line)}
 .am-top .t1{font-size:16px;font-weight:800;line-height:1.2}
 .am-top .t2{font-size:12px;color:var(--am-sub)}
+.am-ic svg{width:100%;height:100%;display:block}
+.am-bell .am-ic{display:block;width:21px;height:21px;margin:auto}
+.am-tabs button i.am-ic{width:23px;height:23px;display:block}
+.am-quick button span.am-ic{width:22px;height:22px;flex:none;color:var(--am-pri)}
+.am-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.am-strip button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--am-line);border-left:4px solid var(--am-pri);background:var(--am-card);color:var(--am-text);border-radius:12px;padding:9px 11px;font-family:inherit;text-align:left;cursor:pointer}
+.am-strip .k{font-size:12px;color:var(--am-sub);display:flex;align-items:center;gap:5px}.am-strip .v{font-size:17px;font-weight:800}
+.am-dot{width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;animation:amBlink 1.4s infinite}@keyframes amBlink{50%{opacity:.25}}
+body.adm-mob .modal-overlay{z-index:1000}
 .am-bell{position:relative;border:0;background:var(--am-prisoft);color:var(--am-pri);width:42px;height:42px;border-radius:50%;font-size:19px;cursor:pointer}
 .am-bell b{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:9px;background:#dc2626;color:#fff;font-size:11px;line-height:18px;padding:0 4px;font-weight:700}
 #amMain{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 20px}
@@ -44368,6 +44380,14 @@ function adminUiMode() {
   if (p === 'mobile' || p === 'pc') return p;
   return (window.matchMedia && window.matchMedia('(max-width: 820px)').matches) ? 'mobile' : 'pc';
 }
+function amIc(n) { return '<span class="am-ic">' + ((typeof QA_SVG !== 'undefined' && QA_SVG[n]) || '') + '</span>'; }
+var AM_MSG_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg>';
+function amIcons() {
+  var map = { home: 'home', appr: 'clipboard', bill: 'receipt', camp: 'tent', more: 'gear' };
+  document.querySelectorAll('#amTabs i[data-ic]').forEach(function (el) { var n = map[el.getAttribute('data-ic')]; if (typeof QA_SVG !== 'undefined' && QA_SVG[n]) el.innerHTML = QA_SVG[n]; });
+  var b = document.getElementById('amBellIc'); if (b && typeof QA_SVG !== 'undefined') b.innerHTML = QA_SVG.clipboard;
+  var m = document.getElementById('amMsgIc'); if (m) m.innerHTML = AM_MSG_SVG;
+}
 function amEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function amShow() {
   ['appPage', 'recPage', 'ownerPage', 'camperPage'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -44375,6 +44395,7 @@ function amShow() {
   document.body.classList.add('adm-mob');
   var pill = document.getElementById('amToMobBtn'); if (pill) pill.classList.remove('show');
   amTab = 'home'; amLastHtml = '';
+  amIcons();
   amRender(true);
   if (amTimer) clearInterval(amTimer);
   amTimer = setInterval(function () {
@@ -44432,6 +44453,23 @@ function amBalances() {
 }
 function amMoney(n) { return (n < 0 ? '-' : '') + '৳ ' + fmt(Math.abs(n)); }
 
+// ----- রিসেপশন ক্যাশ / ক্যাম্প ক্যাশ লাইভ স্ট্রিপ (পিসি ড্যাশবোর্ডের একই হিসাব ও বিস্তারিত) -----
+function amStripHtml() {
+  try {
+    if (typeof _custodyFrom !== 'function' || !_custodyFrom()) return '<div class="am-meta" style="margin:0 0 10px">রিসেপশন/ক্যাম্প ক্যাশ ট্র্যাকিং এখনো চালু হয়নি (পিসির ড্যাশবোর্ড থেকে চালু করুন)</div>';
+    var d = _custodyData();
+    var seg = function (kind, ic, label, total, color, live) {
+      return '<button onclick="amCustody(\'' + kind + '\')" style="border-left-color:' + color + '"><span class="k">' + ic + ' ' + label + (live ? ' <span class="am-dot"></span>' : '') + '</span><span class="v" style="color:' + (total < 0 ? 'var(--am-bad)' : 'var(--am-text)') + '">' + (total < 0 ? '− ' : '') + '৳ ' + fmt(Math.abs(total)) + '</span></button>';
+    };
+    return '<div class="am-strip">' + seg('rec', '🧾', 'রিসেপশন ক্যাশ', d.recTotal, '#0f766e', d.recLive) + seg('camp', '🏕️', 'ক্যাম্প ক্যাশ', d.campTotal, '#b45309', d.campLive) + '</div>';
+  } catch (e) { console.warn('amStrip', e); return ''; }
+}
+function amCustody(kind) {
+  var body = ''; try { body = _custModalBody(kind); } catch (e) { body = '<div class="am-meta">লোড করা যায়নি</div>'; }
+  amOpenSheet('<div class="hd"><b>' + (kind === 'rec' ? '🧾 রিসেপশন ক্যাশ — লাইভ' : '🏕️ ক্যাম্প ক্যাশ — লাইভ') + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
+    + '<div style="background:#fff;color:#1f2937;border-radius:12px;padding:8px;font-size:13px">' + body + '</div>');
+}
+
 // ----- রেন্ডার -----
 function amRender(force) {
   if (!currentUser || currentUser.role !== 'admin') return;
@@ -44442,6 +44480,8 @@ function amRender(force) {
   document.getElementById('amSub').textContent = 'এডমিন · ' + formatDate(todayStr());
   [['amBellN', p.total], ['amTabN', p.total]].forEach(function (x) { var el = document.getElementById(x[0]); el.textContent = fmt(x[1]); el.style.display = x[1] ? '' : 'none'; });
   document.querySelectorAll('#amTabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-t') === amTab); });
+  var mn = (appData.quickMessages || []).filter(function (m) { return m && m.ackAt && !m.ackSeen && !m.adminCleared; }).length;
+  var mel = document.getElementById('amMsgN'); if (mel) { mel.textContent = fmt(mn); mel.style.display = mn ? '' : 'none'; }
   var html = amTab === 'home' ? amHomeHtml(p) : amTab === 'appr' ? amApprHtml(p) : amTab === 'bill' ? amBillHtml() : amTab === 'camp' ? amCampHtml() : amMoreHtml();
   if (!force && html === amLastHtml) return;
   amLastHtml = html; var st = main.scrollTop; main.innerHTML = html; main.scrollTop = st;
@@ -44449,7 +44489,8 @@ function amRender(force) {
 function amHomeHtml(p) {
   var day = amDay === 'today' ? todayStr() : addDaysToDateStr(todayStr(), -1);
   var st = amDayStats(day), b = amBalances();
-  var h = '<div class="am-chips"><button class="am-chip' + (amDay === 'today' ? ' on' : '') + '" onclick="amSetDay(\'today\')">আজ</button><button class="am-chip' + (amDay === 'yday' ? ' on' : '') + '" onclick="amSetDay(\'yday\')">গতকাল</button></div>';
+  var h = amStripHtml();
+  h += '<div class="am-chips"><button class="am-chip' + (amDay === 'today' ? ' on' : '') + '" onclick="amSetDay(\'today\')">আজ</button><button class="am-chip' + (amDay === 'yday' ? ' on' : '') + '" onclick="amSetDay(\'yday\')">গতকাল</button></div>';
   h += '<div class="am-grid"><div class="am-stat"><div class="l">আয়</div><div class="v">' + amMoney(st.inc) + '</div></div>'
     + '<div class="am-stat"><div class="l">ব্যয় (ফিক্সডসহ)</div><div class="v">' + amMoney(st.exp) + '</div></div>'
     + '<div class="am-stat ' + (st.net >= 0 ? 'ok' : 'bad') + '"><div class="l">নীট আয়</div><div class="v">' + amMoney(st.net) + '</div></div>'
@@ -44459,8 +44500,9 @@ function amHomeHtml(p) {
     + '<div class="am-row"><span class="k">ব্যাংক</span><span class="v">' + amMoney(b.bank) + '</span></div>'
     + '<div class="am-row"><span class="k">মোবাইল ব্যাংকিং</span><span class="v">' + amMoney(b.mfs) + '</span></div>'
     + '<div class="am-row tot"><span>মোট</span><span>' + amMoney(b.total) + '</span></div></div>';
-  h += '<div class="am-quick"><button onclick="amCampForm()"><span>&#9962;</span>নতুন ক্যাম্প</button><button onclick="amGo(\'appr\')"><span>&#9989;</span>অনুমোদন (' + fmt(p.total) + ')</button>'
-    + '<button onclick="amGo(\'bill\')"><span>&#129534;</span>বিল ও বাকি</button><button onclick="amSetUi(\'pc\')"><span>&#128187;</span>পিসি ভিউ</button></div>';
+  h += '<div class="am-quick"><button onclick="amCampForm()">' + amIc('tent') + 'নতুন ক্যাম্প</button><button onclick="amGo(\'appr\')">' + amIc('clipboard') + 'অনুমোদন (' + fmt(p.total) + ')</button>'
+    + '<button onclick="amGo(\'bill\')">' + amIc('receipt') + 'বিল ও বাকি</button><button onclick="openQuickMsgModal()"><span class="am-ic">' + AM_MSG_SVG + '</span>রিসেপশনে বার্তা</button>'
+    + '<button onclick="amGo(\'camp\')">' + amIc('calendar') + 'সব ক্যাম্প</button><button onclick="amSetUi(\'pc\')">' + amIc('gear') + 'পিসি ভিউ</button></div>';
   h += '<div class="am-h"><span>অনুমোদনের অপেক্ষায়</span><a onclick="amGo(\'appr\')">সব দেখুন</a></div>';
   var items = amPendingCards(p, 3);
   h += items || '<div class="am-card am-empty">কোনো অনুমোদন বাকি নেই</div>';
@@ -44630,22 +44672,102 @@ function amUpcomingCamps() {
   return (appData.campSchedules || []).filter(function (s) { return s.status !== 'closed' && s.status !== 'cancelled' && (s.date || '') >= t; }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
 }
 function amStatusTag(s) {
-  return s.status === 'closed' ? '<span class="am-tag">সম্পন্ন</span>' : s.status === 'active' ? '<span class="am-tag g">সক্রিয়</span>' : s.status === 'cancelled' ? '<span class="am-tag r">বাতিল</span>' : '<span class="am-tag w">নির্ধারিত</span>';
+  var over = s.status !== 'closed' && s.status !== 'cancelled' && (s.date || '') < todayStr() && s.status !== 'active';
+  return over ? '<span class="am-tag r">মেয়াদোত্তীর্ণ</span>' : s.status === 'closed' ? '<span class="am-tag">সম্পন্ন</span>' : s.status === 'active' ? '<span class="am-tag g">সক্রিয়</span>' : s.status === 'cancelled' ? '<span class="am-tag r">বাতিল</span>' : '<span class="am-tag w">নির্ধারিত</span>';
 }
 function amCampCard(s) {
-  var n = (s.regularStaff || []).length + (s.parttimers || []).length;
-  return '<div class="am-card" onclick="amCampForm(' + s.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '</div><div>' + amStatusTag(s) + '</div></div>'
-    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + (n ? ' · কর্মী ' + fmt(n) + ' জন' : '') + '</div></div>';
+  var n = (s.regularStaff || []).length + (s.parttimers || []).length, rs = (s.rescheduleHistory || []).length;
+  return '<div class="am-card" onclick="amCampDetail(' + s.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '</div><div>' + amStatusTag(s) + '</div></div>'
+    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + (n ? ' · কর্মী ' + fmt(n) + ' জন' : '') + '</div></div>';
+}
+// সম্পন্ন ক্যাম্প — ক্যাম্পেইনার প্যানেলের "আগের ক্যাম্প" কার্ডের নকশা; "বিস্তারিত" পিসি/ওনার/ক্যাম্পেইনারের একই পূর্ণ-পেজ ভিউ (showCampDetail)
+function amDoneCampCard(c) {
+  var rating = { 'খুব সফল': '🌟', 'সফল': '✅', 'মোটামুটি': '🆗', 'অসফল': '❌' };
+  var unsold = (c.stockTaken || []).reduce(function (t, it) { return t + Math.max(0, it.qtyTaken - (it.qtySold || 0) - (it.qtyReturned || 0)); }, 0);
+  var net = 0; try { net = (c.settleIncome != null ? c.settleIncome : (c.totalIncome || 0)) - _camperExpTotal(_camperExpListPast(c)); } catch (e) {}
+  var chip = function (t, bg, fg) { return '<span style="font-size:11px;font-weight:800;color:' + fg + ';background:' + bg + ';border-radius:999px;padding:2px 8px;white-space:nowrap">' + t + '</span>'; };
+  var chips = (unsold > 0 ? chip('⚠️ অবিক্রিত ' + fmt(unsold) + ' টি', '#fef3c7', '#b45309') : chip('✅ স্টক ক্লিয়ার', '#dcfce7', '#166534'))
+    + ' ' + (c.cashSubmitted ? chip('✅ ক্যাশ জমা হয়েছে', '#dcfce7', '#166534') : chip(net < 0 ? '⏳ রিফিল পাবেন ৳ ' + fmt(-net) : '⏳ জমা বাকি ৳ ' + fmt(net), '#ffedd5', '#9a3412'));
+  return '<div class="am-card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><div style="font-weight:800;font-size:14.5px;color:var(--am-pri)">' + amEsc(c.name) + '</div>' + (c.rating ? '<span style="font-size:12px;font-weight:700;white-space:nowrap">' + (rating[c.rating] || '') + ' ' + amEsc(c.rating) + '</span>' : '') + '</div>'
+    + '<div class="am-meta">📍 ' + amEsc(c.location) + ' &nbsp;•&nbsp; 📅 ' + formatDate(c.date) + (c.doctor ? ' &nbsp;•&nbsp; ডাঃ ' + amEsc(c.doctor) : '') + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:3px 12px;font-size:12.5px;margin:6px 0 5px"><span>👥 <b>' + fmt(c.totalPatients || 0) + '</b></span><span>💰 <b style="color:var(--am-ok)">৳' + fmt(c.totalIncome || 0) + '</b></span><span>🧾 <b>#' + amEsc(c.receiptStart || '—') + '–' + amEsc(c.receiptEnd || '—') + '</b></span></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">' + chips + '</div>'
+    + '<button class="am-btn" style="width:100%" onclick="showCampDetail(' + c.id + ')">👁️ বিস্তারিত</button></div>';
 }
 function amCampHtml() {
-  var all = (appData.campSchedules || []).slice();
-  var t = todayStr();
-  var up = all.filter(function (s) { return s.status !== 'closed' && s.status !== 'cancelled' && (s.date || '') >= t; }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
-  var past = all.filter(function (s) { return up.indexOf(s) < 0; }).sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 15);
+  var all = (appData.campSchedules || []).slice(), t = todayStr();
+  var live = function (s) { return s.status !== 'closed' && s.status !== 'cancelled'; };
+  var up = all.filter(function (s) { return live(s) && (s.date || '') >= t; }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+  var over = all.filter(function (s) { return live(s) && (s.date || '') < t && s.status !== 'active'; }).sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  var cancelled = all.filter(function (s) { return s.status === 'cancelled'; }).sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 5);
+  var done = (appData.camps || []).slice().sort(function (a, b) { return (b.id || 0) - (a.id || 0); }).slice(0, 10);
   var h = '<button class="am-btn pri" style="width:100%;margin-bottom:12px;padding:14px" onclick="amCampForm()">+ নতুন ক্যাম্প যোগ করুন</button>';
+  if (over.length) h += '<div class="am-h"><span style="color:var(--am-bad)">মেয়াদোত্তীর্ণ — রিশিডিউল/বাতিল দিন (' + fmt(over.length) + ')</span></div>' + over.map(amCampCard).join('');
   h += '<div class="am-h"><span>আসন্ন (' + fmt(up.length) + ')</span></div>' + (up.length ? up.map(amCampCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
-  if (past.length) h += '<div class="am-h"><span>আগের ক্যাম্প</span></div>' + past.map(amCampCard).join('');
+  if (done.length) h += '<div class="am-h"><span>সম্পন্ন ক্যাম্প</span></div>' + done.map(amDoneCampCard).join('');
+  if (cancelled.length) h += '<div class="am-h"><span>বাতিল</span></div>' + cancelled.map(amCampCard).join('');
   return h;
+}
+function amFmtAt(ts) { try { return new Date(ts).toLocaleString('bn-BD', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+function amCampDetail(id) {
+  var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
+  var staff = (s.regularStaff || []).map(function (r) { return amEsc(r.name); }).concat((s.parttimers || []).map(function (p) { return amEsc(p.name) + ' (পার্টটাইম)'; })).join(', ');
+  var hist = (s.rescheduleHistory || []).slice().reverse().map(function (r) {
+    return '<div class="am-row" style="align-items:flex-start"><span>' + formatDate(r.oldDate) + ' → <b>' + formatDate(r.newDate) + '</b><div class="am-meta" style="margin:0">কারণ: ' + amEsc(r.reason || '—') + '</div></span><span class="am-meta" style="text-align:right;margin:0">' + amEsc(r.by || '') + '<br>' + amEsc(amFmtAt(r.at)) + '</span></div>';
+  }).join('');
+  var open = s.status !== 'closed' && s.status !== 'cancelled';
+  amOpenSheet('<div class="hd"><b>' + amEsc(s.name) + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
+    + '<div style="margin-bottom:8px">' + amStatusTag(s) + '</div>'
+    + '<div class="am-card" style="padding:4px 12px">'
+    + '<div class="am-row"><span class="k">তারিখ</span><span class="v">' + formatDate(s.date) + '</span></div>'
+    + '<div class="am-row"><span class="k">স্থান</span><span class="v">' + amEsc(s.location) + '</span></div>'
+    + '<div class="am-row"><span class="k">ডাক্তার</span><span class="v">' + amEsc(s.doctor || '—') + '</span></div>'
+    + '<div class="am-row"><span class="k">ক্যাম্পেইনার</span><span class="v">' + amEsc(s.camper || '—') + '</span></div>'
+    + '<div class="am-row"><span class="k">ভিজিট ফি</span><span class="v">৳ ' + fmt(s.visitFee || 0) + '</span></div>'
+    + (staff ? '<div class="am-row"><span class="k">কর্মী</span><span class="v" style="text-align:right;max-width:65%">' + staff + '</span></div>' : '') + '</div>'
+    + (s.status === 'cancelled' ? '<div class="am-meta" style="background:var(--am-badsoft);border-radius:10px;padding:8px;margin-bottom:8px"><b>বাতিলের কারণ:</b> ' + amEsc(s.cancelReason || '—') + (s.cancelledBy ? '<br>' + amEsc(s.cancelledBy) + ' · ' + amEsc(amFmtAt(s.cancelledAt)) : '') + '</div>' : '')
+    + (hist ? '<div class="am-h"><span>রিশিডিউলের ইতিহাস</span></div><div class="am-card" style="padding:4px 12px">' + hist + '</div>' : '')
+    + (open ? '<div class="am-btns" style="flex-wrap:wrap"><button class="am-btn pri" onclick="amReschedForm(' + id + ')">রিশিডিউল</button><button class="am-btn" onclick="amCampForm(' + id + ')">সংশোধন</button><button class="am-btn bad" onclick="amCancelForm(' + id + ')">বাতিল</button></div>' : ''));
+}
+function amReschedForm(id) {
+  var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
+  amOpenSheet('<div class="hd"><b>ক্যাম্প রিশিডিউল</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
+    + '<div class="am-meta" style="font-size:14px;margin-bottom:10px"><b>' + amEsc(s.name) + '</b><br>বর্তমান তারিখ: ' + formatDate(s.date) + '</div>'
+    + '<div class="am-f"><label>নতুন তারিখ *</label><input type="date" id="amRsDate" min="' + todayStr() + '"></div>'
+    + '<div class="am-f"><label>রিশিডিউলের কারণ *</label><textarea id="amRsReason" placeholder="যেমন: স্থানীয় কর্তৃপক্ষের অনুরোধে"></textarea></div>'
+    + '<div class="am-btns"><button class="am-btn line" onclick="amCampDetail(' + id + ')">ফিরে যান</button><button class="am-btn pri" onclick="amDoResched(' + id + ')">রিশিডিউল নিশ্চিত করুন</button></div>');
+}
+function amPushResched(s, newDate, reason) {
+  if (!s.rescheduleHistory) s.rescheduleHistory = [];
+  s.rescheduleHistory.push({ oldDate: s.date, newDate: newDate, reason: reason, by: (currentUser && (currentUser.name || currentUser.username)) || '', at: Date.now() });
+  try { logActivity('edit', 'ক্যাম্প রিশিডিউল', s.name + ' — ' + s.date + ' → ' + newDate + ' — কারণ: ' + reason); } catch (e) {}
+}
+function amDoResched(id) {
+  var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
+  var nd = ((document.getElementById('amRsDate') || {}).value || ''), rs = ((document.getElementById('amRsReason') || {}).value || '').trim();
+  if (!nd) { showToast('⚠️ নতুন তারিখ বেছে নিন'); return; }
+  if (nd < todayStr()) { showToast('⚠️ নতুন তারিখ আজ অথবা তার পরের হতে হবে'); return; }
+  if (nd === s.date) { showToast('⚠️ নতুন তারিখ আগের তারিখ থেকে আলাদা হতে হবে'); return; }
+  if (!rs) { showToast('⚠️ রিশিডিউলের কারণ লিখুন'); return; }
+  amPushResched(s, nd, rs); s.date = nd; s.status = 'scheduled';
+  saveData(); try { renderCampScheduleTable(); } catch (e) {} try { renderRecCampSchedule(); } catch (e) {}
+  amCloseSheet(); showToast('📅 ক্যাম্প রিশিডিউল হয়েছে'); amAfter();
+}
+function amCancelForm(id) {
+  var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
+  amOpenSheet('<div class="hd"><b>ক্যাম্প বাতিল</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
+    + '<div class="am-meta" style="font-size:14px;margin-bottom:10px"><b>' + amEsc(s.name) + '</b> — ' + formatDate(s.date) + '</div>'
+    + '<div class="am-f"><label>বাতিলের কারণ *</label><textarea id="amCnReason"></textarea></div>'
+    + '<div class="am-btns"><button class="am-btn line" onclick="amCampDetail(' + id + ')">ফিরে যান</button><button class="am-btn bad" onclick="amDoCancel(' + id + ')">বাতিল নিশ্চিত করুন</button></div>');
+}
+function amDoCancel(id) {
+  var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
+  var rs = ((document.getElementById('amCnReason') || {}).value || '').trim();
+  if (!rs) { showToast('⚠️ বাতিলের কারণ লিখুন'); return; }
+  s.status = 'cancelled'; s.cancelReason = rs; s.cancelledAt = Date.now(); s.cancelledBy = (currentUser && (currentUser.name || currentUser.username)) || '';
+  try { logActivity('edit', 'ক্যাম্প বাতিল', s.name + ' — কারণ: ' + rs); } catch (e) {}
+  saveData(); try { renderCampScheduleTable(); } catch (e) {} try { renderRecCampSchedule(); } catch (e) {}
+  amCloseSheet(); showToast('❌ ক্যাম্প বাতিল হয়েছে'); amAfter();
 }
 var amPtN = 0;
 function amCampForm(id) {
@@ -44663,10 +44785,11 @@ function amCampForm(id) {
   }).join('') : '<span class="am-meta">স্যালারি শিটে কোনো কর্মী নেই</span>';
   amPtN = 0;
   amOpenSheet('<div class="hd"><b>' + (s ? 'ক্যাম্প সংশোধন' : 'নতুন ক্যাম্প') + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
-    + '<input type="hidden" id="amCsId" value="' + (s ? s.id : '') + '">'
+    + '<input type="hidden" id="amCsId" value="' + (s ? s.id : '') + '"><input type="hidden" id="amCsOldDate" value="' + (s ? amEsc(s.date) : '') + '">'
     + '<div class="am-f"><label>ক্যাম্পের নাম *</label><input id="amCsName" value="' + amEsc(s ? s.name : '') + '" placeholder="যেমন: দোহার ফ্রি আই ক্যাম্প"></div>'
     + '<div class="am-f"><label>স্থান *</label><input id="amCsLoc" value="' + amEsc(s ? s.location : '') + '"></div>'
-    + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amCsDate" value="' + (s ? s.date : todayStr()) + '"></div>'
+    + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amCsDate" value="' + (s ? s.date : todayStr()) + '" onchange="amCsDateChg()"></div>'
+    + '<div class="am-f" id="amCsRsWrap" style="display:none"><label>তারিখ বদলানোর (রিশিডিউলের) কারণ *</label><textarea id="amCsRsReason" placeholder="এই কারণসহ রিশিডিউলের রেকর্ড সংরক্ষিত হবে"></textarea></div>'
     + '<div class="am-f"><label>ডাক্তার *</label><select id="amCsDoc">' + dopts + '</select></div>'
     + '<div class="am-f"><label>ক্যাম্পেইনার</label><select id="amCsCamper">' + copts + '</select></div>'
     + '<div class="am-f"><label>ভিজিট ফি (৳)</label><input type="number" inputmode="numeric" id="amCsFee" value="' + (s ? (s.visitFee || '') : '') + '"></div>'
@@ -44674,6 +44797,10 @@ function amCampForm(id) {
     + '<div class="am-f"><label>পার্টটাইমার</label><div id="amPtRows"></div><button type="button" class="am-btn line" style="width:100%" onclick="amAddPt()">+ পার্টটাইমার যোগ</button></div>'
     + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amSaveCamp()">সেভ করুন</button></div>');
   if (s) (s.parttimers || []).forEach(function (p) { amAddPt(p.name, p.pay); });
+}
+function amCsDateChg() {
+  var old = (document.getElementById('amCsOldDate') || {}).value || '', nd = (document.getElementById('amCsDate') || {}).value || '';
+  var w = document.getElementById('amCsRsWrap'); if (w) w.style.display = (old && nd && nd !== old) ? '' : 'none';
 }
 function amAddPt(name, pay) {
   amPtN++; var n = amPtN, d = document.createElement('div'); d.className = 'am-pt'; d.id = 'amPt-' + n;
@@ -44683,10 +44810,12 @@ function amAddPt(name, pay) {
 function amSaveCamp() {
   var v = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
   var name = v('amCsName'), location = v('amCsLoc'), date = v('amCsDate'), doctor = v('amCsDoc'), camper = v('amCsCamper');
-  var visitFee = parseFloat(v('amCsFee')) || 0, editId = v('amCsId');
+  var visitFee = parseFloat(v('amCsFee')) || 0, editId = v('amCsId'), oldDate = v('amCsOldDate'), rsReason = v('amCsRsReason');
   var dOpt = document.getElementById('amCsDoc').selectedOptions[0], doctorId = dOpt ? (dOpt.getAttribute('data-id') || '') : '';
   if (!name || !location || !date) { showToast('⚠️ নাম, স্থান ও তারিখ আবশ্যক!'); return; }
   if (!doctor) { showToast('⚠️ ক্যাম্পের ডাক্তার বেছে নিন!'); return; }
+  var dateChanged = !!(editId && oldDate && date !== oldDate);
+  if (dateChanged && !rsReason) { showToast('⚠️ তারিখ বদলাতে রিশিডিউলের কারণ লিখুন'); return; }
   var regularStaff = [];
   document.querySelectorAll('.am-cs-chk:checked').forEach(function (c) { regularStaff.push({ id: parseInt(c.value), name: c.getAttribute('data-name'), dailyPay: parseInt(c.getAttribute('data-daily')) || 0 }); });
   var parttimers = [];
@@ -44698,14 +44827,17 @@ function amSaveCamp() {
   if (!appData.campSchedules) appData.campSchedules = [];
   if (editId) {
     var idx = appData.campSchedules.findIndex(function (s) { return String(s.id) === String(editId); });
-    if (idx >= 0) appData.campSchedules[idx] = Object.assign({}, appData.campSchedules[idx], { name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary });
+    if (idx >= 0) {
+      var cur = appData.campSchedules[idx];
+      if (dateChanged) { amPushResched(cur, date, rsReason); if (cur.status !== 'active') cur.status = 'scheduled'; }
+      appData.campSchedules[idx] = Object.assign(cur, { name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary });
+    }
   } else {
     appData.campSchedules.push({ id: Date.now(), name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary, status: 'scheduled' });
   }
   saveData(); try { renderCampScheduleTable(); } catch (e) {}
-  amCloseSheet(); showToast('✅ ক্যাম্প শিডিউল সেভ হয়েছে'); amAfter();
+  amCloseSheet(); showToast(dateChanged ? '📅 ক্যাম্প রিশিডিউল ও সংশোধন সেভ হয়েছে' : '✅ ক্যাম্প শিডিউল সেভ হয়েছে'); amAfter();
 }
-
 
 // ----- বিল ও বাকি -----
 var amBillF = 'due', amBillQ = '';
