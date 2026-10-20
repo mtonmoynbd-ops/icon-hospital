@@ -14458,7 +14458,13 @@ function buildCamperDepositSlipHtml(d) {
   const seriesLine = `<div style="font-size:11.5px;line-height:1.6;border:1px solid #e5e7eb;border-radius:8px;padding:5px 10px;background:#fafbfc;margin:6px 0 2px">
     <b style="color:#0f4c81">রিসিট রেঞ্জ:</b> ${rcpRange} (${fmt(sn.patients||0)} টি) &nbsp;|&nbsp; <b style="color:#7e22ce">ভাউচার রেঞ্জ:</b> ${vRange}${vouchers.length ? ' ('+fmt(vouchers.length)+' টি)' : ''}${voided.length ? ' &nbsp;|&nbsp; <b style="color:#b45309">বাতিল রিসিট:</b> '+voided.map(m=>esc(m.memoNo)).join(', ')+' ('+fmt(voided.length)+' টি)'+(voided.length<=2 ? ' — কারণ: '+voided.map(m=>esc(m.reason)).join('; ') : '') : ''}
   </div>`;
-  const staffTxt = String(sn.staff||'').length>130 ? String(sn.staff).slice(0,130)+'…' : String(sn.staff||'');
+  // উপস্থিত অন্যান্য = কর্মী/পার্টটাইমার (ক্যাম্পেইনার ও ডাক্তার বাদে); মোট উপস্থিতি = ডাক্তার + ক্যাম্পেইনার + অন্যান্য
+  const _schX = (appData.campSchedules||[]).find(x => x.name===sn.campName && x.date===sn.campDate);
+  const _cmpName = (_schX && _schX.camper) || _baseBy(d.by);
+  const _othersArr = String(sn.staff||'').split(/\s*,\s*/).filter(n => n && n!==_cmpName && n!==_baseBy(d.by) && n!==sn.doctor);
+  const _attTotal = (sn.doctor?1:0) + 1 + _othersArr.length;
+  const _othersTxt = _othersArr.join(', ');
+  const staffTxt = _othersTxt.length>110 ? _othersTxt.slice(0,110)+'…' : _othersTxt;
   const stT = stock.reduce((t,i)=>t+i.taken,0), stS = stock.reduce((t,i)=>t+i.sold,0), stR = stock.reduce((t,i)=>t+i.returned,0), stU = stock.reduce((t,i)=>t+Math.max(0,i.taken-i.sold),0);
   const isGl = i => i.glass === true || (i.glass === undefined && (appData.stock||[]).some(x => x.name === i.name && x.cat === 'চশমা/লেন্স'));
   const medItems = stock.filter(i => !isGl(i)), glItems = stock.filter(isGl);
@@ -14495,7 +14501,7 @@ function buildCamperDepositSlipHtml(d) {
         <div style="font-size:14px;font-weight:800;color:#0f4c81">ক্যাম্প: ${esc(sn.campName||'—')}</div>
         <div>স্থান: <strong>${esc(sn.location||'—')}</strong> &nbsp;|&nbsp; তারিখ: <strong>${sn.campDate?formatDate(sn.campDate):'—'}</strong></div>
         <div>ডাক্তার: <strong>${esc(sn.doctor||'—')}</strong> &nbsp;|&nbsp; ভিজিট ফি: <strong>${sn.visitFee>0?sg(sn.visitFee):'—'}</strong>${sn.fund>0?' &nbsp;|&nbsp; সাধারণ তহবিল: <strong>'+sg(sn.fund)+'</strong>':''}</div>
-        <div>উপস্থিত অন্যান্য: ${staffTxt ? esc(staffTxt) : '—'}</div>
+        <div>উপস্থিত অন্যান্য: ${staffTxt ? esc(staffTxt) : '—'} &nbsp;|&nbsp; <strong>মোট উপস্থিতি: ${fmt(_attTotal)} জন</strong></div>
       </div>
       <div class="r">
         ${logo}
@@ -44690,10 +44696,15 @@ function amStatusTag(s) {
   var over = s.status !== 'closed' && s.status !== 'cancelled' && (s.date || '') < todayStr() && s.status !== 'active';
   return over ? '<span class="am-tag r">মেয়াদোত্তীর্ণ</span>' : s.status === 'closed' ? '<span class="am-tag">সম্পন্ন</span>' : s.status === 'active' ? '<span class="am-tag g">সক্রিয়</span>' : s.status === 'cancelled' ? '<span class="am-tag r">বাতিল</span>' : '<span class="am-tag w">নির্ধারিত</span>';
 }
+function amCampPeople(s) {
+  var names = (s.regularStaff || []).map(function (r) { return r.name; }).concat((s.parttimers || []).map(function (p) { return p.name; }));
+  var others = names.filter(function (n, i) { return n && n !== s.camper && n !== s.doctor && names.indexOf(n) === i; });
+  return { others: others, total: (s.doctor ? 1 : 0) + (s.camper ? 1 : 0) + others.length };
+}
 function amCampCard(s) {
-  var n = (s.regularStaff || []).length + (s.parttimers || []).length, rs = (s.rescheduleHistory || []).length;
+  var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length;
   return '<div class="am-card" onclick="amCampDetail(' + s.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '</div><div>' + amStatusTag(s) + '</div></div>'
-    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + (n ? ' · কর্মী ' + fmt(n) + ' জন' : '') + '</div></div>';
+    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>উপস্থিত অন্যান্য: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + ' · <b>মোট উপস্থিতি ' + fmt(pp.total) + '</b><br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>';
 }
 // সম্পন্ন ক্যাম্প — ক্যাম্পেইনার প্যানেলের "আগের ক্যাম্প" কার্ডের নকশা; "বিস্তারিত" পিসি/ওনার/ক্যাম্পেইনারের একই পূর্ণ-পেজ ভিউ (showCampDetail)
 function amDoneCampCard(c) {
@@ -44726,7 +44737,8 @@ function amCampHtml() {
 function amFmtAt(ts) { try { return new Date(ts).toLocaleString('bn-BD', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
 function amCampDetail(id) {
   var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
-  var staff = (s.regularStaff || []).map(function (r) { return amEsc(r.name); }).concat((s.parttimers || []).map(function (p) { return amEsc(p.name) + ' (পার্টটাইম)'; })).join(', ');
+  var pp = amCampPeople(s), ptNames = (s.parttimers || []).map(function (p) { return p.name; });
+  var staff = pp.others.map(function (n) { return amEsc(n) + (ptNames.indexOf(n) >= 0 ? ' (পার্টটাইম)' : ''); }).join(', ');
   var hist = (s.rescheduleHistory || []).slice().reverse().map(function (r) {
     return '<div class="am-row" style="align-items:flex-start"><span>' + formatDate(r.oldDate) + ' → <b>' + formatDate(r.newDate) + '</b><div class="am-meta" style="margin:0">কারণ: ' + amEsc(r.reason || '—') + '</div></span><span class="am-meta" style="text-align:right;margin:0">' + amEsc(r.by || '') + '<br>' + amEsc(amFmtAt(r.at)) + '</span></div>';
   }).join('');
@@ -44739,7 +44751,8 @@ function amCampDetail(id) {
     + '<div class="am-row"><span class="k">ডাক্তার</span><span class="v">' + amEsc(s.doctor || '—') + '</span></div>'
     + '<div class="am-row"><span class="k">ক্যাম্পেইনার</span><span class="v">' + amEsc(s.camper || '—') + '</span></div>'
     + '<div class="am-row"><span class="k">ভিজিট ফি</span><span class="v">৳ ' + fmt(s.visitFee || 0) + '</span></div>'
-    + (staff ? '<div class="am-row"><span class="k">কর্মী</span><span class="v" style="text-align:right;max-width:65%">' + staff + '</span></div>' : '') + '</div>'
+    + '<div class="am-row"><span class="k">উপস্থিত অন্যান্য</span><span class="v" style="text-align:right;max-width:62%">' + (staff || '—') + '</span></div>'
+    + '<div class="am-row tot"><span>মোট উপস্থিতি</span><span>' + fmt(pp.total) + ' জন</span></div></div>'
     + (s.status === 'cancelled' ? '<div class="am-meta" style="background:var(--am-badsoft);border-radius:10px;padding:8px;margin-bottom:8px"><b>বাতিলের কারণ:</b> ' + amEsc(s.cancelReason || '—') + (s.cancelledBy ? '<br>' + amEsc(s.cancelledBy) + ' · ' + amEsc(amFmtAt(s.cancelledAt)) : '') + '</div>' : '')
     + (hist ? '<div class="am-h"><span>রিশিডিউলের ইতিহাস</span></div><div class="am-card" style="padding:4px 12px">' + hist + '</div>' : '')
     + (open ? '<div class="am-btns" style="flex-wrap:wrap"><button class="am-btn pri" onclick="amReschedForm(' + id + ')">রিশিডিউল</button><button class="am-btn" onclick="amCampForm(' + id + ')">সংশোধন</button><button class="am-btn bad" onclick="amCancelForm(' + id + ')">বাতিল</button></div>' : ''));
@@ -44874,7 +44887,7 @@ function amBillRows() {
 function amBillHtml() {
   var r = amBillRows();
   var chip = function (k, t, n) { return '<button class="am-chip' + (amBillF === k && !amBillQ ? ' on' : '') + '" onclick="amBillQ=\'\';amSetBillF(\'' + k + '\')">' + t + (n != null ? ' (' + fmt(n) + ')' : '') + '</button>'; };
-  var h = '<div class="am-f" style="margin-bottom:8px"><input id="amBillQ" type="search" placeholder="নাম, মেমো বা ফোন দিয়ে খুঁজুন" value="' + amEsc(amBillQ) + '" oninput="amBillSearch(this.value)"></div>';
+  var h = '<div class="am-f" style="margin-bottom:8px"><input id="amBillQ" type="search" placeholder="নাম, মেমো/রিসিট নম্বর বা ফোন দিয়ে খুঁজুন" value="' + amEsc(amBillQ) + '" oninput="amBillSearch(this.value)"></div>';
   h += '<div class="am-chips">' + chip('due', 'বাকি', r.dueN) + chip('today', 'আজকের বিল') + chip('all', 'সর্বশেষ') + '</div>';
   if (!amBillQ && amBillF === 'due') h += '<div class="am-stat bad" style="margin-bottom:10px"><div class="l">মোট বাকি</div><div class="v">৳ ' + fmt(r.dueSum) + '</div></div>';
   var list = r.rows.slice(0, 40);
@@ -44887,7 +44900,7 @@ function amBillCard(x) {
   var total = camp ? (v.total != null ? v.total : (v.paid || 0) + (v.due || 0)) : (v.netBill != null ? v.netBill : v.total);
   var paid = camp ? (v.paid || 0) : (v.cashPaid || 0);
   return '<div class="am-card" onclick="amBillDetail(\'' + x.k + '\',' + v.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + (camp ? '<span class="am-tag">ক্যাম্প</span>' : '') + amEsc(v.patName || '—') + '</div><div class="am-ap-amt">৳ ' + fmt(total) + '</div></div>'
-    + '<div class="am-meta">মেমো ' + amEsc(memo) + ' · ' + formatDate(v.date) + (camp && v.campName ? ' · ' + amEsc(v.campName) : '') + '<br>পরিশোধিত ৳ ' + fmt(paid) + ((v.due || 0) > 0 ? ' · <b style="color:var(--am-bad)">বাকি ৳ ' + fmt(v.due) + '</b>' : ' · <span style="color:var(--am-ok)">পরিশোধিত</span>') + '</div></div>';
+    + '<div class="am-meta">' + (camp ? 'রিসিট ' : 'মেমো ') + amEsc(memo) + ' · ' + formatDate(v.date) + (camp && v.campName ? ' · ' + amEsc(v.campName) : '') + '<br>পরিশোধিত ৳ ' + fmt(paid) + ((v.due || 0) > 0 ? ' · <b style="color:var(--am-bad)">বাকি ৳ ' + fmt(v.due) + '</b>' : ' · <span style="color:var(--am-ok)">পরিশোধিত</span>') + '</div></div>';
 }
 function amBillDetail(k, id) {
   var camp = k === 'c', v = camp ? (appData.campVisits || []).find(function (x) { return x.id === id; }) : (appData.visits || []).find(function (x) { return x.id === id; });
@@ -44903,7 +44916,7 @@ function amBillDetail(k, id) {
   var hist = (appData.dueHistory || []).filter(function (h) { return h.visitId === v.id; }).sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); }).slice(0, 6)
     .map(function (h) { return '<div class="am-row"><span>' + (h.type === 'waive' ? 'মওকুফ' : 'আদায়') + ' · ' + formatDate(h.date) + (h.note ? '<div class="am-meta" style="margin:0">' + amEsc(h.note) + '</div>' : '') + '</span><span class="v">৳ ' + fmt(h.amount) + '</span></div>'; }).join('');
   var h = '<div class="hd"><b>' + amEsc(v.patName || '—') + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
-    + '<div class="am-meta" style="margin:0 0 8px">মেমো ' + amEsc(memo) + ' · ' + formatDate(v.date) + (v.time ? ' · ' + amEsc(v.time) : '') + (camp ? '<br>ক্যাম্প: ' + amEsc(v.campName || '—') : '') + (v.by ? '<br>এন্ট্রি: ' + amEsc(v.by) : '') + (v.patPhone ? '<br>ফোন: <a href="tel:' + amEsc(v.patPhone) + '" style="color:var(--am-pri);font-weight:700">' + amEsc(v.patPhone) + '</a>' : '') + (v.patAddress ? '<br>ঠিকানা: ' + amEsc(v.patAddress) : '') + '</div>'
+    + '<div class="am-meta" style="margin:0 0 8px">' + (camp ? 'রিসিট ' : 'মেমো ') + amEsc(memo) + ' · ' + formatDate(v.date) + (v.time ? ' · ' + amEsc(v.time) : '') + (camp ? '<br>ক্যাম্প: ' + amEsc(v.campName || '—') : '') + (v.by ? '<br>এন্ট্রি: ' + amEsc(v.by) : '') + (v.patPhone ? '<br>ফোন: <a href="tel:' + amEsc(v.patPhone) + '" style="color:var(--am-pri);font-weight:700">' + amEsc(v.patPhone) + '</a>' : '') + (v.patAddress ? '<br>ঠিকানা: ' + amEsc(v.patAddress) : '') + '</div>'
     + (svcH ? '<div class="am-card" style="padding:4px 12px">' + svcH + '</div>' : '')
     + '<div class="am-card" style="padding:4px 12px">'
     + (v.discAmt ? '<div class="am-row"><span class="k">ছাড়</span><span class="v">৳ ' + fmt(v.discAmt) + '</span></div>' : '')
