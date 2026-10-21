@@ -4275,6 +4275,8 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
           <div class="form-row three">
             <div class="field"><label>যোগদানের তারিখ</label><input type="date" id="sfJoinDate"></div>
+            <div class="field"><label>⏰ ডিউটি শুরু (ইন)</label><input type="time" id="sfDutyIn"></div>
+            <div class="field"><label>⏰ ডিউটি শেষ (আউট)</label><input type="time" id="sfDutyOut"></div>
           </div>
           <div class="form-row three">
             <div class="field"><label>স্ট্যাটাস</label>
@@ -33155,6 +33157,8 @@ function saveStaff() {
   const basic  = parseFloat(document.getElementById('sfBasic').value);
   const join   = document.getElementById('sfJoinDate').value;
   const status = document.getElementById('sfStatus').value;
+  const dutyIn  = (document.getElementById('sfDutyIn')||{}).value||'';
+  const dutyOut = (document.getElementById('sfDutyOut')||{}).value||'';
   const editId = document.getElementById('sfEditId').value;
   if (!name || !desig || isNaN(basic) || basic < 0) { showToast('⚠️ নাম, পদবি ও মাসিক বেতন আবশ্যক!'); return; }
   const profile = {
@@ -33172,15 +33176,15 @@ function saveStaff() {
   if (editId) {
     const s = appData.staff.find(s=>s.id===parseInt(editId));
     if (s) {
-      const before={name:s.name,desig:s.desig,phone:s.phone,whatsapp:s.whatsapp,telegramId:s.telegramId,basic:s.basic,status:s.status};
-      const after={name,desig,phone,whatsapp,telegramId,basic,status};
+      const before={name:s.name,desig:s.desig,phone:s.phone,whatsapp:s.whatsapp,telegramId:s.telegramId,basic:s.basic,status:s.status,dutyIn:s.dutyIn||'',dutyOut:s.dutyOut||''};
+      const after={name,desig,phone,whatsapp,telegramId,basic,status,dutyIn,dutyOut};
       saveEditHistory('কর্মী', s.id, name, before, after);
-      s.name=name; s.desig=desig; s.phone=phone; s.whatsapp=whatsapp; s.telegramId=telegramId; s.basic=basic; s.join=join; s.status=status; s.profile=profile;
+      s.name=name; s.desig=desig; s.phone=phone; s.whatsapp=whatsapp; s.telegramId=telegramId; s.basic=basic; s.join=join; s.status=status; s.profile=profile; s.dutyIn=dutyIn; s.dutyOut=dutyOut;
       syncDoctorFromStaff(s.id, name, desig, status);
     }
   } else {
     const newStaffId = Date.now();
-    appData.staff.push({ id:newStaffId, name, desig, phone, whatsapp, telegramId, basic, join, status, profile });
+    appData.staff.push({ id:newStaffId, name, desig, phone, whatsapp, telegramId, basic, join, status, profile, dutyIn, dutyOut });
     syncDoctorFromStaff(newStaffId, name, desig, status);
   }
   saveData(); clearStaffForm(); renderSalarySheet();
@@ -33312,7 +33316,7 @@ function addSfDesig() {
   showToast('✅ নতুন পদবি যোগ হয়েছে: '+val);
 }
 function clearStaffForm() {
-  ['sfName','sfDesig','sfPhone','sfWhatsapp','sfTelegramId','sfBasic','sfJoinDate','sfEditId',
+  ['sfName','sfDesig','sfPhone','sfWhatsapp','sfTelegramId','sfBasic','sfJoinDate','sfDutyIn','sfDutyOut','sfEditId',
    'sfDob','sfNid','sfEmail','sfAddress','sfAddressCurrent',
    'sfEdu','sfEduInst','sfEduYear','sfSkills','sfEmergency'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
@@ -33335,6 +33339,8 @@ function editStaff(id) {
   document.getElementById('sfBasic').value     = s.basic;
   document.getElementById('sfJoinDate').value  = s.join||'';
   document.getElementById('sfStatus').value    = s.status;
+  if (document.getElementById('sfDutyIn'))  document.getElementById('sfDutyIn').value  = s.dutyIn||'';
+  if (document.getElementById('sfDutyOut')) document.getElementById('sfDutyOut').value = s.dutyOut||'';
   document.getElementById('sfEditId').value    = s.id;
   const p = s.profile||{};
   const fields = ['dob','nid','email','address','addressCurrent','edu','eduInst','eduYear','skills','emergency'];
@@ -44420,6 +44426,8 @@ function amShow() {
   amTimer = setInterval(function () {
     var pg2 = document.getElementById('adminMobPage');
     if (!pg2 || pg2.style.display === 'none' || amSheetOpen || document.visibilityState !== 'visible') return;
+    var fa = document.activeElement, mn = document.getElementById('amMain');
+    if (fa && mn && mn.contains(fa) && /^(INPUT|TEXTAREA|SELECT)$/.test(fa.tagName)) return;
     amRender(false);
   }, 5000);
 }
@@ -45592,12 +45600,19 @@ function amQuickCfgHtml() {
 // --- এডমিনের টেলিগ্রামে অ্যালার্ট ---
 // ফ্লো: যেকোনো ডিভাইসে অ্যাপ খোলা থাকলে (রিসেপশন পিসিতেও) প্রতি ২০ সেকেন্ডে নতুন ঘটনা খোঁজা হয় → tgOutbox-এ অ্যালার্ট জমা হয়
 // → settings-এ Worker URL/Secret থাকলে সাথে সাথে বটের process-outbox ওয়ার্কফ্লো চালিয়ে দেওয়া হয় (নইলে বটের নিজের সময়সূচির অপেক্ষা)।
-var AM_TG_TYPES = [['exp', '💸 ব্যয় অনুমোদনের অনুরোধ'], ['unl', '🔓 বিল আনলকের অনুরোধ'], ['dm', '📋 নতুন ডিমান্ড নোট'], ['del', '🗑️ রিসেপশনিস্ট বিল মুছেছে'], ['dep', '⚠️ জমায় অমিল'], ['camp', '🏕️ মেয়াদোত্তীর্ণ ক্যাম্প']];
+var AM_TG_TYPES = [['exp', '💸 ব্যয় অনুমোদনের অনুরোধ'], ['unl', '🔓 বিল আনলকের অনুরোধ'], ['dm', '📋 নতুন ডিমান্ড নোট'], ['del', '🗑️ রিসেপশনিস্ট বিল মুছেছে'], ['dep', '⚠️ জমায় অমিল'],
+  ['rcv', '🔁 টাকা গ্রহণকারী পরিবর্তন'], ['edt', '✏️ বিল সংশোধন (অ্যাডমিন ছাড়া অন্য কেউ করলে)'], ['vm', '🧾 হার্ড মেমো নম্বর বাদ/নষ্ট'],
+  ['chk', '⏰ চেক রিমাইন্ডার (প্রতিদিন সকাল ৯টার পর, মেয়াদ ৭ দিনের মধ্যে/পেরিয়ে গেলে)'], ['stk', '📦 কম/শেষ স্টক (নতুন কিছু কম হলে)'],
+  ['rent', '📝 রিসেপশনের প্রতিটা আয়/ব্যয় এন্ট্রি (বিল থেকে অটো-হওয়া "রিসেপশন আয়" বাদে)'], ['bill', '🧾 রিসেপশনের প্রতিটা নতুন বিল (মেসেজ অনেক হবে)'],
+  ['sum', '🌙 দিনশেষ সামারি — রিসেপশনের সব এন্ট্রি ও বিল'],
+  ['attin', '🟢 কর্মীর উপস্থিতি (ইন করলে সময়সহ)'], ['late', '⏰ দেরিতে আসা (শুধু দেরি হলে)'], ['early', '🚪 ডিউটি শেষের আগে বেরিয়ে যাওয়া'],
+  ['camp', '🏕️ মেয়াদোত্তীর্ণ ক্যাম্প']];
 function amTgCfg() {
-  var c = (appData.settings && appData.settings.adminTg) || {};
-  var t = c.types || {};
-  return { on: !!c.on, chatId: String(c.chatId || '').trim(), since: c.since || 0,
-    types: { exp: t.exp !== false, unl: t.unl !== false, dm: t.dm !== false, del: t.del !== false, dep: t.dep !== false, camp: t.camp === true } };
+  var c = (appData.settings && appData.settings.adminTg) || {}, t = c.types || {}, types = {};
+  AM_TG_TYPES.forEach(function (x) { types[x[0]] = (x[0] === 'camp' || x[0] === 'bill') ? t[x[0]] === true : t[x[0]] !== false; });
+  var g = parseInt(c.grace, 10);
+  return { on: !!c.on, chatId: String(c.chatId || '').trim(), since: c.since || 0, types: types,
+    sumTime: /^\d\d:\d\d$/.test(c.sumTime || '') ? c.sumTime : '21:00', grace: isNaN(g) ? 10 : Math.max(0, Math.min(180, g)) };
 }
 function amTgClean(s) { return String(s == null ? '' : s).replace(/[*_`\[\]]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function amTgEvTs(x) {
@@ -45605,9 +45620,46 @@ function amTgEvTs(x) {
   if (x.ts) { var d = new Date(x.ts).getTime(); if (!isNaN(d)) return d; }
   return (typeof x.id === 'number' && x.id > 1e12) ? x.id : 0;
 }
+function amHM(str) { var m = /^(\d\d):(\d\d)$/.exec(str || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+function amLocalDay(ts) { var d = new Date(ts), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+function amNumOk(x) { return x != null && x !== '' && typeof x !== 'object' && isFinite(parseFloat(x)); }
+// দিনশেষ সামারি — ওই দিনে রিসেপশনিস্টদের করা সব এন্ট্রি (বিল, আয়, ব্যয়, জমা); কোনো এন্ট্রি না থাকলে ফাঁকা ফেরত (মেসেজ যাবে না)
+function amTgSummary(day, hosp) {
+  var isRec = function (by) { try { return _roleOfBy(by) === 'receptionist'; } catch (e) { return false; } };
+  var nm = function (by) { try { return amTgClean(_baseBy(by)); } catch (e) { return amTgClean(by); } };
+  var vis = (appData.visits || []).filter(function (v) { return v.date === day && isRec(v.by); });
+  var inc = (appData.income || []).filter(function (e) { return e.date === day && isRec(e.by); });
+  var exp = (appData.expense || []).filter(function (e) { return e.date === day && isRec(e.by); });
+  var deps = (appData.recDeposits || []).filter(function (d) { return d.date === day; });
+  if (!vis.length && !inc.length && !exp.length && !deps.length) return '';
+  var per = {}, get = function (by) { var k = nm(by) || '—'; return per[k] || (per[k] = { bills: 0, inc: 0, incN: 0, exp: 0, expN: 0, dep: 0 }); };
+  vis.forEach(function (v) { get(v.by).bills++; });
+  inc.forEach(function (e) { var p = get(e.by); p.inc += e.amount || 0; p.incN++; });
+  exp.forEach(function (e) { var p = get(e.by); if (e.rejected || (e.needsApproval && e.status === 'pending')) return; p.exp += e.amount || 0; p.expN++; });
+  deps.forEach(function (d) { get(d.by).dep += d.amount || 0; });
+  var L = ['🏥 ' + hosp, '🌙 দিনশেষ সামারি — ' + formatDate(day), ''];
+  try { var st = amDayStats(day); L.push('👥 রোগী: ' + fmt(st.pat) + ' জন · 💰 আয়: ৳' + fmt(st.inc) + ' · 💸 ব্যয় (ফিক্সডসহ): ৳' + fmt(st.exp) + ' · ✅ নীট: ৳' + fmt(st.net), ''); } catch (e) {}
+  L.push('👤 রিসেপশনের এন্ট্রি:');
+  Object.keys(per).forEach(function (k) { var p = per[k]; L.push('• ' + k + ' — বিল ' + fmt(p.bills) + ' টি · আয় ৳' + fmt(p.inc) + ' (' + fmt(p.incN) + ' এন্ট্রি) · ব্যয় ৳' + fmt(p.exp) + ' (' + fmt(p.expN) + ' এন্ট্রি) · জমা ৳' + fmt(p.dep)); });
+  if (exp.length) {
+    L.push('', '💸 ব্যয়ের এন্ট্রি:');
+    exp.slice(0, 10).forEach(function (e) { var s = e.rejected ? 'প্রত্যাখ্যাত' : (e.needsApproval && e.status === 'pending' ? 'অনুমোদনের অপেক্ষায়' : 'গৃহীত'); L.push('• ' + amTgClean(e.category) + ' — ৳' + fmt(e.amount) + ' (' + s + ')' + (e.note ? ' · ' + amTgClean(e.note).slice(0, 40) : '')); });
+    if (exp.length > 10) L.push('… আরও ' + fmt(exp.length - 10) + ' টি');
+  }
+  var diffs = deps.filter(function (d) { return d.diff != null && d.diff !== 0; });
+  if (diffs.length) { L.push('', '⚠️ জমায় অমিল:'); diffs.forEach(function (d) { L.push('• ' + nm(d.by) + ' — ' + (d.diff < 0 ? 'ঘাটতি ৳' : 'বেশি ৳') + fmt(Math.abs(d.diff))); }); }
+  var pend = 0; try { pend = amPending().total; } catch (e) {}
+  if (pend) L.push('', '📌 অনুমোদনের অপেক্ষায়: ' + fmt(pend) + ' টি');
+  return L.join('\n');
+}
 function amTgCandidates(cfg) {
   var out = [], hosp = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
-  var add = function (type, key, ev, line) { if (cfg.types[type]) out.push({ type: type, key: key, ev: ev, text: '🏥 ' + hosp + '\n' + line + '\n⏰ ' + new Date(ev || Date.now()).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) }); };
+  var add = function (type, key, ev, line, extra, raw) {
+    if (!cfg.types[type]) return;
+    out.push({ type: type, key: key, ev: ev, extra: extra || null, text: raw ? line : '🏥 ' + hosp + '\n' + line + '\n⏰ ' + new Date(ev || Date.now()).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) });
+  };
+  var now = new Date(), tdy = todayStr(), nowMin = now.getHours() * 60 + now.getMinutes();
+  // ---- তাৎক্ষণিক ঘটনা ----
   (appData.expense || []).forEach(function (e) {
     if (e.needsApproval && e.status === 'pending' && !e.rejected) add('exp', 'e' + e.id + '_' + (e.approvalRequestedAt || ''), amTgEvTs(e), '💸 ব্যয় অনুমোদন দরকার\n' + amTgClean(e.category) + ' — ৳' + fmt(e.amount) + '\nএন্ট্রি: ' + amTgClean(e.by || '—') + (e.note ? '\n' + amTgClean(e.note).slice(0, 80) : ''));
   });
@@ -45623,7 +45675,97 @@ function amTgCandidates(cfg) {
   (appData.recDeposits || []).forEach(function (d) {
     if (d.diff != null && d.diff !== 0) add('dep', 'dm' + d.id, amTgEvTs(d), '⚠️ জমায় অমিল\n' + amTgClean(d.by || '—') + ' — ' + (d.diff < 0 ? 'ঘাটতি ৳' : 'বেশি ৳') + fmt(Math.abs(d.diff)));
   });
+  (appData.rcvChanges || []).forEach(function (r) {
+    if (r.byAdmin) return;
+    var lab = function (x) { return x === 'md' ? 'এমডি' : 'রিসেপশনিস্ট'; };
+    add('rcv', 'rc' + r.id, amTgEvTs(r), '🔁 টাকা গ্রহণকারী পরিবর্তন\n' + amTgClean(r.patName) + (r.memoNo ? ' (মেমো ' + amTgClean(r.memoNo) + ')' : '') + ' — ৳' + fmt(r.amount || 0) + '\n' + lab(r.from) + ' → ' + lab(r.to) + '\nপরিবর্তন: ' + amTgClean(r.by || '—') + (r.reason ? '\nকারণ: ' + amTgClean(r.reason).slice(0, 80) : ''));
+  });
+  (appData.voidedMemos || []).forEach(function (r) {
+    if (r.role === 'admin') return;
+    add('vm', 'vm' + r.id, amTgEvTs(r), '🧾 হার্ড মেমো নম্বর বাদ/নষ্ট\nনম্বর: ' + amTgClean(r.memoNo) + '\nকারণ: ' + amTgClean(r.reason || '—').slice(0, 80) + '\nকরেছেন: ' + amTgClean(r.by || '—'));
+  });
+  // ---- রিসেপশনের প্রতিটা এন্ট্রি (হাতে দেওয়া আয়/ব্যয়) — বিল থেকে অটো-হওয়া "রিসেপশন আয়" বাদ; অনুমোদনের অপেক্ষার ব্যয় আগেই 'exp' অ্যালার্টে যায় ----
+  var isRecBy = function (by) { try { return _roleOfBy(by) === 'receptionist'; } catch (e) { return false; } };
+  var payLab = function (m) { return m === 'bank' ? 'ব্যাংক' : m === 'mfs' ? 'মোবাইল ব্যাংকিং' : m === 'cheque' ? 'চেক' : (m ? amTgClean(m) : 'ক্যাশ'); };
+  if (cfg.types.rent) {
+    (appData.income || []).forEach(function (e) {
+      if (e.category === 'রিসেপশন আয়' || !isRecBy(e.by)) return;
+      add('rent', 'ri' + e.id, amTgEvTs(e), '💰 রিসেপশন — আয় এন্ট্রি\n' + amTgClean(e.category) + (e.subCategory ? ' / ' + amTgClean(e.subCategory) : '') + ' — ৳' + fmt(e.amount) + (e.ref ? '\nরেফ: ' + amTgClean(e.ref) : '') + '\nমাধ্যম: ' + payLab(e.payMode) + (e.note ? '\n' + amTgClean(e.note).slice(0, 80) : '') + '\nএন্ট্রি: ' + amTgClean(_baseBy(e.by)));
+    });
+    (appData.expense || []).forEach(function (e) {
+      if (!isRecBy(e.by) || e.rejected || (e.needsApproval && e.status === 'pending')) return;
+      add('rent', 're' + e.id, amTgEvTs(e), '💸 রিসেপশন — ব্যয় এন্ট্রি\n' + amTgClean(e.category) + (e.subCategory ? ' / ' + amTgClean(e.subCategory) : '') + ' — ৳' + fmt(e.amount) + (e.payPerson ? '\nপ্রাপক: ' + amTgClean(e.payPerson) : '') + '\nমাধ্যম: ' + payLab(e.payMode) + (e.note ? '\n' + amTgClean(e.note).slice(0, 80) : '') + '\nএন্ট্রি: ' + amTgClean(_baseBy(e.by)));
+    });
+  }
+  if (cfg.types.bill) {
+    (appData.visits || []).forEach(function (v) {
+      if (!isRecBy(v.by)) return;
+      add('bill', 'vb' + v.id, amTgEvTs(v), '🧾 নতুন বিল\n' + amTgClean(v.patName) + (v.memoNo ? ' (মেমো ' + amTgClean(v.memoNo) + ')' : '') + ' — ৳' + fmt(v.netBill != null ? v.netBill : (v.total || 0)) + '\nপরিশোধ ৳' + fmt(v.cashPaid || 0) + ((v.due || 0) > 0 ? ' · বাকি ৳' + fmt(v.due) : '') + '\nএন্ট্রি: ' + amTgClean(_baseBy(v.by)));
+    });
+  }
+  var MK = [['total', 'মোট'], ['netBill', 'নীট বিল'], ['cashPaid', 'পরিশোধ'], ['due', 'বাকি'], ['discount', 'ডিসকাউন্ট'], ['mfsPaid', 'মোবাইল ব্যাংকিং']];
+  (appData.editHistory || []).forEach(function (h) {
+    if (h.module !== 'রোগীর বিল' || h.role === 'admin') return;
+    var ch = h.changes || {}, lines = [];
+    MK.forEach(function (k) { var c = ch[k[0]]; if (c && amNumOk(c.before) && amNumOk(c.after)) lines.push(k[1] + ': ৳' + fmt(parseFloat(c.before)) + ' → ৳' + fmt(parseFloat(c.after))); });
+    add('edt', 'eh' + h.id, amTgEvTs(h), '✏️ বিল সংশোধন\n' + amTgClean(h.label) + '\nসংশোধন: ' + amTgClean(h.user || '—') + (lines.length ? '\n' + lines.join('\n') : '\nআইটেম/অন্যান্য তথ্য বদলেছে (বিস্তারিত পিসিতে)') + (h.reason ? '\nকারণ: ' + amTgClean(h.reason).slice(0, 80) : ''));
+  });
   if (cfg.types.camp) { try { (getOverdueCampSchedules() || []).forEach(function (s) { add('camp', 'o' + s.id + '_' + s.date, Date.now(), '🏕️ মেয়াদোত্তীর্ণ ক্যাম্প\n' + amTgClean(s.name || s.location || 'ক্যাম্প') + ' — ' + formatDate(s.date) + '\nরিশিডিউল বা বাতিল করুন'); }); } catch (e) {} }
+  // ---- সকালের ডাইজেস্ট (সকাল ৯টার পর): চেক ও স্টক ----
+  if (cfg.types.chk && nowMin >= 540) {
+    var over = [], soon = [];
+    (appData.issuedChecks || []).forEach(function (c) {
+      if (c.status !== 'pending') return;
+      var d; try { d = daysBetween(c.dueDate); } catch (e) { return; }
+      var ln = 'চেক নং ' + amTgClean(c.checkNo) + ' — ' + amTgClean(c.payee) + ' — ৳' + fmt(c.amount) + ' — ' + formatDate(c.dueDate);
+      if (d < 0) over.push({ d: d, t: '❗ ' + ln + ' (' + fmt(-d) + ' দিন পেরিয়েছে)' });
+      else if (d <= 7) soon.push({ d: d, t: '⏳ ' + ln + (d === 0 ? ' (আজই)' : ' (আর ' + fmt(d) + ' দিন)') });
+    });
+    if (over.length || soon.length) {
+      over.sort(function (a, b) { return a.d - b.d; }); soon.sort(function (a, b) { return a.d - b.d; });
+      var cl = over.concat(soon), more = cl.length - 12;
+      add('chk', 'chk_' + tdy, Date.now(), '⏰ চেক রিমাইন্ডার\n' + cl.slice(0, 12).map(function (x) { return x.t; }).join('\n') + (more > 0 ? '\n… আরও ' + fmt(more) + ' টি' : '') + '\nব্যাংক ব্যালেন্স যাচাই করুন; ভাঙানো হয়ে থাকলে "চেক বই" পেজে স্ট্যাটাস আপডেট করুন।');
+    }
+  }
+  if (cfg.types.stk && nowMin >= 540) {
+    try {
+      var sl = _recLowStockList(), set = sl.out.map(function (s) { return s.id + ':o'; }).concat(sl.low.map(function (s) { return s.id + ':l'; }));
+      var lastS = null; (appData.tgOutbox || []).forEach(function (m) { if (m && m.alertKey && String(m.alertKey).indexOf('stk_') === 0 && Array.isArray(m.stkSet) && (!lastS || m.id > lastS.id)) lastS = m; });
+      var prev = lastS ? lastS.stkSet : [];
+      if (set.some(function (x) { return prev.indexOf(x) < 0; })) {
+        var nm2 = function (s) { return amTgClean(s.name) + (s.qty > 0 ? ' (' + fmt(s.qty) + ')' : ''); }, lim = function (a) { return a.slice(0, 15).map(nm2).join(', ') + (a.length > 15 ? ' … +' + fmt(a.length - 15) : ''); };
+        add('stk', 'stk_' + tdy, Date.now(), '📦 কম/শেষ স্টক' + (sl.out.length ? '\n❌ শেষ (' + fmt(sl.out.length) + '): ' + lim(sl.out) : '') + (sl.low.length ? '\n⚠️ কম (' + fmt(sl.low.length) + '): ' + lim(sl.low) : ''), { stkSet: set });
+      }
+    } catch (e) {}
+  }
+  // ---- দিনশেষ সামারি (নির্ধারিত সময়ের পর; গতকালেরটা না গিয়ে থাকলে পরদিন সকালে ধরা হয়) ----
+  if (cfg.types.sum) {
+    var yst = addDaysToDateStr(tdy, -1), dueMin = amHM(cfg.sumTime), days = [];
+    if (cfg.since && amLocalDay(cfg.since) <= yst) days.push(yst);
+    if (dueMin != null && nowMin >= dueMin) days.push(tdy);
+    days.forEach(function (day) { var tx = amTgSummary(day, hosp); if (tx) add('sum', 'sum_' + day, Date.now(), tx, null, true); });
+  }
+  // ---- কর্মীর উপস্থিতি/দেরি/আগে যাওয়া (কর্মীভেদে ডিউটি সময় অনুযায়ী) ----
+  if (cfg.types.attin || cfg.types.late || cfg.types.early) {
+    (appData.staff || []).forEach(function (s) {
+      if (s.status !== 'active') return;
+      var recs; try { recs = getAttendanceForDate(s.id, tdy).slice().sort(function (a, b) { return a.ts - b.ts; }); } catch (e) { return; }
+      if (!recs.length) return;
+      var first = recs.filter(function (r) { return r.type === 'in'; })[0], last = recs[recs.length - 1];
+      var di = amHM(s.dutyIn), dOut = amHM(s.dutyOut), who = amTgClean(s.name) + (s.desig ? ' (' + amTgClean(s.desig) + ')' : '');
+      if (first && (cfg.types.attin || cfg.types.late)) {
+        var am = new Date(first.ts).getHours() * 60 + new Date(first.ts).getMinutes(), late = di != null && am > di + cfg.grace;
+        if (cfg.types.attin || late) add(cfg.types.attin ? 'attin' : 'late', 'ai' + s.id + '_' + tdy, first.ts,
+          late ? '⏰ দেরিতে এসেছেন\n' + who + '\nএসেছেন: ' + amTgClean(first.time) + ' · ডিউটি শুরু ' + amTgClean(s.dutyIn) + ' · ' + fmt(am - di) + ' মিনিট দেরি'
+               : '🟢 উপস্থিত\n' + who + '\nএসেছেন: ' + amTgClean(first.time) + (di != null ? ' · সময়মতো ✓ (ডিউটি ' + amTgClean(s.dutyIn) + ')' : ''));
+      }
+      // আউট: ৩০ মিনিট পরেও যদি সেটাই শেষ রেকর্ড থাকে (দুপুরে বেরিয়ে ফিরলে অ্যালার্ট যাবে না)
+      if (cfg.types.early && dOut != null && last.type === 'out' && Date.now() - last.ts >= 30 * 60000) {
+        var om = new Date(last.ts).getHours() * 60 + new Date(last.ts).getMinutes();
+        if (om < dOut - cfg.grace) add('early', 'ao' + s.id + '_' + tdy, last.ts, '🚪 ডিউটি শেষের আগে বেরিয়েছেন\n' + who + '\nবেরিয়েছেন: ' + amTgClean(last.time) + ' · ডিউটি শেষ ' + amTgClean(s.dutyOut) + ' · ' + fmt(dOut - om) + ' মিনিট আগে');
+      }
+    });
+  }
   return out;
 }
 var _amTgKickAt = 0, _amTgKickTimer = null;
@@ -45649,6 +45791,7 @@ function amTgNotify(chatId, text) {
 function amTgEntry(i, cfgChat, c, ok) {
   var e = { id: Date.now() + i, type: 'broadcast', alert: true, alertKey: c.key, name: 'এডমিন অ্যালার্ট', chatId: cfgChat, text: c.text, status: ok ? 'sent' : 'pending', createdAt: new Date().toISOString(), by: currentUser.name };
   if (ok) { e.sentVia = 'worker'; e.sentAt = new Date().toISOString(); }
+  if (c.extra) Object.keys(c.extra).forEach(function (k) { e[k] = c.extra[k]; });
   return e;
 }
 var _amTgBusy = false;
@@ -45679,12 +45822,28 @@ function amTgSave() {
   if (on && !/^-?\d{5,20}$/.test(chat)) { showToast('⚠️ সঠিক Chat ID দিন (শুধু সংখ্যা)'); return; }
   var old = amTgCfg(), types = {};
   AM_TG_TYPES.forEach(function (t) { var el = document.getElementById('amTgT_' + t[0]); types[t[0]] = !!(el && el.checked); });
+  var sumTime = ((document.getElementById('amTgSum') || {}).value || '').trim(), grace = parseInt((document.getElementById('amTgGrace') || {}).value, 10);
+  if (!/^\d\d:\d\d$/.test(sumTime)) sumTime = '21:00';
+  if (isNaN(grace) || grace < 0) grace = 10;
   if (!appData.settings) appData.settings = {};
   // নতুন করে চালু করলে/আইডি বদলালে — আগের জমে থাকা ঘটনার অ্যালার্ট যেন একসাথে না যায়, তাই "এখন থেকে" ধরা হয়
   var since = (on && (!old.on || old.chatId !== chat || !old.since)) ? Date.now() : (old.since || 0);
-  appData.settings.adminTg = { on: on, chatId: chat, types: types, since: since };
+  appData.settings.adminTg = { on: on, chatId: chat, types: types, since: since, sumTime: sumTime, grace: Math.min(180, grace) };
   saveData();
-  showToast(on ? '✅ টেলিগ্রাম অ্যালার্ট চালু হয়েছে' : 'অ্যালার্ট বন্ধ করা হয়েছে');
+  showToast(on ? '✅ টেলিগ্রাম অ্যালার্ট সেভ হয়েছে' : 'অ্যালার্ট বন্ধ করা হয়েছে');
+  amLastHtml = ''; amRender(true);
+}
+function amDutySave() {
+  var n = 0;
+  (appData.staff || []).filter(function (s) { return s.status === 'active'; }).forEach(function (s) {
+    var a = document.getElementById('amDi_' + s.id), b = document.getElementById('amDo_' + s.id); if (!a || !b) return;
+    if ((s.dutyIn || '') !== a.value || (s.dutyOut || '') !== b.value) {
+      s.dutyIn = a.value; s.dutyOut = b.value; n++;
+      try { logActivity('edit', 'কর্মীর ডিউটি সময়', s.name + ' — ইন ' + (a.value || '—') + ', আউট ' + (b.value || '—')); } catch (e) {}
+    }
+  });
+  if (n) saveData();
+  showToast(n ? '✅ ' + fmt(n) + ' জনের ডিউটি সময় সেভ হয়েছে' : 'কোনো পরিবর্তন নেই');
   amLastHtml = ''; amRender(true);
 }
 function amTgTest() {
@@ -45708,8 +45867,9 @@ function amTgTest() {
 }
 function amTgHtml() {
   var c = amTgCfg(), st = appData.settings || {}, botOn = (typeof _botOn === 'function') ? _botOn('tg') : true, fast = !!(st.triggerWorkerUrl && st.triggerAppSecret);
+  var inp = 'padding:7px 6px;border:1.5px solid var(--am-line);border-radius:8px;background:var(--am-card);color:var(--am-text);font-family:inherit;font-size:13px;width:100px';
   var h = amBack() + '<div class="am-card"><div class="am-h" style="margin:0 0 6px">✈️ এডমিনের টেলিগ্রামে অ্যালার্ট</div>'
-    + '<div class="am-meta" style="margin:0 0 8px">কোনো অনুমোদন/অমিল/বিল মোছার মতো ঘটনা হলে আপনার টেলিগ্রামে জানাবে — অ্যাপ বন্ধ থাকলেও।</div>'
+    + '<div class="am-meta" style="margin:0 0 8px">কোনো অনুমোদন/অমিল/রিসেপশন এন্ট্রি/কর্মীর দেরির মতো ঘটনা হলে আপনার টেলিগ্রামে জানাবে — অ্যাপ বন্ধ থাকলেও (হাসপাতালের অন্তত একটা ডিভাইসে অ্যাপ খোলা থাকলে)।</div>'
     + '<div class="am-row"><span class="k">Telegram বট</span><span class="v" style="color:' + (botOn ? 'var(--am-ok)' : 'var(--am-bad)') + '">' + (botOn ? '● চালু' : '● বন্ধ (পিসি ভিউ → নোটিফিকেশন থেকে চালু)') + '</span></div>'
     + '<div class="am-row"><span class="k">দ্রুত পাঠানো</span><span class="v" style="color:' + (fast ? 'var(--am-ok)' : 'var(--am-warn)') + '">' + (fast ? '● চালু (Worker সেট আছে)' : '● বন্ধ — Worker URL/Secret নেই') + '</span></div>'
     + '<div class="am-meta">' + (fast ? 'আগে Worker-এর /notify দিয়ে সরাসরি পাঠানো হয় (১-২ সেকেন্ড)। সেটা না পারলে আউটবক্সে জমা হয়ে বটকে জাগানো হয় (১-২ মিনিট)। কোনটা কাজ করছে তা "টেস্ট পাঠান" ও নিচের তালিকায় দেখবেন।' : 'পিসি ভিউ → নোটিফিকেশন → ম্যানুয়াল ট্রিগার সেটিংসে Worker URL ও Secret দিলে দেরি অনেক কমবে; নইলে বটের নিজের সময়সূচির অপেক্ষা করতে হবে।') + '</div></div>';
@@ -45718,15 +45878,26 @@ function amTgHtml() {
     + '<div class="am-meta" style="margin:0 0 8px">Chat ID পেতে টেলিগ্রামে @userinfobot-কে /start দিন। আর হাসপাতালের বটকেও একবার /start দিয়ে রাখুন, নইলে বট আপনাকে মেসেজ পাঠাতে পারবে না।</div>'
     + '<div class="am-h" style="margin:6px 0 2px"><span>কোন ঘটনায় জানাবে</span></div>'
     + AM_TG_TYPES.map(function (t) { return '<label class="am-swr"><input type="checkbox" id="amTgT_' + t[0] + '"' + (c.types[t[0]] ? ' checked' : '') + '><span>' + t[1] + '</span></label>'; }).join('')
+    + '<div class="am-f" style="margin-top:10px"><label>দিনশেষ সামারি পাঠানোর সময়</label><input id="amTgSum" type="time" value="' + amEsc(c.sumTime) + '"></div>'
+    + '<div class="am-f"><label>দেরি/আগে-যাওয়া ধরার ছাড় (মিনিট)</label><input id="amTgGrace" type="number" min="0" max="180" inputmode="numeric" value="' + c.grace + '"></div>'
     + '<div class="am-btns" style="margin-top:12px"><button class="am-btn line" onclick="amTgTest()">টেস্ট পাঠান</button><button class="am-btn pri" onclick="amTgSave()">সেভ করুন</button></div>'
-    + '<div class="am-meta">চালু করার সময় থেকে নতুন ঘটনাগুলোই যাবে — আগের জমে থাকা গুলো নয়।</div></div>';
+    + '<div class="am-meta">চালু করার সময় থেকে নতুন ঘটনাগুলোই যাবে — আগের জমে থাকা গুলো নয়। দিনশেষ সামারি নির্ধারিত সময়ের পর প্রথম যে ডিভাইসে অ্যাপ খোলা পাবে সেখান থেকে যায়; রাতে সব ডিভাইস বন্ধ থাকলে পরদিন সকালে গতকালেরটা যাবে।</div></div>';
+  var staff = (appData.staff || []).filter(function (s) { return s.status === 'active'; });
+  h += '<div class="am-h"><span>⏰ কর্মীর ডিউটি সময়</span></div><div class="am-card">'
+    + '<div class="am-meta" style="margin:0 0 8px">প্রতিজনের ইন ও আউটের সময় দিন (পিসির কর্মী ফর্মেও একই সময় পাবেন)। ফাঁকা রাখলে ওই কর্মীর দেরি/আগে-যাওয়া ধরা হবে না, শুধু উপস্থিতির সময় জানাবে।</div>'
+    + (staff.length ? '<div class="am-row" style="gap:6px"><span class="k" style="flex:1">কর্মী</span><span class="k" style="width:100px;text-align:center">ইন</span><span class="k" style="width:100px;text-align:center">আউট</span></div>' : '')
+    + staff.map(function (s) {
+      return '<div class="am-row" style="gap:6px;align-items:center"><span class="k" style="flex:1;min-width:0;color:var(--am-text);font-weight:600">' + amEsc(s.name) + (s.desig ? '<div class="am-meta" style="margin:0">' + amEsc(s.desig) + '</div>' : '') + '</span>'
+        + '<input type="time" id="amDi_' + s.id + '" value="' + amEsc(s.dutyIn || '') + '" style="' + inp + '"><input type="time" id="amDo_' + s.id + '" value="' + amEsc(s.dutyOut || '') + '" style="' + inp + '"></div>';
+    }).join('') + (staff.length ? '<button class="am-btn pri" style="width:100%;margin-top:10px" onclick="amDutySave()">ডিউটি সময় সেভ করুন</button>' : '<div class="am-empty">কোনো কর্মরত কর্মী নেই</div>') + '</div>';
   var recent = (appData.tgOutbox || []).filter(function (m) { return m && m.alert; }).sort(function (a, b) { return (b.id || 0) - (a.id || 0); }).slice(0, 6);
   h += '<div class="am-h"><span>সর্বশেষ অ্যালার্ট</span></div>' + (recent.length ? recent.map(function (m) {
-    var ms = new Date(m.createdAt).getTime(), s = m.status === 'sent' ? '<span class="am-tag g">' + (m.sentVia === 'worker' ? '⚡ সরাসরি পাঠানো হয়েছে' : 'পাঠানো হয়েছে') + '</span>' : m.status === 'failed' ? '<span class="am-tag r">ব্যর্থ</span>' : '<span class="am-tag w">অপেক্ষমাণ</span>';
-    return '<div class="am-card" style="padding:8px 13px"><div>' + s + ' <b style="font-size:13px">' + amEsc(String(m.text || '').split('\n')[1] || m.name || '') + '</b></div><div class="am-meta" style="margin:2px 0 0">' + (isNaN(ms) ? '' : amRel(ms)) + '</div></div>';
+    var s = m.status === 'sent' ? '<span class="am-tag g">' + (m.sentVia === 'worker' ? '⚡ সরাসরি পাঠানো হয়েছে' : 'পাঠানো হয়েছে') + '</span>' : m.status === 'failed' ? '<span class="am-tag r">ব্যর্থ</span>' : '<span class="am-tag w">অপেক্ষমাণ</span>';
+    var tm = ''; try { tm = new Date(m.createdAt).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }); } catch (e) {}
+    var ln = String(m.text || '').split('\n'); var ttl = ln[0] && ln[0].indexOf('🏥') === 0 ? (ln[1] || '') : (ln[0] || '');
+    return '<div class="am-card" style="padding:8px 13px"><div>' + s + ' <b style="font-size:13px">' + amEsc(ttl || m.name || '') + '</b></div><div class="am-meta" style="margin:2px 0 0">' + tm + '</div></div>';
   }).join('') : '<div class="am-card am-empty">এখনো কোনো অ্যালার্ট যায়নি</div>');
   return h;
 }
-
 </script>
 </body></html>
