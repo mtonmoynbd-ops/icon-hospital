@@ -44327,6 +44327,8 @@ body.adm-mob #toast{bottom:86px !important;left:12px !important;right:12px !impo
 .am-strip button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--am-line);border-left:4px solid var(--am-pri);background:var(--am-card);color:var(--am-text);border-radius:12px;padding:9px 11px;font-family:inherit;text-align:left;cursor:pointer}
 .am-strip .k{font-size:12px;color:var(--am-sub);display:flex;align-items:center;gap:5px}.am-strip .v{font-size:17px;font-weight:800}
 .am-dot{width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;animation:amBlink 1.4s infinite}@keyframes amBlink{50%{opacity:.25}}
+.am-lv3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.am-lv3 div{background:rgba(127,127,127,.09);border-radius:10px;padding:8px 4px;text-align:center}.am-lv3 b{display:block;font-size:18px}.am-lv3 span{font-size:10.5px;color:var(--am-sub)}
+.am-swr{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--am-line);cursor:pointer}.am-swr:last-of-type{border-bottom:0}.am-swr input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--am-pri)}.am-swr span{flex:1;font-size:14px;font-weight:600}
 body.adm-mob .modal-overlay{z-index:1000}
 .am-lock{position:absolute;inset:0;z-index:20;background:var(--am-bg);flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px}
 .am-menu{display:flex;align-items:center;gap:12px;width:100%;border:0;border-bottom:1px solid var(--am-line);background:none;color:var(--am-text);padding:12px 4px;font-family:inherit;font-size:14px;cursor:pointer}
@@ -44522,9 +44524,8 @@ function amHomeHtml(p) {
     + '<div class="am-row"><span class="k">ব্যাংক</span><span class="v">' + amMoney(b.bank) + '</span></div>'
     + '<div class="am-row"><span class="k">মোবাইল ব্যাংকিং</span><span class="v">' + amMoney(b.mfs) + '</span></div>'
     + '<div class="am-row tot"><span>মোট</span><span>' + amMoney(b.total) + '</span></div></div>';
-  P.quick = '<div class="am-quick"><button onclick="amCampForm()">' + amIc('tent') + 'নতুন ক্যাম্প</button><button onclick="amGo(\'appr\')">' + amIc('clipboard') + 'অনুমোদন (' + fmt(p.total) + ')</button>'
-    + '<button onclick="amGo(\'bill\')">' + amIc('receipt') + 'বিল ও বাকি</button><button onclick="openQuickMsgModal()"><span class="am-ic">' + AM_MSG_SVG + '</span>রিসেপশনে বার্তা</button>'
-    + '<button onclick="amGoSub(\'dep\')">' + amIc('receipt') + 'জমা ও স্লিপ</button><button onclick="amGoSub(\'sal\')">' + amIc('briefcase') + 'বেতন</button></div>';
+  P.quick = amQuickHtml(p);
+  P.live = amLiveCardHtml();
   P.appr = '<div class="am-h"><span>অনুমোদনের অপেক্ষায়</span><a onclick="amGo(\'appr\')">সব দেখুন</a></div>' + (amPendingCards(p, 3) || '<div class="am-card am-empty">কোনো অনুমোদন বাকি নেই</div>');
   var up = amUpcomingCamps().slice(0, 3);
   P.camps = '<div class="am-h"><span>আসন্ন ক্যাম্প</span><a onclick="amGo(\'camp\')">সব দেখুন</a></div>' + (up.length ? up.map(amCampCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
@@ -45001,6 +45002,7 @@ function amKpKey(k) {
   }
 }
 function amLockShow() {
+  try { if (window._bmvClose) window._bmvClose(); } catch (e) {}
   amUnlocked = false;
   amKeypad({ title: '🔒 এডমিন মোবাইল লক', sub: 'চালিয়ে যেতে আপনার PIN দিন', forgot: true, onSubmit: async function (pin) { if (await amCheckPin(pin)) { amUnlocked = true; amPinVerifiedAt = Date.now(); amLastAct = Date.now(); amKpClose(); return true; } return false; } });
 }
@@ -45111,7 +45113,7 @@ function amSyncUpdate() {
 }
 
 // ===== হোম: সাজানো, সতর্কতা, শেয়ার =====
-var AM_SECS = [['strip', 'রিসেপশন/ক্যাম্প ক্যাশ'], ['alerts', 'সতর্কতা'], ['stats', 'আজ/গতকালের আয়-ব্যয়'], ['bal', 'বর্তমান ব্যালেন্স'], ['quick', 'দ্রুত কাজ'], ['appr', 'অনুমোদনের অপেক্ষায়'], ['camps', 'আসন্ন ক্যাম্প']];
+var AM_SECS = [['strip', 'রিসেপশন/ক্যাম্প ক্যাশ'], ['live', 'লাইভ মনিটর'], ['alerts', 'সতর্কতা'], ['stats', 'আজ/গতকালের আয়-ব্যয়'], ['bal', 'বর্তমান ব্যালেন্স'], ['quick', 'দ্রুত কাজ'], ['appr', 'অনুমোদনের অপেক্ষায়'], ['camps', 'আসন্ন ক্যাম্প']];
 function amHomeCfg() {
   var c = null; try { c = JSON.parse(localStorage.getItem('hms_am_home') || 'null'); } catch (e) {}
   var ids = AM_SECS.map(function (x) { return x[0]; });
@@ -45146,7 +45148,7 @@ function amShareSummary() {
 
 // ===== আরও: সাব-পেজ =====
 var amSub = '', amDepF = 'all', amAttDate = '', amSalM = 0, amSalY = 0, amLogF = 'all', amStockQ = '';
-function amGoSub(n) { amTab = 'more'; amSub = n; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
+function amGoSub(n) { if (n === 'rpt') { amOpenReport(); return; } amTab = 'more'; amSub = n; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
 function amBack() { return '<button class="am-btn line" style="width:100%;margin-bottom:10px" onclick="amGoSub(\'\')">← আরও</button>'; }
 function amMoreHtml() {
   if (amSub === 'dep') return amDepHtml();
@@ -45157,9 +45159,16 @@ function amMoreHtml() {
   if (amSub === 'log') return amLogHtml();
   if (amSub === 'sec') return amSecHtml();
   if (amSub === 'cfg') return amCfgHtml();
+if (amSub === 'live') return amLiveHtml();
+if (amSub === 'op') return amOpHtml();
+if (amSub === 'tg') return amTgHtml();
   var item = function (ic, t, sub, n) { return '<button class="am-menu" onclick="amGoSub(\'' + n + '\')"><span class="am-ic">' + ic + '</span><span style="flex:1;text-align:left"><b>' + t + '</b><div class="am-meta" style="margin:0">' + sub + '</div></span><span style="color:var(--am-sub)">›</span></button>'; };
   var Q = (typeof QA_SVG !== 'undefined') ? QA_SVG : {};
   return '<div class="am-card" style="padding:4px 10px">'
+    + item(Q.bolt || Q.clock || '', 'লাইভ মনিটর', 'টোকেন/কিউ, আজকের বিল, কর্মী, ক্যাশ — এখন কী চলছে', 'live')
+    + item(Q.heart || Q.clipboard || '', 'অপারেশন', 'আজ/সিডিউলড/সম্পন্ন অপারেশন ও লাভ-ক্ষতি', 'op')
+    + item(Q.chart || Q.filetext || '', 'মাসিক রিপোর্ট', 'ওনার প্যানেলের মতো পূর্ণ আয়-ব্যয় রিপোর্ট', 'rpt')
+    + item(Q.bolt || Q.gear || '', 'টেলিগ্রাম অ্যালার্ট', 'অনুমোদন/অমিল হলে আপনার টেলিগ্রামে জানাবে', 'tg')
     + item(Q.archive || Q.receipt || '', 'জমা ও স্লিপ', 'রিসেপশন ও ক্যাম্পেইনারের জমা, ঘাটতি/বেশি, স্লিপ', 'dep')
     + item(Q.calendar || '', 'উপস্থিতি ও ছুটি', 'আজ কে এসেছে, ছুটি যোগ/বাতিল', 'att')
     + item(Q.briefcase || Q.users || '', 'বেতন', 'মাসের বেতন দেখা ও পরিশোধ', 'sal')
@@ -45167,9 +45176,9 @@ function amMoreHtml() {
     + item(Q.bank || Q.receipt || '', 'ব্যাংক ও মোবাইল ব্যাংকিং', 'ব্যালেন্স ও সাম্প্রতিক লেনদেন', 'bank')
     + item(Q.filetext || Q.clipboard || '', 'অ্যাক্টিভিটি লগ', 'কে কী করেছে (দেখা)', 'log')
     + item(Q.lock || Q.gear || '', 'নিরাপত্তা (PIN)', amPinCfg() ? 'PIN চালু আছে' : 'PIN সেট করা হয়নি', 'sec')
-    + item(Q.gear || '', 'হোম সাজান', 'কার্ডের ক্রম ও দেখানো/লুকানো', 'cfg') + '</div>'
+    + item(Q.gear || '', 'হোম সাজান', 'কার্ডের ক্রম ও দ্রুত কাজের বাটন', 'cfg') + '</div>'
     + '<div class="am-card"><div class="am-h" style="margin:0 0 6px">ভিউ</div><button class="am-btn line" style="width:100%" onclick="amSetUi(\'pc\')">পিসি ভিউতে যান</button>'
-    + '<div class="am-meta">রিপোর্ট, সেটিংস, বট ও বাল্ক কাজ পিসি ভিউতে পাবেন।</div></div>'
+    + '<div class="am-meta">সেটিংস, বট ও বাল্ক কাজ পিসি ভিউতে পাবেন।</div></div>'
     + '<div class="am-card"><div class="am-meta" style="margin:0 0 8px">লগইন: ' + amEsc(currentUser.name) + '</div><button class="am-btn bad" style="width:100%" onclick="amLogout()">লগআউট</button></div>';
 }
 
@@ -45351,7 +45360,8 @@ function amSecHtml() {
     + (on ? '<div class="am-btns"><button class="am-btn pri" onclick="amPinChange()">PIN বদলান</button><button class="am-btn bad" onclick="amPinRemove()">PIN বন্ধ</button></div>' : '<button class="am-btn pri" style="width:100%" onclick="amPinSetup()">PIN সেট করুন</button>')
     + '<div class="am-meta" style="margin-top:10px">PIN এই ফোনেই সংরক্ষিত থাকে, সার্ভারে যায় না। ভুলে গেলে লগইন পাসওয়ার্ড দিয়ে রিসেট করা যায়।</div></div>';
 }
-function amCfgHtml() {
+function amCfgHtml() { return amCfgHtml0() + amQuickCfgHtml(); }
+function amCfgHtml0() {
   var c = amHomeCfg();
   return amBack() + '<div class="am-meta" style="margin:0 0 8px">হোমের কার্ডের ক্রম বদলান বা না চাইলে লুকান।</div>' + c.order.map(function (id, i) {
     var name = AM_SECS.filter(function (x) { return x[0] === id; })[0][1], hid = c.hide.indexOf(id) >= 0;
@@ -45359,6 +45369,335 @@ function amCfgHtml() {
       + '<button class="am-chip" onclick="amMoveSec(\'' + id + '\',-1)"' + (i === 0 ? ' disabled' : '') + '>▲</button><button class="am-chip" onclick="amMoveSec(\'' + id + '\',1)"' + (i === c.order.length - 1 ? ' disabled' : '') + '>▼</button>'
       + '<button class="am-chip' + (hid ? '' : ' on') + '" onclick="amToggleSec(\'' + id + '\')">' + (hid ? 'লুকানো' : 'দেখানো') + '</button></div>';
   }).join('') + '<button class="am-btn line" style="width:100%" onclick="amResetSecs()">ডিফল্টে ফিরুন</button>';
+}
+
+// ===== এডমিন মোবাইল: মাসিক রিপোর্ট · লাইভ মনিটর · অপারেশন · দ্রুত বাটন সাজানো · টেলিগ্রাম অ্যালার্ট =====
+function amRel(ts) {
+  var m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (m < 1) return 'এইমাত্র';
+  if (m < 60) return fmt(m) + ' মিনিট আগে';
+  var h = Math.floor(m / 60);
+  if (h < 24) return fmt(h) + ' ঘণ্টা আগে';
+  return fmt(Math.floor(h / 24)) + ' দিন আগে';
+}
+function amClockNow() { try { return new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+
+// --- মাসিক রিপোর্ট: ওনার প্যানেলের মোবাইল রিপোর্টই খোলে (একই ফাংশন, একই চেহারা, ‹ › দিয়ে আগের ৩ মাস) ---
+function amOpenReport() {
+  if (typeof openBoardReportMobileView !== 'function') { showToast('⚠️ রিপোর্ট ফিচার পাওয়া যায়নি'); return; }
+  var n = new Date();
+  try { openBoardReportMobileView(n.getMonth() + 1, n.getFullYear()); } catch (e) { console.error(e); showToast('⚠️ রিপোর্ট খোলা যায়নি'); }
+}
+
+// --- লাইভ মনিটর ---
+function amTokenStats() {
+  var today = todayStr(), list = (appData.tokenQueue || []).filter(function (t) { return t.date === today; });
+  var by = function (s) { return list.filter(function (t) { return t.status === s; }); };
+  var waiting = by('waiting').sort(function (a, b) { return a.tokenNo - b.tokenNo; });
+  var called = by('called').sort(function (a, b) { return (b.calledAt || 0) - (a.calledAt || 0); });
+  var oldest = 0; waiting.forEach(function (t) { oldest = Math.max(oldest, Math.round((Date.now() - (t.createdAt || Date.now())) / 60000)); });
+  return { total: list.length, waiting: waiting, serving: called[0], done: by('done').length, susp: by('suspended').length, skip: by('skipped').length, oldest: oldest };
+}
+function amOnDuty() {
+  var today = todayStr(), on = [], abs = 0;
+  (appData.staff || []).filter(function (s) { return s.status === 'active'; }).forEach(function (s) {
+    try {
+      var recs = getAttendanceForDate(s.id, today).slice().sort(function (a, b) { return a.ts - b.ts; }), lv = getLeaveForDate(s.id, today);
+      if (lv) return;
+      if (!recs.length) { abs++; return; }
+      if (recs[recs.length - 1].type === 'in') on.push(s);
+    } catch (e) {}
+  });
+  return { on: on, abs: abs };
+}
+function amLiveCardHtml() {
+  var t = amTokenStats(), d = amOnDuty(), today = todayStr();
+  var bills = (appData.visits || []).filter(function (v) { return v.date === today; }).length;
+  return '<div class="am-card" style="cursor:pointer" onclick="amGoSub(\'live\')"><div class="am-h" style="margin:0"><span><span class="am-dot"></span> লাইভ মনিটর</span><a>খুলুন ›</a></div>'
+    + '<div class="am-lv3"><div><b>' + fmt(t.waiting.length) + '</b><span>অপেক্ষমাণ টোকেন</span></div><div><b>' + fmt(bills) + '</b><span>আজকের বিল</span></div><div><b>' + fmt(d.on.length) + '</b><span>কর্মরত</span></div></div></div>';
+}
+function amLiveHtml() {
+  var today = todayStr(), t = amTokenStats(), d = amOnDuty(), doc = null;
+  try { doc = getTodayQueueDoctor(); } catch (e) {}
+  var h = amBack() + '<div class="am-h" style="margin-top:0"><span><span class="am-dot"></span> লাইভ · আজ ' + formatDate(today) + '</span><span class="am-meta" style="margin:0">হালনাগাদ ' + amClockNow() + '</span></div>';
+  h += amStripHtml();
+  // টোকেন/কিউ
+  h += '<div class="am-card"><div class="am-h" style="margin:0 0 4px">🎫 টোকেন/কিউ' + (doc ? ' <span class="am-meta" style="margin:0">· ' + amEsc(doc.name) + '</span>' : '') + '</div>';
+  if (!t.total) h += '<div class="am-meta" style="margin:0">আজ এখনো কোনো টোকেন দেওয়া হয়নি</div>';
+  else {
+    h += (t.serving ? '<div class="am-row"><span class="k">🔔 এখন ডাকা হয়েছে</span><span class="v">#' + fmt(t.serving.tokenNo) + ' ' + amEsc(t.serving.patName || '') + '</span></div>' : '')
+      + '<div class="am-row"><span class="k">⏳ অপেক্ষমাণ</span><span class="v">' + fmt(t.waiting.length) + ' জন' + (t.oldest > 0 ? ' · সর্বোচ্চ ' + fmt(t.oldest) + ' মিনিট' : '') + '</span></div>'
+      + '<div class="am-row"><span class="k">✅ সম্পন্ন</span><span class="v">' + fmt(t.done) + '</span></div>'
+      + ((t.susp || t.skip) ? '<div class="am-row"><span class="k">⏸️ স্থগিত / ⏭️ বাদ</span><span class="v">' + fmt(t.susp) + ' / ' + fmt(t.skip) + '</span></div>' : '')
+      + '<div class="am-row tot"><span>আজ মোট টোকেন</span><span>' + fmt(t.total) + '</span></div>';
+    if (t.waiting.length) h += '<div class="am-meta" style="margin:8px 0 0">' + t.waiting.slice(0, 8).map(function (x) { return '#' + fmt(x.tokenNo) + ' ' + amEsc(x.patName || '—') + ' (' + fmt(Math.max(0, Math.round((Date.now() - (x.createdAt || Date.now())) / 60000))) + ' মি.)'; }).join(' · ') + (t.waiting.length > 8 ? ' …' : '') + '</div>';
+  }
+  h += '</div>';
+  // আজকের কাজের সারাংশ
+  var appts = (appData.appointments || []).filter(function (a) { return a.date === today && a.status === 'pending'; }).length;
+  var dlvT = (appData.deliveryOrders || []).filter(function (x) { return x.status === 'pending' && x.deliveryDate === today; }).length;
+  var dlvO = (appData.deliveryOrders || []).filter(function (x) { return x.status === 'pending' && x.deliveryDate && x.deliveryDate < today; }).length;
+  var ops = (appData.operations || []).filter(function (o) { return o.date === today && (o.status || 'completed') === 'scheduled'; }).length;
+  h += '<div class="am-grid"><div class="am-stat"><div class="l">আজকের অ্যাপয়েন্টমেন্ট</div><div class="v">' + fmt(appts) + '</div></div>'
+    + '<div class="am-stat"><div class="l">আজ ডেলিভারি</div><div class="v">' + fmt(dlvT) + '</div></div>'
+    + '<div class="am-stat' + (dlvO ? ' bad' : '') + '"><div class="l">ডেলিভারি বকেয়া</div><div class="v">' + fmt(dlvO) + '</div></div>'
+    + '<div class="am-stat" onclick="amOpF=\'today\';amGoSub(\'op\')" style="cursor:pointer"><div class="l">আজকের অপারেশন</div><div class="v">' + fmt(ops) + '</div></div></div>';
+  // আজকের বিল (লাইভ ফিড)
+  var vis = (appData.visits || []).filter(function (v) { return v.date === today; }).sort(function (a, b) { return b.id - a.id; });
+  var dueSum = vis.reduce(function (s, v) { return s + (v.due || 0); }, 0);
+  h += '<div class="am-h"><span>🧾 আজকের বিল (' + fmt(vis.length) + ')</span><a onclick="amBillF=\'today\';amGo(\'bill\')">সব দেখুন</a></div>';
+  if (dueSum > 0) h += '<div class="am-meta" style="margin:-4px 0 6px">আজকের বিলে বাকি: <b style="color:var(--am-bad)">৳ ' + fmt(dueSum) + '</b></div>';
+  h += vis.length ? vis.slice(0, 6).map(function (v) {
+    var total = v.netBill != null ? v.netBill : v.total;
+    return '<div class="am-card" style="padding:9px 13px" onclick="amBillDetail(\'v\',' + v.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(v.patName || '—') + '</div><div class="am-ap-amt">৳ ' + fmt(total || 0) + '</div></div>'
+      + '<div class="am-meta" style="margin:2px 0 0">' + amRel(v.id > 1e12 ? v.id : Date.now()) + (v.by ? ' · ' + amEsc(_baseBy(v.by)) : '') + ((v.due || 0) > 0 ? ' · <b style="color:var(--am-bad)">বাকি ৳ ' + fmt(v.due) + '</b>' : '') + '</div></div>';
+  }).join('') : '<div class="am-card am-empty">আজ এখনো কোনো বিল হয়নি</div>';
+  // কর্মী
+  h += '<div class="am-h"><span>👥 কর্মী এখন</span><a onclick="amGoSub(\'att\')">উপস্থিতি</a></div><div class="am-card"><div class="am-row"><span class="k">কর্মরত</span><span class="v">' + fmt(d.on.length) + ' জন</span></div>'
+    + (d.on.length ? '<div class="am-meta" style="margin:4px 0 0">' + d.on.map(function (s) { return amEsc(s.name); }).join(' · ') + '</div>' : '')
+    + '<div class="am-row"><span class="k">অনুপস্থিত (ছুটি বাদে)</span><span class="v">' + fmt(d.abs) + ' জন</span></div></div>';
+  // শেষ কার্যক্রম
+  var logs = (appData.activityLog || []).slice().sort(function (a, b) { return (b.ts || '').localeCompare(a.ts || ''); }).slice(0, 5);
+  h += '<div class="am-h"><span>📝 শেষ কার্যক্রম</span><a onclick="amGoSub(\'log\')">সব দেখুন</a></div>'
+    + (logs.length ? logs.map(function (l) {
+      var ms = new Date(l.ts).getTime();
+      return '<div class="am-card" style="padding:8px 13px"><div style="font-size:13px"><b>' + amEsc(l.module || '') + '</b> — ' + amEsc(l.detail || '') + '</div><div class="am-meta" style="margin:2px 0 0">' + amEsc(l.user || '') + (isNaN(ms) ? '' : ' · ' + amRel(ms)) + '</div></div>';
+    }).join('') : '<div class="am-card am-empty">কোনো কার্যক্রম নেই</div>');
+  return h;
+}
+
+// --- অপারেশন ভিউ ---
+var amOpF = 'today';
+function amOpProfit(op) {
+  var it = 0, ot = 0, sg = 0;
+  try { it = getOpItemsCost(op); ot = getOpOtherCost(op); sg = getOpSurgeonFeeShare(op); } catch (e) {}
+  return { items: it, other: ot, sg: sg, net: (op.fee || 0) - sg - it - ot };
+}
+function amOpTag(s) {
+  s = s || 'completed';
+  return s === 'completed' ? '<span class="am-tag g">সম্পন্ন</span>' : s === 'scheduled' ? '<span class="am-tag w">সিডিউলড</span>' : s === 'cancelled' ? '<span class="am-tag r">বাতিল</span>' : '<span class="am-tag">' + amEsc(s) + '</span>';
+}
+function amOpRows() {
+  var today = todayStr(), mon = today.slice(0, 7), all = appData.operations || [], st = function (o) { return o.status || 'completed'; };
+  var rows;
+  if (amOpF === 'today') rows = all.filter(function (o) { return o.date === today && st(o) !== 'cancelled'; });
+  else if (amOpF === 'sched') rows = all.filter(function (o) { return st(o) === 'scheduled'; });
+  else if (amOpF === 'done') rows = all.filter(function (o) { return st(o) === 'completed' && (o.date || '').slice(0, 7) === mon; });
+  else rows = all.filter(function (o) { return st(o) === 'cancelled' && (o.date || '').slice(0, 7) === mon; });
+  rows = rows.slice().sort(function (a, b) { return amOpF === 'sched' ? (a.date || '').localeCompare(b.date || '') : (b.date || '').localeCompare(a.date || '') || b.id - a.id; });
+  return rows;
+}
+function amOpHtml() {
+  var today = todayStr(), mon = today.slice(0, 7), all = appData.operations || [], st = function (o) { return o.status || 'completed'; };
+  var done = all.filter(function (o) { return st(o) === 'completed' && (o.date || '').slice(0, 7) === mon; });
+  var fee = 0, net = 0; done.forEach(function (o) { fee += (o.fee || 0); net += amOpProfit(o).net; });
+  var sch = all.filter(function (o) { return st(o) === 'scheduled'; }).length;
+  var todayN = all.filter(function (o) { return o.date === today && st(o) !== 'cancelled'; }).length;
+  var chip = function (k, t, n) { return '<button class="am-chip' + (amOpF === k ? ' on' : '') + '" onclick="amOpF=\'' + k + '\';amLastHtml=\'\';amRender(true)">' + t + (n != null ? ' (' + fmt(n) + ')' : '') + '</button>'; };
+  var h = amBack() + '<div class="am-grid"><div class="am-stat"><div class="l">এ মাসে সম্পন্ন</div><div class="v">' + fmt(done.length) + ' টি</div></div>'
+    + '<div class="am-stat"><div class="l">মোট অপারেশন ফি</div><div class="v">' + amMoney(fee) + '</div></div>'
+    + '<div class="am-stat ' + (net >= 0 ? 'ok' : 'bad') + '"><div class="l">নীট লাভ (এ মাস)</div><div class="v">' + amMoney(net) + '</div></div>'
+    + '<div class="am-stat"><div class="l">সিডিউলড (সব)</div><div class="v">' + fmt(sch) + ' টি</div></div></div>';
+  h += '<div class="am-chips">' + chip('today', 'আজ', todayN) + chip('sched', 'সিডিউলড', sch) + chip('done', 'সম্পন্ন (এ মাস)') + chip('canc', 'বাতিল') + '</div>';
+  var rows = amOpRows();
+  h += rows.length ? rows.slice(0, 40).map(function (o) {
+    var p = amOpProfit(o), s = st(o);
+    return '<div class="am-card" onclick="amOpDetail(' + o.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amOpTag(s) + ' ' + amEsc(o.patName || '—') + '</div><div class="am-ap-amt">৳ ' + fmt(o.fee || 0) + '</div></div>'
+      + '<div class="am-meta">' + amEsc(o.opType || '—') + (o.eye ? ' · ' + amEsc(o.eye) : '') + ' · ' + formatDate(o.date) + '<br>সার্জন: ' + amEsc(o.surgeonName || '—')
+      + (s === 'completed' ? ' · নীট <b style="color:' + (p.net >= 0 ? 'var(--am-ok)' : 'var(--am-bad)') + '">' + amMoney(p.net) + '</b>' : '') + '</div></div>';
+  }).join('') : '<div class="am-card am-empty">কোনো অপারেশন নেই</div>';
+  if (rows.length > 40) h += '<div class="am-meta" style="text-align:center">আরও ' + fmt(rows.length - 40) + ' টি আছে — বাকিগুলো পিসি ভিউতে দেখুন</div>';
+  return h;
+}
+function amOpDetail(id) {
+  var o = (appData.operations || []).find(function (x) { return x.id === id; }); if (!o) return;
+  var p = amOpProfit(o), s = o.status || 'completed', rows = [];
+  try { rows = getOpOtherCostRows(o); } catch (e) {}
+  var row = function (k, v, c) { return '<div class="am-row"><span class="k">' + k + '</span><span class="v"' + (c ? ' style="color:' + c + '"' : '') + '>' + v + '</span></div>'; };
+  var body = row('অবস্থা', amOpTag(s)) + row('তারিখ', formatDate(o.date)) + row('অপারেশন', amEsc(o.opType || '—') + (o.eye ? ' (' + amEsc(o.eye) + ')' : '')) + row('সার্জন', amEsc(o.surgeonName || '—'))
+    + (o.patPhone ? row('ফোন', '<a href="tel:' + amEsc(o.patPhone) + '" style="color:var(--am-pri);font-weight:700">' + amEsc(o.patPhone) + '</a>') : '')
+    + (o.patAddress ? row('ঠিকানা', amEsc(o.patAddress)) : '')
+    + (o.advancePaid ? row('অগ্রিম গৃহীত', '৳ ' + fmt(o.advancePaid)) : '')
+    + '<div class="am-h" style="margin:10px 0 2px">হিসাব</div>' + row('অপারেশন ফি', '৳ ' + fmt(o.fee || 0)) + row('সার্জন পারিশ্রমিক', '− ৳ ' + fmt(p.sg), 'var(--am-bad)')
+    + row('সার্জিক্যাল আইটেম', '− ৳ ' + fmt(p.items), 'var(--am-bad)')
+    + rows.map(function (r) { return row(amEsc(r.label), '− ৳ ' + fmt(r.amount), 'var(--am-bad)'); }).join('')
+    + '<div class="am-row tot"><span>নীট লাভ</span><span style="color:' + (p.net >= 0 ? 'var(--am-ok)' : 'var(--am-bad)') + '">' + amMoney(p.net) + '</span></div>'
+    + (o.note ? '<div class="am-meta" style="margin-top:8px">📝 ' + amEsc(o.note) + '</div>' : '');
+  var btns = '';
+  if (s === 'scheduled') btns = '<div class="am-btns" style="margin-top:12px"><button class="am-btn ok" onclick="amOpDone(' + o.id + ')">✅ সম্পন্ন করুন</button></div><div class="am-meta">তারিখ পেছানো/বাতিল ও এডিট পিসি ভিউতে করুন।</div>';
+  amOpenSheet('<div class="hd"><b>' + amEsc(o.patName || 'অপারেশন') + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>' + body + btns);
+}
+function amOpDone(id) {
+  var o = (appData.operations || []).find(function (x) { return x.id === id; }); if (!o) return;
+  if (!o.fee || !o.surgeonId) { amCloseSheet(); showToast('⚠️ "সম্পন্ন" করতে ফি ও সার্জন লাগবে — পিসি ভিউ থেকে এডিট করে দিন'); return; }
+  amConfirm('অপারেশন সম্পন্ন করবেন?', '<b>' + amEsc(o.patName || '') + '</b> — ' + amEsc(o.opType || '') + '<br>' + (o.sourceVisitId ? 'ফি বিলের মাধ্যমে আগেই আয় হয়েছে।' : 'আয় হিসেবে ৳ ' + fmt(o.fee) + ' (অপারেশন ফি) জমা হবে।'), 'সম্পন্ন করুন', 'amDoOpDone', id);
+}
+function amDoOpDone(id) {
+  amGuard(function () {
+    try { quickChangeOpStatus(id, 'completed'); } catch (e) { console.warn('amDoOpDone', e); }
+    amAfter();
+  });
+}
+
+// --- দ্রুত কাজের বাটন (সাজানো যায়) ---
+var AM_QUICKS = [
+  ['camp', function (p) { return amIc('tent') + 'নতুন ক্যাম্প'; }, 'amCampForm()'],
+  ['appr', function (p) { return amIc('clipboard') + 'অনুমোদন (' + fmt(p.total) + ')'; }, "amGo('appr')"],
+  ['bill', function (p) { return amIc('receipt') + 'বিল ও বাকি'; }, "amGo('bill')"],
+  ['msg', function (p) { return '<span class="am-ic">' + AM_MSG_SVG + '</span>রিসেপশনে বার্তা'; }, 'openQuickMsgModal()'],
+  ['dep', function (p) { return amIc('receipt') + 'জমা ও স্লিপ'; }, "amGoSub('dep')"],
+  ['sal', function (p) { return amIc('briefcase') + 'বেতন'; }, "amGoSub('sal')"],
+  ['live', function (p) { return amIc('bolt') + 'লাইভ মনিটর'; }, "amGoSub('live')"],
+  ['rpt', function (p) { return amIc('chart') + 'মাসিক রিপোর্ট'; }, 'amOpenReport()'],
+  ['op', function (p) { return amIc('heart') + 'অপারেশন'; }, "amGoSub('op')"],
+  ['att', function (p) { return amIc('calendar') + 'উপস্থিতি ও ছুটি'; }, "amGoSub('att')"],
+  ['stock', function (p) { return amIc('box') + 'স্টক'; }, "amGoSub('stock')"],
+  ['bank', function (p) { return amIc('bank') + 'ব্যাংক'; }, "amGoSub('bank')"],
+  ['log', function (p) { return amIc('filetext') + 'অ্যাক্টিভিটি লগ'; }, "amGoSub('log')"],
+  ['tg', function (p) { return amIc('bolt') + 'টেলিগ্রাম অ্যালার্ট'; }, "amGoSub('tg')"]
+];
+var AM_QUICK_DEF = ['camp', 'appr', 'bill', 'msg', 'dep', 'sal'];
+function amQuickCfg() {
+  var ids = AM_QUICKS.map(function (x) { return x[0]; }), c = null;
+  try { c = JSON.parse(localStorage.getItem('hms_am_quick') || 'null'); } catch (e) {}
+  if (!Array.isArray(c)) return AM_QUICK_DEF.slice();
+  return c.filter(function (i, k) { return ids.indexOf(i) >= 0 && c.indexOf(i) === k; });
+}
+function amQuickSave(a) { try { localStorage.setItem('hms_am_quick', JSON.stringify(a)); } catch (e) {} amLastHtml = ''; amRender(true); }
+function amQuickHtml(p) {
+  var sel = amQuickCfg();
+  if (!sel.length) return '<div class="am-card am-empty" onclick="amGoSub(\'cfg\')" style="cursor:pointer">দ্রুত কাজের কোনো বাটন নেই — সাজাতে চাপুন</div>';
+  return '<div class="am-quick">' + sel.map(function (id) {
+    var q = AM_QUICKS.filter(function (x) { return x[0] === id; })[0];
+    return '<button onclick="' + q[2] + '">' + q[1](p) + '</button>';
+  }).join('') + '</div>';
+}
+function amQMove(id, dir) { var a = amQuickCfg(), i = a.indexOf(id), j = i + dir; if (i < 0 || j < 0 || j >= a.length) return; var t = a[i]; a[i] = a[j]; a[j] = t; amQuickSave(a); }
+function amQToggle(id) { var a = amQuickCfg(), i = a.indexOf(id); if (i >= 0) a.splice(i, 1); else a.push(id); amQuickSave(a); }
+function amQReset() { try { localStorage.removeItem('hms_am_quick'); } catch (e) {} amLastHtml = ''; amRender(true); }
+function amQuickCfgHtml() {
+  var sel = amQuickCfg(), P0 = { total: 0 };
+  var plain = function (id) { var q = AM_QUICKS.filter(function (x) { return x[0] === id; })[0]; return q[1](P0).replace(/<span class="am-ic">[\s\S]*?<\/span>/g, '').replace(/<[^>]+>/g, '').replace(/\s*\(.*\)\s*$/, ''); };
+  var h = '<div class="am-h"><span>দ্রুত কাজের বাটন</span></div><div class="am-meta" style="margin:0 0 8px">হোমের "দ্রুত কাজ" কার্ডে যেগুলো থাকবে তা বেছে নিন ও ক্রম ঠিক করুন।</div>';
+  h += sel.map(function (id, i) {
+    return '<div class="am-card" style="padding:8px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1;font-weight:700;font-size:14px">' + amEsc(plain(id)) + '</span>'
+      + '<button class="am-chip" onclick="amQMove(\'' + id + '\',-1)"' + (i === 0 ? ' disabled' : '') + '>▲</button><button class="am-chip" onclick="amQMove(\'' + id + '\',1)"' + (i === sel.length - 1 ? ' disabled' : '') + '>▼</button>'
+      + '<button class="am-chip on" onclick="amQToggle(\'' + id + '\')">✕ সরান</button></div>';
+  }).join('');
+  var rest = AM_QUICKS.filter(function (x) { return sel.indexOf(x[0]) < 0; });
+  if (rest.length) h += '<div class="am-meta" style="margin:10px 0 6px">যোগ করা যাবে:</div><div class="am-chips">' + rest.map(function (x) { return '<button class="am-chip" onclick="amQToggle(\'' + x[0] + '\')">+ ' + amEsc(plain(x[0])) + '</button>'; }).join('') + '</div>';
+  return h + '<button class="am-btn line" style="width:100%;margin-top:10px" onclick="amQReset()">বাটন ডিফল্টে ফিরুন</button>';
+}
+
+// --- এডমিনের টেলিগ্রামে অ্যালার্ট ---
+// ফ্লো: যেকোনো ডিভাইসে অ্যাপ খোলা থাকলে (রিসেপশন পিসিতেও) প্রতি ২০ সেকেন্ডে নতুন ঘটনা খোঁজা হয় → tgOutbox-এ অ্যালার্ট জমা হয়
+// → settings-এ Worker URL/Secret থাকলে সাথে সাথে বটের process-outbox ওয়ার্কফ্লো চালিয়ে দেওয়া হয় (নইলে বটের নিজের সময়সূচির অপেক্ষা)।
+var AM_TG_TYPES = [['exp', '💸 ব্যয় অনুমোদনের অনুরোধ'], ['unl', '🔓 বিল আনলকের অনুরোধ'], ['dm', '📋 নতুন ডিমান্ড নোট'], ['del', '🗑️ রিসেপশনিস্ট বিল মুছেছে'], ['dep', '⚠️ জমায় অমিল'], ['camp', '🏕️ মেয়াদোত্তীর্ণ ক্যাম্প']];
+function amTgCfg() {
+  var c = (appData.settings && appData.settings.adminTg) || {};
+  var t = c.types || {};
+  return { on: !!c.on, chatId: String(c.chatId || '').trim(), since: c.since || 0,
+    types: { exp: t.exp !== false, unl: t.unl !== false, dm: t.dm !== false, del: t.del !== false, dep: t.dep !== false, camp: t.camp === true } };
+}
+function amTgClean(s) { return String(s == null ? '' : s).replace(/[*_`\[\]]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function amTgEvTs(x) {
+  var a = x.approvalRequestedAt; if (typeof a === 'number' && a > 1e12) return a;
+  if (x.ts) { var d = new Date(x.ts).getTime(); if (!isNaN(d)) return d; }
+  return (typeof x.id === 'number' && x.id > 1e12) ? x.id : 0;
+}
+function amTgCandidates(cfg) {
+  var out = [], hosp = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  var add = function (type, key, ev, line) { if (cfg.types[type]) out.push({ type: type, key: key, ev: ev, text: '🏥 ' + hosp + '\n' + line + '\n⏰ ' + new Date(ev || Date.now()).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) }); };
+  (appData.expense || []).forEach(function (e) {
+    if (e.needsApproval && e.status === 'pending' && !e.rejected) add('exp', 'e' + e.id + '_' + (e.approvalRequestedAt || ''), amTgEvTs(e), '💸 ব্যয় অনুমোদন দরকার\n' + amTgClean(e.category) + ' — ৳' + fmt(e.amount) + '\nএন্ট্রি: ' + amTgClean(e.by || '—') + (e.note ? '\n' + amTgClean(e.note).slice(0, 80) : ''));
+  });
+  (appData.unlockRequests || []).forEach(function (r) {
+    if (r.status === 'pending') add('unl', 'ul' + r.id, amTgEvTs(r), '🔓 বিল আনলকের অনুরোধ\nঅনুরোধকারী: ' + amTgClean(r.by || '—') + (r.reason ? '\nকারণ: ' + amTgClean(r.reason).slice(0, 80) : ''));
+  });
+  (appData.demands || []).forEach(function (d) {
+    if (d.status === 'pending') add('dm', 'd' + d.id, amTgEvTs(d), '📋 নতুন ডিমান্ড নোট' + (d.priority === 'urgent' ? ' (জরুরি)' : '') + '\n' + amTgClean(d.title) + '\nপাঠিয়েছেন: ' + amTgClean(d.by || '—'));
+  });
+  (appData.deletedVisits || []).forEach(function (r) {
+    if (!r.byAdmin) add('del', 'x' + r.id, amTgEvTs(r), '🗑️ বিল মুছে ফেলা হয়েছে\n' + amTgClean(r.visit && r.visit.patName) + ' — ৳' + fmt((r.visit && (r.visit.netBill != null ? r.visit.netBill : r.visit.total)) || 0) + '\nমুছেছেন: ' + amTgClean(r.by || '—') + '\nকারণ: ' + amTgClean(r.reason || '—').slice(0, 80));
+  });
+  (appData.recDeposits || []).forEach(function (d) {
+    if (d.diff != null && d.diff !== 0) add('dep', 'dm' + d.id, amTgEvTs(d), '⚠️ জমায় অমিল\n' + amTgClean(d.by || '—') + ' — ' + (d.diff < 0 ? 'ঘাটতি ৳' : 'বেশি ৳') + fmt(Math.abs(d.diff)));
+  });
+  if (cfg.types.camp) { try { (getOverdueCampSchedules() || []).forEach(function (s) { add('camp', 'o' + s.id + '_' + s.date, Date.now(), '🏕️ মেয়াদোত্তীর্ণ ক্যাম্প\n' + amTgClean(s.name || s.location || 'ক্যাম্প') + ' — ' + formatDate(s.date) + '\nরিশিডিউল বা বাতিল করুন'); }); } catch (e) {} }
+  return out;
+}
+var _amTgKickAt = 0, _amTgKickTimer = null;
+function amTgKick(force) {
+  var st = appData.settings || {}, url = st.triggerWorkerUrl, sec = st.triggerAppSecret;
+  if (!url || !sec) return false;
+  var wait = 45000 - (Date.now() - _amTgKickAt);
+  if (!force && wait > 0) { if (!_amTgKickTimer) _amTgKickTimer = setTimeout(function () { _amTgKickTimer = null; amTgKick(true); }, wait); return true; }
+  _amTgKickAt = Date.now();
+  try { fetch(String(url).replace(/\/$/, '') + '/trigger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workflow: 'process-outbox.yml', appSecret: sec, repo: 'icon-hospital-telegram-bot' }) }).catch(function () {}); } catch (e) {}
+  return true;
+}
+function amTgScan() {
+  try {
+    if (typeof currentUser === 'undefined' || !currentUser || !appData || !appData.settings) return;
+    var cfg = amTgCfg(); if (!cfg.on || !cfg.chatId || !cfg.since) return;
+    if (typeof _botOn === 'function' && !_botOn('tg')) return;
+    if (!appData.tgOutbox) appData.tgOutbox = [];
+    var sent = {}; appData.tgOutbox.forEach(function (m) { if (m && m.alertKey) sent[m.alertKey] = 1; });
+    var fresh = amTgCandidates(cfg).filter(function (c) { return !sent[c.key] && c.ev >= cfg.since; }).slice(0, 8);
+    if (!fresh.length) return;
+    var now = Date.now();
+    fresh.forEach(function (c, i) { appData.tgOutbox.push({ id: now + i, type: 'broadcast', alert: true, alertKey: c.key, name: 'এডমিন অ্যালার্ট', chatId: cfg.chatId, text: c.text, status: 'pending', createdAt: new Date().toISOString(), by: currentUser.name }); });
+    saveData();
+    amTgKick(false);
+  } catch (e) { console.warn('amTgScan', e); }
+}
+setInterval(amTgScan, 20000);
+function amTgSave() {
+  var chat = ((document.getElementById('amTgChat') || {}).value || '').trim();
+  var on = !!(document.getElementById('amTgOn') || {}).checked;
+  if (on && !/^-?\d{5,20}$/.test(chat)) { showToast('⚠️ সঠিক Chat ID দিন (শুধু সংখ্যা)'); return; }
+  var old = amTgCfg(), types = {};
+  AM_TG_TYPES.forEach(function (t) { var el = document.getElementById('amTgT_' + t[0]); types[t[0]] = !!(el && el.checked); });
+  if (!appData.settings) appData.settings = {};
+  // নতুন করে চালু করলে/আইডি বদলালে — আগের জমে থাকা ঘটনার অ্যালার্ট যেন একসাথে না যায়, তাই "এখন থেকে" ধরা হয়
+  var since = (on && (!old.on || old.chatId !== chat || !old.since)) ? Date.now() : (old.since || 0);
+  appData.settings.adminTg = { on: on, chatId: chat, types: types, since: since };
+  saveData();
+  showToast(on ? '✅ টেলিগ্রাম অ্যালার্ট চালু হয়েছে' : 'অ্যালার্ট বন্ধ করা হয়েছে');
+  amLastHtml = ''; amRender(true);
+}
+function amTgTest() {
+  var chat = ((document.getElementById('amTgChat') || {}).value || '').trim() || amTgCfg().chatId;
+  if (!/^-?\d{5,20}$/.test(chat)) { showToast('⚠️ আগে সঠিক Chat ID দিন'); return; }
+  if (typeof _botOn === 'function' && !_botOn('tg')) { showToast('⏸️ Telegram বট বন্ধ আছে — পিসি ভিউ থেকে চালু করুন'); return; }
+  if (!appData.tgOutbox) appData.tgOutbox = [];
+  var hosp = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
+  appData.tgOutbox.push({ id: Date.now(), type: 'broadcast', alert: true, alertKey: 'test' + Date.now(), name: 'এডমিন অ্যালার্ট (টেস্ট)', chatId: chat, text: '🏥 ' + hosp + '\n✅ টেস্ট মেসেজ — এডমিন অ্যালার্ট ঠিকভাবে কাজ করছে।', status: 'pending', createdAt: new Date().toISOString(), by: currentUser.name });
+  saveData();
+  var fast = amTgKick(true);
+  showToast(fast ? '📤 পাঠানো হচ্ছে — সাধারণত ১-২ মিনিটের মধ্যে পাবেন' : '📤 কিউতে যোগ হয়েছে — Worker সেট না থাকায় বটের নিজের সময়ে যাবে');
+  amLastHtml = ''; amRender(true);
+}
+function amTgHtml() {
+  var c = amTgCfg(), st = appData.settings || {}, botOn = (typeof _botOn === 'function') ? _botOn('tg') : true, fast = !!(st.triggerWorkerUrl && st.triggerAppSecret);
+  var h = amBack() + '<div class="am-card"><div class="am-h" style="margin:0 0 6px">✈️ এডমিনের টেলিগ্রামে অ্যালার্ট</div>'
+    + '<div class="am-meta" style="margin:0 0 8px">কোনো অনুমোদন/অমিল/বিল মোছার মতো ঘটনা হলে আপনার টেলিগ্রামে জানাবে — অ্যাপ বন্ধ থাকলেও।</div>'
+    + '<div class="am-row"><span class="k">Telegram বট</span><span class="v" style="color:' + (botOn ? 'var(--am-ok)' : 'var(--am-bad)') + '">' + (botOn ? '● চালু' : '● বন্ধ (পিসি ভিউ → নোটিফিকেশন থেকে চালু)') + '</span></div>'
+    + '<div class="am-row"><span class="k">দ্রুত পাঠানো</span><span class="v" style="color:' + (fast ? 'var(--am-ok)' : 'var(--am-warn)') + '">' + (fast ? '● চালু (Worker সেট আছে)' : '● বন্ধ — Worker URL/Secret নেই') + '</span></div>'
+    + '<div class="am-meta">' + (fast ? 'অ্যালার্ট জমা হওয়ামাত্র বটকে জাগানো হয়, তাই সাধারণত ১-২ মিনিটে পৌঁছায়।' : 'পিসি ভিউ → নোটিফিকেশন → ম্যানুয়াল ট্রিগার সেটিংসে Worker URL ও Secret দিলে দেরি অনেক কমবে; নইলে বটের নিজের সময়সূচির অপেক্ষা করতে হবে।') + '</div></div>';
+  h += '<div class="am-card"><label class="am-swr"><input type="checkbox" id="amTgOn"' + (c.on ? ' checked' : '') + '><span>অ্যালার্ট চালু</span></label>'
+    + '<div class="am-f" style="margin-top:8px"><label>আপনার টেলিগ্রাম Chat ID</label><input id="amTgChat" type="text" inputmode="numeric" placeholder="যেমন: 123456789" value="' + amEsc(c.chatId) + '"></div>'
+    + '<div class="am-meta" style="margin:0 0 8px">Chat ID পেতে টেলিগ্রামে @userinfobot-কে /start দিন। আর হাসপাতালের বটকেও একবার /start দিয়ে রাখুন, নইলে বট আপনাকে মেসেজ পাঠাতে পারবে না।</div>'
+    + '<div class="am-h" style="margin:6px 0 2px"><span>কোন ঘটনায় জানাবে</span></div>'
+    + AM_TG_TYPES.map(function (t) { return '<label class="am-swr"><input type="checkbox" id="amTgT_' + t[0] + '"' + (c.types[t[0]] ? ' checked' : '') + '><span>' + t[1] + '</span></label>'; }).join('')
+    + '<div class="am-btns" style="margin-top:12px"><button class="am-btn line" onclick="amTgTest()">টেস্ট পাঠান</button><button class="am-btn pri" onclick="amTgSave()">সেভ করুন</button></div>'
+    + '<div class="am-meta">চালু করার সময় থেকে নতুন ঘটনাগুলোই যাবে — আগের জমে থাকা গুলো নয়।</div></div>';
+  var recent = (appData.tgOutbox || []).filter(function (m) { return m && m.alert; }).sort(function (a, b) { return (b.id || 0) - (a.id || 0); }).slice(0, 6);
+  h += '<div class="am-h"><span>সর্বশেষ অ্যালার্ট</span></div>' + (recent.length ? recent.map(function (m) {
+    var ms = new Date(m.createdAt).getTime(), s = m.status === 'sent' ? '<span class="am-tag g">পাঠানো হয়েছে</span>' : m.status === 'failed' ? '<span class="am-tag r">ব্যর্থ</span>' : '<span class="am-tag w">অপেক্ষমাণ</span>';
+    return '<div class="am-card" style="padding:8px 13px"><div>' + s + ' <b style="font-size:13px">' + amEsc(String(m.text || '').split('\n')[1] || m.name || '') + '</b></div><div class="am-meta" style="margin:2px 0 0">' + (isNaN(ms) ? '' : amRel(ms)) + '</div></div>';
+  }).join('') : '<div class="am-card am-empty">এখনো কোনো অ্যালার্ট যায়নি</div>');
+  return h;
 }
 
 </script>
