@@ -45636,8 +45636,25 @@ function amTgKick(force) {
   try { fetch(String(url).replace(/\/$/, '') + '/trigger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workflow: 'process-outbox.yml', appSecret: sec, repo: 'icon-hospital-telegram-bot' }) }).catch(function () {}); } catch (e) {}
   return true;
 }
+// ✅ সরাসরি পাঠানো: Worker-এর /notify → টেলিগ্রাম (১-২ সেকেন্ড)। সফল হলে আউটবক্সে "sent" হিসেবে রেকর্ড (ডুপ্লিকেট ঠেকাতে ও তালিকায় দেখাতে);
+// ব্যর্থ হলে (Worker-এ /notify না থাকলে, নেট সমস্যায় ইত্যাদি) আগের পদ্ধতি: আউটবক্সে "pending" + বটকে জাগানো।
+function amTgNotify(chatId, text) {
+  var st = appData.settings || {}, url = st.triggerWorkerUrl, sec = st.triggerAppSecret;
+  if (!url || !sec) return Promise.resolve({ ok: false, error: 'Worker URL/Secret নেই' });
+  return fetch(String(url).replace(/\/$/, '') + '/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appSecret: sec, chatId: chatId, text: text }) })
+    .then(function (r) { return r.json().catch(function () { return {}; }); })
+    .then(function (d) { return { ok: !!(d && d.ok), error: (d && (d.error || d.message)) || '' }; })
+    .catch(function (e) { return { ok: false, error: (e && e.message) || 'নেটওয়ার্ক সমস্যা' }; });
+}
+function amTgEntry(i, cfgChat, c, ok) {
+  var e = { id: Date.now() + i, type: 'broadcast', alert: true, alertKey: c.key, name: 'এডমিন অ্যালার্ট', chatId: cfgChat, text: c.text, status: ok ? 'sent' : 'pending', createdAt: new Date().toISOString(), by: currentUser.name };
+  if (ok) { e.sentVia = 'worker'; e.sentAt = new Date().toISOString(); }
+  return e;
+}
+var _amTgBusy = false;
 function amTgScan() {
   try {
+    if (_amTgBusy) return;
     if (typeof currentUser === 'undefined' || !currentUser || !appData || !appData.settings) return;
     var cfg = amTgCfg(); if (!cfg.on || !cfg.chatId || !cfg.since) return;
     if (typeof _botOn === 'function' && !_botOn('tg')) return;
@@ -45645,11 +45662,15 @@ function amTgScan() {
     var sent = {}; appData.tgOutbox.forEach(function (m) { if (m && m.alertKey) sent[m.alertKey] = 1; });
     var fresh = amTgCandidates(cfg).filter(function (c) { return !sent[c.key] && c.ev >= cfg.since; }).slice(0, 8);
     if (!fresh.length) return;
-    var now = Date.now();
-    fresh.forEach(function (c, i) { appData.tgOutbox.push({ id: now + i, type: 'broadcast', alert: true, alertKey: c.key, name: 'এডমিন অ্যালার্ট', chatId: cfg.chatId, text: c.text, status: 'pending', createdAt: new Date().toISOString(), by: currentUser.name }); });
-    saveData();
-    amTgKick(false);
-  } catch (e) { console.warn('amTgScan', e); }
+    _amTgBusy = true;
+    Promise.all(fresh.map(function (c) { return amTgNotify(cfg.chatId, c.text); })).then(function (res) {
+      var anyPending = false;
+      fresh.forEach(function (c, i) { var ok = !!(res[i] && res[i].ok); if (!ok) anyPending = true; appData.tgOutbox.push(amTgEntry(i, cfg.chatId, c, ok)); });
+      saveData();
+      if (anyPending) amTgKick(false);
+      _amTgBusy = false;
+    }, function () { _amTgBusy = false; });
+  } catch (e) { _amTgBusy = false; console.warn('amTgScan', e); }
 }
 setInterval(amTgScan, 20000);
 function amTgSave() {
@@ -45672,11 +45693,18 @@ function amTgTest() {
   if (typeof _botOn === 'function' && !_botOn('tg')) { showToast('⏸️ Telegram বট বন্ধ আছে — পিসি ভিউ থেকে চালু করুন'); return; }
   if (!appData.tgOutbox) appData.tgOutbox = [];
   var hosp = (appData.settings && appData.settings.hospName) || 'ICON Eye Hospital';
-  appData.tgOutbox.push({ id: Date.now(), type: 'broadcast', alert: true, alertKey: 'test' + Date.now(), name: 'এডমিন অ্যালার্ট (টেস্ট)', chatId: chat, text: '🏥 ' + hosp + '\n✅ টেস্ট মেসেজ — এডমিন অ্যালার্ট ঠিকভাবে কাজ করছে।', status: 'pending', createdAt: new Date().toISOString(), by: currentUser.name });
-  saveData();
-  var fast = amTgKick(true);
-  showToast(fast ? '📤 পাঠানো হচ্ছে — সাধারণত ১-২ মিনিটের মধ্যে পাবেন' : '📤 কিউতে যোগ হয়েছে — Worker সেট না থাকায় বটের নিজের সময়ে যাবে');
-  amLastHtml = ''; amRender(true);
+  var c = { key: 'test' + Date.now(), text: '🏥 ' + hosp + '\n✅ টেস্ট মেসেজ — এডমিন অ্যালার্ট ঠিকভাবে কাজ করছে।' };
+  showToast('⏳ পাঠানো হচ্ছে…');
+  amTgNotify(chat, c.text).then(function (r) {
+    var e = amTgEntry(0, chat, c, r.ok); e.name = 'এডমিন অ্যালার্ট (টেস্ট)';
+    appData.tgOutbox.push(e); saveData();
+    if (r.ok) showToast('✅ সরাসরি পাঠানো হয়েছে — টেলিগ্রাম দেখুন');
+    else {
+      var fast = amTgKick(true);
+      showToast('⚠️ সরাসরি যায়নি' + (r.error ? ' (' + String(r.error).slice(0, 70) + ')' : '') + (fast ? ' — আউটবক্স পদ্ধতিতে ১-২ মিনিটে যাবে' : ' — বটের নিজের সময়ে যাবে'));
+    }
+    amLastHtml = ''; amRender(true);
+  });
 }
 function amTgHtml() {
   var c = amTgCfg(), st = appData.settings || {}, botOn = (typeof _botOn === 'function') ? _botOn('tg') : true, fast = !!(st.triggerWorkerUrl && st.triggerAppSecret);
@@ -45684,7 +45712,7 @@ function amTgHtml() {
     + '<div class="am-meta" style="margin:0 0 8px">কোনো অনুমোদন/অমিল/বিল মোছার মতো ঘটনা হলে আপনার টেলিগ্রামে জানাবে — অ্যাপ বন্ধ থাকলেও।</div>'
     + '<div class="am-row"><span class="k">Telegram বট</span><span class="v" style="color:' + (botOn ? 'var(--am-ok)' : 'var(--am-bad)') + '">' + (botOn ? '● চালু' : '● বন্ধ (পিসি ভিউ → নোটিফিকেশন থেকে চালু)') + '</span></div>'
     + '<div class="am-row"><span class="k">দ্রুত পাঠানো</span><span class="v" style="color:' + (fast ? 'var(--am-ok)' : 'var(--am-warn)') + '">' + (fast ? '● চালু (Worker সেট আছে)' : '● বন্ধ — Worker URL/Secret নেই') + '</span></div>'
-    + '<div class="am-meta">' + (fast ? 'অ্যালার্ট জমা হওয়ামাত্র বটকে জাগানো হয়, তাই সাধারণত ১-২ মিনিটে পৌঁছায়।' : 'পিসি ভিউ → নোটিফিকেশন → ম্যানুয়াল ট্রিগার সেটিংসে Worker URL ও Secret দিলে দেরি অনেক কমবে; নইলে বটের নিজের সময়সূচির অপেক্ষা করতে হবে।') + '</div></div>';
+    + '<div class="am-meta">' + (fast ? 'আগে Worker-এর /notify দিয়ে সরাসরি পাঠানো হয় (১-২ সেকেন্ড)। সেটা না পারলে আউটবক্সে জমা হয়ে বটকে জাগানো হয় (১-২ মিনিট)। কোনটা কাজ করছে তা "টেস্ট পাঠান" ও নিচের তালিকায় দেখবেন।' : 'পিসি ভিউ → নোটিফিকেশন → ম্যানুয়াল ট্রিগার সেটিংসে Worker URL ও Secret দিলে দেরি অনেক কমবে; নইলে বটের নিজের সময়সূচির অপেক্ষা করতে হবে।') + '</div></div>';
   h += '<div class="am-card"><label class="am-swr"><input type="checkbox" id="amTgOn"' + (c.on ? ' checked' : '') + '><span>অ্যালার্ট চালু</span></label>'
     + '<div class="am-f" style="margin-top:8px"><label>আপনার টেলিগ্রাম Chat ID</label><input id="amTgChat" type="text" inputmode="numeric" placeholder="যেমন: 123456789" value="' + amEsc(c.chatId) + '"></div>'
     + '<div class="am-meta" style="margin:0 0 8px">Chat ID পেতে টেলিগ্রামে @userinfobot-কে /start দিন। আর হাসপাতালের বটকেও একবার /start দিয়ে রাখুন, নইলে বট আপনাকে মেসেজ পাঠাতে পারবে না।</div>'
@@ -45694,7 +45722,7 @@ function amTgHtml() {
     + '<div class="am-meta">চালু করার সময় থেকে নতুন ঘটনাগুলোই যাবে — আগের জমে থাকা গুলো নয়।</div></div>';
   var recent = (appData.tgOutbox || []).filter(function (m) { return m && m.alert; }).sort(function (a, b) { return (b.id || 0) - (a.id || 0); }).slice(0, 6);
   h += '<div class="am-h"><span>সর্বশেষ অ্যালার্ট</span></div>' + (recent.length ? recent.map(function (m) {
-    var ms = new Date(m.createdAt).getTime(), s = m.status === 'sent' ? '<span class="am-tag g">পাঠানো হয়েছে</span>' : m.status === 'failed' ? '<span class="am-tag r">ব্যর্থ</span>' : '<span class="am-tag w">অপেক্ষমাণ</span>';
+    var ms = new Date(m.createdAt).getTime(), s = m.status === 'sent' ? '<span class="am-tag g">' + (m.sentVia === 'worker' ? '⚡ সরাসরি পাঠানো হয়েছে' : 'পাঠানো হয়েছে') + '</span>' : m.status === 'failed' ? '<span class="am-tag r">ব্যর্থ</span>' : '<span class="am-tag w">অপেক্ষমাণ</span>';
     return '<div class="am-card" style="padding:8px 13px"><div>' + s + ' <b style="font-size:13px">' + amEsc(String(m.text || '').split('\n')[1] || m.name || '') + '</b></div><div class="am-meta" style="margin:2px 0 0">' + (isNaN(ms) ? '' : amRel(ms)) + '</div></div>';
   }).join('') : '<div class="am-card am-empty">এখনো কোনো অ্যালার্ট যায়নি</div>');
   return h;
