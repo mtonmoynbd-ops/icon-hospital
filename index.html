@@ -670,6 +670,11 @@
   #rec-home .rhd-pill { background:#fff; border:1px solid #dbe7f3; border-radius:11px; padding:4px 14px; text-align:center; min-width:96px; box-shadow:0 1px 6px rgba(15,76,129,.06); }
   #rec-home .rhd-pill b { display:block; font-size:18px; line-height:1.1; font-weight:800; color:#0f4c81; }
   #rec-home .rhd-pill span { font-size:10px; color:#64748b; font-weight:700; }
+  #rec-home .rhd-pillwrap { display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; }
+  #rec-home .rhd-notebtn { display:flex; align-items:center; justify-content:center; gap:7px; background:#0f4c81; color:#fff; border:0; border-radius:11px; padding:4px 14px; font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; box-shadow:0 1px 6px rgba(15,76,129,.18); }
+  #rec-home .rhd-notebtn i { font-style:normal; font-size:17px; line-height:1; }
+  #rec-home .rhd-notebtn span { font-size:12px; color:#fff; font-weight:800; }
+  #rec-home .rhd-notebtn:active { transform:scale(.97); }
   #rec-home .rhd-alert { margin-top:8px; background:linear-gradient(120deg,#fffbeb,#fef3c7); border:1.5px solid #fcd34d; border-radius:12px; padding:7px 12px; box-shadow:0 2px 8px rgba(245,158,11,.15); }
   #rec-home .rhd-alert-h { font-size:12.5px; font-weight:800; color:#92400e; }
   #rec-home .rhd-alert-h small { font-weight:600; color:#b45309; }
@@ -8088,7 +8093,10 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           <div class="rhd-date" id="recHomeDate"></div>
         </div>
         <div class="rhd-msgwrap" id="recHomeMsg"></div>
-        <div class="rhd-pill"><b id="recHomePending">০</b><span>আজ করণীয় বাকি</span></div>
+        <div class="rhd-pillwrap">
+          <div class="rhd-pill"><b id="recHomePending">০</b><span>আজ করণীয় বাকি</span></div>
+          <button type="button" class="rhd-notebtn" id="recHomeNoteBtn" onclick="amNoteOpen()" title="এডমিনকে জানান"><i>&#128227;</i><span>এডমিনকে জানান</span></button>
+        </div>
       </div>
       <div id="recHomeAlert"></div>
       <div class="rhd-sec">⚡ দ্রুত কাজ</div>
@@ -9278,6 +9286,7 @@ let ownerReadOnlyMonth = todayStr().substring(0,7);
 function changeOwnerReadOnlyMonth(val) {
   if (!val) return;
   ownerReadOnlyMonth = val;
+  if (typeof amOwnActive === 'function' && amOwnActive()) { amLastHtml = ''; amRender(true); return; }
   renderOwnerReadOnlySection(currentOwnerActiveFeature);
 }
 let currentCamperActiveFeature = 'camp';
@@ -27025,7 +27034,12 @@ function buildReadOnlyHTML(feature, role) {
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(s);
     });
-    const catNames = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'bn'));
+    let catNames = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'bn'));
+    if (window.__amOwnRender) {
+      const _pri = ['মেডিসিন','সার্জিক্যাল','চশমা/লেন্স'];
+      const _rk = c => { const i = _pri.indexOf(c); return i < 0 ? 99 : i; };
+      catNames = catNames.sort((a,b)=> _rk(a)-_rk(b) || a.localeCompare(b,'bn'));
+    }
     return `<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">📦 স্টক তালিকা ${badge}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px">
         <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px;text-align:center">
@@ -37237,6 +37251,7 @@ function renderRecHome() {
   var h = new Date().getHours();
   var greet = h>=4&&h<12 ? 'শুভ সকাল' : h<15 ? 'শুভ দুপুর' : h<18 ? 'শুভ বিকাল' : h<20 ? 'শুভ সন্ধ্যা' : 'শুভ রাত্রি';
   var gEl = document.getElementById('recHomeGreet'); if (gEl) gEl.textContent = greet;
+  var _nb = document.getElementById('recHomeNoteBtn'); if (_nb) _nb.style.display = (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'owner') ? '' : 'none';
   var nEl = document.getElementById('recHomeName'); if (nEl) nEl.textContent = (currentUser && currentUser.name) || '';
   try { renderRecMsgBox(); } catch(e) { console.warn('[HMS] বার্তা বক্স ব্যর্থ:', e); }
   var dEl = document.getElementById('recHomeDate'); if (dEl) dEl.textContent = '📅 ' + formatDate(today);
@@ -44339,7 +44354,7 @@ body.adm-mob #toast{bottom:86px !important;left:12px !important;right:12px !impo
 .am-pcv-hd{display:flex;align-items:center;gap:8px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top,0px));background:var(--am-card);border-bottom:1px solid var(--am-line)}.am-pcv-hd b{flex:1;font-size:16px}.am-pcv-hd button{border:0;background:var(--am-bg);border-radius:9px;width:36px;height:36px;font-size:16px;color:var(--am-text);cursor:pointer}
 .am-pcv-ctl{display:flex;gap:8px;padding:8px 12px;background:var(--am-card);border-bottom:1px solid var(--am-line)}.am-pcv-ctl select,.am-pcv-ctl input{flex:1;min-width:0;padding:8px;border:1.5px solid var(--am-line);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;color:#111}
 .am-pcv-body{flex:1;overflow:auto;padding:10px 10px calc(16px + env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
-.am-pcv-blk{background:#fff;color:#111;border-radius:12px;padding:10px;margin-bottom:10px;overflow-x:auto;font-size:13px}.am-pcv-blk h4{margin:0 0 8px;font-size:13.5px;color:#0f4c81}.am-pcv-blk table{border-collapse:collapse;min-width:100%;font-size:12px}.am-pcv-blk th,.am-pcv-blk td{padding:6px 7px;border-bottom:1px solid #e5e7eb;text-align:left;white-space:nowrap}.am-pcv-blk .stat-card{margin-bottom:8px}
+.am-pcv-blk{background:#fff;color:#111;border-radius:12px;padding:10px;margin-bottom:10px;overflow-x:visible;font-size:13px}.am-pcv-blk h4{margin:0 0 8px;font-size:13.5px;color:#0f4c81}.am-pcv-blk table{border-collapse:collapse;width:100%;font-size:12px}.am-pcv-blk th,.am-pcv-blk td{padding:6px 5px;border-bottom:1px solid #e5e7eb;text-align:left;white-space:normal;word-break:break-word}.am-pcv-blk th{background:#f8fafc;color:#0f4c81;font-weight:700}.am-pcv-blk td.n{white-space:nowrap;text-align:right;font-weight:700}.am-pcv-blk .stat-card{margin-bottom:8px}
 body.adm-mob .modal-overlay{z-index:1000}
 .am-lock{position:absolute;inset:0;z-index:20;background:var(--am-bg);flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px}
 .am-menu{display:flex;align-items:center;gap:12px;width:100%;border:0;border-bottom:1px solid var(--am-line);background:none;color:var(--am-text);padding:12px 4px;font-family:inherit;font-size:14px;cursor:pointer}
@@ -44355,7 +44370,13 @@ body.adm-mob .modal-overlay{z-index:1000}
 .am-card{background:var(--am-card);border:1px solid var(--am-line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
 .am-h{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 8px;font-size:14px;font-weight:800}
 .am-h a{font-size:12.5px;font-weight:600;color:var(--am-pri);cursor:pointer}
-.am-chips{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto}
+.am-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.am-selbtn{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;box-sizing:border-box;margin-bottom:10px;padding:11px 14px;border:1.5px solid var(--am-line);background:var(--am-card);color:var(--am-text);border-radius:12px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;text-align:left}.am-selbtn i{font-style:normal;color:var(--am-pri);font-size:16px}
+.am-opt{display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;margin-bottom:6px;padding:13px 14px;border:1.5px solid var(--am-line);background:var(--am-card);color:var(--am-text);border-radius:12px;font-family:inherit;font-size:14.5px;cursor:pointer;text-align:left}.am-opt.on{border-color:var(--am-pri);background:var(--am-prisoft);color:var(--am-pri);font-weight:800}
+.am-own{background:#fff;color:#1a2a3a;border-radius:12px;padding:12px;margin-bottom:10px;font-size:13px;--primary:#0f4c81;--text-light:#64748b;--border:#e2e8f0}
+.am-own [style*="overflow-x:auto"]{overflow-x:visible!important}
+.am-own table{width:100%!important;table-layout:auto;border-collapse:collapse}
+.am-own th,.am-own td{white-space:normal!important;word-break:break-word;padding:6px 5px!important;font-size:12px!important}
 .am-chip{border:1px solid var(--am-line);background:var(--am-card);color:var(--am-text);border-radius:20px;padding:6px 13px;font-size:13px;font-family:inherit;white-space:nowrap;cursor:pointer}
 .am-chip.on{background:var(--am-pri);border-color:var(--am-pri);color:#fff;font-weight:700}
 .am-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
@@ -44520,7 +44541,7 @@ function amRender(force) {
   var mel = document.getElementById('amMsgN'); if (mel) { mel.textContent = fmt(mn); mel.style.display = mn ? '' : 'none'; }
   var html = amTab === 'home' ? amHomeHtml(p) : amTab === 'appr' ? amApprHtml(p) : amTab === 'bill' ? amBillHtml() : amTab === 'camp' ? amCampHtml() : amMoreHtml();
   if (!force && html === amLastHtml) return;
-  amLastHtml = html; var st = main.scrollTop; main.innerHTML = html; main.scrollTop = st;
+  amLastHtml = html; var st = main.scrollTop; main.innerHTML = html; try { amChipsToSelect(main); if (amOwnQv && amTab === 'more' && amSub === 'stock') amOwnFilter(amOwnQv); } catch (e) { console.warn('amChips', e); } main.scrollTop = st;
 }
 function amHomeHtml(p) {
   var day = amDay === 'today' ? todayStr() : addDaysToDateStr(todayStr(), -1);
@@ -45162,14 +45183,13 @@ function amShareSummary() {
 
 // ===== আরও: সাব-পেজ =====
 var amSub = '', amDepF = 'all', amAttDate = '', amSalM = 0, amSalY = 0, amLogF = 'all', amStockQ = '';
-function amGoSub(n) { if (n === 'rpt') { amOpenReport(); return; } if (n === 'bs' || n === 'eq' || n === 'fund') { amPcOpen(n); return; } amTab = 'more'; amSub = n; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
+function amGoSub(n) { if (n === 'rpt') { amOpenReport(); return; } if (n === 'bs' || n === 'eq' || n === 'fund') { amPcOpen(n); return; } amTab = 'more'; amSub = n; amOwnQv = ''; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
 function amBack() { return '<button class="am-btn line" style="width:100%;margin-bottom:10px" onclick="amGoSub(\'\')">← আরও</button>'; }
 function amMoreHtml() {
   if (amSub === 'dep') return amDepHtml();
   if (amSub === 'att') return amAttHtml();
   if (amSub === 'sal') return amSalHtml();
-  if (amSub === 'stock') return amStockHtml();
-  if (amSub === 'bank') return amBankHtml();
+  if (AM_OWN[amSub]) return amOwnHtml(amSub);
   if (amSub === 'log') return amLogHtml();
   if (amSub === 'sec') return amSecHtml();
   if (amSub === 'cfg') return amCfgHtml();
@@ -45179,7 +45199,16 @@ if (amSub === 'tg') return amTgHtml();
 if (amSub === 'chk') return amChkHtml();
   var item = function (ic, t, sub, n) { return '<button class="am-menu" onclick="amGoSub(\'' + n + '\')"><span class="am-ic">' + ic + '</span><span style="flex:1;text-align:left"><b>' + t + '</b><div class="am-meta" style="margin:0">' + sub + '</div></span><span style="color:var(--am-sub)">›</span></button>'; };
   var Q = (typeof QA_SVG !== 'undefined') ? QA_SVG : {};
-  return '<div class="am-card" style="padding:4px 10px">'
+  return '<div class="am-h"><span>তালিকা ও হিসাব</span></div><div class="am-card" style="padding:4px 10px">'
+    + item(Q.filetext || Q.clipboard || '', 'টেস্ট ফি তালিকা', 'টেস্ট ও অপারেশন ফি — ক্যাটাগরি অনুযায়ী', 'o_testfees')
+    + item(Q.box || Q.package || Q.clipboard || '', 'স্টক ম্যানেজমেন্ট', 'মেডিসিন, সার্জিক্যাল, চশমা/লেন্স — আলাদা টেবিলে', 'stock')
+    + item(Q.bank || Q.receipt || '', 'ব্যাংক / ক্যাশ', 'ব্যালেন্স, লেনদেন ও ট্রান্সফার', 'bank')
+    + item(Q.briefcase || Q.bank || '', 'লোন ট্র্যাকিং', 'লোন তালিকা', 'o_loan')
+    + item(Q.chart || Q.filetext || '', 'আয় এন্ট্রি', 'মাসভিত্তিক আয় তালিকা', 'o_income')
+    + item(Q.receipt || Q.filetext || '', 'ব্যয় এন্ট্রি', 'মাসভিত্তিক ব্যয় তালিকা', 'o_expense')
+    + item(Q.clipboard || Q.filetext || '', 'বাকি তালিকা', 'রোগীর বাকি', 'o_due')
+    + item(Q.calendar || Q.clock || '', 'আজকের এন্ট্রি', 'আজকের আয়, ব্যয় ও লেনদেন', 'o_today') + '</div>'
+    + '<div class="am-h"><span>অন্যান্য</span></div><div class="am-card" style="padding:4px 10px">'
     + item(Q.bolt || Q.clock || '', 'লাইভ মনিটর', 'টোকেন/কিউ, আজকের বিল, কর্মী, ক্যাশ — এখন কী চলছে', 'live')
     + item(Q.heart || Q.clipboard || '', 'অপারেশন', 'আজ/সিডিউলড/সম্পন্ন অপারেশন ও লাভ-ক্ষতি', 'op')
     + item(Q.chart || Q.filetext || '', 'মাসিক রিপোর্ট', 'ওনার প্যানেলের মতো পূর্ণ আয়-ব্যয় রিপোর্ট', 'rpt')
@@ -45191,8 +45220,6 @@ if (amSub === 'chk') return amChkHtml();
     + item(Q.archive || Q.receipt || '', 'জমা ও স্লিপ', 'রিসেপশন ও ক্যাম্পেইনারের জমা, ঘাটতি/বেশি, স্লিপ', 'dep')
     + item(Q.calendar || '', 'উপস্থিতি ও ছুটি', 'আজ কে এসেছে, ছুটি যোগ/বাতিল', 'att')
     + item(Q.briefcase || Q.users || '', 'বেতন', 'মাসের বেতন দেখা ও পরিশোধ', 'sal')
-    + item(Q.box || Q.package || Q.clipboard || '', 'স্টক', 'কম/শেষ পণ্য, ডিমান্ড নোট তৈরি', 'stock')
-    + item(Q.bank || Q.receipt || '', 'ব্যাংক ও মোবাইল ব্যাংকিং', 'ব্যালেন্স ও সাম্প্রতিক লেনদেন', 'bank')
     + item(Q.filetext || Q.clipboard || '', 'অ্যাক্টিভিটি লগ', 'কে কী করেছে (দেখা)', 'log')
     + item(Q.lock || Q.gear || '', 'নিরাপত্তা (PIN)', amPinCfg() ? 'PIN চালু আছে' : 'PIN সেট করা হয়নি', 'sec')
     + item(Q.gear || '', 'হোম সাজান', 'কার্ডের ক্রম ও দ্রুত কাজের বাটন', 'cfg') + '</div>'
@@ -45942,7 +45969,7 @@ function amTgHtml() {
 // ===== পিসির ব্যালেন্স শিট / ইকুইটি / ফান্ড — মোবাইলে "শুধু দেখা" (পিসির রেন্ডার ফাংশনের আউটপুটই দেখানো হয়, তাই হিসাব হুবুহু এক) =====
 var AM_PCV = {
   bs:   { t: '📊 ব্যালেন্স শিট', fn: 'renderBalanceSheet', ids: ['bsAssetSummary', 'bsPrevMonthSummary', 'balanceSheetContainer'] },
-  eq:   { t: '🏦 ইকুইটি সামারি', fn: 'renderEquitySummary', ids: ['equitySummaryCards', 'equitySummaryBreakdown', 'equitySummaryShareholderTable', 'equitySummaryInvestorTable'] },
+  eq:   { t: '🏦 ইকুইটি সামারি', fn: 'renderEquitySummary', custom: 'amEqHtml', ids: ['equitySummaryCards', 'equitySummaryBreakdown', 'equitySummaryShareholderTable', 'equitySummaryInvestorTable'] },
   fund: { t: '💰 ফান্ড', fn: 'renderFundsPage', ids: ['fundsGrandTotal', 'fundsSummaryCards', 'fundsHistTable'] }
 };
 var _amPcvKey = '';
@@ -45965,7 +45992,7 @@ function amPcRefresh(first) {
   if (_amPcvKey === 'bs' && !first) { if (a && vm) vm.value = a.value; if (b && fm) fm.value = b.value; }
   try { window[cfg.fn](); } catch (e) { console.warn('amPcRefresh', e); }
   if (_amPcvKey === 'bs' && first) { if (a && vm) a.value = vm.value || 'day'; if (b && fm) b.value = fm.value || ''; }
-  var body = cfg.ids.map(amPcvBlock).join('') || '<div style="text-align:center;color:#94a3b8;padding:30px">দেখানোর মতো কিছু নেই</div>';
+  var body = (cfg.custom ? window[cfg.custom]() : cfg.ids.map(amPcvBlock).join('')) || '<div style="text-align:center;color:#94a3b8;padding:30px">দেখানোর মতো কিছু নেই</div>';
   var bd = document.getElementById('amPcvBody'); if (bd) bd.innerHTML = body;
 }
 function amPcOpen(key) {
@@ -46084,11 +46111,83 @@ function amDoXfer() {
   });
 }
 
+
+// ===== ওনার প্যানেলের হুবহু ডিজাইনে তালিকা পেজ (buildReadOnlyHTML(feature,'owner')-এর আউটপুটই দেখানো হয়) =====
+var AM_OWN = { o_testfees: 'testfees', stock: 'stock', bank: 'bank', o_loan: 'loan', o_income: 'income', o_expense: 'expense', o_due: 'due', o_today: 'todayEntries' };
+var amOwnQv = '';
+function amOwnActive() { return !!(typeof amTab !== 'undefined' && amTab === 'more' && AM_OWN[amSub] && currentUser && currentUser.role === 'admin' && document.getElementById('adminMobPage') && document.getElementById('adminMobPage').style.display !== 'none'); }
+function amOwnFilter(v) {
+  amOwnQv = v || ''; var q = String(amOwnQv).toLowerCase().trim();
+  document.querySelectorAll('#amMain .am-own table tr').forEach(function (tr) {
+    if (tr.querySelector('th')) return;
+    tr.style.display = (!q || tr.textContent.toLowerCase().indexOf(q) >= 0) ? '' : 'none';
+  });
+}
+function amOwnHtml(sub) {
+  var f = AM_OWN[sub], pre = '';
+  if (sub === 'stock') {
+    var l = { low: [], out: [] }; try { l = _recLowStockList(); } catch (e) {}
+    var n = l.low.length + l.out.length;
+    pre = '<div class="am-f"><input id="amOwnQ" type="search" placeholder="🔎 পণ্যের নাম খুঁজুন" value="' + amEsc(amOwnQv) + '" oninput="amOwnFilter(this.value)"></div>'
+      + (n ? '<button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="amStockDemand()">⚠️ কম/শেষ স্টক (' + fmt(n) + ' টি) থেকে ডিমান্ড নোট বানান</button>' : '');
+  }
+  if (sub === 'bank') pre = '<button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="amXferForm()">🔄 নতুন ট্রান্সফার (ক্যাশ ⇄ ব্যাংক ⇄ মোবাইল ব্যাংকিং)</button>';
+  var inner = '';
+  window.__amOwnRender = true;
+  try { inner = buildReadOnlyHTML(f, 'owner'); } catch (e) { console.warn('amOwnHtml', e); inner = '<div class="am-empty">দেখানো যায়নি</div>'; } finally { window.__amOwnRender = false; }
+  return amBack() + pre + '<div class="am-own">' + inner + '</div>';
+}
+
+// ===== হরাইজন্টাল স্ক্রল চিপ-সারির বদলে এরো (▾) বাটন → মোডাল থেকে সিলেক্ট =====
+function amChipsToSelect(root) {
+  root.querySelectorAll('.am-chips').forEach(function (row, idx) {
+    var chips = [].slice.call(row.querySelectorAll('.am-chip'));
+    if (!chips.length) return;
+    var on = chips.filter(function (c) { return c.classList.contains('on'); })[0];
+    if (!on) return;
+    row.setAttribute('data-ci', idx); row.style.display = 'none';
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'am-selbtn';
+    b.innerHTML = '<span>' + amEsc(on.textContent) + '</span><i>&#9662;</i>';
+    b.onclick = function () { amChipModal(idx); };
+    row.parentNode.insertBefore(b, row);
+  });
+}
+function amChipModal(idx) {
+  var row = document.querySelector('#amMain .am-chips[data-ci="' + idx + '"]'); if (!row) return;
+  var chips = [].slice.call(row.querySelectorAll('.am-chip'));
+  amOpenSheet('<div class="hd"><b>বেছে নিন</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
+    + chips.map(function (c, i) { var on = c.classList.contains('on'); return '<button type="button" class="am-opt' + (on ? ' on' : '') + '" onclick="amChipPick(' + idx + ',' + i + ')"><span>' + amEsc(c.textContent) + '</span>' + (on ? '<b>&#10003;</b>' : '') + '</button>'; }).join(''));
+}
+function amChipPick(idx, i) {
+  var row = document.querySelector('#amMain .am-chips[data-ci="' + idx + '"]'); amCloseSheet();
+  if (!row) return; var c = row.querySelectorAll('.am-chip')[i]; if (c) c.click();
+}
+
+// ===== ইকুইটি সামারি — কার্ড-লিস্টের বদলে টেবিল =====
+function amEqHtml() {
+  var sh = appData.shareholders || [], inv = appData.investors || [];
+  var totS = sh.reduce(function (a, x) { return a + (x.shares || 0); }, 0) || 1, totU = inv.reduce(function (a, x) { return a + (x.units || 0); }, 0) || 1;
+  var shBal = sh.reduce(function (a, x) { return a + (x.balance || 0); }, 0), invBal = inv.reduce(function (a, x) { return a + (x.balance || 0); }, 0);
+  var invCap = inv.reduce(function (a, x) { return a + (x.units || 0) * (x.unitPrice || 0); }, 0), accLoss = (appData.settings && appData.settings.accumulatedLoss) || 0;
+  var m = function (n) { return '৳ ' + fmt(n); }, pc = function (a, b) { return (a / b * 100).toFixed(1) + '%'; };
+  var blk = function (t, h) { return '<div class="am-pcv-blk"><h4>' + t + '</h4>' + h + '</div>'; };
+  var kv = function (rows) { return '<table><tbody>' + rows.map(function (r) { return '<tr><td>' + r[0] + '</td><td class="n"' + (r[2] ? ' style="color:' + r[2] + '"' : '') + '>' + r[1] + '</td></tr>'; }).join('') + '</tbody></table>'; };
+  var out = blk('📋 সারসংক্ষেপ', kv([['মোট শেয়ারহোল্ডার', fmt(sh.length) + ' জন', '#0f4c81'], ['মোট ইনভেস্টর', fmt(inv.length) + ' জন', '#7c3aed'], ['মোট বকেয়া লভ্যাংশ', m(shBal + invBal), '#166534'], ['মোট ইনভেস্টর মূলধন', m(invCap), '#b45309'], ['সঞ্চিত লস', accLoss > 0 ? m(accLoss) : '৳ ০', accLoss > 0 ? '#b91c1c' : '#166534']]));
+  out += blk('🤝 শেয়ারহোল্ডার — মালিকানা কাঠামো', '<table><thead><tr><th>নাম</th><th>শেয়ার</th><th>%</th><th>লভ্যাংশ ব্যালেন্স</th></tr></thead><tbody>'
+    + (sh.length ? sh.map(function (x) { return '<tr><td><b>' + amEsc(x.name) + '</b></td><td>' + fmt(x.shares || 0) + '</td><td>' + pc(x.shares || 0, totS) + '</td><td class="n" style="color:#15803d">' + m(x.balance || 0) + '</td></tr>'; }).join('') : '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px">কোনো শেয়ারহোল্ডার নেই</td></tr>') + '</tbody></table>');
+  out += blk('💼 ইনভেস্টর — বিনিয়োগ কাঠামো', '<table><thead><tr><th>নাম</th><th>ইউনিট</th><th>%</th><th>দর/ইউনিট</th><th>মোট বিনিয়োগ</th><th>ব্যালেন্স</th></tr></thead><tbody>'
+    + (inv.length ? inv.map(function (x) { var up = x.unitPrice || 0; return '<tr><td><b>' + amEsc(x.name) + '</b></td><td>' + fmt(x.units || 0) + '</td><td>' + pc(x.units || 0, totU) + '</td><td>' + (up ? m(up) : '—') + '</td><td>' + (up ? m((x.units || 0) * up) : '—') + '</td><td class="n" style="color:#7c3aed">' + m(x.balance || 0) + '</td></tr>'; }).join('') : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">কোনো ইনভেস্টর নেই</td></tr>') + '</tbody></table>');
+  var mcs = appData.monthClosings || [];
+  var lf = mcs.reduce(function (a, x) { return a + (x.fundTotal || 0); }, 0), li = mcs.reduce(function (a, x) { return a + (x.investorPoolAmt || 0); }, 0), ls = mcs.reduce(function (a, x) { return a + (x.shareholderPool || 0); }, 0);
+  out += blk('📊 সামগ্রিক মূলধন কাঠামো', '<div style="font-size:12px;color:#64748b;margin-bottom:6px">সব মাস-ক্লোজ মিলিয়ে (লাইফটাইম) বন্টিত মুনাফার ভাগ</div>' + kv([['ফান্ড খাতে', m(lf)], ['ইনভেস্টর পুলে', m(li), '#5b21b6'], ['শেয়ারহোল্ডার পুলে', m(ls), '#1e40af'], ['সর্বমোট বিতরণকৃত', m(lf + li + ls), '#166534']]));
+  return out;
+}
+
 // ===== "এডমিনকে জানান" — রিসেপশন ও ক্যাম্পেইনার প্যানেলের ফ্লোটিং বাটন → সরাসরি এডমিনের টেলিগ্রামে =====
 var _amNoteLast = 0;
 function amNoteEnsureFab() {
   try {
-    var show = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'receptionist' || currentUser.role === 'campaigner');
+    var show = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'campaigner';
     var f = document.getElementById('amNoteFab');
     if (!show) { if (f) f.remove(); return; }
     if (f) return;
