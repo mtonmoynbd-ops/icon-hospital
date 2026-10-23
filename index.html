@@ -18576,6 +18576,10 @@ function showCampDetail(id) {
   const _cogsB           = _campCogsBreakdown(c);
   const _derive          = _campDerive(c);
   const isLoss           = netProfit < 0;
+  // প্রি-ক্যাম্প খরচ (ক্যাম্প শুরুর আগে আলাদা ভাউচারে এন্ট্রি) — নতুন-নিয়মের ক্যাম্পে totalExpense-এর ভেতরেই ধরা, তাই নেটের হিসাবে আলাদা লাইনে দেখানো হচ্ছে (যোগফল একই)
+  const _preC            = (c.expV2 && (c.preCampTotal||0) > 0) ? Math.min(c.preCampTotal, totalExpense) : 0;
+  const _campOnly        = totalExpense - _preC;
+  const _preCats         = (appData.expense||[]).filter(e => e.campId === c.id && e.preCamp && !e.rejected && e.status !== 'pending').map(e => (e.category||'—') + ' ৳' + fmt(e.amount||0)).join(' · ');
   // মোট ডিসকাউন্ট — পুরনো রেকর্ডে totalDiscount ফিল্ড না থাকলে রোগীদের ডিসকাউন্ট যোগ করে বের করা হচ্ছে
   const totalDiscount    = c.totalDiscount!=null ? c.totalDiscount : (c.patients||[]).reduce((s,p)=>s+(p.discAmt||0),0);
 
@@ -18595,8 +18599,12 @@ function showCampDetail(id) {
           ${_cogsB.notes.map(n=>`<div style="color:#b45309;margin-top:2px">⚠️ ${n}</div>`).join('')}
           ${(Math.abs(Math.round(_cogsB.total) - totalCOGS) > 1 && currentUser && (currentUser.role==='admin'||currentUser.role==='moderator')) ? `<button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="recalcCampCOGS(${c.id})">🔄 COGS পুনর্হিসাব (৳${fmt(totalCOGS)} → ৳${fmt(Math.round(_cogsB.total))})</button>` : ''}
         </div>` : ''}
-        ${totalExpense>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444">
-          <span>ক্যাম্প খরচ (যাতায়াত, রেন্ট ইত্যাদি)</span><span>- ৳${fmt(totalExpense)}</span>
+        ${_campOnly>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444">
+          <span>ক্যাম্প খরচ (যাতায়াত, রেন্ট ইত্যাদি)</span><span>- ৳${fmt(_campOnly)}</span>
+        </div>`:''}
+        ${_preC>0?`<div style="padding:4px 0;color:#ef4444">
+          <div style="display:flex;justify-content:space-between"><span>⛺ প্রি-ক্যাম্প খরচ (প্রচার ইত্যাদি)</span><span>- ৳${fmt(_preC)}</span></div>
+          ${_preCats?`<div style="font-size:11px;color:#94a3b8;margin-top:2px">${_preCats}</div>`:''}
         </div>`:''}
         ${parttimeCost>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#ef4444">
           <span style="font-size:12px">পার্টটাইমার পেমেন্ট (${parttimerRows.map(p=>p.name).filter(Boolean).join(', ')||''})</span><span>- ৳${fmt(parttimeCost)}</span>
@@ -44661,6 +44669,11 @@ body.adm-mob .modal-overlay{z-index:1000}
 .am-lvc .k{font-size:12px;color:var(--am-sub);display:flex;align-items:center;gap:5px;max-width:100%}
 .am-lvc .v{font-size:18px;font-weight:800}
 .am-lvc .th{font-size:11.5px;font-weight:300;color:var(--am-sub);line-height:1.55;word-break:break-word}
+.am-ck{flex:0 0 46%;max-width:46%;border-left:1px dashed var(--am-line);padding-left:9px;display:flex;flex-direction:column;gap:6px;justify-content:center}
+.am-ckr{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;min-width:0}
+.am-ckr input{width:17px;height:17px;flex:none;accent-color:var(--am-ok);margin:0}
+.am-ckr .n{flex:1;min-width:0}.am-ckr .n.d{color:var(--am-sub)}
+.am-ckr .r{flex:none;font-size:12px}
 </style>
 <script id="adminMobScript">
 // ===== এডমিন মোবাইল ইন্টারফেস (একই লগইন, ছোট স্ক্রিনে স্বয়ংক্রিয়; পিসি প্যানেল অক্ষত) =====
@@ -45052,6 +45065,7 @@ function amCampDetail(id) {
     + '<div class="am-row"><span class="k">ডাক্তার</span><span class="v">' + amEsc(s.doctor || '—') + '</span></div>'
     + '<div class="am-row"><span class="k">ক্যাম্পেইনার</span><span class="v">' + amEsc(s.camper || '—') + '</span></div>'
     + '<div class="am-row"><span class="k">ভিজিট ফি</span><span class="v">৳ ' + fmt(s.visitFee || 0) + '</span></div>'
+    + (amPreCampCost(s.id) > 0 ? '<div class="am-row"><span class="k">প্রি-ক্যাম্প খরচ</span><span class="v">৳ ' + fmt(amPreCampCost(s.id)) + '</span></div>' : '')
     + '<div class="am-row"><span class="k">উপস্থিত অন্যান্য</span><span class="v" style="text-align:right;max-width:62%">' + (staff || '—') + '</span></div>'
     + '<div class="am-row tot"><span>মোট উপস্থিতি</span><span>' + fmt(pp.total) + ' জন</span></div></div>'
     + (s.status === 'cancelled' ? '<div class="am-meta" style="background:var(--am-badsoft);border-radius:10px;padding:8px;margin-bottom:8px"><b>বাতিলের কারণ:</b> ' + amEsc(s.cancelReason || '—') + (s.cancelledBy ? '<br>' + amEsc(s.cancelledBy) + ' · ' + amEsc(amFmtAt(s.cancelledAt)) : '') + '</div>' : '')
@@ -45902,6 +45916,27 @@ function amDesigShort(d) {
 }
 function amLvDesigOf(name) { var x = (appData.staff || []).filter(function (t) { return t.name === name; })[0]; return x ? x.desig : ''; }
 function amLvNm(desig, name) { var d = amDesigShort(desig); return (d ? '<span style="opacity:.7">' + amEsc(d) + '</span> ' : '') + amEsc(name); }
+var AM_CK = [['promo', 'প্রচার'], ['doc', 'ডাক্তার নিশ্চিত'], ['staff', 'কর্মী নিশ্চিত'], ['stock', 'স্টক প্রস্তুত']];
+function amPreCampCost(id) {
+  return (appData.expense || []).filter(function (e) { return e.campId === id && e.preCamp && !e.rejected && e.status !== 'pending'; }).reduce(function (t, e) { return t + (e.amount || 0); }, 0);
+}
+function amCkToggle(id, k) {
+  var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
+  var c = Object.assign({}, s.checklist || {}); c[k] = !c[k]; s.checklist = c;
+  saveData(); amAfter();
+}
+function amLvCampCard(s) {
+  var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length, ck = s.checklist || {}, cost = amPreCampCost(s.id);
+  var rows = AM_CK.map(function (it) {
+    var on = !!ck[it[0]], v = '';
+    if (it[0] === 'promo') v = cost > 0 ? '<span style="color:var(--am-warn);font-weight:800">৳ ' + fmt(cost) + '</span>' : (on ? '<span style="color:var(--am-ok);font-weight:800"><span class="am-dot" style="width:6px;height:6px"></span> অন</span>' : '');
+    return '<label class="am-ckr"><input type="checkbox"' + (on ? ' checked' : '') + ' onchange="amCkToggle(' + s.id + ',\'' + it[0] + '\')"><span class="n' + (on ? ' d' : '') + '">' + it[1] + '</span>' + (v ? '<span class="r">' + v + '</span>' : '') + '</label>';
+  }).join('');
+  return '<div class="am-card" style="display:flex;gap:10px;align-items:stretch" onclick="amCampDetail(' + s.id + ')">'
+    + '<div style="flex:1;min-width:0"><div class="am-ap-t">' + amEsc(s.name) + '</div>'
+    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + '<br>ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>উপস্থিত অন্যান্য: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট উপস্থিতি ' + fmt(pp.total) + '</b> · ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>'
+    + '<div class="am-ck" onclick="event.stopPropagation()">' + rows + '</div></div>';
+}
 function amLvNextCamp() {
   return amUpcomingCamps().filter(function (c) { return c.status !== 'active'; })[0] || null;
 }
@@ -45962,7 +45997,7 @@ function amLiveHtml() {
     + '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'dlv\')"><div class="l">আসন্ন ডেলিভারি</div><div class="v" style="font-size:15px">' + (dlv ? formatDate(dlv.date) : '—') + '</div><div class="am-meta" style="margin:2px 0 0">' + (dlv ? fmt(dlv.n) + ' টি' : 'কোনো ডেলিভারি নেই') + '</div></div></div>';
   // আসন্ন ক্যাম্প (একদম পরের নির্ধারিত)
   var nx = amLvNextCamp();
-  h += '<div class="am-h"><span>আসন্ন ক্যাম্প</span><a onclick="amGo(\'camp\')">সব দেখুন</a></div>' + (nx ? amCampCard(nx) : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
+  h += '<div class="am-h"><span>আসন্ন ক্যাম্প</span><a onclick="amGo(\'camp\')">সব দেখুন</a></div>' + (nx ? amLvCampCard(nx) : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
   // দ্রুত কাজ
   h += '<div class="am-h"><span>দ্রুত কাজ</span></div>' + amQuickHtml(amPending());
   return h;
