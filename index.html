@@ -2813,6 +2813,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <input type="date" id="dashDatePicker" onchange="onDashDateChange(this.value)" title="তারিখ বাছুন">
       </div>
       <button type="button" class="notif-bell-btn" onclick="hardRefreshApp()" title="হার্ড রিফ্রেশ — ক্যাশ মুছে নতুন করে লোড" style="margin-right:8px;font-size:17px">🔄</button>
+      <button type="button" class="notif-bell-btn" id="qmRoundBtn" onclick="openQuickMsgModal()" title="রিসেপশনে ছোট বার্তা পাঠান" style="margin-right:8px;display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg><span class="qm-badge" id="qmBadge"></span></button>
       <div class="notif-bell-wrap" id="notifBellWrap" style="display:none">
         <button type="button" class="notif-bell-btn" onclick="toggleNotifBell(event)" title="নোটিফিকেশন">
           🔔<span class="notif-bell-badge" id="notifBellBadge" style="display:none">0</span>
@@ -13869,6 +13870,23 @@ function deleteExpense(id) {
 // ===== BALANCE HELPERS =====
 // নোট: এই হিসাব calcCashBankBalance() এর সাথে সামঞ্জস্যপূর্ণ রাখা হয়েছে,
 // যাতে দিন/মাস-ওয়াইজ প্রারম্ভিক-সমাপনি ব্যালেন্স বাস্তবিক ক্যাশ/ব্যাংক ব্যালেন্সের সাথে মিলে যায়।
+// ✅ ব্যালেন্স শিটের জন্য — প্রথম এন্ট্রির দিন থেকে আজ পর্যন্ত প্রতিটি দিন (এন্ট্রি না থাকলেও), যেন "আজ" সবসময় আজকের তারিখেই দেখায়
+function bsFillDayKeys(dates, fm) {
+  if (!dates || !dates.length) return [];
+  const sorted = [...dates].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+  if (!sorted.length) return [];
+  const today = todayStr();
+  const end = sorted[sorted.length-1] > today ? sorted[sorted.length-1] : today;
+  const d = new Date(sorted[0] + 'T00:00:00');
+  const out = [];
+  for (let i = 0; i < 4500; i++) {
+    const k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (k > end) break;
+    if (!fm || k.startsWith(fm)) out.push(k);
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
 function getAllDatesWithActivity() {
   const dates = new Set();
   (appData.income||[]).forEach(e=>{ if(e.date) dates.add(e.date); });
@@ -15259,7 +15277,7 @@ function renderBalanceSheet() {
     // সমাপনি ব্যালেন্স" কার্ডেও ব্যবহৃত হয়) দিয়ে ফিল্টার করা তালিকার প্রথম তারিখের প্রকৃত প্রারম্ভিক ব্যালেন্স
     // বের করে সেখান থেকে শুরু করা হচ্ছে — ফিল্টার না থাকলে (সব তারিখ) এটা আগের মতোই initCash/Bank/Mfs
     // এর সমান থাকবে (কারণ তার আগে কোনো তারিখ নেই), তাই কোনো পুরনো আচরণ ভাঙবে না।
-    const filteredDates = allDates.filter(d => !fm || d.startsWith(fm));
+    const filteredDates = bsFillDayKeys(allDates, fm);
     if (!filteredDates.length) { container.innerHTML='<p style="color:#aaa;text-align:center;padding:40px">কোনো তথ্য নেই।</p>'; return; }
     let runningCash = getOpeningCash(filteredDates[0], 'day');
     let runningBank = getOpeningBank(filteredDates[0], 'day');
@@ -25924,6 +25942,7 @@ function renderQuickAccessBar(activeFeature) {
   if (!bar || !currentUser) return;
   const topBarEl = bar.parentElement;
   const role = currentUser.role;
+  const _qmb = document.getElementById('qmRoundBtn'); if (_qmb) _qmb.style.display = (role === 'admin' || role === 'moderator') ? 'flex' : 'none';
   if (role !== 'admin' && role !== 'moderator') {
     bar.innerHTML = '';
     if (topBarEl) topBarEl.onclick = null;
@@ -25937,8 +25956,7 @@ function renderQuickAccessBar(activeFeature) {
   bar.innerHTML = allowed.map(item => {
     const isActive = item.type === 'page' ? item.targetId === active : (item.page === active);
     return `<button type="button" class="qa-btn ${isActive?'active':''}" onclick="goQuickAccess('${item.id}')" title="${item.label}"><span class="qa-content"><span class="qa-icon">${qaSvgIcon(item)}</span><span class="qa-label-wrap"><span class="qa-label">${item.label}</span></span></span></button>`;
-  }).join('')
-    + `<button type="button" class="qa-btn" onclick="openQuickMsgModal()" title="রিসেপশনে ছোট বার্তা পাঠান"><span class="qa-content"><span class="qa-icon" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg><span class="qm-badge" id="qmBadge"></span></span><span class="qa-label-wrap"><span class="qa-label">রিসেপশনে বার্তা</span></span></span></button>`;
+  }).join('');
   updateQuickMsgBadge();
   // বার এবং টপ-বারের ফাঁকা জায়গায় (কোনো আইকন/বাটনের উপরে না) ক্লিক করলে ড্যাশবোর্ডে ফিরে যাবে
   const goHome = (e) => { if (e.target === topBarEl || e.target === bar) goQuickAccess('dashboard'); };
@@ -34448,7 +34466,7 @@ function renderSalarySheet() {
         ${isAdmin
           ? `<button class="btn btn-sm ${sal.paid?'btn-success':'btn-outline'}" onclick="toggleSalPaid(${s.id},${month},${year})">
               ${sal.paid ? '✅ পরিশোধিত' : '⏳ বাকি'}
-            </button>${sal.paid && sal.voucher?`<div style="font-size:10px;color:#888;margin-top:3px">ভাউচার: ${sal.voucher}</div>`:''}`
+            </button>${sal.paid && sal.voucher?`<div style="font-size:10px;color:#888;margin-top:3px">ভাউচার: ${sal.voucher}</div>`:''}${salPartialNote(sal, net)}`
           : `<span class="badge ${sal.paid?'badge-income':'badge-warning'}">${sal.paid?'পরিশোধিত':'বাকি'}</span>${sal.paid && sal.voucher?`<div style="font-size:10px;color:#888;margin-top:3px">ভাউচার: ${sal.voucher}</div>`:''}`}
       </td>
       <td>
@@ -34486,12 +34504,55 @@ function updateSalEntry(staffId, month, year, field, value) {
     const staff = (appData.staff||[]).find(s=>s.id===staffId);
     const expEntry = (appData.expense||[]).find(e=>e.id===sal.expenseId);
     if (staff && expEntry) {
-      expEntry.amount = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.absentCut||0) - (sal.advanceTotal||0);
+      expEntry.amount = Math.max(0, (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.absentCut||0) - (sal.advanceTotal||0) - salPartialPaid(sal));
     }
   }
   saveData();
   // update net display inline
   renderSalarySheet();
+}
+
+// ✅ আংশিক বেতন পরিশোধ — sal.partials = [{id,date,amount,voucher,expenseId}]; প্রতিটি আংশিক পরিশোধের আলাদা ভাউচারসহ ব্যয় এন্ট্রি হয়।
+// সব মিলে নেট বেতনের সমান হলে মাসটি "পরিশোধিত" হয় (শেষ কিস্তির ব্যয় এন্ট্রি = বাকি অংশ)।
+function salPartialPaid(sal) {
+  return ((sal && sal.partials) || []).reduce((t, p) => {
+    const e = (appData.expense||[]).find(x => x.id === p.expenseId);
+    return t + (e ? (parseFloat(e.amount)||0) : 0);
+  }, 0);
+}
+function salPartialNote(sal, net) {
+  const pp = salPartialPaid(sal);
+  if (!pp || sal.paid) return '';
+  return `<div style="font-size:10px;color:#9b59b6;margin-top:3px">আংশিক ৳ ${fmt(pp)} পরিশোধিত · বাকি ৳ ${fmt(Math.max(0, net - pp))}</div>`;
+}
+function salPayAmount(staffId, month, year, amount) {
+  const staff = (appData.staff||[]).find(s => s.id === staffId);
+  if (!staff) return { ok:false, msg:'কর্মী পাওয়া যায়নি' };
+  if (!appData.salaries) appData.salaries = {};
+  const key = getSalaryKey(staffId, month, year);
+  if (!appData.salaries[key]) appData.salaries[key] = { bonus:0, cut:0, paid:false, note:'' };
+  const sal = appData.salaries[key];
+  if (sal.paid) return { ok:false, msg:'এই বেতন আগেই পরিশোধিত' };
+  const dc = getLinkedDoctorCommission(staffId, month, year), ab = getStaffAbsentCut(staffId, month, year), adv = getStaffAdvanceTotal(staffId, month, year);
+  const net = (staff.basic||0) + (sal.bonus||0) + dc - (sal.cut||0) - ab - adv;
+  const remaining = Math.round((net - salPartialPaid(sal)) * 100) / 100;
+  amount = Math.round((parseFloat(amount)||0) * 100) / 100;
+  if (!(amount > 0)) return { ok:false, msg:'সঠিক পরিমাণ দিন' };
+  if (amount > remaining + 0.005) return { ok:false, msg:'বাকির চেয়ে বেশি দেওয়া যাবে না (বাকি ৳ ' + fmt(Math.max(0, remaining)) + ')' };
+  if (amount >= remaining - 0.005) { toggleSalPaid(staffId, month, year); return { ok:true, full:true }; }
+  const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const payDate = todayStr();
+  const voucher = generateNextVoucherNo(payDate);
+  const exp = { id: Date.now(), date: payDate, category: 'কর্মীর বেতন', amount, voucher, ref: staff.name,
+    note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (আংশিক পরিশোধ)`, by: currentUser.name, salaryRef: key, salaryPartial: true };
+  if (!appData.expense) appData.expense = [];
+  appData.expense.push(exp);
+  if (!sal.partials) sal.partials = [];
+  sal.partials.push({ id: exp.id, date: payDate, amount, voucher, expenseId: exp.id });
+  saveData();
+  try { renderSalarySheet(); } catch (e) {}
+  try { refreshDashboard(); } catch (e) {}
+  return { ok:true, full:false, voucher, left: Math.round((remaining - amount) * 100) / 100 };
 }
 
 function toggleSalPaid(staffId, month, year) {
@@ -34513,6 +34574,8 @@ function toggleSalPaid(staffId, month, year) {
     // স্যালারি পরিশোধ — অটো ভাউচার নাম্বারে ব্যয় এন্ট্রি তৈরি (অগ্রিম আগেই আলাদা ভাউচারে ব্যয় হিসেবে বুকড, তাই এখানে বাদ দেওয়া হয়, দ্বিগুণ গণনা এড়াতে)
     if (staff) {
       const net = (staff.basic||0) + (sal.bonus||0) + (sal.doctorCommission||0) - (sal.cut||0) - (sal.absentCut||0) - (sal.advanceTotal||0);
+      const partialPaid = salPartialPaid(sal);
+      const payNow = Math.max(0, net - partialPaid);
       const payDate = todayStr();
       const voucher = generateNextVoucherNo(payDate);
       const docCommNote = sal.doctorCommission>0 ? ` (এর মধ্যে ডাক্তার কমিশন ৳${fmt(sal.doctorCommission)})` : '';
@@ -34522,16 +34585,18 @@ function toggleSalPaid(staffId, month, year) {
         id: Date.now(),
         date: payDate,
         category: 'কর্মীর বেতন',
-        amount: net,
+        amount: payNow,
         voucher,
         ref: staff.name,
-        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)${docCommNote}${absentNote}${advNote}`,
+        note: `${staff.name} — ${staff.desig||''} — ${months[month-1]} ${year} মাসের বেতন (অটো)${partialPaid>0?` (আগে আংশিক পরিশোধ ৳${fmt(partialPaid)} বাদে বাকি অংশ)`:''}${docCommNote}${absentNote}${advNote}`,
         by: currentUser.name,
         salaryRef: key
       };
-      appData.expense.push(expEntry);
-      sal.voucher = voucher;
-      sal.expenseId = expEntry.id;
+      if (payNow > 0.005) {
+        appData.expense.push(expEntry);
+        sal.voucher = voucher;
+        sal.expenseId = expEntry.id;
+      } else { sal.voucher = null; sal.expenseId = null; }
     }
   } else {
     // বাকি হিসেবে চিহ্নিত করলে — সংশ্লিষ্ট অটো ব্যয় এন্ট্রি বাতিল
@@ -44673,7 +44738,7 @@ function amHomeHtml(p) {
   P.camps = '<div class="am-h"><span>আসন্ন ক্যাম্প</span><a onclick="amGo(\'camp\')">সব দেখুন</a></div>' + (up.length ? up.map(amCampCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
   var cfg = amHomeCfg();
   return cfg.order.filter(function (id) { return cfg.hide.indexOf(id) < 0; }).map(function (id) { return P[id] || ''; }).join('')
-    + '<div style="margin:14px 0 6px"><button type="button" class="am-lo" onclick="amLogoutTap(this)">🚪 লগআউট</button></div>';
+    + '<div style="margin:14px 0 6px"><button type="button" class="am-lo" onclick="amLogoutTap(this)">লগআউট</button></div>';
 }
 function amPendingCards(p, limit) {
   var all = [];
@@ -45108,8 +45173,8 @@ function amDoDueNow(k, id, mode) {
 function amLogout() { amHide(); amUnlocked = false; doLogout(); }
 function amLogoutTap(b) {
   if (b.getAttribute('data-armed') === '1') { amLogout(); return; }
-  b.setAttribute('data-armed', '1'); b.classList.add('armed'); b.textContent = '🚪 আবার চাপুন — লগআউট হবে';
-  setTimeout(function () { if (b && b.isConnected) { b.removeAttribute('data-armed'); b.classList.remove('armed'); b.textContent = '🚪 লগআউট'; } }, 4000);
+  b.setAttribute('data-armed', '1'); b.classList.add('armed'); b.textContent = 'আবার চাপুন — লগআউট হবে';
+  setTimeout(function () { if (b && b.isConnected) { b.removeAttribute('data-armed'); b.classList.remove('armed'); b.textContent = 'লগআউট'; } }, 4000);
 }
 // ===== নিরাপত্তা: PIN লক (এই ডিভাইসে সংরক্ষিত; সার্ভারে যায় না) =====
 var AM_PIN_KEY = 'hms_am_pin', amUnlocked = false, amLastAct = Date.now(), amPinVerifiedAt = 0, amPinFails = 0, amPinLockUntil = 0, amKp = {}, amLockTimer = null;
@@ -45313,6 +45378,8 @@ if (amSub === 'live') return amLiveHtml();
 if (amSub === 'op') return amOpHtml();
 if (amSub === 'tg') return amTgHtml();
 if (amSub === 'chk') return amChkHtml();
+  if (amSub === 'dlv') return amDlvHtml();
+  if (amSub === 'memo') return amMemoHtml();
   var item = function (ic, t, sub, n) { return '<button class="am-menu" onclick="amGoSub(\'' + n + '\')"><span class="am-ic">' + ic + '</span><span style="flex:1;text-align:left"><b>' + t + '</b><div class="am-meta" style="margin:0">' + sub + '</div></span><span style="color:var(--am-sub)">›</span></button>'; };
   var Q = (typeof QA_SVG !== 'undefined') ? QA_SVG : {};
   return '<div class="am-h"><span>তালিকা ও হিসাব</span></div><div class="am-card" style="padding:4px 10px">'
@@ -45342,6 +45409,130 @@ if (amSub === 'chk') return amChkHtml();
     + '<div class="am-card"><div class="am-h" style="margin:0 0 6px">ভিউ</div><button class="am-btn line" style="width:100%" onclick="amSetUi(\'pc\')">পিসি ভিউতে যান</button>'
     + '<div class="am-meta">সেটিংস, বট ও বাল্ক কাজ পিসি ভিউতে পাবেন।</div></div>'
     + '<div class="am-card"><div class="am-meta" style="margin:0 0 8px">লগইন: ' + amEsc(currentUser.name) + '</div><button class="am-btn bad" style="width:100%" onclick="amLogout()">লগআউট</button></div>';
+}
+
+// --- ডেলিভারি শিডিউল ---
+var amDlvF = 'all', amMemoF = 'all';
+function amDlvSet(f) { amDlvF = f; amLastHtml = ''; amRender(true); }
+function amDlvHtml() {
+  var today = todayStr();
+  var chip = function (k, t) { return '<button class="am-chip' + (amDlvF === k ? ' on' : '') + '" onclick="amDlvSet(\'' + k + '\')">' + t + ' (' + fmt(getFilteredDeliveries(k).length) + ')</button>'; };
+  var rows = getFilteredDeliveries(amDlvF); if (amDlvF === 'delivered') rows = rows.slice().reverse().slice(0, 40);
+  var h = '<div class="am-h"><span>ডেলিভারি শিডিউল</span></div><button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="amDlvForm()">নতুন ডেলিভারি অর্ডার</button>'
+    + '<div class="am-chips">' + chip('all', 'সব') + chip('pending', 'অপেক্ষমান') + chip('readytodeliver', 'রেডি') + chip('today', 'আজ') + chip('overdue', 'অতিরিক্ত') + chip('delivered', 'ডেলিভারি হয়েছে') + '</div>';
+  h += rows.map(function (d) {
+    var pend = d.status === 'pending', od = pend && d.deliveryDate < today, td = pend && d.deliveryDate === today, due = d.due || 0;
+    var tag = d.status === 'delivered' ? '<span class="am-tag g">ডেলিভারি হয়েছে</span>' : od ? '<span class="am-tag r">তারিখ পেরিয়ে গেছে</span>' : td ? '<span class="am-tag w">আজ</span>' : '<span class="am-tag">অপেক্ষমান</span>';
+    var glass = d.isGlassOrder ? [(d.glassOptions && d.glassOptions.length) ? ('লেন্স: ' + d.glassOptions.map(function (o) { return o.name; }).join(', ')) : '', d.rightEye ? ('ডান: ' + d.rightEye + (d.nearRightEye ? ' / নিয়ার ' + d.nearRightEye : '')) : '', d.leftEye ? ('বাম: ' + d.leftEye + (d.nearLeftEye ? ' / নিয়ার ' + d.nearLeftEye : '')) : ''].filter(Boolean).join(' · ') : '';
+    var btns = '';
+    if (d.phone) btns += '<button class="am-btn line" onclick="location.href=\'tel:' + String(d.phone).replace(/[^0-9+]/g, '') + '\'">কল</button>';
+    if (pend) {
+      if (d.isGlassOrder && !d.ready) btns += '<button class="am-btn line" onclick="amDlvReady(' + d.id + ')">বুঝে পেয়েছি</button>';
+      else btns += '<button class="am-btn ok" onclick="amDlvDeliver(' + d.id + ')">ডেলিভারি দিন</button>';
+      if (due > 0) btns += '<button class="am-btn line" onclick="amDlvDue(' + d.id + ')">বাকি নিন</button>';
+    }
+    return '<div class="am-card"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(d.name) + '<div class="am-meta" style="margin:0">' + (d.isGlassOrder ? 'চশমা · ' : '') + amEsc(d.item) + (d.memoNo ? ' · মেমো ' + amEsc(d.memoNo) : '') + '</div></div><div class="am-ap-amt">৳ ' + fmt(d.total || 0) + '</div></div>'
+      + '<div class="am-meta">ডেলিভারি: <b>' + formatDate(d.deliveryDate) + '</b> · অর্ডার ' + formatDate(d.orderDate) + (d.phone ? '<br>' + amEsc(d.phone) : '') + '<br>অগ্রিম ৳ ' + fmt(d.advance || 0) + ' · <span style="color:' + (due > 0 ? 'var(--am-bad)' : 'var(--am-ok)') + ';font-weight:700">বাকি ৳ ' + fmt(due) + '</span>' + (glass ? '<br>' + amEsc(glass) : '') + (d.note ? '<br>' + amEsc(d.note) : '') + '</div>'
+      + '<div style="margin-top:6px">' + tag + (pend && d.isGlassOrder && d.ready ? ' <span class="am-tag g">প্রস্তুত</span>' : '') + '</div>'
+      + (btns ? '<div class="am-btns" style="margin-top:8px">' + btns + '</div>' : '') + '</div>';
+  }).join('') || '<div class="am-card am-empty">কোনো অর্ডার নেই</div>';
+  return h;
+}
+function amDlvFind(id) { return (appData.deliveryOrders || []).find(function (o) { return o.id === id; }); }
+function amDlvReady(id) { markGlassReady(id); amAfter(); }
+function amDlvForm() {
+  amOpenSheet('<div class="hd"><b>নতুন ডেলিভারি অর্ডার</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
+    + '<div class="am-f"><label>রোগী/ব্যক্তির নাম *</label><input type="text" id="amDlN" placeholder="পূর্ণ নাম"></div>'
+    + '<div class="am-f"><label>ফোন নম্বর</label><input type="tel" id="amDlP" inputmode="tel" placeholder="০১XXXXXXXXX"></div>'
+    + '<div class="am-f"><label>আইটেম বিবরণ *</label><input type="text" id="amDlI" placeholder="যেমন: চশমা (পাওয়ার +২.৫)"></div>'
+    + '<div class="am-f"><label>মোট মূল্য (৳)</label><input type="number" id="amDlT" inputmode="decimal" min="0" placeholder="০.০০" oninput="amDlCalc()"></div>'
+    + '<div class="am-f"><label>অগ্রিম (৳)</label><input type="number" id="amDlA" inputmode="decimal" min="0" placeholder="০.০০" oninput="amDlCalc()"></div>'
+    + '<div class="am-meta" style="margin:0 0 8px">বাকি: <b id="amDlD">৳ ০</b></div>'
+    + '<div class="am-f"><label>অর্ডারের তারিখ *</label><input type="date" id="amDlO" value="' + todayStr() + '"></div>'
+    + '<div class="am-f"><label>প্রত্যাশিত ডেলিভারি তারিখ *</label><input type="date" id="amDlDt"></div>'
+    + '<div class="am-f"><label>মন্তব্য</label><input type="text" id="amDlNt" placeholder="ঐচ্ছিক"></div>'
+    + '<div class="am-btns" style="margin-top:10px"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amDlvSave()">সেভ করুন</button></div>');
+}
+function amDlCalc() { var t = parseFloat((document.getElementById('amDlT') || {}).value) || 0, a = parseFloat((document.getElementById('amDlA') || {}).value) || 0, el = document.getElementById('amDlD'); if (el) el.textContent = '৳ ' + fmt(Math.max(0, t - a)); }
+function amDlvSave() {
+  var g = function (i) { return ((document.getElementById(i) || {}).value || '').trim(); };
+  var name = g('amDlN'), item = g('amDlI'), orderDate = g('amDlO'), deliveryDate = g('amDlDt');
+  if (!name || !item || !orderDate || !deliveryDate) { showToast('⚠️ নাম, আইটেম, অর্ডার তারিখ ও ডেলিভারি তারিখ আবশ্যক!'); return; }
+  var total = parseFloat(g('amDlT')) || 0, advance = parseFloat(g('amDlA')) || 0;
+  if (!appData.deliveryOrders) appData.deliveryOrders = [];
+  appData.deliveryOrders.push({ id: Date.now(), name: name, phone: g('amDlP'), orderDate: orderDate, item: item, total: total, advance: advance, due: Math.max(0, total - advance), deliveryDate: deliveryDate, note: g('amDlNt'), status: 'pending', by: currentUser.name, createdAt: todayStr() });
+  saveData(); amCloseSheet(); showToast('✅ ডেলিভারি অর্ডার সেভ হয়েছে!'); amAfter();
+}
+function amDlvDeliver(id) {
+  var d = amDlvFind(id); if (!d) return; var due = d.due || 0;
+  amOpenSheet('<div class="hd"><b>ডেলিভারি দিন</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div><div class="am-meta" style="font-size:14px;margin-bottom:8px"><b>' + amEsc(d.name) + '</b> — ' + amEsc(d.item) + '</div>'
+    + (due > 0 ? '<div class="am-card" style="padding:4px 12px"><div class="am-row"><span class="k">বাকি ছিল</span><span class="v" style="color:var(--am-bad)">৳ ' + fmt(due) + '</span></div></div><div class="am-f"><label>এখন বাকি আদায় (৳) — ০ দিলে আদায় ছাড়াই ডেলিভারি</label><input type="number" id="amDlvAmt" inputmode="decimal" min="0" max="' + due + '" value="' + due + '"></div>' : '<div class="am-meta" style="margin-bottom:10px">কোনো বাকি নেই।</div>')
+    + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">ফিরে যান</button><button class="am-btn ok" onclick="amDoDlvDeliver(' + id + ')">ডেলিভারি নিশ্চিত</button></div>');
+}
+function amDoDlvDeliver(id) {
+  var d = amDlvFind(id); if (!d) return; var el = document.getElementById('amDlvAmt'), v = el ? (parseFloat(el.value) || 0) : 0;
+  if (v < 0 || v > (d.due || 0) + 0.005) { showToast('⚠️ আদায় বাকির চেয়ে বেশি হতে পারে না'); return; }
+  var go = function () { _activeDeliveryId = id; var inp = document.getElementById('deliveredExtraAmount'); if (inp) inp.value = v; amCloseSheet(); confirmMarkDelivered(); amAfter(); };
+  if (v > 0) amGuard(go); else go();
+}
+function amDlvDue(id) {
+  var d = amDlvFind(id); if (!d) return; var due = d.due || 0;
+  amOpenSheet('<div class="hd"><b>বাকি গ্রহণ</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div><div class="am-meta" style="font-size:14px;margin-bottom:8px"><b>' + amEsc(d.name) + '</b> — বাকি <b style="color:var(--am-bad)">৳ ' + fmt(due) + '</b></div>'
+    + '<div class="am-f"><label>এখন কত নিচ্ছেন (৳) — আংশিকও নেওয়া যাবে</label><input type="number" id="amDlvAmt" inputmode="decimal" min="0" max="' + due + '" value="' + due + '"></div>'
+    + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">ফিরে যান</button><button class="am-btn ok" onclick="amDoDlvDue(' + id + ')">গ্রহণ করুন</button></div>');
+}
+function amDoDlvDue(id) {
+  var d = amDlvFind(id); if (!d) return; var v = parseFloat((document.getElementById('amDlvAmt') || {}).value);
+  if (isNaN(v) || v <= 0) { showToast('⚠️ সঠিক পরিমাণ দিন'); return; }
+  if (v > (d.due || 0) + 0.005) { showToast('⚠️ বাকির চেয়ে বেশি নেওয়া যাবে না'); return; }
+  amGuard(function () { _activeDeliveryId = id; var inp = document.getElementById('deliveryDuePayAmount'); if (inp) inp.value = v; amCloseSheet(); confirmDeliveryDuePayment(); amAfter(); });
+}
+
+// --- মেমোরেন্ডাম ও TOR ---
+function amMemoSet(f) { amMemoF = f; amLastHtml = ''; amRender(true); }
+function amMemoHtml() {
+  var all = (appData.memoDocs || []).slice().sort(function (a, b) { return b.id - a.id; });
+  var cnt = function (k) { return all.filter(function (d) { return k === 'all' || (k === 'other' ? (d.type !== 'tor' && d.type !== 'memorandum') : d.type === k); }).length; };
+  var chip = function (k, t) { return '<button class="am-chip' + (amMemoF === k ? ' on' : '') + '" onclick="amMemoSet(\'' + k + '\')">' + t + ' (' + fmt(cnt(k)) + ')</button>'; };
+  var rows = all.filter(function (d) { return amMemoF === 'all' || (amMemoF === 'other' ? (d.type !== 'tor' && d.type !== 'memorandum') : d.type === amMemoF); });
+  var h = '<div class="am-h"><span>মেমোরেন্ডাম ও TOR</span></div><button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="amMemoForm(0)">নতুন ডকুমেন্ট যুক্ত করুন</button>'
+    + '<div class="am-chips">' + chip('all', 'সব') + chip('memorandum', 'মেমোরেন্ডাম') + chip('tor', 'TOR') + chip('other', 'অন্যান্য') + '</div>';
+  h += rows.map(function (d) {
+    var snip = String(d.text || '').replace(/\s+/g, ' ').slice(0, 110);
+    return '<div class="am-card"><div class="am-ap-top"><div class="am-ap-t"><span class="am-tag' + (d.type === 'tor' ? ' w' : d.type === 'memorandum' ? ' g' : '') + '">' + amEsc(memoTypeLabel(d.type)) + '</span> ' + amEsc(d.title) + '</div></div>'
+      + '<div class="am-meta">' + amEsc(d.createdBy || '') + (d.createdAt ? ' · ' + formatDate(d.createdAt.slice(0, 10)) : '') + (d.updatedAt ? ' (সম্পাদিত)' : '') + '<br>' + amEsc(snip) + (String(d.text || '').length > 110 ? '…' : '') + '</div>'
+      + '<div class="am-btns" style="margin-top:8px"><button class="am-btn pri" onclick="amMemoView(' + d.id + ')">পড়ুন</button><button class="am-btn line" onclick="printMemoDoc(' + d.id + ')">প্রিন্ট</button><button class="am-btn line" onclick="amMemoForm(' + d.id + ')">এডিট</button><button class="am-btn line" onclick="amMemoDel(' + d.id + ')">মুছুন</button></div></div>';
+  }).join('') || '<div class="am-card am-empty">কোনো ডকুমেন্ট সংরক্ষিত নেই</div>';
+  return h;
+}
+function amMemoView(id) {
+  var d = (appData.memoDocs || []).find(function (x) { return x.id === id; }); if (!d) return;
+  amOpenSheet('<div class="hd"><b>' + amEsc(memoTypeLabel(d.type)) + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div><div style="font-size:15px;font-weight:800;margin-bottom:8px">' + amEsc(d.title) + '</div>'
+    + '<div style="white-space:pre-wrap;font-size:13.5px;line-height:1.85;max-height:58vh;overflow-y:auto;padding:2px 2px 8px">' + amEsc(d.text) + '</div>'
+    + '<div class="am-btns" style="margin-top:8px"><button class="am-btn line" onclick="amCloseSheet()">বন্ধ করুন</button><button class="am-btn pri" onclick="printMemoDoc(' + d.id + ')">প্রিন্ট</button></div>');
+}
+function amMemoForm(id) {
+  var d = id ? (appData.memoDocs || []).find(function (x) { return x.id === id; }) : null; if (id && !d) return;
+  var ty = d ? d.type : 'memorandum';
+  amOpenSheet('<div class="hd"><b>' + (d ? 'ডকুমেন্ট এডিট' : 'নতুন মেমোরেন্ডাম / TOR') + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
+    + '<div class="am-f"><label>শিরোনাম *</label><input type="text" id="amMmT" value="' + amEsc(d ? d.title : '') + '" placeholder="যেমন: মেমোরেন্ডাম অফ অ্যাসোসিয়েশন ২০২৬"></div>'
+    + '<div class="am-f"><label>ধরন</label><select id="amMmY"><option value="memorandum"' + (ty === 'memorandum' ? ' selected' : '') + '>মেমোরেন্ডাম</option><option value="tor"' + (ty === 'tor' ? ' selected' : '') + '>টার্মস অফ রেফারেন্স (TOR)</option><option value="other"' + (ty !== 'memorandum' && ty !== 'tor' ? ' selected' : '') + '>অন্যান্য</option></select></div>'
+    + '<div class="am-f"><label>টেক্সট *</label><textarea id="amMmX" rows="10" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--am-line);border-radius:10px;font-family:inherit;font-size:14px;line-height:1.7;background:var(--am-card);color:var(--am-text)" placeholder="এখানে সম্পূর্ণ টেক্সট পেস্ট করুন...">' + amEsc(d ? d.text : '') + '</textarea></div>'
+    + '<div class="am-btns" style="margin-top:10px"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amMemoSave(' + (id || 0) + ')">' + (d ? 'আপডেট সেভ করুন' : 'সেভ করুন') + '</button></div>');
+}
+function amMemoSave(id) {
+  var title = ((document.getElementById('amMmT') || {}).value || '').trim(), type = (document.getElementById('amMmY') || {}).value || 'memorandum', text = ((document.getElementById('amMmX') || {}).value || '').trim();
+  if (!title || !text) { showToast('⚠️ শিরোনাম ও টেক্সট আবশ্যক!'); return; }
+  if (!appData.memoDocs) appData.memoDocs = [];
+  if (id) { var d = appData.memoDocs.find(function (x) { return x.id === id; }); if (d) { d.title = title; d.type = type; d.text = text; d.updatedAt = new Date().toISOString(); d.updatedBy = currentUser.name; } showToast('✅ ডকুমেন্ট আপডেট হয়েছে!'); }
+  else { appData.memoDocs.push({ id: Date.now(), title: title, type: type, text: text, createdAt: new Date().toISOString(), createdBy: currentUser.name }); showToast('✅ ডকুমেন্ট সংরক্ষিত হয়েছে!'); }
+  saveData(); amCloseSheet(); amAfter();
+}
+function amMemoDel(id) {
+  var d = (appData.memoDocs || []).find(function (x) { return x.id === id; }); if (!d) return;
+  if (!confirm('"' + d.title + '" মুছে ফেলতে চান?')) return;
+  appData.memoDocs = (appData.memoDocs || []).filter(function (x) { return x.id !== id; });
+  saveData(); showToast('🗑️ মুছে ফেলা হয়েছে'); amAfter();
 }
 
 // --- জমা ও স্লিপ ---
@@ -45450,25 +45641,47 @@ function amSalHtml() {
   if (!amSalM) { var t = todayStr(); amSalY = parseInt(t.slice(0, 4)); amSalM = parseInt(t.slice(5, 7)); }
   var staff = (appData.staff || []).filter(function (s) { return s.status === 'active'; }), tot = 0, paid = 0;
   var cards = staff.map(function (s) {
-    var c = amSalCalc(s); tot += c.net; if (c.sal.paid) paid += c.net;
+    var c = amSalCalc(s), pp = c.sal.paid ? 0 : salPartialPaid(c.sal); tot += c.net; paid += c.sal.paid ? c.net : Math.min(Math.max(0, c.net), pp);
     return '<div class="am-card" style="padding:10px 14px"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '<div class="am-meta" style="margin:0">' + amEsc(s.desig || '') + '</div></div><div class="am-ap-amt">৳ ' + fmt(c.net) + '</div></div>'
       + '<div class="am-meta">মূল ৳' + fmt(s.basic || 0) + (c.sal.bonus ? ' + বোনাস ৳' + fmt(c.sal.bonus) : '') + (c.dc ? ' + কমিশন ৳' + fmt(c.dc) : '') + (c.sal.cut ? ' − কর্তন ৳' + fmt(c.sal.cut) : '') + (c.ab ? ' − অনুপস্থিতি ৳' + fmt(c.ab) : '') + (c.adv ? ' − অগ্রিম ৳' + fmt(c.adv) : '') + '</div>'
       + (c.sal.paid ? '<div style="margin-top:6px"><span class="am-tag g">পরিশোধিত</span>' + (c.sal.voucher ? '<span class="am-meta">ভাউচার ' + amEsc(c.sal.voucher) + '</span>' : '') + '</div>'
-        : '<div class="am-btns" style="margin-top:8px"><button class="am-btn ok" onclick="amSalPay(' + s.id + ')">পরিশোধ করুন</button></div>') + '</div>';
+        : (pp > 0 ? '<div style="margin-top:6px"><span class="am-tag w">আংশিক ৳ ' + fmt(pp) + ' পরিশোধিত</span> <span class="am-meta" style="display:inline">বাকি ৳ ' + fmt(Math.max(0, c.net - pp)) + '</span></div>' : '')
+          + '<div class="am-btns" style="margin-top:8px"><button class="am-btn ok" onclick="amSalPay(' + s.id + ')">' + (pp > 0 ? 'আরও পরিশোধ করুন' : 'পরিশোধ করুন') + '</button></div>') + '</div>';
   }).join('');
   return amBack() + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><button class="am-chip" onclick="amSalNav(-1)">‹</button><b>' + AM_MONTHS[amSalM - 1] + ' ' + fmt(amSalY) + '</b><button class="am-chip" onclick="amSalNav(1)">›</button></div>'
-    + '<div class="am-grid"><div class="am-stat"><div class="l">মোট নেট বেতন</div><div class="v">৳ ' + fmt(tot) + '</div></div><div class="am-stat ' + (tot - paid > 0 ? 'bad' : 'ok') + '"><div class="l">বাকি</div><div class="v">৳ ' + fmt(tot - paid) + '</div></div></div>'
+    + '<div class="am-grid"><div class="am-stat"><div class="l">মোট নেট বেতন</div><div class="v">৳ ' + fmt(tot) + '</div></div><div class="am-stat ' + (tot - paid > 0 ? 'bad' : 'ok') + '"><div class="l">বাকি</div><div class="v">৳ ' + fmt(Math.max(0, tot - paid)) + '</div></div></div>'
     + (cards || '<div class="am-card am-empty">কোনো সক্রিয় কর্মী নেই</div>');
 }
+function amSalFill(v) { var el = document.getElementById('amSalAmt'); if (el) { el.value = v; el.focus(); } }
 function amSalPay(id) {
   var s = (appData.staff || []).find(function (x) { return x.id === id; }); if (!s) return; var c = amSalCalc(s);
+  var pp = salPartialPaid(c.sal), rem = Math.max(0, Math.round((c.net - pp) * 100) / 100);
   var row = function (k, v) { return '<div class="am-row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>'; };
+  var parts = (c.sal.partials || []).filter(function (p) { return (appData.expense || []).some(function (e) { return e.id === p.expenseId; }); });
   amOpenSheet('<div class="hd"><b>বেতন পরিশোধ</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div><div class="am-meta" style="font-size:14px;margin-bottom:8px"><b>' + amEsc(s.name) + '</b> — ' + AM_MONTHS[amSalM - 1] + ' ' + fmt(amSalY) + '</div>'
-    + '<div class="am-card" style="padding:4px 12px">' + row('মূল বেতন', '৳ ' + fmt(s.basic || 0)) + (c.sal.bonus ? row('বোনাস', '+ ৳ ' + fmt(c.sal.bonus)) : '') + (c.dc ? row('ডাক্তার কমিশন', '+ ৳ ' + fmt(c.dc)) : '') + (c.sal.cut ? row('কর্তন', '− ৳ ' + fmt(c.sal.cut)) : '') + (c.ab ? row('অনুপস্থিতি কর্তন', '− ৳ ' + fmt(c.ab)) : '') + (c.adv ? row('অগ্রিম', '− ৳ ' + fmt(c.adv)) : '') + '<div class="am-row tot"><span>নেট পরিশোধ</span><span>৳ ' + fmt(c.net) + '</span></div></div>'
-    + '<div class="am-meta" style="margin-bottom:10px">নিশ্চিত করলে স্বয়ংক্রিয়ভাবে ভাউচারসহ ব্যয় এন্ট্রি তৈরি হবে।</div>'
+    + '<div class="am-card" style="padding:4px 12px">' + row('মূল বেতন', '৳ ' + fmt(s.basic || 0)) + (c.sal.bonus ? row('বোনাস', '+ ৳ ' + fmt(c.sal.bonus)) : '') + (c.dc ? row('ডাক্তার কমিশন', '+ ৳ ' + fmt(c.dc)) : '') + (c.sal.cut ? row('কর্তন', '− ৳ ' + fmt(c.sal.cut)) : '') + (c.ab ? row('অনুপস্থিতি কর্তন', '− ৳ ' + fmt(c.ab)) : '') + (c.adv ? row('অগ্রিম', '− ৳ ' + fmt(c.adv)) : '')
+    + '<div class="am-row tot"><span>নেট বেতন</span><span>৳ ' + fmt(c.net) + '</span></div>'
+    + parts.map(function (p) { return row('আগে দেওয়া — ' + formatDate(p.date), '− ৳ ' + fmt(p.amount)); }).join('')
+    + (parts.length ? '<div class="am-row tot"><span>এখনো বাকি</span><span>৳ ' + fmt(rem) + '</span></div>' : '') + '</div>'
+    + (rem > 0.005
+      ? '<div class="am-f"><label>এখন কত পরিশোধ করবেন (৳)</label><input type="number" id="amSalAmt" inputmode="decimal" min="0" max="' + rem + '" value="' + rem + '"></div>'
+        + '<div class="am-chips"><button class="am-chip" onclick="amSalFill(' + rem + ')">পুরোটা</button><button class="am-chip" onclick="amSalFill(' + Math.floor(rem / 2) + ')">অর্ধেক</button></div>'
+        + '<div class="am-meta" style="margin-bottom:10px">পুরোটা দিলে বেতন "পরিশোধিত" হবে। কম দিলে আংশিক পরিশোধ হিসেবে আলাদা ভাউচারসহ ব্যয় এন্ট্রি হবে এবং বাকিটা পরে দেওয়া যাবে।</div>'
+      : '<div class="am-meta" style="margin-bottom:10px">নেট বেতনের পুরোটাই দেওয়া হয়ে গেছে/সমন্বয় হয়েছে — নিশ্চিত করলে মাসটি "পরিশোধিত" হবে।</div>')
     + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">ফিরে যান</button><button class="am-btn ok" onclick="amDoSalPay(' + id + ')">নিশ্চিত করুন</button></div>');
 }
-function amDoSalPay(id) { amGuard(function () { amCloseSheet(); var k = getSalaryKey(id, amSalM, amSalY); if (appData.salaries && appData.salaries[k] && appData.salaries[k].paid) { showToast('ℹ️ এই বেতন আগেই পরিশোধিত'); amAfter(); return; } toggleSalPaid(id, amSalM, amSalY); amAfter(); }); }
+function amDoSalPay(id) {
+  var el = document.getElementById('amSalAmt'), v = el ? el.value : '';
+  amGuard(function () {
+    amCloseSheet(); var k = getSalaryKey(id, amSalM, amSalY);
+    if (appData.salaries && appData.salaries[k] && appData.salaries[k].paid) { showToast('ℹ️ এই বেতন আগেই পরিশোধিত'); amAfter(); return; }
+    if (!el) { toggleSalPaid(id, amSalM, amSalY); amAfter(); return; }
+    var r = salPayAmount(id, amSalM, amSalY, v);
+    if (!r.ok) showToast('⚠️ ' + r.msg);
+    else if (!r.full) showToast('✅ আংশিক পরিশোধ হয়েছে — ভাউচার ' + r.voucher + ' · বাকি ৳ ' + fmt(r.left));
+    amAfter();
+  });
+}
 
 // --- স্টক ---
 function amStockHtml() {
@@ -46120,7 +46333,7 @@ function amPcOpen(key) {
   o.style.top = (_tp ? _tp.offsetHeight : 0) + 'px'; o.style.bottom = (_tb ? _tb.offsetHeight : 0) + 'px';
   amTabHi(true);
   var ctl = key === 'bs' ? '<div class="am-pcv-ctl"><select id="amBsVm" onchange="amPcRefresh()"><option value="day">ডে ওয়াইজ</option><option value="month">মান্থ ওয়াইজ</option></select><input type="month" id="amBsFm" onchange="amPcRefresh()"></div>' : '';
-  o.innerHTML = '<div class="am-pcv-hd"><b>' + cfg.t + '</b><button type="button" onclick="amPcvClose()">&#10005;</button></div>' + ctl + '<div class="am-pcv-body" id="amPcvBody"></div>';
+  o.innerHTML = '<div class="am-pcv-hd"><b>' + cfg.t + '</b></div>' + ctl + '<div class="am-pcv-body" id="amPcvBody"></div>';
   document.body.appendChild(o);
   amPcRefresh(true);
 }
@@ -46310,14 +46523,14 @@ var AM_MORE_ITEMS = {
   o_income: ['💰', 'আয় এন্ট্রি'], o_expense: ['🧾', 'ব্যয় এন্ট্রি'], bank: ['🏦', 'ব্যাংক / ক্যাশ'], chk: ['📒', 'চেক বই'], o_loan: ['💳', 'লোন ট্র্যাকিং'],
   o_due: ['⏳', 'বাকি তালিকা'], op: ['🏥', 'অপারেশন'], dep: ['🧰', 'জমা ও স্লিপ'], live: ['📡', 'লাইভ মনিটর'],
   stock: ['📦', 'স্টক ম্যানেজমেন্ট'], o_testfees: ['🔬', 'টেস্ট ফি তালিকা'], sal: ['🧑‍💼', 'বেতন'], att: ['🗓️', 'উপস্থিতি ও ছুটি'], log: ['📜', 'অ্যাক্টিভিটি লগ'],
-  tg: ['✈️', 'টেলিগ্রাম অ্যালার্ট'], sec: ['🔐', 'নিরাপত্তা (PIN)'], cfg: ['🏠', 'হোম সাজান'], _pc: ['🖥️', 'পিসি ভিউ']
+  tg: ['✈️', 'টেলিগ্রাম অ্যালার্ট'], sec: ['🔐', 'নিরাপত্তা (PIN)'], cfg: ['🏠', 'হোম সাজান'], dlv: ['🚚', 'ডেলিভারি শিডিউল'], memo: ['📜', 'মেমোরেন্ডাম ও TOR'], _pc: ['🖥️', 'পিসি ভিউ']
 };
 // ডিফল্ট ক্যাটাগরি — পিসি প্যানেলের সেটিংস → ফিচার এক্সেস পেজ থেকে বদলানো যায় (appData.adminMobGroups)
 var AM_MORE_DEFAULT = [
   { label: '📊 রিপোর্ট ও হিসাব', ids: ['rpt', 'bs', 'eq', 'fund', 'o_today'] },
   { label: '💰 আয় ও ব্যয়', ids: ['o_income', 'o_expense', 'bank', 'chk', 'o_loan'] },
-  { label: '🏕️ রোগী ও অপারেশন', ids: ['o_due', 'op', 'dep', 'live'] },
-  { label: '⚙️ প্রশাসন', ids: ['stock', 'o_testfees', 'sal', 'att', 'log'] },
+  { label: '🏕️ রোগী ও অপারেশন', ids: ['o_due', 'op', 'dep', 'live', 'dlv'] },
+  { label: '⚙️ প্রশাসন', ids: ['stock', 'o_testfees', 'sal', 'att', 'log', 'memo'] },
   { label: '🔧 সেটিংস', ids: ['tg', 'sec', 'cfg', '_pc'] }
 ];
 function amGroupIcon(label) { var m = String(label || '').match(/\p{Extended_Pictographic}/u); return m ? m[0] : '•'; }
@@ -46406,7 +46619,7 @@ function bsCardsHtml(vm, fm, refM) {
   var out = blk('💼 বর্তমান সম্পদ', kv([['ক্যাশ', live.cash, '#0f4c81'], ['ব্যাংক', live.bank, '#3498db'], ['মোবাইল ব্যাংকিং', lm, '#d63384'], ['ইনভেন্টরি (ওষুধ+চশমা)', inv, '#d97706'], ['মোট সম্পদ', live.cash + live.bank + lm + inv, '#0f4c81']]));
   var ref = refM || fm || curM;
   out += blk('📌 গত মাসের সমাপনি ব্যালেন্স', kv([['মোবাইল ব্যাংকিং', getOpeningMfs(ref, 'month'), '#d63384'], ['ক্যাশ', getOpeningCash(ref, 'month'), '#0f4c81'], ['ব্যাংক', getOpeningBank(ref, 'month'), '#3498db']]));
-  var keys = vm === 'day' ? getAllDatesWithActivity().filter(function (d) { return !fm || d.indexOf(fm) === 0; }) : (function () { var u = {}; getAllDatesWithActivity().forEach(function (d) { u[d.slice(0, 7)] = 1; }); return Object.keys(u).sort().filter(function (m) { return !fm || m === fm; }); })();
+  var keys = vm === 'day' ? bsFillDayKeys(getAllDatesWithActivity(), fm) : (function () { var u = {}; var _ad = getAllDatesWithActivity(); _ad.forEach(function (d) { u[d.slice(0, 7)] = 1; }); if (_ad.length) u[curM] = 1; return Object.keys(u).sort().filter(function (m) { return !fm || m === fm; }); })();
   if (!keys.length) return out + '<div style="text-align:center;color:#94a3b8;padding:30px">কোনো তথ্য নেই</div>';
   var unit = vm === 'day' ? 'day' : 'month';
   var rc = getOpeningCash(keys[0], unit), rb = getOpeningBank(keys[0], unit), rm = getOpeningMfs(keys[0], unit);
