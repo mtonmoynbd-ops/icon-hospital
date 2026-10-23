@@ -44539,53 +44539,69 @@ function renderOwnerBarChart(){
 </script>
 
 
-<div id="modMobPage">
-  <div class="am-top">
-    <div onclick="mmGo('home')" style="cursor:pointer"><div class="t1" id="mmHosp">হাসপাতাল</div><div class="t2" id="mmSub">মডারেটর</div><div class="t2" id="mmDate"></div></div>
-  </div>
-  <div id="mmMain"></div>
-  <div class="am-tabs" id="mmTabs"></div>
-  <div class="am-back" id="mmBack" onclick="mmCloseSheet()"></div>
-  <div class="am-sheet" id="mmSheet"></div>
-</div>
 <button type="button" id="mmToMobBtn" onclick="mmSetUi('mobile')">&#128241; মোবাইল ভিউ</button>
 <style id="modMobStyle">
-#modMobPage{display:none;position:fixed;inset:0;z-index:900;flex-direction:column;background:var(--am-bg);color:var(--am-text);font-family:inherit;--am-bg:#f1f5f9;--am-card:#fff;--am-text:#1a2a3a;--am-sub:#64748b;--am-line:#e2e8f0;--am-pri:#0f4c81;--am-prisoft:#e6f0fa;--am-ok:#15803d;--am-oksoft:#e8f6ed;--am-bad:#b91c1c;--am-badsoft:#fdecec;--am-warn:#b45309;--am-warnsoft:#fff4e0;touch-action:pan-x pan-y}
-@media (prefers-color-scheme: dark){#modMobPage{--am-bg:#0e1621;--am-card:#17212e;--am-text:#e8eef5;--am-sub:#93a4b8;--am-line:#273445;--am-pri:#6db3f2;--am-prisoft:#16304a;--am-ok:#6ee7a0;--am-oksoft:#13301f;--am-bad:#fca5a5;--am-badsoft:#3a1b1b;--am-warn:#fbbf6a;--am-warnsoft:#3a2a10}}
-body.mod-mob{overflow:hidden}
-body.mod-mob #toast{bottom:86px !important;left:12px !important;right:12px !important;text-align:center;z-index:99999 !important}
-#mmMain{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 20px}
 #mmToMobBtn{display:none;position:fixed;right:12px;bottom:14px;z-index:850;border:0;border-radius:24px;background:#0f4c81;color:#fff;font-family:inherit;font-size:13px;font-weight:700;padding:10px 16px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer}
 @media (max-width:820px){#mmToMobBtn.show{display:block}}
 .mm-hi{border-color:var(--am-pri)!important}
 </style>
 <script id="modMobScript">
-// ===== মডারেটর মোবাইল ইন্টারফেস (এডমিন মোবাইলের মিনিমাল থিম; কী কী দেখবে/করবে তা এডমিন সেটিংস থেকে ঠিক হয়) =====
-var mmTab = 'home', mmSheetOpen = false, mmLastHtml = '', mmTabsHtml = '', mmTimer = null;
-// [কী, আইকন, নাম, বিবরণ, ডিফল্ট চালু?]
-var MM_MODS = [
-  ['promo', '📢', 'প্রচারে যাচ্ছি / প্রচার শেষ', 'ক্যাম্পের প্রচারে কাকে নিয়ে যাচ্ছেন বেছে "প্রচারে যাচ্ছি" চাপলে এডমিনের আসন্ন ক্যাম্প কার্ডে অটো "প্রচার অন" দেখায়', true],
-  ['camps', '⛺', 'আসন্ন ক্যাম্পের তালিকা', 'ক্যাম্পের তারিখ, স্থান, ডাক্তার, ক্যাম্পেইনার ও প্রচারের অবস্থা দেখা', true],
-  ['promoexp', '💸', 'প্রচার খরচ এন্ট্রি', 'প্রি-ক্যাম্প খরচ লেখা — এডমিনের অনুমোদন না পাওয়া পর্যন্ত হিসাবে ধরা হবে না', false],
-  ['demand', '📋', 'ডিমান্ড নোট', 'নতুন ডিমান্ড পাঠানো ও নিজের ডিমান্ডের অবস্থা দেখা', true],
-  ['stock', '📦', 'স্টক দেখা', 'কম ও শেষ হওয়া স্টকের তালিকা (শুধু দেখা)', false],
-  ['today', '📊', 'আজকের আয়-ব্যয়', 'আজকের আয় ও ব্যয়ের তালিকা (শুধু দেখা)', true],
-  ['due', '🧾', 'বাকি বিলের তালিকা', 'যাদের বাকি আছে তাদের তালিকা ও মোট বাকি (শুধু দেখা)', true],
-  ['attendance', '🕘', 'আজকের হাজিরা', 'কর্মরত / অনুপস্থিত / ছুটির তালিকা (শুধু দেখা)', true],
-  ['delivery', '🚚', 'ডেলিভারি শিডিউল', 'অপেক্ষমান ডেলিভারি অর্ডার ও কল বাটন (শুধু দেখা)', true],
-  ['genexp', '💸', 'সাধারণ ব্যয় এন্ট্রি', 'যেকোনো খাতে ব্যয় লেখা — এডমিনের অনুমোদন সাপেক্ষে', false],
-  ['balance', '🏦', 'ক্যাশ/ব্যাংক ব্যালেন্স', 'বর্তমান ক্যাশ, ব্যাংক ও মোবাইল ব্যাংকিং ব্যালেন্স (শুধু দেখা)', false],
-  ['pcview', '🖥️', 'পিসি ভিউয়ে যাওয়া', 'আরও মেনুতে "পিসি ভিউ" বাটন', true]
+// ===== মডারেটর মোবাইল ভিউ = এডমিন মোবাইল পেজেরই "মডারেটর মোড" =====
+// একই ডিজাইন, একই নাম, একই ক্যাটাগরি-মডাল। কোন ফিচার দেখাবে তা এডমিন সেটিংস থেকে ঠিক হয় (appData.settings.modMob.access)।
+// এডমিন মোবাইলে নতুন ফিচার (AM_MORE_ITEMS-এ) যোগ হলে এডমিন সেটিংসে অটো তালিকায় আসে; অন করলেই মডারেটরেও হুবুহু একই পেজ খোলে।
+function mmIsMod() { return !!(typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'moderator'); }
+var MM_EXCL = ['tg', 'sec', 'cfg'];                       // শুধু এডমিনের (টেলিগ্রাম, PIN, হোম সাজান)
+var MM_EXTRA = { m_demand: ['📋', 'ডিমান্ড নোট'], m_genexp: ['💸', 'ব্যয় এন্ট্রি (অনুমোদন সাপেক্ষে)'] };
+// [কী, নাম, বিবরণ, ডিফল্ট চালু?]
+var MM_SPECIAL = [
+  ['promo', '📢 প্রচারে যাচ্ছি / প্রচার শেষ', 'ক্যাম্পের প্রচারে কাকে নিয়ে যাচ্ছেন বেছে "প্রচারে যাচ্ছি" চাপলে এডমিনের আসন্ন ক্যাম্প কার্ডে অটো "প্রচার অন" দেখায় + এডমিনের টেলিগ্রামে অ্যালার্ট', true],
+  ['promoexp', '💸 প্রচার খরচ এন্ট্রি', 'ক্যাম্প কার্ড থেকে প্রি-ক্যাম্প খরচ লেখা (নির্দিষ্ট খাত, সাব-ক্যাটাগরি বাছা) — এডমিনের অনুমোদন সাপেক্ষে', false],
+  ['camp', '⛺ ক্যাম্প (নিচের ট্যাব)', 'আসন্ন ক্যাম্পের তালিকা — প্রচারের কার্ডসহ', true],
+  ['bill', '🧾 বিল ও বাকি (নিচের ট্যাব)', 'এডমিন মোবাইলের "বিল" ট্যাব হুবুহু', false],
+  ['appr', '📋 অনুমোদন (নিচের ট্যাব)', 'ব্যয় / আনলক / ডিমান্ড অনুমোদন-প্রত্যাখ্যান', false],
+  ['m_demand', '📋 ডিমান্ড নোট', 'নতুন ডিমান্ড পাঠানো ও নিজের ডিমান্ডের অবস্থা', true],
+  ['m_genexp', '💸 ব্যয় এন্ট্রি (অনুমোদন সাপেক্ষে)', 'যেকোনো খাতে ব্যয় লেখা — এডমিন অনুমোদন না করা পর্যন্ত হিসাবে ধরা হবে না', false]
 ];
-var MM_HOME_TILES = ['today', 'due', 'attendance', 'delivery', 'genexp', 'balance', 'stock'];
-// প্রচার খরচের নির্দিষ্ট খাত: এডমিনের বেছে দেওয়া, নইলে "প্রি-ক্যাম্প" নামের খাত খুঁজে নেয়
+var MM_DEF_ON = ['o_today', 'o_due', 'att', 'dlv', '_pc'];
+function mmCfg() { var s = (typeof appData !== 'undefined' && appData.settings) || {}; return s.modMob || {}; }
+function mmOn() { return mmCfg().on !== false; }
+function mmDefault(id) {
+  var sp = MM_SPECIAL.filter(function (x) { return x[0] === id; })[0];
+  return sp ? sp[3] : MM_DEF_ON.indexOf(id) >= 0;
+}
+function mmAllow(id) {
+  if (MM_EXCL.indexOf(id) >= 0) return false;
+  var a = mmCfg().access || {};
+  return a[id] != null ? !!a[id] : mmDefault(id);
+}
+var mmCan = mmAllow;
+function mmCfgSave(fn) {
+  if (!appData.settings) appData.settings = {};
+  var c = appData.settings.modMob = appData.settings.modMob || {};
+  c.access = c.access || {};
+  fn(c); saveData();
+}
+function mmCfgSet(k, v) { mmCfgSave(function (c) { c.access[k] = !!v; }); }
+function mmCfgMaster(v) { mmCfgSave(function (c) { c.on = !!v; }); }
+function mmCfgToggle(k) { mmCfgSet(k, !mmAllow(k)); try { amLastHtml = ''; amRender(true); } catch (e) {} }
+function mmCfgMasterToggle() { mmCfgMaster(!mmOn()); try { amLastHtml = ''; amRender(true); } catch (e) {} }
+function mmCfgPreCat(v) { mmCfgSave(function (c) { c.preCat = v || ''; }); try { amLastHtml = ''; amRender(true); } catch (e) {} }
 function mmPreCat() {
   var cats = []; try { cats = getExpCats(); } catch (e) {}
   var c = mmCfg().preCat;
   if (c && cats.indexOf(c) >= 0) return c;
   return cats.filter(function (x) { return /প্রি.?ক্যাম্প/.test(x); })[0] || '';
 }
-function mmCfgPreCat(v) { mmCfgSave(function (c) { c.preCat = v || ''; }); try { amLastHtml = ''; amRender(true); } catch (e) {} }
+// সেটিংসে দেখানোর ক্যাটাগরি: মডারেটর-বিশেষ + এডমিন মোবাইলের "আরও"-র একই ক্যাটাগরি/নাম
+function mmCfgGroups() {
+  var out = [{ label: '📢 মডারেটর বিশেষ', rows: MM_SPECIAL.map(function (x) { return { id: x[0], name: x[1], desc: x[2] }; }) }];
+  var G = []; try { G = amMoreGroups(); } catch (e) {}
+  G.forEach(function (g) {
+    var rows = g.ids.filter(function (id) { return MM_EXCL.indexOf(id) < 0 && AM_MORE_ITEMS[id]; }).map(function (id) { return { id: id, name: AM_MORE_ITEMS[id][0] + ' ' + AM_MORE_ITEMS[id][1], desc: '' }; });
+    if (rows.length) out.push({ label: g.label, rows: rows });
+  });
+  return out;
+}
 function mmPreCatSelHtml(amStyle) {
   var cats = []; try { cats = getExpCats(); } catch (e) {}
   var cur = mmPreCat(), saved = mmCfg().preCat || '';
@@ -44595,42 +44611,29 @@ function mmPreCatSelHtml(amStyle) {
     ? '<div class="am-card"><b style="font-size:14px">প্রচার খরচের নির্দিষ্ট খাত</b><div class="am-f" style="margin:8px 0 4px"><select onchange="mmCfgPreCat(this.value)">' + opts + '</select></div><div class="am-meta" style="margin:0">' + note + '</div></div>'
     : '<div style="margin:8px 0;padding:6px 0"><b style="font-size:13px">প্রচার খরচের নির্দিষ্ট খাত</b><br><select onchange="mmCfgPreCat(this.value)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-top:4px">' + opts + '</select><div style="font-size:11px;color:var(--text-light);margin-top:3px">' + note + '</div></div>';
 }
-function mmCfg() { var s = (typeof appData !== 'undefined' && appData.settings) || {}; return s.modMob || {}; }
-function mmOn() { return mmCfg().on !== false; }
-function mmCan(k) {
-  var a = mmCfg().access || {};
-  if (a[k] != null) return !!a[k];
-  var d = MM_MODS.filter(function (m) { return m[0] === k; })[0];
-  return d ? d[4] : false;
-}
-function mmCanCamps() { return mmCan('camps') || mmCan('promo') || mmCan('promoexp'); }
-function mmCfgSave(fn) {
-  if (!appData.settings) appData.settings = {};
-  var c = appData.settings.modMob = appData.settings.modMob || {};
-  c.access = c.access || {};
-  fn(c); saveData();
-}
-function mmCfgSet(k, v) { mmCfgSave(function (c) { c.access[k] = !!v; }); }
-function mmCfgMaster(v) { mmCfgSave(function (c) { c.on = !!v; }); }
 // এডমিন মোবাইলের সেটিংস পেজে
-function mmCfgToggle(k) { mmCfgSet(k, !mmCan(k)); try { amLastHtml = ''; amRender(true); } catch (e) {} }
-function mmCfgMasterToggle() { mmCfgMaster(!mmOn()); try { amLastHtml = ''; amRender(true); } catch (e) {} }
 function mmCfgAmHtml() {
   var h = '<div class="am-h" style="margin-top:14px"><span>মডারেটর মোবাইল ভিউ</span></div>'
-    + '<div class="am-card" style="padding:10px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1"><b style="font-size:14px">মডারেটরের মোবাইল ভিউ</b><div class="am-meta" style="margin:2px 0 0">বন্ধ থাকলে মডারেটর সবসময় আগের পুরো প্যানেল পাবে</div></span><button class="am-chip' + (mmOn() ? ' on' : '') + '" onclick="mmCfgMasterToggle()">' + (mmOn() ? 'চালু' : 'বন্ধ') + '</button></div>';
-  return h + mmPreCatSelHtml(true) + MM_MODS.map(function (m) {
-    var on = mmCan(m[0]);
-    return '<div class="am-card" style="padding:8px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1;min-width:0"><b style="font-size:14px">' + m[1] + ' ' + m[2] + '</b><div class="am-meta" style="margin:2px 0 0">' + m[3] + '</div></span><button class="am-chip' + (on ? ' on' : '') + '" onclick="mmCfgToggle(\'' + m[0] + '\')">' + (on ? 'দেওয়া আছে' : 'বন্ধ') + '</button></div>';
+    + '<div class="am-card" style="padding:10px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1"><b style="font-size:14px">মডারেটরের মোবাইল ভিউ</b><div class="am-meta" style="margin:2px 0 0">বন্ধ থাকলে মডারেটর সবসময় আগের পুরো প্যানেল পাবে</div></span><button class="am-chip' + (mmOn() ? ' on' : '') + '" onclick="mmCfgMasterToggle()">' + (mmOn() ? 'চালু' : 'বন্ধ') + '</button></div>'
+    + mmPreCatSelHtml(true);
+  return h + mmCfgGroups().map(function (g) {
+    return '<div class="am-h" style="margin-top:10px"><span>' + amEsc(g.label) + '</span></div>' + g.rows.map(function (r) {
+      var on = mmAllow(r.id);
+      return '<div class="am-card" style="padding:8px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1;min-width:0"><b style="font-size:14px">' + amEsc(r.name) + '</b>' + (r.desc ? '<div class="am-meta" style="margin:2px 0 0">' + amEsc(r.desc) + '</div>' : '') + '</span><button class="am-chip' + (on ? ' on' : '') + '" onclick="mmCfgToggle(\'' + r.id + '\')">' + (on ? 'দেওয়া আছে' : 'বন্ধ') + '</button></div>';
+    }).join('');
   }).join('');
 }
 // পিসি এডমিন → সেটিংস → ফিচার এক্সেস পেজে
 function mmCfgPcHtml() {
   return '<hr class="divider"><div style="margin-top:12px" id="mmCfgPc">'
     + '<p style="font-weight:700;font-size:13px;color:var(--primary);margin-bottom:4px">📱 মডারেটর মোবাইল ভিউ — অ্যাক্সেস</p>'
-    + '<p style="font-size:11px;color:var(--text-light);margin-bottom:10px">মডারেটর মোবাইলে লগইন করলে কী কী দেখবে ও করতে পারবে তা এখানে ঠিক করুন। টিক বদলালেই সাথে সাথে সেভ হয়।</p>'
+    + '<p style="font-size:11px;color:var(--text-light);margin-bottom:10px">মডারেটর মোবাইলে লগইন করলে কী কী দেখবে ও করতে পারবে তা এখানে ঠিক করুন (ক্যাটাগরি এডমিন মোবাইলের "আরও"-র মতোই)। টিক বদলালেই সাথে সাথে সেভ হয়।</p>'
     + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;padding:5px 0;cursor:pointer"><input type="checkbox" ' + (mmOn() ? 'checked' : '') + ' onchange="mmCfgMaster(this.checked)" style="width:15px;height:15px">মডারেটরের জন্য মোবাইল ভিউ চালু (বন্ধ করলে মোবাইলেও আগের প্যানেল)</label>'
-    + mmPreCatSelHtml(false) + MM_MODS.map(function (m) {
-      return '<label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f0f4f8;cursor:pointer"><input type="checkbox" ' + (mmCan(m[0]) ? 'checked' : '') + ' onchange="mmCfgSet(\'' + m[0] + '\',this.checked)" style="width:15px;height:15px;margin-top:2px"><span><b>' + m[1] + ' ' + m[2] + '</b><br><span style="font-size:11px;color:var(--text-light)">' + m[3] + '</span></span></label>';
+    + mmPreCatSelHtml(false)
+    + mmCfgGroups().map(function (g) {
+      return '<p style="font-weight:700;font-size:12px;color:var(--text-light);margin:12px 0 4px">' + amEsc(g.label) + '</p>' + g.rows.map(function (r) {
+        return '<label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f0f4f8;cursor:pointer"><input type="checkbox" ' + (mmAllow(r.id) ? 'checked' : '') + ' onchange="mmCfgSet(\'' + r.id + '\',this.checked)" style="width:15px;height:15px;margin-top:2px"><span><b>' + amEsc(r.name) + '</b>' + (r.desc ? '<br><span style="font-size:11px;color:var(--text-light)">' + amEsc(r.desc) + '</span>' : '') + '</span></label>';
+      }).join('');
     }).join('') + '</div>';
 }
 
@@ -44639,58 +44642,66 @@ function modUiMode() {
   if (p === 'mobile' || p === 'pc') return p;
   return (window.matchMedia && window.matchMedia('(max-width: 820px)').matches) ? 'mobile' : 'pc';
 }
-function mmEsc(s) { return amEsc(s); }
-function mmShow() {
-  ['appPage', 'recPage', 'ownerPage', 'camperPage', 'adminMobPage'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
-  var pg = document.getElementById('modMobPage'); pg.style.display = 'flex';
-  document.body.classList.add('mod-mob');
-  var pill = document.getElementById('mmToMobBtn'); if (pill) pill.classList.remove('show');
-  mmTab = 'home'; mmLastHtml = ''; mmTabsHtml = '';
-  mmRender(true);
-  if (mmTimer) clearInterval(mmTimer);
-  mmTimer = setInterval(function () {
-    var p2 = document.getElementById('modMobPage');
-    if (!p2 || p2.style.display === 'none' || mmSheetOpen || document.visibilityState !== 'visible') return;
-    var fa = document.activeElement, mn = document.getElementById('mmMain');
-    if (fa && mn && mn.contains(fa) && /^(INPUT|TEXTAREA|SELECT)$/.test(fa.tagName)) return;
-    mmRender(false);
-  }, 5000);
-}
-function mmHide() {
-  var pg = document.getElementById('modMobPage'); if (pg) pg.style.display = 'none';
-  document.body.classList.remove('mod-mob');
-  if (mmTimer) { clearInterval(mmTimer); mmTimer = null; }
-  mmCloseSheet();
-}
+function mmShow() { amShow(); }
+function mmHide() { try { amHide(); } catch (e) {} }
 function mmPcPill() {
   var pill = document.getElementById('mmToMobBtn');
-  if (pill) pill.classList.toggle('show', !!(currentUser && currentUser.role === 'moderator' && mmOn()));
+  if (pill) pill.classList.toggle('show', !!(mmIsMod() && mmOn()));
 }
 function mmSetUi(mode) {
   try { localStorage.setItem('hms_mod_ui', mode); } catch (e) {}
   if (mode === 'mobile') { mmShow(); }
   else { mmHide(); startApp(); }
 }
-function mmGo(t) { mmTab = t; mmLastHtml = ''; mmRender(true); var m = document.getElementById('mmMain'); if (m) m.scrollTop = 0; }
-function mmAfter() { mmLastHtml = ''; mmRender(true); try { updateDemandBadge(); } catch (e) {} }
-function mmOpenSheet(html) {
-  mmSheetOpen = true;
-  document.getElementById('mmSheet').innerHTML = html;
-  document.getElementById('mmBack').style.display = 'block';
-  var sh = document.getElementById('mmSheet'); sh.style.display = 'block'; sh.scrollTop = 0;
+function mmRender(force) {
+  var pg = document.getElementById('adminMobPage');
+  if (mmIsMod() && pg && pg.style.display !== 'none') amRender(!!force);
 }
-function mmCloseSheet() {
-  mmSheetOpen = false;
-  var a = document.getElementById('mmBack'), b = document.getElementById('mmSheet');
-  if (a) a.style.display = 'none'; if (b) { b.style.display = 'none'; b.innerHTML = ''; }
+function mmAfter() { amLastHtml = ''; amRender(true); try { updateDemandBadge(); } catch (e) {} }
+function mmOpenSheet(h) { amOpenSheet(h); }
+function mmCloseSheet() { amCloseSheet(); }
+function mmConfirm(t, b, o, f, a) { amConfirm(t, b, o, f, a); }
+function mmEsc(s) { return amEsc(s); }
+
+// ----- মডারেটর মোডে amRender -----
+function mmAmRender(force) {
+  var main = document.getElementById('amMain'); if (!main) return;
+  var s = (appData && appData.settings) || {};
+  document.getElementById('amHosp').textContent = s.hospName || 'ICON Eye Hospital';
+  var sb = document.getElementById('amSub'); if (sb) sb.textContent = 'মডারেটর · ' + (currentUser.name || '');
+  var _ad = document.getElementById('amDate'); if (_ad) _ad.textContent = formatDate(todayStr());
+  var p = amPending(), apprOk = mmAllow('appr');
+  var unseenN = 0; if (apprOk) { try { unseenN = amUnseenInfo().ids.length; } catch (e) {} }
+  var bi = document.getElementById('amBellIc'); if (bi && bi.parentNode) bi.parentNode.style.display = apprOk ? '' : 'none';
+  [['amBellN', unseenN], ['amTabN', apprOk ? p.total : 0]].forEach(function (x) { var el = document.getElementById(x[0]); if (!el) return; el.textContent = fmt(x[1]); el.style.display = x[1] ? '' : 'none'; });
+  var mn = (appData.quickMessages || []).filter(function (m) { return m && m.ackAt && !m.ackSeen && !m.adminCleared; }).length;
+  var mel = document.getElementById('amMsgN'); if (mel) { mel.textContent = fmt(mn); mel.style.display = mn ? '' : 'none'; }
+  if (amTab !== 'home' && amTab !== 'more' && !mmAllow(amTab)) amTab = 'home';
+  if (amTab === 'more' && amSub && !mmAllow(amSub)) amSub = '';
+  try { amTabsDraw(); amTabHi(!!document.getElementById('amPcv')); } catch (e) {}
+  var html = amTab === 'home' ? mmLiveHomeHtml() : amTab === 'appr' ? amApprHtml(p) : amTab === 'bill' ? amBillHtml() : amTab === 'camp' ? mmCampsHtml() : amMoreHtml();
+  if (!force && html === amLastHtml) return;
+  amLastHtml = html; var st = main.scrollTop; main.innerHTML = amZw(html); try { amChipsToSelect(main); } catch (e) {} main.scrollTop = st;
 }
-function mmConfirm(title, body, okText, fnName, arg) {
-  mmOpenSheet('<div class="hd"><b>' + mmEsc(title) + '</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>'
-    + '<div class="am-meta" style="font-size:14px;margin-bottom:12px">' + body + '</div>'
-    + '<div class="am-btns"><button class="am-btn line" onclick="mmCloseSheet()">ফিরে যান</button><button class="am-btn ok" id="mmOkBtn">' + mmEsc(okText) + '</button></div>');
-  document.getElementById('mmOkBtn').onclick = function () { mmCloseSheet(); window[fnName](arg); };
+function mmTabsDraw() {
+  var box = document.getElementById('amTabs'); if (!box) return;
+  var t = [['home', 'হোম']];
+  if (mmAllow('appr')) t.push(['appr', 'অনুমোদন']);
+  if (mmAllow('bill')) t.push(['bill', 'বিল']);
+  if (mmAllow('camp')) t.push(['camp', 'ক্যাম্প']);
+  t.push(['more', 'আরও']);
+  var h = t.map(function (x) {
+    return '<button type="button" data-t="' + x[0] + '" onclick="amGo(\'' + x[0] + '\')"><i class="am-ic" data-ic="' + x[0] + '"></i><span class="am-tl">' + x[1] + '</span>' + (x[0] === 'appr' ? '<em id="amTabN" style="display:none">0</em>' : '') + '</button>';
+  }).join('');
+  box.style.gridTemplateColumns = 'repeat(' + t.length + ',1fr)';
+  if (box.getAttribute('data-sig') !== h) { box.innerHTML = h; box.setAttribute('data-sig', h); try { amIcons(); } catch (e) {} }
 }
-function mmIc(n) { return '<i class="am-ic">' + ((typeof QA_SVG !== 'undefined' && QA_SVG[n]) || '') + '</i>'; }
+function mmMoreFallback() {
+  var h = '';
+  if (mmAllow('_pc')) h += '<div class="am-card"><div class="am-h" style="margin:0 0 6px">ভিউ</div><button class="am-btn line" style="width:100%" onclick="mmSetUi(\'pc\')">পিসি ভিউতে যান</button><div class="am-meta">পুরো প্যানেল পিসি ভিউতে পাবেন।</div></div>';
+  h += '<div class="am-card"><div class="am-meta" style="margin:0 0 8px">লগইন: ' + amEsc(currentUser.name) + '</div><button class="am-btn bad" style="width:100%" onclick="amLogout()">লগআউট</button></div>';
+  return '<div class="am-card am-empty" style="cursor:pointer" onclick="amMoreOpen()">সব ফিচার দেখতে "আরও" চাপুন</div>' + h;
+}
 
 // ----- ডেটা সহায়ক -----
 function mmDayAdd(n) { return new Date(Date.now() + n * 86400000).toISOString().split('T')[0]; }
@@ -44712,66 +44723,93 @@ function amPromoLine(s) {
   return '<br><span style="color:var(--am-ok);font-weight:700">' + (p.status === 'on' ? '<span class="am-dot" style="width:6px;height:6px"></span> প্রচারে: ' : '✓ প্রচার শেষ: ') + who + '</span>' + (p.startedAt ? ' · ' + mmHM(p.startedAt) : '');
 }
 
-// ----- রেন্ডার -----
-function mmTabList() {
-  var t = [['home', 'হোম', 'home']];
-  if (mmCanCamps()) t.push(['camps', 'ক্যাম্প', 'tent']);
-  if (mmCan('demand')) t.push(['demand', 'ডিমান্ড', 'clipboard']);
-  t.push(['more', 'আরও', 'gear']);
-  return t;
+// ----- লাইভ পেজ (এডমিন লাইভ মনিটরের ডিজাইন; প্রচারের কার্ড প্রায়োরিটিতে) -----
+function mmPromoUrgent() {
+  var up = mmUpcoming(), tm = mmDayAdd(1);
+  return up.some(function (s) { return mmPromoState(s) === 'on' || (s.date || '') <= tm; });
 }
-function mmRender(force) {
-  if (!currentUser || currentUser.role !== 'moderator') return;
-  var pg = document.getElementById('modMobPage'); if (!pg || pg.style.display === 'none') return;
-  var main = document.getElementById('mmMain'); if (!main) return;
-  var s = (appData && appData.settings) || {};
-  document.getElementById('mmHosp').textContent = s.hospName || 'ICON Eye Hospital';
-  document.getElementById('mmSub').textContent = 'মডারেটর · ' + (currentUser.name || '');
-  document.getElementById('mmDate').textContent = formatDate(todayStr());
-  var tabs = mmTabList();
-  if (!tabs.some(function (x) { return x[0] === mmTab; })) mmTab = 'home';
-  var th = '<style>#mmTabs{grid-template-columns:repeat(' + tabs.length + ',1fr)}</style>' + tabs.map(function (x) {
-    return '<button class="' + (mmTab === x[0] ? 'on' : '') + '" onclick="mmGo(\'' + x[0] + '\')">' + mmIc(x[2]) + '<span class="am-tl">' + x[1] + '</span></button>';
-  }).join('');
-  if (th !== mmTabsHtml) { mmTabsHtml = th; document.getElementById('mmTabs').innerHTML = th; }
-  var html = mmTab === 'home' ? mmHomeHtml() : mmTab === 'camps' ? mmCampsHtml() : mmTab === 'demand' ? mmDemandHtml() : mmMoreHtml();
-  if (!force && html === mmLastHtml) return;
-  mmLastHtml = html; var st = main.scrollTop; main.innerHTML = html; main.scrollTop = st;
+function mmPromoPriorityHtml() {
+  if (!mmAllow('promo') && !mmAllow('camp')) return '';
+  var up = mmUpcoming(), tm = mmDayAdd(1);
+  var on = up.filter(function (s) { return mmPromoState(s) === 'on'; });
+  var near = up.filter(function (s) { return mmPromoState(s) !== 'on' && (s.date || '') <= tm; });
+  var list = on.concat(near); if (!list.length && up.length) list = [up[0]];
+  list = list.slice(0, 2);
+  return '<div class="am-h"><span>আসন্ন ক্যাম্প — প্রচার</span>' + (mmAllow('camp') ? '<a onclick="amGo(\'camp\')">সব দেখুন</a>' : '') + '</div>'
+    + (list.length ? list.map(mmPromoCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
 }
-function mmHomeHtml() {
-  var up = mmUpcoming(), onN = up.filter(function (s) { return mmPromoState(s) === 'on'; }).length;
-  var h = '<div class="am-grid"><div class="am-stat' + (onN ? ' ok' : '') + '"><div class="l">প্রচার চলছে</div><div class="v">' + fmt(onN) + '</div></div><div class="am-stat"><div class="l">আসন্ন ক্যাম্প</div><div class="v">' + fmt(up.length) + '</div></div></div>';
-  h += mmTilesHtml();
-  if (mmCanCamps()) {
-    h += '<div class="am-h"><span>নিকটতম ক্যাম্প</span><a onclick="mmGo(\'camps\')">সব দেখুন</a></div>'
-      + (up.length ? up.slice(0, 3).map(mmCampCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
-  } else h += '<div class="am-card am-empty">এই মুহূর্তে আপনার জন্য কোনো ফিচার চালু নেই — এডমিনের সাথে কথা বলুন</div>';
-  if (mmCan('demand')) {
-    var mine = (appData.demands || []).filter(function (d) { return d.by === currentUser.name && d.status === 'pending'; }).length;
-    h += '<div class="am-card" onclick="mmGo(\'demand\')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700">📋 আমার অপেক্ষমাণ ডিমান্ড</span><b>' + fmt(mine) + '</b></div>';
+function mmLiveHtml() {
+  var today = todayStr();
+  var h = '<div class="am-h" style="margin-top:0"><span>আজ ' + formatDate(today) + '</span><span class="am-meta" style="margin:0">হালনাগাদ ' + amClockNow() + '</span></div>';
+  var promo = mmPromoPriorityHtml(), urgent = mmPromoUrgent();
+  if (urgent) h += promo;
+  if (mmAllow('live')) h += amLvTopCards();
+  if (!urgent) h += promo;
+  if (mmAllow('o_today')) {
+    var st = amDayStats(today);
+    h += '<div class="am-grid" style="margin-bottom:10px"><div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের আয়</div><div class="v" style="color:var(--am-ok)">' + amMoney(st.inc) + '</div></div>'
+      + '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের ব্যয়</div><div class="v" style="color:var(--am-bad)">' + amMoney(st.exp) + '</div></div></div>';
   }
+  var tiles = '';
+  if (mmAllow('op')) {
+    var ops = amLvNextOf((appData.operations || []).filter(function (o) { return (o.status || 'completed') === 'scheduled'; }), 'date');
+    tiles += '<div class="am-stat" style="cursor:pointer" onclick="amOpF=\'sched\';amGoSub(\'op\')"><div class="l">আসন্ন অপারেশন</div><div class="v" style="font-size:15px">' + (ops ? formatDate(ops.date) : '—') + '</div><div class="am-meta" style="margin:2px 0 0">' + (ops ? fmt(ops.n) + ' জন রোগী' : 'কোনো সিডিউল নেই') + '</div></div>';
+  }
+  if (mmAllow('dlv')) {
+    var dlv = amLvNextOf((appData.deliveryOrders || []).filter(function (x) { return x.status === 'pending' && x.deliveryDate; }), 'deliveryDate');
+    tiles += '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'dlv\')"><div class="l">আসন্ন ডেলিভারি</div><div class="v" style="font-size:15px">' + (dlv ? formatDate(dlv.date) : '—') + '</div><div class="am-meta" style="margin:2px 0 0">' + (dlv ? fmt(dlv.n) + ' টি' : 'কোনো ডেলিভারি নেই') + '</div></div>';
+  }
+  if (tiles) h += '<div class="am-grid" style="margin-bottom:10px">' + tiles + '</div>';
+  h += mmQuickHtml();
   return h;
 }
+var MM_QMAP = { appr: 'appr', bill: 'bill', dep: 'dep', sal: 'sal', live: 'live', rpt: 'rpt', op: 'op', att: 'att', stock: 'stock', bank: 'bank', chk: 'chk', bs: 'bs', log: 'log' };
+function mmQuickHtml() {
+  var p = amPending(), btns = [];
+  AM_QUICKS.forEach(function (q) {
+    if (q[0] === 'msg') { btns.push('<button onclick="' + q[2] + '">' + q[1](p) + '</button>'); return; }
+    if (MM_QMAP[q[0]] && mmAllow(MM_QMAP[q[0]])) btns.push('<button onclick="' + q[2] + '">' + q[1](p) + '</button>');
+  });
+  if (mmAllow('m_demand')) btns.push('<button onclick="amGoSub(\'m_demand\')">' + amIc('clipboard') + 'ডিমান্ড নোট</button>');
+  if (mmAllow('m_genexp')) btns.push('<button onclick="mmGenExpSheet()">' + amIc('receipt') + 'ব্যয় এন্ট্রি</button>');
+  return btns.length ? '<div class="am-h"><span>দ্রুত কাজ</span></div><div class="am-quick">' + btns.join('') + '</div>' : '';
+}
+function mmLiveHomeHtml() {
+  return mmLiveHtml() + '<div style="margin:14px 0 6px"><button type="button" class="am-lo" onclick="amLogoutTap(this)">লগআউট</button></div>';
+}
+
+// ----- ক্যাম্প কার্ড (এডমিন লাইভ ক্যাম্প কার্ডের ডিজাইন + প্রচারের বাটন) -----
 function mmCampsHtml() {
   var up = mmUpcoming();
-  return '<div class="am-h"><span>আসন্ন ক্যাম্প (' + fmt(up.length) + ')</span></div>' + (up.length ? up.map(mmCampCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
+  return '<div class="am-h"><span>আসন্ন (' + fmt(up.length) + ')</span></div>' + (up.length ? up.map(mmPromoCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
 }
-function mmCampCard(s) {
-  var p = s.promo || {}, st = mmPromoState(s), mine = st === 'on' && p.byUser === currentUser.username;
+function mmPromoCard(s) {
+  var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length, ck = s.checklist || {}, cost = mmPreCost(s.id);
+  var st = mmPromoState(s), p = s.promo || {}, mine = st === 'on' && p.byUser === currentUser.username;
   var t = todayStr(), dayTag = s.date === t ? '<span class="am-tag r">আজ</span>' : (s.date === mmDayAdd(1) ? '<span class="am-tag w">আগামীকাল</span>' : '');
-  var tag = st === 'on' ? '<span class="am-tag g"><span class="am-dot" style="width:6px;height:6px"></span> প্রচার অন</span>' : (st === 'done' ? '<span class="am-tag">প্রচার শেষ</span>' : '');
-  var cost = mmPreCost(s.id);
+  var rows = AM_CK.map(function (it) {
+    var on = !!ck[it[0]], v = '';
+    if (it[0] === 'promo') {
+      var okS = function (x) { return '<span style="color:var(--am-ok);font-weight:800">' + x + '</span>'; };
+      var stv = st === 'on' ? okS('<span class="am-dot" style="width:6px;height:6px"></span> অন') : (st === 'done' ? okS('✓ শেষ') : '');
+      v = stv + (cost > 0 ? (stv ? ' ' : '') + '<span style="color:var(--am-warn);font-weight:800">৳ ' + fmt(cost) + '</span>' : '');
+    }
+    return '<label class="am-ckr" style="cursor:default"><input type="checkbox" disabled' + (on ? ' checked' : '') + '><span class="n' + (on ? ' d' : '') + '">' + it[1] + '</span>' + (v ? '<span class="r">' + v + '</span>' : '') + '</label>';
+  }).join('');
   var btns = '';
-  if (mmCan('promo')) {
+  if (mmAllow('promo')) {
     if (st === 'on' && mine) btns += '<button class="am-btn ok" onclick="mmPromoEndAsk(' + s.id + ')">✅ প্রচার শেষ</button><button class="am-btn line" onclick="mmPromoSheet(' + s.id + ')">👥 টিম বদলান</button>';
-    else if (st === 'on') btns += '<div class="am-meta" style="flex:1">অন্য কেউ প্রচারে আছেন</div>';
+    else if (st === 'on') btns += '<div class="am-meta" style="flex:1;margin:0">অন্য কেউ প্রচারে আছেন</div>';
     else if (st === 'done') btns += '<button class="am-btn line" onclick="mmPromoSheet(' + s.id + ')">🔁 আবার প্রচারে যাচ্ছি</button>';
     else btns += '<button class="am-btn pri" onclick="mmPromoSheet(' + s.id + ')">📢 প্রচারে যাচ্ছি</button>';
   }
-  if (mmCan('promoexp')) btns += '<button class="am-btn line" onclick="mmExpSheet(' + s.id + ')">💸 খরচ' + (cost > 0 ? ' · ৳ ' + fmt(cost) : '') + '</button>';
-  return '<div class="am-card' + (st === 'on' ? ' mm-hi' : '') + '"><div class="am-ap-top"><div class="am-ap-t">' + mmEsc(s.name) + '</div><div>' + dayTag + tag + '</div></div>'
-    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + mmEsc(s.location || '—') + '<br>ডাক্তার: ' + mmEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + mmEsc(s.camper || '—') + amPromoLine(s) + '</div>'
-    + (btns ? '<div class="am-btns" style="flex-wrap:wrap">' + btns + '</div>' : '') + '</div>';
+  if (mmAllow('promoexp')) btns += '<button class="am-btn line" onclick="mmExpSheet(' + s.id + ')">💸 খরচ' + (cost > 0 ? ' · ৳ ' + fmt(cost) : '') + '</button>';
+  return '<div class="am-lvc' + (st === 'on' ? ' on' : '') + '" style="--c:' + (st === 'on' ? '#16a34a' : '#b45309') + ';width:100%;box-sizing:border-box;margin-bottom:10px;cursor:default;gap:8px"><span class="bg"></span>'
+    + '<div style="display:flex;gap:10px;align-items:stretch;width:100%">'
+    + '<div style="flex:1;min-width:0"><div class="am-ap-t">' + amEsc(s.name) + ' ' + dayTag + '</div>'
+    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + '<br>ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + amPromoLine(s) + '<br>উপস্থিত অন্যান্য: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট উপস্থিতি ' + fmt(pp.total) + '</b> · ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>'
+    + '<div class="am-ck">' + rows + '</div></div>'
+    + (btns ? '<div class="am-btns" style="width:100%;margin-top:2px;flex-wrap:wrap">' + btns + '</div>' : '') + '</div>';
 }
 
 // ----- প্রচারে যাচ্ছি / শেষ -----
@@ -44791,11 +44829,11 @@ function mmPromoSheet(id) {
 }
 function mmPromoGo(id) {
   var s = mmFind(id); if (!s) return;
-  if (!mmCan('promo')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
+  if (!mmAllow('promo')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
   var p0 = s.promo || {}, wasOn = p0.status === 'on';
   if (wasOn && p0.byUser !== currentUser.username) { showToast('⚠️ আরেকজন আগেই প্রচারে আছেন'); mmCloseSheet(); mmAfter(); return; }
   var team = [];
-  document.querySelectorAll('#mmSheet .mm-pt:checked').forEach(function (c) { team.push(c.value); });
+  document.querySelectorAll('#amSheet .mm-pt:checked').forEach(function (c) { team.push(c.value); });
   (((document.getElementById('mmPtExtra') || {}).value || '').split(/[,،]/)).forEach(function (n) { n = n.trim(); if (n && team.indexOf(n) < 0) team.push(n); });
   s.promo = { status: 'on', by: currentUser.name, byUser: currentUser.username, team: team,
     startedAt: wasOn ? (p0.startedAt || Date.now()) : Date.now(), startedDay: wasOn ? (p0.startedDay || todayStr()) : todayStr(), endedAt: null };
@@ -44816,7 +44854,7 @@ function mmPromoEnd(id) {
   saveData(); showToast('✅ প্রচার শেষ হিসেবে জানানো হয়েছে'); mmAfter();
 }
 
-// ----- প্রচার খরচ (অনুমোদন সাপেক্ষে) -----
+// ----- প্রচার খরচ (নির্দিষ্ট খাত + সাব-ক্যাটাগরি; অনুমোদন সাপেক্ষে) -----
 function mmSubCats(cat) { try { return (appData.settings.expSubCats || {})[fbSafeKey(cat)] || []; } catch (e) { return []; } }
 function mmExpSubChg() {
   var c = (document.getElementById('mmExCat') || {}).value, sel = document.getElementById('mmExSub'); if (!sel) return;
@@ -44846,7 +44884,7 @@ function mmExpSheet(id) {
 }
 function mmExpSave(id) {
   var s = mmFind(id); if (!s) return;
-  if (!mmCan('promoexp')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
+  if (!mmAllow('promoexp')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
   var cat = (document.getElementById('mmExCat') || {}).value, sub = (document.getElementById('mmExSub') || {}).value || '';
   var amt = parseFloat((document.getElementById('mmExAmt') || {}).value), note = ((document.getElementById('mmExNote') || {}).value || '').trim();
   if (!cat || isNaN(amt) || amt <= 0) { showToast('⚠️ খাত ও পরিমাণ আবশ্যক!'); return; }
@@ -44862,113 +44900,7 @@ function mmExpSave(id) {
   mmExpSheet(id); mmAfter();
 }
 
-// ----- ডিমান্ড নোট -----
-var mmDmN = 0;
-function mmDemandHtml() {
-  var mine = (appData.demands || []).filter(function (d) { return d.by === currentUser.name; }).sort(function (a, b) { return b.id - a.id; }).slice(0, 30);
-  var stL = { pending: '<span class="am-tag w">অপেক্ষমাণ</span>', approved: '<span class="am-tag g">অনুমোদিত</span>', rejected: '<span class="am-tag r">প্রত্যাখ্যাত</span>', partial: '<span class="am-tag w">আংশিক</span>' };
-  return '<button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="mmDmForm()">➕ নতুন ডিমান্ড নোট</button>'
-    + '<div class="am-h"><span>আমার ডিমান্ড (' + fmt(mine.length) + ')</span></div>'
-    + (mine.length ? mine.map(function (d) {
-      var items = (d.items || []).slice(0, 3).map(function (i) { return mmEsc(i.name) + ' × ' + mmEsc(i.qty) + ' ' + mmEsc(i.unit || ''); }).join('<br>') + ((d.items || []).length > 3 ? '<br>… আরও ' + fmt(d.items.length - 3) + ' টি' : '');
-      return '<div class="am-card"><div class="am-ap-top"><div class="am-ap-t">' + (d.priority === 'urgent' ? '<span class="am-tag r">জরুরি</span>' : '') + mmEsc(d.title) + '</div><div>' + (stL[d.status] || '') + '</div></div><div class="am-meta">' + formatDate(d.date) + '<br>' + items + (d.adminNote ? '<br><b>এডমিনের নোট:</b> ' + mmEsc(d.adminNote) : '') + '</div></div>';
-    }).join('') : '<div class="am-card am-empty">এখনো কোনো ডিমান্ড পাঠাননি</div>');
-}
-function mmDmRow(i) {
-  var inp = 'border:1.5px solid var(--am-line);border-radius:10px;padding:9px;font-family:inherit;font-size:14px;background:var(--am-bg);color:var(--am-text)';
-  return '<div id="mmDmRow-' + i + '" style="border:1px solid var(--am-line);border-radius:12px;padding:8px;margin-bottom:8px">'
-    + '<div style="display:flex;gap:6px"><input id="mmDmName-' + i + '" placeholder="আইটেম" style="flex:1;min-width:0;' + inp + '"><button type="button" onclick="document.getElementById(\'mmDmRow-' + i + '\').remove()" style="border:0;background:var(--am-badsoft);color:var(--am-bad);border-radius:10px;width:38px">&#10005;</button></div>'
-    + '<div style="display:flex;gap:6px;margin-top:6px"><input id="mmDmQty-' + i + '" type="number" inputmode="decimal" value="1" style="width:90px;' + inp + '"><select id="mmDmUnit-' + i + '" style="flex:1;' + inp + '">' + ['পিস', 'বোতল', 'বক্স', 'প্যাকেট', 'পেয়ার'].map(function (u) { return '<option>' + u + '</option>'; }).join('') + '</select></div></div>';
-}
-function mmDmAdd() { mmDmN++; var d = document.createElement('div'); d.innerHTML = mmDmRow(mmDmN); document.getElementById('mmDmRows').appendChild(d.firstChild); }
-function mmDmForm() {
-  mmDmN = 1;
-  mmOpenSheet('<div class="hd"><b>নতুন ডিমান্ড নোট</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>'
-    + '<div class="am-f"><label>বিষয় (ঐচ্ছিক)</label><input id="mmDmTitle" placeholder="যেমন: প্রচারের পোস্টার ও লিফলেট"></div>'
-    + '<div class="am-f"><label>ধরন</label><select id="mmDmPri"><option value="normal">সাধারণ</option><option value="urgent">জরুরি</option></select></div>'
-    + '<div class="am-f"><label>আইটেম</label><div id="mmDmRows">' + mmDmRow(1) + '</div><button type="button" class="am-btn line" style="width:100%" onclick="mmDmAdd()">+ আইটেম যোগ</button></div>'
-    + '<div class="am-f"><label>নোট</label><textarea id="mmDmNote"></textarea></div>'
-    + '<div class="am-btns"><button class="am-btn line" onclick="mmCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="mmDmSave()">পাঠান</button></div>');
-}
-function mmDmSave() {
-  if (!mmCan('demand')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
-  var items = [];
-  document.querySelectorAll('#mmDmRows > div').forEach(function (row) {
-    var i = row.id.split('-')[1], n = ((document.getElementById('mmDmName-' + i) || {}).value || '').trim();
-    if (n) items.push({ name: n, qty: parseFloat((document.getElementById('mmDmQty-' + i) || {}).value) || 1, unit: (document.getElementById('mmDmUnit-' + i) || {}).value || 'পিস', reason: '' });
-  });
-  if (!items.length) { showToast('⚠️ অন্তত একটি আইটেম লিখুন'); return; }
-  var title = ((document.getElementById('mmDmTitle') || {}).value || '').trim() || (currentUser.name + ' — ডিমান্ড (' + formatDate(todayStr()) + ')');
-  if (!appData.demands) appData.demands = [];
-  appData.demands.push({ id: Date.now(), date: todayStr(), cat: 'অন্যান্য', priority: (document.getElementById('mmDmPri') || {}).value || 'normal', title: title, items: items,
-    note: ((document.getElementById('mmDmNote') || {}).value || '').trim(), status: 'pending', by: currentUser.name, adminNote: '', approvedBy: '', approvedAt: '' });
-  saveData(); mmCloseSheet(); showToast('✅ ডিমান্ড নোট পাঠানো হয়েছে'); mmAfter();
-}
-
-
-// ----- হোমের অতিরিক্ত ফিচার (পিসি ভিউয়ের কাজ; এডমিন অন/অফ করে) -----
-var MM_TILE_NAME = { today: ['📊', 'আজকের আয়-ব্যয়'], due: ['🧾', 'বাকি বিল'], attendance: ['🕘', 'আজকের হাজিরা'], delivery: ['🚚', 'ডেলিভারি'], genexp: ['💸', 'ব্যয় এন্ট্রি'], balance: ['🏦', 'ব্যালেন্স'], stock: ['📦', 'স্টক'] };
-function mmTilesHtml() {
-  var on = MM_HOME_TILES.filter(function (k) { return mmCan(k); }); if (!on.length) return '';
-  return '<div class="am-h"><span>দ্রুত কাজ</span></div><div class="am-quick">' + on.map(function (k) {
-    return '<button onclick="mmTile(\'' + k + '\')"><span>' + MM_TILE_NAME[k][0] + '</span>' + MM_TILE_NAME[k][1] + '</button>';
-  }).join('') + '</div>';
-}
-function mmTile(k) {
-  if (!mmCan(k)) { showToast('⚠️ এই ফিচার বন্ধ আছে'); return; }
-  var b = k === 'today' ? mmTodayBody() : k === 'due' ? mmDueBody() : k === 'attendance' ? mmAttBody() : k === 'delivery' ? mmDlvBody() : k === 'balance' ? mmBalBody() : k === 'stock' ? mmStockBody() : '';
-  if (k === 'genexp') { mmGenExpSheet(); return; }
-  mmOpenSheet('<div class="hd"><b>' + MM_TILE_NAME[k][0] + ' ' + MM_TILE_NAME[k][1] + '</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>' + b);
-}
-function mmTodayBody() {
-  var h = ''; try { h = amTodayIeHtml(); } catch (e) { h = '<div class="am-empty">লোড করা যায়নি</div>'; }
-  return h.replace(/<div class="am-h">.*?<\/div>/, '');
-}
-function mmDueBody() {
-  var all = (appData.visits || []).concat(appData.campVisits || []).filter(function (v) { return (v.due || 0) > 0; }).sort(function (a, b) { return (b.id || 0) - (a.id || 0); });
-  var sum = all.reduce(function (t, v) { return t + (v.due || 0); }, 0);
-  return '<div class="am-grid"><div class="am-stat bad"><div class="l">মোট বাকি</div><div class="v">৳ ' + fmt(sum) + '</div></div><div class="am-stat"><div class="l">জন</div><div class="v">' + fmt(all.length) + '</div></div></div>'
-    + (all.slice(0, 40).map(function (v) {
-      return '<div class="am-card" style="padding:10px 14px"><div class="am-ap-top"><div class="am-ap-t">' + mmEsc(v.patName || '—') + '<div class="am-meta" style="margin:0">' + formatDate(v.date) + (v.patPhone ? ' · ' + mmEsc(v.patPhone) : '') + '</div></div><div class="am-ap-amt" style="color:var(--am-bad)">৳ ' + fmt(v.due || 0) + '</div></div></div>';
-    }).join('') || '<div class="am-card am-empty">কোনো বাকি নেই</div>') + (all.length > 40 ? '<div class="am-meta" style="text-align:center">আরও ' + fmt(all.length - 40) + ' জন…</div>' : '');
-}
-function mmAttBody() {
-  var date = todayStr(), staff = (appData.staff || []).filter(function (s) { return s.status === 'active'; }), c = { w: 0, a: 0, l: 0 };
-  var rows = staff.map(function (s) {
-    var recs = [], lv = null; try { recs = getAttendanceForDate(s.id, date).slice().sort(function (a, b) { return a.ts - b.ts; }); lv = getLeaveForDate(s.id, date); } catch (e) {}
-    var first = recs.filter(function (r) { return r.type === 'in'; })[0], last = recs[recs.length - 1], st;
-    if (lv) { c.l++; st = '<span class="am-tag w">ছুটি</span>'; }
-    else if (!recs.length) { c.a++; st = '<span class="am-tag r">অনুপস্থিত</span>'; }
-    else { c.w++; st = last.type === 'in' ? '<span class="am-tag g">কর্মরত</span>' : '<span class="am-tag">আউট</span>'; }
-    return '<div class="am-row"><span>' + mmEsc(s.name) + '<div class="am-meta" style="margin:0">' + mmEsc(s.desig || '') + (first ? ' · ইন ' + mmEsc(first.time) : '') + (last && last.type === 'out' ? ' · আউট ' + mmEsc(last.time) : '') + '</div></span>' + st + '</div>';
-  }).join('');
-  return '<div class="am-grid"><div class="am-stat ok"><div class="l">উপস্থিত</div><div class="v">' + fmt(c.w) + '</div></div><div class="am-stat bad"><div class="l">অনুপস্থিত</div><div class="v">' + fmt(c.a) + '</div></div></div>'
-    + '<div class="am-card" style="padding:4px 12px">' + (rows || '<div class="am-empty">কোনো সক্রিয় কর্মী নেই</div>') + '</div>' + (c.l ? '<div class="am-meta">ছুটিতে: ' + fmt(c.l) + ' জন</div>' : '');
-}
-function mmDlvBody() {
-  var list = []; try { list = getFilteredDeliveries('pending'); } catch (e) {}
-  var today = todayStr();
-  return (list.slice(0, 40).map(function (d) {
-    var od = d.deliveryDate < today, td = d.deliveryDate === today;
-    var tag = od ? '<span class="am-tag r">তারিখ পেরিয়ে গেছে</span>' : td ? '<span class="am-tag w">আজ</span>' : '<span class="am-tag">অপেক্ষমান</span>';
-    return '<div class="am-card"><div class="am-ap-top"><div class="am-ap-t">' + mmEsc(d.name) + '<div class="am-meta" style="margin:0">' + (d.isGlassOrder ? 'চশমা · ' : '') + mmEsc(d.item || '') + '</div></div><div>' + tag + '</div></div>'
-      + '<div class="am-meta">ডেলিভারি: <b>' + formatDate(d.deliveryDate) + '</b>' + (d.phone ? ' · ' + mmEsc(d.phone) : '') + ((d.due || 0) > 0 ? '<br><span style="color:var(--am-bad);font-weight:700">বাকি ৳ ' + fmt(d.due) + '</span>' : '') + '</div>'
-      + (d.phone ? '<div class="am-btns"><button class="am-btn line" onclick="location.href=\'tel:' + String(d.phone).replace(/[^0-9+]/g, '') + '\'">কল</button></div>' : '') + '</div>';
-  }).join('') || '<div class="am-card am-empty">কোনো অপেক্ষমান অর্ডার নেই</div>') + (list.length > 40 ? '<div class="am-meta" style="text-align:center">আরও ' + fmt(list.length - 40) + ' টি…</div>' : '');
-}
-function mmBalBody() {
-  var b = { cash: 0, bank: 0, mfs: 0, total: 0 }; try { b = amBalances(); } catch (e) {}
-  var m = function (n) { return (n < 0 ? '-' : '') + '৳ ' + fmt(Math.abs(n)); };
-  return '<div class="am-card"><div class="am-row"><span class="k">ক্যাশ</span><span class="v">' + m(b.cash) + '</span></div><div class="am-row"><span class="k">ব্যাংক</span><span class="v">' + m(b.bank) + '</span></div><div class="am-row"><span class="k">মোবাইল ব্যাংকিং</span><span class="v">' + m(b.mfs) + '</span></div><div class="am-row tot"><span>মোট</span><span>' + m(b.total) + '</span></div></div>';
-}
-function mmStockBody() {
-  var l = { low: [], out: [] }; try { l = _recLowStockList(); } catch (e) {}
-  var row = function (s, out) { return '<div class="am-row"><span>' + mmEsc(s.name) + '</span><span class="v" style="color:var(--' + (out ? 'am-bad' : 'am-warn') + ')">' + fmt(s.qty || 0) + ' ' + mmEsc(s.unit || '') + '</span></div>'; };
-  return '<div class="am-card">' + (l.out.length ? '<div class="am-meta" style="margin:0 0 4px"><b>শেষ (' + fmt(l.out.length) + ')</b></div>' + l.out.slice(0, 30).map(function (s) { return row(s, true); }).join('') : '')
-    + (l.low.length ? '<div class="am-meta" style="margin:8px 0 4px"><b>কম (' + fmt(l.low.length) + ')</b></div>' + l.low.slice(0, 30).map(function (s) { return row(s, false); }).join('') : '')
-    + (!l.out.length && !l.low.length ? '<div class="am-empty" style="padding:10px">সব স্টক ঠিক আছে</div>' : '') + '</div>';
-}
-// সাধারণ ব্যয় (অনুমোদন সাপেক্ষে) — ক্যাম্প-ছাড়া
+// ----- সাধারণ ব্যয় এন্ট্রি (অনুমোদন সাপেক্ষে) -----
 function mmGenExpSheet() {
   var cats = []; try { cats = getExpCats(); } catch (e) {}
   mmOpenSheet('<div class="hd"><b>💸 ব্যয় এন্ট্রি</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>'
@@ -44980,7 +44912,7 @@ function mmGenExpSheet() {
     + '<div class="am-btns"><button class="am-btn line" onclick="mmCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="mmGenExpSave()">জমা দিন</button></div>');
 }
 function mmGenExpSave() {
-  if (!mmCan('genexp')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
+  if (!mmAllow('m_genexp')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
   var cat = (document.getElementById('mmGxCat') || {}).value, sub = (document.getElementById('mmGxSub') || {}).value || '';
   var amt = parseFloat((document.getElementById('mmGxAmt') || {}).value), note = ((document.getElementById('mmGxNote') || {}).value || '').trim();
   if (!cat || isNaN(amt) || amt <= 0 || !note) { showToast('⚠️ খাত, পরিমাণ ও নোট আবশ্যক!'); return; }
@@ -44994,20 +44926,40 @@ function mmGenExpSave() {
   saveData(); mmCloseSheet(); showToast('✅ ব্যয় পাঠানো হয়েছে — এডমিনের অনুমোদনের অপেক্ষায়। ভাউচার: ' + voucher); mmAfter();
 }
 
-// ----- আরও -----
-function mmMoreHtml() {
-  var h = '';
-  if (mmCan('stock')) h += '<div class="am-h"><span>স্টক (শুধু দেখা)</span></div>' + mmStockBody();
-  if (mmCan('pcview')) h += '<button class="am-btn line" style="width:100%;margin-bottom:10px" onclick="mmSetUi(\'pc\')">🖥️ পিসি ভিউ</button>';
-  h += '<button class="am-lo" style="margin-top:14px" onclick="mmLogoutTap(this)">লগআউট</button>';
-  return h;
+// ----- ডিমান্ড নোট (এডমিনের ডিমান্ড কার্ডের ডিজাইন) -----
+var mmDmN = 0;
+function mmDemandHtml() {
+  var mine = (appData.demands || []).filter(function (d) { return d.by === currentUser.name; }).sort(function (a, b) { return b.id - a.id; }).slice(0, 30);
+  return '<button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="mmDmForm()">➕ নতুন ডিমান্ড নোট</button>'
+    + '<div class="am-h"><span>আমার ডিমান্ড (' + fmt(mine.length) + ')</span></div>'
+    + (mine.length ? mine.map(function (d) { return amDmCard(d, true) + (d.adminNote ? '<div class="am-meta" style="margin:-4px 4px 10px"><b>এডমিনের নোট:</b> ' + mmEsc(d.adminNote) + '</div>' : ''); }).join('') : '<div class="am-card am-empty">এখনো কোনো ডিমান্ড পাঠাননি</div>');
 }
-function mmLogoutTap(b) {
-  if (b.getAttribute('data-armed') === '1') { mmHide(); doLogout(); return; }
-  b.setAttribute('data-armed', '1'); b.classList.add('armed'); b.textContent = 'আবার চাপুন — লগআউট হবে';
-  setTimeout(function () { if (b && b.isConnected) { b.removeAttribute('data-armed'); b.classList.remove('armed'); b.textContent = 'লগআউট'; } }, 4000);
+function mmDmForm() {
+  mmDmN = 1;
+  mmOpenSheet('<div class="hd"><b>নতুন ডিমান্ড নোট</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>'
+    + '<div class="am-f"><label>বিষয় (ঐচ্ছিক)</label><input id="mmDmTitle" placeholder="যেমন: প্রচারের পোস্টার ও লিফলেট"></div>'
+    + '<div class="am-f"><label>ধরন</label><select id="mmDmPri"><option value="normal">সাধারণ</option><option value="urgent">জরুরি</option></select></div>'
+    + '<div class="am-f"><label>আইটেম</label><div id="mmDmRows">' + amDmRow(1, { qty: 1, unit: 'পিস' }) + '</div><button type="button" class="am-btn line" style="width:100%" onclick="mmDmAdd()">+ আইটেম যোগ</button></div>'
+    + '<div class="am-f"><label>নোট</label><textarea id="mmDmNote"></textarea></div>'
+    + '<div class="am-btns"><button class="am-btn line" onclick="mmCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="mmDmSave()">পাঠান</button></div>');
+}
+function mmDmAdd() { mmDmN++; var d = document.createElement('div'); d.innerHTML = amDmRow(mmDmN, { qty: 1, unit: 'পিস' }); document.getElementById('mmDmRows').appendChild(d.firstChild); }
+function mmDmSave() {
+  if (!mmAllow('m_demand')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
+  var items = [];
+  document.querySelectorAll('#mmDmRows .am-dmrow').forEach(function (row) {
+    var i = row.getAttribute('data-i'), n = ((document.getElementById('amDmName-' + i) || {}).value || '').trim();
+    if (n) items.push({ name: n, qty: parseFloat((document.getElementById('amDmQty-' + i) || {}).value) || 1, unit: (document.getElementById('amDmUnit-' + i) || {}).value || 'পিস', reason: ((document.getElementById('amDmReason-' + i) || {}).value || '').trim() });
+  });
+  if (!items.length) { showToast('⚠️ অন্তত একটি আইটেম লিখুন'); return; }
+  var title = ((document.getElementById('mmDmTitle') || {}).value || '').trim() || (currentUser.name + ' — ডিমান্ড (' + formatDate(todayStr()) + ')');
+  if (!appData.demands) appData.demands = [];
+  appData.demands.push({ id: Date.now(), date: todayStr(), cat: 'অন্যান্য', priority: (document.getElementById('mmDmPri') || {}).value || 'normal', title: title, items: items,
+    note: ((document.getElementById('mmDmNote') || {}).value || '').trim(), status: 'pending', by: currentUser.name, adminNote: '', approvedBy: '', approvedAt: '' });
+  saveData(); mmCloseSheet(); showToast('✅ ডিমান্ড নোট পাঠানো হয়েছে'); mmAfter();
 }
 </script>
+
 
 <div id="adminMobPage">
   <div class="am-top">
@@ -45175,6 +45127,7 @@ function amShow() {
   document.body.classList.add('adm-mob'); amLockViewport(true);
   var pill = document.getElementById('amToMobBtn'); if (pill) pill.classList.remove('show');
   amTab = 'home'; amLastHtml = '';
+  try { var _bi = document.getElementById('amBellIc'); if (_bi && _bi.parentNode && !mmIsMod()) _bi.parentNode.style.display = ''; var _ta = document.getElementById('amTabs'); if (_ta) { _ta.removeAttribute('data-sig'); if (!mmIsMod()) _ta.style.gridTemplateColumns = ''; } } catch (e) {}
   amIcons();
   amRender(true);
   if (amPinCfg() && !amUnlocked) amLockShow(); else amUnlocked = true;
@@ -45207,7 +45160,7 @@ function amSetUi(mode) {
   if (mode === 'mobile') { amShow(); }
   else { amHide(); startApp(); }
 }
-function amGo(t) { amPcvClose(); if (t === 'more') { amMoreOpen(); return; } amTab = t; if (t === 'more') amSub = ''; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
+function amGo(t) { amPcvClose(); if (mmIsMod() && t !== 'home' && t !== 'more' && !mmAllow(t)) { showToast('⚠️ এই ফিচার বন্ধ আছে'); return; } if (t === 'more') { amMoreOpen(); return; } amTab = t; if (t === 'more') amSub = ''; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
 function amSetDay(d) { amDay = d; amLastHtml = ''; amRender(true); }
 function amSetFilter(f) { amFilter = f; amLastHtml = ''; amRender(true); }
 
@@ -45260,7 +45213,8 @@ function amCustody(kind) {
 
 // ----- রেন্ডার -----
 function amRender(force) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'moderator')) return;
+  if (currentUser.role === 'moderator') { mmAmRender(force); return; }   // মডারেটর মোড
   var main = document.getElementById('amMain'); if (!main) return;
   var p = amPending();
   var s = (typeof appData !== 'undefined' && appData.settings) || {};
@@ -45760,7 +45714,7 @@ function amLogoutTap(b) {
 }
 // ===== নিরাপত্তা: PIN লক (এই ডিভাইসে সংরক্ষিত; সার্ভারে যায় না) =====
 var AM_PIN_KEY = 'hms_am_pin', amUnlocked = false, amLastAct = Date.now(), amPinVerifiedAt = 0, amPinFails = 0, amPinLockUntil = 0, amKp = {}, amLockTimer = null;
-function amPinCfg() { try { return JSON.parse(localStorage.getItem(AM_PIN_KEY) || 'null'); } catch (e) { return null; } }
+function amPinCfg() { if (typeof mmIsMod === 'function' && mmIsMod()) return null; try { return JSON.parse(localStorage.getItem(AM_PIN_KEY) || 'null'); } catch (e) { return null; } }
 function amSalt() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 async function amHashPin(pin, salt) {
   try { var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pin)); return 'S' + Array.from(new Uint8Array(b)).map(function (x) { return x.toString(16).padStart(2, '0'); }).join(''); }
@@ -45950,9 +45904,15 @@ function amShareSummary() {
 
 // ===== আরও: সাব-পেজ =====
 var amSub = '', amDepF = 'all', amAttDate = '', amSalM = 0, amSalY = 0, amLogF = 'all', amStockQ = '';
-function amGoSub(n) { if (n !== 'bs' && n !== 'eq' && n !== 'fund') amPcvClose(); if (n === 'rpt') { amOpenReport(); return; } if (n === 'bs' || n === 'eq' || n === 'fund') { amPcOpen(n); return; } amTab = 'more'; amSub = n; amOwnQv = ''; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
+function amGoSub(n) { if (mmIsMod()) { if (!mmAllow(n)) { showToast('⚠️ এই ফিচার বন্ধ আছে'); return; } if (n === 'm_genexp') { mmGenExpSheet(); return; } } if (n !== 'bs' && n !== 'eq' && n !== 'fund') amPcvClose(); if (n === 'rpt') { amOpenReport(); return; } if (n === 'bs' || n === 'eq' || n === 'fund') { amPcOpen(n); return; } amTab = 'more'; amSub = n; amOwnQv = ''; amLastHtml = ''; amRender(true); var m = document.getElementById('amMain'); if (m) m.scrollTop = 0; }
 function amBack() { return ''; }
 function amMoreHtml() {
+  if (mmIsMod()) {
+    if (amSub === 'm_demand' && mmAllow('m_demand')) return mmDemandHtml();
+    if (amSub && !mmAllow(amSub)) amSub = '';
+    if (!amSub) return mmMoreFallback();
+    if (amSub === 'live') return mmLiveHtml();
+  }
   if (amSub === 'dep') return amDepHtml();
   if (amSub === 'att') return amAttHtml();
   if (amSub === 'sal') return amSalHtml();
@@ -47111,7 +47071,7 @@ function amDoXfer() {
 // ===== ওনার প্যানেলের হুবহু ডিজাইনে তালিকা পেজ (buildReadOnlyHTML(feature,'owner')-এর আউটপুটই দেখানো হয়) =====
 var AM_OWN = { o_testfees: 'testfees', stock: 'stock', bank: 'bank', o_loan: 'loan', o_income: 'income', o_expense: 'expense', o_due: 'due', o_today: 'todayEntries' };
 var amOwnQv = '';
-function amOwnActive() { return !!(typeof amTab !== 'undefined' && amTab === 'more' && AM_OWN[amSub] && currentUser && currentUser.role === 'admin' && document.getElementById('adminMobPage') && document.getElementById('adminMobPage').style.display !== 'none'); }
+function amOwnActive() { return !!(typeof amTab !== 'undefined' && amTab === 'more' && AM_OWN[amSub] && currentUser && (currentUser.role === 'admin' || currentUser.role === 'moderator') && document.getElementById('adminMobPage') && document.getElementById('adminMobPage').style.display !== 'none'); }
 function amOwnFilter(v) {
   amOwnQv = v || ''; var q = String(amOwnQv).toLowerCase().trim();
   document.querySelectorAll('#amMain .am-own table tr').forEach(function (tr) {
@@ -47209,6 +47169,8 @@ function amTabsCfg() {
 }
 function amTabsDraw() {
   var box = document.getElementById('amTabs'); if (!box) return;
+  if (mmIsMod()) { mmTabsDraw(); return; }
+  box.style.gridTemplateColumns = '';
   var h = amTabsCfg().map(function (id) {
     if (AM_TAB_BASE[id]) return '<button type="button" data-t="' + id + '" onclick="amGo(\'' + id + '\')"><i class="am-ic" data-ic="' + id + '"></i><span class="am-tl">' + AM_TAB_BASE[id] + '</span>' + (id === 'appr' ? '<em id="amTabN" style="display:none">0</em>' : '') + '</button>';
     return '<button type="button" data-t="s:' + id + '" onclick="amGoSub(\'' + id + '\')"><i class="am-ei">' + AM_MORE_ITEMS[id][0] + '</i><span class="am-tl">' + amEsc(AM_MORE_ITEMS[id][1]) + '</span></button>';
@@ -47246,6 +47208,10 @@ function amMoreGroups() {
   });
   var rest = Object.keys(AM_MORE_ITEMS).filter(function (id) { return !seen[id]; });
   if (rest.length) out.push({ label: '🔧 অন্যান্য', ids: rest });
+  if (mmIsMod()) {   // মডারেটর: এডমিনের অনুমতি দেওয়া ফিচারই, একই ক্যাটাগরিতে
+    out = out.map(function (g) { return { label: g.label, ids: g.ids.filter(mmAllow) }; });
+    out.push({ label: '📢 মডারেটর', ids: Object.keys(MM_EXTRA).filter(mmAllow) });
+  }
   return out.filter(function (g) { return g.ids.length; });
 }
 var amMoreCat = 0;
@@ -47256,14 +47222,14 @@ function amMoreDraw() {
   var c = G[amMoreCat] || { label: 'সব ফিচার', ids: [] };
   var t = document.getElementById('amMoreT'); if (t) t.textContent = c.label;
   var g = document.getElementById('amMoreG');
-  if (g) g.innerHTML = c.ids.map(function (id) { return [id, AM_MORE_ITEMS[id][0], AM_MORE_ITEMS[id][1]]; }).map(function (x) { var on = amTab === 'more' && amSub === x[0]; return '<button type="button" class="am-mi' + (on ? ' on' : '') + '" onclick="amMoreGo(\'' + x[0] + '\')"><i>' + x[1] + '</i><span>' + amEsc(x[2]) + '</span></button>'; }).join('');
+  if (g) g.innerHTML = c.ids.map(function (id) { var it = AM_MORE_ITEMS[id] || MM_EXTRA[id]; return [id, it[0], it[1]]; }).map(function (x) { var on = amTab === 'more' && amSub === x[0]; return '<button type="button" class="am-mi' + (on ? ' on' : '') + '" onclick="amMoreGo(\'' + x[0] + '\')"><i>' + x[1] + '</i><span>' + amEsc(x[2]) + '</span></button>'; }).join('');
   var b = document.getElementById('amMoreC');
   if (b) b.innerHTML = G.map(function (k, i) { return '<button type="button" class="' + (i === amMoreCat ? 'on' : '') + '" onclick="amMoreCatSet(' + i + ')" title="' + amEsc(k.label) + '">' + amGroupIcon(k.label) + '</button>'; }).join('');
 }
 function amMoreCatSet(i) { amMoreCat = i; amMoreDraw(); }
 function amMoreGo(k) {
   amMoreClose();
-  if (k === '_pc') { amSetUi('pc'); return; }
+  if (k === '_pc') { if (mmIsMod()) mmSetUi('pc'); else amSetUi('pc'); return; }
   amGoSub(k);
 }
 
