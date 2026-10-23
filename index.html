@@ -8096,6 +8096,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="rhd-pillwrap">
           <button type="button" class="rhd-notebtn" id="recHomeNoteBtn" onclick="amNoteOpen()" title="এডমিনকে জানান" aria-label="এডমিনকে জানান"><i>&#128227;</i></button>
           <div class="rhd-pill"><b id="recHomePending">০</b><span>আজ করণীয় বাকি</span></div>
+          <button type="button" class="rhd-notebtn rhd-attbtn" id="recHomeAttBtn" style="display:none" onclick="recAttTap()"></button>
         </div>
       </div>
       <div id="recHomeAlert"></div>
@@ -37407,6 +37408,7 @@ function renderRecHome() {
   var gEl = document.getElementById('recHomeGreet'); if (gEl) gEl.textContent = greet;
   var _nb = document.getElementById('recHomeNoteBtn'); if (_nb) _nb.style.display = (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'owner') ? '' : 'none';
   var nEl = document.getElementById('recHomeName'); if (nEl) nEl.textContent = (currentUser && currentUser.name) || '';
+  try { _recAttRender(); } catch(e) { console.warn('[HMS] এটেন্ডেন্স বাটন ব্যর্থ:', e); }
   try { renderRecMsgBox(); } catch(e) { console.warn('[HMS] বার্তা বক্স ব্যর্থ:', e); }
   var dEl = document.getElementById('recHomeDate'); if (dEl) dEl.textContent = '📅 ' + formatDate(today);
   var quickEl = document.getElementById('recHomeQuick');
@@ -39516,6 +39518,64 @@ function _receptionistPresentToday() {
   if (!staff.length) return { known:false, present:true };
   var present = staff.some(function(s){ return getAttendanceForDate(s.id, today).some(function(r){ return r.type==='in'; }); });
   return { known:true, present:present };
+}
+function _recStaffList() {
+  var recNames = (appData.users||[]).filter(function(u){ return u.role==='receptionist'; }).map(function(u){ return u.name; });
+  Object.keys(USERS||{}).forEach(function(k){ var u = USERS[k]; if (u && u.role==='receptionist' && recNames.indexOf(u.name)===-1) recNames.push(u.name); });
+  return (appData.staff||[]).filter(function(s){ return s.status==='active' && (recNames.indexOf(s.name)>-1 || /রিসেপশন/.test(s.desig||'')); });
+}
+function _recAttIsIn(s) {
+  var r = getAttendanceForDate(s.id, todayStr()).slice().sort(function(a,b){ return a.ts-b.ts; });
+  return r.length>0 && r[r.length-1].type==='in';
+}
+function _recAttMe(list) {
+  if (list.length===1) return list[0];
+  var id = ''; try { id = localStorage.getItem('hms_rec_me')||''; } catch(e) {}
+  return list.filter(function(s){ return String(s.id)===id; })[0] || null;
+}
+function _recAttRender() {
+  var btn = document.getElementById('recHomeAttBtn'), nEl = document.getElementById('recHomeName');
+  var list = (currentUser && currentUser.role==='receptionist') ? _recStaffList() : [];
+  if (btn) btn.style.display = 'none';
+  if (!list.length) return;
+  var me = _recAttMe(list), meIn = me ? _recAttIsIn(me) : false;
+  if (list.length>1 && nEl) {
+    nEl.innerHTML = list.map(function(s){ var on = _recAttIsIn(s);
+      return '<button type="button" onclick="recAttPickName('+JSON.stringify(String(s.id)).replace(/"/g,'&quot;')+')" style="font:inherit;font-size:14px;font-weight:'+(on?'800':'600')+';border:1.5px solid '+(on?'#15803d':'#cbd5e1')+';background:'+(on?'#dcfce7':'#fff')+';color:'+(on?'#166534':'#0f4c81')+';border-radius:999px;padding:3px 11px;margin:2px 5px 2px 0;cursor:pointer">'+(on?'● ':'')+String(s.name).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</button>'; }).join('');
+  }
+  if (!btn) return;
+  var anyIn = list.some(_recAttIsIn);
+  var showOut = list.length===1 ? meIn : anyIn;
+  var showIn = list.length===1 && !meIn;
+  if (!showOut && !showIn) return;
+  btn.style.display = 'flex';
+  btn.style.background = showOut ? '#b91c1c' : '#15803d';
+  btn.title = showOut ? 'সাইন আউট' : 'সাইন ইন';
+  btn.setAttribute('aria-label', btn.title);
+  btn.innerHTML = '<i>'+(showOut ? '&#128682;' : '&#9654;&#65039;')+'</i>';
+}
+function recAttPickName(id) {
+  var s = _recStaffList().filter(function(x){ return String(x.id)===String(id); })[0]; if (!s) return;
+  if (_recAttIsIn(s)) { try { localStorage.setItem('hms_rec_me', String(s.id)); } catch(e) {} showToast('ℹ️ '+s.name+' আগেই ইন আছেন'); _recAttRender(); return; }
+  try { localStorage.setItem('hms_rec_me', String(s.id)); } catch(e) {}
+  confirmMarkAttendance(s.id, 'in', todayStr(), 'renderRecHome');
+}
+function recAttTap() {
+  var list = _recStaffList(); if (!list.length) return;
+  var me = _recAttMe(list);
+  if (list.length===1) { confirmMarkAttendance(me.id, _recAttIsIn(me)?'out':'in', todayStr(), 'renderRecHome'); return; }
+  if (me && _recAttIsIn(me)) { confirmMarkAttendance(me.id, 'out', todayStr(), 'renderRecHome'); return; }
+  var ins = list.filter(_recAttIsIn);
+  if (ins.length===1) { confirmMarkAttendance(ins[0].id, 'out', todayStr(), 'renderRecHome'); return; }
+  if (!ins.length) return;
+  var old = document.getElementById('recAttPick'); if (old) old.remove();
+  var w = document.createElement('div'); w.id = 'recAttPick';
+  w.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center';
+  w.onclick = function(e){ if (e.target===w) w.remove(); };
+  w.innerHTML = '<div style="background:#fff;border-radius:14px;padding:16px;min-width:240px;max-width:90vw"><div style="font-weight:800;margin-bottom:10px">কে সাইন আউট করবেন?</div>'
+    + ins.map(function(s){ return '<button type="button" data-id="'+String(s.id).replace(/"/g,'')+'" style="display:block;width:100%;margin-bottom:6px;padding:10px;border:1.5px solid #cbd5e1;background:#fff;border-radius:10px;font:inherit;font-weight:700;cursor:pointer">'+String(s.name).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</button>'; }).join('') + '</div>';
+  document.body.appendChild(w);
+  w.querySelectorAll('button[data-id]').forEach(function(b){ b.onclick = function(){ var id = b.getAttribute('data-id'); w.remove(); try { localStorage.setItem('hms_rec_me', id); } catch(e) {} confirmMarkAttendance(id, 'out', todayStr(), 'renderRecHome'); }; });
 }
 function setNbReceivedBy(v) {
   var h = document.getElementById('nb_ReceivedBy'); if (h) h.value = v;
@@ -45357,6 +45417,7 @@ function amSyncUpdate() {
   var el = document.getElementById('amSync'); if (!el) return;
   var off = (typeof navigator !== 'undefined' && navigator.onLine === false), pend = false; try { pend = hasSyncPending(); } catch (e) {}
   var dc = off ? '#dc2626' : pend ? '#f59e0b' : '#16a34a', dt = off ? 'অফলাইন' : pend ? 'সেভ হচ্ছে' : 'সিঙ্ক ঠিক আছে';
+  if (!off && !pend) { el.innerHTML = ''; return; }
   el.innerHTML = '<span title="' + dt + '" style="width:9px;height:9px;border-radius:50%;background:' + dc + ';display:inline-block;box-shadow:0 0 0 3px ' + dc + '33"></span>';
 }
 
@@ -45829,6 +45890,18 @@ function amLvStaff() {
   });
   return { on: on, recOn: recKnown ? recOn : null };
 }
+function amDesigShort(d) {
+  d = String(d || '').trim(); if (!d) return '';
+  var M = { 'রিসেপশনিস্ট': 'রিসেপ.', 'ক্যাম্পেইনার': 'ক্যাম্পে.', 'ডাক্তার': 'ডাঃ', 'অপটোমেট্রিস্ট': 'অপটো.', 'ম্যানেজার': 'ম্যা.', 'পার্টটাইমার': 'পার্ট.' };
+  if (M[d]) return M[d];
+  var w = d.split(/\s+/)[0];
+  if (w.length <= 6) return w;
+  var cut = 5; while (cut > 2 && /[\u09BE-\u09CD\u09D7\u09BC\u0981-\u0983]/.test(w.charAt(cut))) cut--;
+  if (w.charAt(cut - 1) === '\u09CD') cut--;
+  return w.slice(0, cut) + '.';
+}
+function amLvDesigOf(name) { var x = (appData.staff || []).filter(function (t) { return t.name === name; })[0]; return x ? x.desig : ''; }
+function amLvNm(desig, name) { var d = amDesigShort(desig); return (d ? '<span style="opacity:.7">' + amEsc(d) + '</span> ' : '') + amEsc(name); }
 function amLvNextCamp() {
   return amUpcomingCamps().filter(function (c) { return c.status !== 'active'; })[0] || null;
 }
@@ -45839,23 +45912,23 @@ function amLvTopCards() {
   var recOn = lv.recOn == null ? !!d.recLive : lv.recOn;
   var money = function (v) { return (v < 0 ? '− ' : '') + '৳ ' + fmt(Math.abs(v)); };
   // হাসপাতাল কার্ড
-  var hosp = '<button class="am-lvc' + (recOn ? ' on' : '') + '" style="--c:#0f766e" onclick="amCustody(\'rec\')"><span class="bg"></span>'
+  var hosp = '<button class="am-lvc" style="--c:#0f766e" onclick="amCustody(\'rec\')"><span class="bg"></span>'
     + '<span class="k">🧾 হাসপাতাল' + (recOn ? ' <span class="am-dot"></span>' : '') + '</span>'
     + '<span class="v" style="color:' + (d.recTotal < 0 ? 'var(--am-bad)' : 'var(--am-text)') + '">' + money(d.recTotal) + '</span>'
-    + '<span class="th">' + (lv.on.length ? lv.on.map(function (x) { return amEsc(x.name); }).join(' · ') : 'এখন কেউ উপস্থিত নেই') + '</span></button>';
+    + '<span class="th">' + (lv.on.length ? lv.on.map(function (x) { return amLvNm(x.desig, x.name); }).join(' · ') : 'এখন কেউ উপস্থিত নেই') + '</span></button>';
   // ক্যাম্প কার্ড
   var sess = appData.activeCampSession, camp;
   if (d.campLive && sess) {
-    var ppl = [];
-    if (sess.doctor) ppl.push('ডাঃ ' + sess.doctor);
-    if (sess.by) ppl.push(_baseBy(sess.by));
-    (sess.regularStaff || []).forEach(function (r) { ppl.push(r.name); });
-    (sess.parttimers || []).forEach(function (r) { ppl.push(r.name); });
-    ppl = ppl.filter(function (n, i) { return n && ppl.indexOf(n) === i; });
+    var ppl = [], seen = {};
+    var add = function (dg, nm) { if (!nm || seen[nm]) return; seen[nm] = 1; ppl.push(amLvNm(dg, nm)); };
+    add('ডাঃ', sess.doctor);
+    if (sess.by) add(amLvDesigOf(_baseBy(sess.by)) || 'ক্যাম্পেইনার', _baseBy(sess.by));
+    (sess.regularStaff || []).forEach(function (r) { add(amLvDesigOf(r.name), r.name); });
+    (sess.parttimers || []).forEach(function (r) { add('পার্টটাইমার', r.name); });
     camp = '<button class="am-lvc on" style="--c:#b45309" onclick="amCustody(\'camp\')"><span class="bg"></span>'
       + '<span class="k">🏕️ ' + amEsc(sess.name || 'ক্যাম্প') + ' <span class="am-dot"></span></span>'
       + '<span class="v" style="color:' + (d.campTotal < 0 ? 'var(--am-bad)' : 'var(--am-text)') + '">' + money(d.campTotal) + '</span>'
-      + '<span class="th">' + (ppl.length ? ppl.map(amEsc).join(' · ') : '—') + '</span></button>';
+      + '<span class="th">' + (ppl.length ? ppl.join(' · ') : '—') + '</span></button>';
   } else {
     var lastDep = (appData.camperDeposits || []).slice().sort(function (p, q) { return (q.id || 0) - (p.id || 0); })[0];
     var nx = amLvNextCamp();
@@ -45874,7 +45947,7 @@ function amLvNextOf(list, dateKey) {
 }
 function amLiveHtml() {
   var today = todayStr();
-  var h = amBack() + '<div class="am-h" style="margin-top:0"><span><span class="am-dot"></span> লাইভ · আজ ' + formatDate(today) + '</span><span class="am-meta" style="margin:0">হালনাগাদ ' + amClockNow() + '</span></div>';
+  var h = amBack() + '<div class="am-h" style="margin-top:0"><span>আজ ' + formatDate(today) + '</span><span class="am-meta" style="margin:0">হালনাগাদ ' + amClockNow() + '</span></div>';
   h += amLvTopCards();
   // আজকের আয় ও ব্যয়
   var st = amDayStats(today);
