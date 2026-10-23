@@ -44569,8 +44569,32 @@ var MM_MODS = [
   ['promoexp', '💸', 'প্রচার খরচ এন্ট্রি', 'প্রি-ক্যাম্প খরচ লেখা — এডমিনের অনুমোদন না পাওয়া পর্যন্ত হিসাবে ধরা হবে না', false],
   ['demand', '📋', 'ডিমান্ড নোট', 'নতুন ডিমান্ড পাঠানো ও নিজের ডিমান্ডের অবস্থা দেখা', true],
   ['stock', '📦', 'স্টক দেখা', 'কম ও শেষ হওয়া স্টকের তালিকা (শুধু দেখা)', false],
+  ['today', '📊', 'আজকের আয়-ব্যয়', 'আজকের আয় ও ব্যয়ের তালিকা (শুধু দেখা)', true],
+  ['due', '🧾', 'বাকি বিলের তালিকা', 'যাদের বাকি আছে তাদের তালিকা ও মোট বাকি (শুধু দেখা)', true],
+  ['attendance', '🕘', 'আজকের হাজিরা', 'কর্মরত / অনুপস্থিত / ছুটির তালিকা (শুধু দেখা)', true],
+  ['delivery', '🚚', 'ডেলিভারি শিডিউল', 'অপেক্ষমান ডেলিভারি অর্ডার ও কল বাটন (শুধু দেখা)', true],
+  ['genexp', '💸', 'সাধারণ ব্যয় এন্ট্রি', 'যেকোনো খাতে ব্যয় লেখা — এডমিনের অনুমোদন সাপেক্ষে', false],
+  ['balance', '🏦', 'ক্যাশ/ব্যাংক ব্যালেন্স', 'বর্তমান ক্যাশ, ব্যাংক ও মোবাইল ব্যাংকিং ব্যালেন্স (শুধু দেখা)', false],
   ['pcview', '🖥️', 'পিসি ভিউয়ে যাওয়া', 'আরও মেনুতে "পিসি ভিউ" বাটন', true]
 ];
+var MM_HOME_TILES = ['today', 'due', 'attendance', 'delivery', 'genexp', 'balance', 'stock'];
+// প্রচার খরচের নির্দিষ্ট খাত: এডমিনের বেছে দেওয়া, নইলে "প্রি-ক্যাম্প" নামের খাত খুঁজে নেয়
+function mmPreCat() {
+  var cats = []; try { cats = getExpCats(); } catch (e) {}
+  var c = mmCfg().preCat;
+  if (c && cats.indexOf(c) >= 0) return c;
+  return cats.filter(function (x) { return /প্রি.?ক্যাম্প/.test(x); })[0] || '';
+}
+function mmCfgPreCat(v) { mmCfgSave(function (c) { c.preCat = v || ''; }); try { amLastHtml = ''; amRender(true); } catch (e) {} }
+function mmPreCatSelHtml(amStyle) {
+  var cats = []; try { cats = getExpCats(); } catch (e) {}
+  var cur = mmPreCat(), saved = mmCfg().preCat || '';
+  var opts = '<option value="">স্বয়ংক্রিয় (প্রি-ক্যাম্প নামের খাত)</option>' + cats.map(function (c) { return '<option' + (c === saved ? ' selected' : '') + '>' + amEsc(c) + '</option>'; }).join('');
+  var note = cur ? 'এখন ব্যবহৃত খাত: ' + amEsc(cur) : 'প্রি-ক্যাম্প নামের কোনো খাত পাওয়া যায়নি — মডারেটর সব খাত দেখবে। খাত বেছে দিন।';
+  return amStyle
+    ? '<div class="am-card"><b style="font-size:14px">প্রচার খরচের নির্দিষ্ট খাত</b><div class="am-f" style="margin:8px 0 4px"><select onchange="mmCfgPreCat(this.value)">' + opts + '</select></div><div class="am-meta" style="margin:0">' + note + '</div></div>'
+    : '<div style="margin:8px 0;padding:6px 0"><b style="font-size:13px">প্রচার খরচের নির্দিষ্ট খাত</b><br><select onchange="mmCfgPreCat(this.value)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;margin-top:4px">' + opts + '</select><div style="font-size:11px;color:var(--text-light);margin-top:3px">' + note + '</div></div>';
+}
 function mmCfg() { var s = (typeof appData !== 'undefined' && appData.settings) || {}; return s.modMob || {}; }
 function mmOn() { return mmCfg().on !== false; }
 function mmCan(k) {
@@ -44594,7 +44618,7 @@ function mmCfgMasterToggle() { mmCfgMaster(!mmOn()); try { amLastHtml = ''; amRe
 function mmCfgAmHtml() {
   var h = '<div class="am-h" style="margin-top:14px"><span>মডারেটর মোবাইল ভিউ</span></div>'
     + '<div class="am-card" style="padding:10px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1"><b style="font-size:14px">মডারেটরের মোবাইল ভিউ</b><div class="am-meta" style="margin:2px 0 0">বন্ধ থাকলে মডারেটর সবসময় আগের পুরো প্যানেল পাবে</div></span><button class="am-chip' + (mmOn() ? ' on' : '') + '" onclick="mmCfgMasterToggle()">' + (mmOn() ? 'চালু' : 'বন্ধ') + '</button></div>';
-  return h + MM_MODS.map(function (m) {
+  return h + mmPreCatSelHtml(true) + MM_MODS.map(function (m) {
     var on = mmCan(m[0]);
     return '<div class="am-card" style="padding:8px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1;min-width:0"><b style="font-size:14px">' + m[1] + ' ' + m[2] + '</b><div class="am-meta" style="margin:2px 0 0">' + m[3] + '</div></span><button class="am-chip' + (on ? ' on' : '') + '" onclick="mmCfgToggle(\'' + m[0] + '\')">' + (on ? 'দেওয়া আছে' : 'বন্ধ') + '</button></div>';
   }).join('');
@@ -44605,7 +44629,7 @@ function mmCfgPcHtml() {
     + '<p style="font-weight:700;font-size:13px;color:var(--primary);margin-bottom:4px">📱 মডারেটর মোবাইল ভিউ — অ্যাক্সেস</p>'
     + '<p style="font-size:11px;color:var(--text-light);margin-bottom:10px">মডারেটর মোবাইলে লগইন করলে কী কী দেখবে ও করতে পারবে তা এখানে ঠিক করুন। টিক বদলালেই সাথে সাথে সেভ হয়।</p>'
     + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;padding:5px 0;cursor:pointer"><input type="checkbox" ' + (mmOn() ? 'checked' : '') + ' onchange="mmCfgMaster(this.checked)" style="width:15px;height:15px">মডারেটরের জন্য মোবাইল ভিউ চালু (বন্ধ করলে মোবাইলেও আগের প্যানেল)</label>'
-    + MM_MODS.map(function (m) {
+    + mmPreCatSelHtml(false) + MM_MODS.map(function (m) {
       return '<label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f0f4f8;cursor:pointer"><input type="checkbox" ' + (mmCan(m[0]) ? 'checked' : '') + ' onchange="mmCfgSet(\'' + m[0] + '\',this.checked)" style="width:15px;height:15px;margin-top:2px"><span><b>' + m[1] + ' ' + m[2] + '</b><br><span style="font-size:11px;color:var(--text-light)">' + m[3] + '</span></span></label>';
     }).join('') + '</div>';
 }
@@ -44717,6 +44741,7 @@ function mmRender(force) {
 function mmHomeHtml() {
   var up = mmUpcoming(), onN = up.filter(function (s) { return mmPromoState(s) === 'on'; }).length;
   var h = '<div class="am-grid"><div class="am-stat' + (onN ? ' ok' : '') + '"><div class="l">প্রচার চলছে</div><div class="v">' + fmt(onN) + '</div></div><div class="am-stat"><div class="l">আসন্ন ক্যাম্প</div><div class="v">' + fmt(up.length) + '</div></div></div>';
+  h += mmTilesHtml();
   if (mmCanCamps()) {
     h += '<div class="am-h"><span>নিকটতম ক্যাম্প</span><a onclick="mmGo(\'camps\')">সব দেখুন</a></div>'
       + (up.length ? up.slice(0, 3).map(mmCampCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
@@ -44792,18 +44817,28 @@ function mmPromoEnd(id) {
 }
 
 // ----- প্রচার খরচ (অনুমোদন সাপেক্ষে) -----
+function mmSubCats(cat) { try { return (appData.settings.expSubCats || {})[fbSafeKey(cat)] || []; } catch (e) { return []; } }
+function mmExpSubChg() {
+  var c = (document.getElementById('mmExCat') || {}).value, sel = document.getElementById('mmExSub'); if (!sel) return;
+  var subs = mmSubCats(c);
+  sel.innerHTML = '<option value="">-- সাব-ক্যাটাগরি বেছে নিন' + (subs.length ? ' *' : '') + ' --</option>' + subs.map(function (x) { return '<option>' + mmEsc(x) + '</option>'; }).join('');
+}
 function mmExpSheet(id) {
   var s = mmFind(id); if (!s) return;
   var cats = []; try { cats = getExpCats(); } catch (e) {}
-  var def = cats.filter(function (c) { return /প্রচার/.test(c); })[0] || '';
-  var opts = '<option value="">-- খাত বেছে নিন --</option>' + cats.map(function (c) { return '<option' + (c === def ? ' selected' : '') + '>' + mmEsc(c) + '</option>'; }).join('');
+  var fixed = mmPreCat();
+  var catField = fixed
+    ? '<div class="am-f"><label>খাত</label><input id="mmExCat" value="' + mmEsc(fixed) + '" readonly style="opacity:.85"></div>'
+    : '<div class="am-f"><label>খাত * <span style="font-weight:400">(প্রি-ক্যাম্প খাত নেই — এডমিনকে জানান)</span></label><select id="mmExCat" onchange="mmExpSubChg()"><option value="">-- খাত বেছে নিন --</option>' + cats.map(function (c) { return '<option>' + mmEsc(c) + '</option>'; }).join('') + '</select></div>';
+  var subs = fixed ? mmSubCats(fixed) : [];
   var list = (appData.expense || []).filter(function (e) { return e.campId === s.id && e.preCamp; }).sort(function (a, b) { return b.id - a.id; }).slice(0, 8).map(function (e) {
     var tg = e.rejected ? '<span class="am-tag r">বাতিল</span>' : (e.status === 'pending' ? '<span class="am-tag w">অনুমোদনের অপেক্ষায়</span>' : '<span class="am-tag g">অনুমোদিত</span>');
-    return '<div class="am-row"><span>' + mmEsc(e.category) + ' ' + tg + '</span><span class="v">৳ ' + fmt(e.amount) + '</span></div>';
+    return '<div class="am-row"><span>' + mmEsc(e.subCategory || e.category) + ' ' + tg + '</span><span class="v">৳ ' + fmt(e.amount) + '</span></div>';
   }).join('');
   mmOpenSheet('<div class="hd"><b>প্রচার খরচ</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>'
     + '<div class="am-meta" style="margin-bottom:10px"><b>' + mmEsc(s.name) + '</b> · ' + formatDate(s.date) + '<br>এডমিন অনুমোদন না করা পর্যন্ত এই খরচ হিসাবে ধরা হবে না।</div>'
-    + '<div class="am-f"><label>খাত *</label><select id="mmExCat">' + opts + '</select></div>'
+    + catField
+    + '<div class="am-f"><label>সাব-ক্যাটাগরি' + (subs.length ? ' *' : '') + '</label><select id="mmExSub"><option value="">-- সাব-ক্যাটাগরি বেছে নিন' + (subs.length ? ' *' : '') + ' --</option>' + subs.map(function (x) { return '<option>' + mmEsc(x) + '</option>'; }).join('') + '</select></div>'
     + '<div class="am-f"><label>পরিমাণ (৳) *</label><input type="number" inputmode="numeric" id="mmExAmt" placeholder="০"></div>'
     + '<div class="am-f"><label>নোট</label><input id="mmExNote" placeholder="যেমন: মাইকিং, পোস্টার"></div>'
     + '<div class="am-btns"><button class="am-btn line" onclick="mmCloseSheet()">বন্ধ</button><button class="am-btn pri" onclick="mmExpSave(' + s.id + ')">জমা দিন</button></div>'
@@ -44812,15 +44847,17 @@ function mmExpSheet(id) {
 function mmExpSave(id) {
   var s = mmFind(id); if (!s) return;
   if (!mmCan('promoexp')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
-  var cat = (document.getElementById('mmExCat') || {}).value, amt = parseFloat((document.getElementById('mmExAmt') || {}).value), note = ((document.getElementById('mmExNote') || {}).value || '').trim();
+  var cat = (document.getElementById('mmExCat') || {}).value, sub = (document.getElementById('mmExSub') || {}).value || '';
+  var amt = parseFloat((document.getElementById('mmExAmt') || {}).value), note = ((document.getElementById('mmExNote') || {}).value || '').trim();
   if (!cat || isNaN(amt) || amt <= 0) { showToast('⚠️ খাত ও পরিমাণ আবশ্যক!'); return; }
+  if (mmSubCats(cat).length && !sub) { showToast('⚠️ সাব-ক্যাটাগরি বেছে নিন'); return; }
   var date = todayStr(), voucher = ensureUniqueVoucher(generateNextVoucherNo(date), date);
   if (!appData.expense) appData.expense = [];
-  appData.expense.push({ id: Date.now(), date: date, category: cat, subCategory: '', amount: amt, voucher: voucher,
+  appData.expense.push({ id: Date.now(), date: date, category: cat, subCategory: sub, amount: amt, voucher: voucher,
     note: (note ? note + ' — ' : '') + 'প্রি-ক্যাম্প খরচ: ' + s.name + ', ' + s.location,
     payMode: 'cash', payPerson: '', checkNo: '', checkbookId: '', clearDate: date, status: 'pending', actualClearedDate: '', mfsAccountId: '',
     by: currentUser.name, campId: s.id, preCamp: true, needsApproval: true, rejected: false, rejectionReason: '', approvalRequestedAt: Date.now() });
-  try { logActivity('add', 'প্রি-ক্যাম্প খরচ', s.name + ' — ' + cat + ': ৳' + fmt(amt) + ' (' + voucher + ') — অনুমোদনের অপেক্ষায়'); } catch (e) {}
+  try { logActivity('add', 'প্রি-ক্যাম্প খরচ', s.name + ' — ' + cat + (sub ? ' / ' + sub : '') + ': ৳' + fmt(amt) + ' (' + voucher + ') — অনুমোদনের অপেক্ষায়'); } catch (e) {}
   saveData(); showToast('✅ খরচ পাঠানো হয়েছে — এডমিনের অনুমোদনের অপেক্ষায়। ভাউচার: ' + voucher);
   mmExpSheet(id); mmAfter();
 }
@@ -44868,17 +44905,99 @@ function mmDmSave() {
   saveData(); mmCloseSheet(); showToast('✅ ডিমান্ড নোট পাঠানো হয়েছে'); mmAfter();
 }
 
+
+// ----- হোমের অতিরিক্ত ফিচার (পিসি ভিউয়ের কাজ; এডমিন অন/অফ করে) -----
+var MM_TILE_NAME = { today: ['📊', 'আজকের আয়-ব্যয়'], due: ['🧾', 'বাকি বিল'], attendance: ['🕘', 'আজকের হাজিরা'], delivery: ['🚚', 'ডেলিভারি'], genexp: ['💸', 'ব্যয় এন্ট্রি'], balance: ['🏦', 'ব্যালেন্স'], stock: ['📦', 'স্টক'] };
+function mmTilesHtml() {
+  var on = MM_HOME_TILES.filter(function (k) { return mmCan(k); }); if (!on.length) return '';
+  return '<div class="am-h"><span>দ্রুত কাজ</span></div><div class="am-quick">' + on.map(function (k) {
+    return '<button onclick="mmTile(\'' + k + '\')"><span>' + MM_TILE_NAME[k][0] + '</span>' + MM_TILE_NAME[k][1] + '</button>';
+  }).join('') + '</div>';
+}
+function mmTile(k) {
+  if (!mmCan(k)) { showToast('⚠️ এই ফিচার বন্ধ আছে'); return; }
+  var b = k === 'today' ? mmTodayBody() : k === 'due' ? mmDueBody() : k === 'attendance' ? mmAttBody() : k === 'delivery' ? mmDlvBody() : k === 'balance' ? mmBalBody() : k === 'stock' ? mmStockBody() : '';
+  if (k === 'genexp') { mmGenExpSheet(); return; }
+  mmOpenSheet('<div class="hd"><b>' + MM_TILE_NAME[k][0] + ' ' + MM_TILE_NAME[k][1] + '</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>' + b);
+}
+function mmTodayBody() {
+  var h = ''; try { h = amTodayIeHtml(); } catch (e) { h = '<div class="am-empty">লোড করা যায়নি</div>'; }
+  return h.replace(/<div class="am-h">.*?<\/div>/, '');
+}
+function mmDueBody() {
+  var all = (appData.visits || []).concat(appData.campVisits || []).filter(function (v) { return (v.due || 0) > 0; }).sort(function (a, b) { return (b.id || 0) - (a.id || 0); });
+  var sum = all.reduce(function (t, v) { return t + (v.due || 0); }, 0);
+  return '<div class="am-grid"><div class="am-stat bad"><div class="l">মোট বাকি</div><div class="v">৳ ' + fmt(sum) + '</div></div><div class="am-stat"><div class="l">জন</div><div class="v">' + fmt(all.length) + '</div></div></div>'
+    + (all.slice(0, 40).map(function (v) {
+      return '<div class="am-card" style="padding:10px 14px"><div class="am-ap-top"><div class="am-ap-t">' + mmEsc(v.patName || '—') + '<div class="am-meta" style="margin:0">' + formatDate(v.date) + (v.patPhone ? ' · ' + mmEsc(v.patPhone) : '') + '</div></div><div class="am-ap-amt" style="color:var(--am-bad)">৳ ' + fmt(v.due || 0) + '</div></div></div>';
+    }).join('') || '<div class="am-card am-empty">কোনো বাকি নেই</div>') + (all.length > 40 ? '<div class="am-meta" style="text-align:center">আরও ' + fmt(all.length - 40) + ' জন…</div>' : '');
+}
+function mmAttBody() {
+  var date = todayStr(), staff = (appData.staff || []).filter(function (s) { return s.status === 'active'; }), c = { w: 0, a: 0, l: 0 };
+  var rows = staff.map(function (s) {
+    var recs = [], lv = null; try { recs = getAttendanceForDate(s.id, date).slice().sort(function (a, b) { return a.ts - b.ts; }); lv = getLeaveForDate(s.id, date); } catch (e) {}
+    var first = recs.filter(function (r) { return r.type === 'in'; })[0], last = recs[recs.length - 1], st;
+    if (lv) { c.l++; st = '<span class="am-tag w">ছুটি</span>'; }
+    else if (!recs.length) { c.a++; st = '<span class="am-tag r">অনুপস্থিত</span>'; }
+    else { c.w++; st = last.type === 'in' ? '<span class="am-tag g">কর্মরত</span>' : '<span class="am-tag">আউট</span>'; }
+    return '<div class="am-row"><span>' + mmEsc(s.name) + '<div class="am-meta" style="margin:0">' + mmEsc(s.desig || '') + (first ? ' · ইন ' + mmEsc(first.time) : '') + (last && last.type === 'out' ? ' · আউট ' + mmEsc(last.time) : '') + '</div></span>' + st + '</div>';
+  }).join('');
+  return '<div class="am-grid"><div class="am-stat ok"><div class="l">উপস্থিত</div><div class="v">' + fmt(c.w) + '</div></div><div class="am-stat bad"><div class="l">অনুপস্থিত</div><div class="v">' + fmt(c.a) + '</div></div></div>'
+    + '<div class="am-card" style="padding:4px 12px">' + (rows || '<div class="am-empty">কোনো সক্রিয় কর্মী নেই</div>') + '</div>' + (c.l ? '<div class="am-meta">ছুটিতে: ' + fmt(c.l) + ' জন</div>' : '');
+}
+function mmDlvBody() {
+  var list = []; try { list = getFilteredDeliveries('pending'); } catch (e) {}
+  var today = todayStr();
+  return (list.slice(0, 40).map(function (d) {
+    var od = d.deliveryDate < today, td = d.deliveryDate === today;
+    var tag = od ? '<span class="am-tag r">তারিখ পেরিয়ে গেছে</span>' : td ? '<span class="am-tag w">আজ</span>' : '<span class="am-tag">অপেক্ষমান</span>';
+    return '<div class="am-card"><div class="am-ap-top"><div class="am-ap-t">' + mmEsc(d.name) + '<div class="am-meta" style="margin:0">' + (d.isGlassOrder ? 'চশমা · ' : '') + mmEsc(d.item || '') + '</div></div><div>' + tag + '</div></div>'
+      + '<div class="am-meta">ডেলিভারি: <b>' + formatDate(d.deliveryDate) + '</b>' + (d.phone ? ' · ' + mmEsc(d.phone) : '') + ((d.due || 0) > 0 ? '<br><span style="color:var(--am-bad);font-weight:700">বাকি ৳ ' + fmt(d.due) + '</span>' : '') + '</div>'
+      + (d.phone ? '<div class="am-btns"><button class="am-btn line" onclick="location.href=\'tel:' + String(d.phone).replace(/[^0-9+]/g, '') + '\'">কল</button></div>' : '') + '</div>';
+  }).join('') || '<div class="am-card am-empty">কোনো অপেক্ষমান অর্ডার নেই</div>') + (list.length > 40 ? '<div class="am-meta" style="text-align:center">আরও ' + fmt(list.length - 40) + ' টি…</div>' : '');
+}
+function mmBalBody() {
+  var b = { cash: 0, bank: 0, mfs: 0, total: 0 }; try { b = amBalances(); } catch (e) {}
+  var m = function (n) { return (n < 0 ? '-' : '') + '৳ ' + fmt(Math.abs(n)); };
+  return '<div class="am-card"><div class="am-row"><span class="k">ক্যাশ</span><span class="v">' + m(b.cash) + '</span></div><div class="am-row"><span class="k">ব্যাংক</span><span class="v">' + m(b.bank) + '</span></div><div class="am-row"><span class="k">মোবাইল ব্যাংকিং</span><span class="v">' + m(b.mfs) + '</span></div><div class="am-row tot"><span>মোট</span><span>' + m(b.total) + '</span></div></div>';
+}
+function mmStockBody() {
+  var l = { low: [], out: [] }; try { l = _recLowStockList(); } catch (e) {}
+  var row = function (s, out) { return '<div class="am-row"><span>' + mmEsc(s.name) + '</span><span class="v" style="color:var(--' + (out ? 'am-bad' : 'am-warn') + ')">' + fmt(s.qty || 0) + ' ' + mmEsc(s.unit || '') + '</span></div>'; };
+  return '<div class="am-card">' + (l.out.length ? '<div class="am-meta" style="margin:0 0 4px"><b>শেষ (' + fmt(l.out.length) + ')</b></div>' + l.out.slice(0, 30).map(function (s) { return row(s, true); }).join('') : '')
+    + (l.low.length ? '<div class="am-meta" style="margin:8px 0 4px"><b>কম (' + fmt(l.low.length) + ')</b></div>' + l.low.slice(0, 30).map(function (s) { return row(s, false); }).join('') : '')
+    + (!l.out.length && !l.low.length ? '<div class="am-empty" style="padding:10px">সব স্টক ঠিক আছে</div>' : '') + '</div>';
+}
+// সাধারণ ব্যয় (অনুমোদন সাপেক্ষে) — ক্যাম্প-ছাড়া
+function mmGenExpSheet() {
+  var cats = []; try { cats = getExpCats(); } catch (e) {}
+  mmOpenSheet('<div class="hd"><b>💸 ব্যয় এন্ট্রি</b><button class="x" onclick="mmCloseSheet()">&#10005;</button></div>'
+    + '<div class="am-meta" style="margin-bottom:10px">এডমিন অনুমোদন না করা পর্যন্ত এই ব্যয় হিসাবে ধরা হবে না।</div>'
+    + '<div class="am-f"><label>খাত *</label><select id="mmGxCat" onchange="var sb=document.getElementById(\'mmGxSub\'),su=mmSubCats(this.value);sb.innerHTML=\'<option value=\\\'\\\'>-- সাব-ক্যাটাগরি --</option>\'+su.map(function(x){return \'<option>\'+mmEsc(x)+\'</option>\'}).join(\'\')"><option value="">-- খাত বেছে নিন --</option>' + cats.map(function (c) { return '<option>' + mmEsc(c) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="am-f"><label>সাব-ক্যাটাগরি</label><select id="mmGxSub"><option value="">-- সাব-ক্যাটাগরি --</option></select></div>'
+    + '<div class="am-f"><label>পরিমাণ (৳) *</label><input type="number" inputmode="numeric" id="mmGxAmt" placeholder="০"></div>'
+    + '<div class="am-f"><label>নোট *</label><input id="mmGxNote" placeholder="কী বাবদ খরচ"></div>'
+    + '<div class="am-btns"><button class="am-btn line" onclick="mmCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="mmGenExpSave()">জমা দিন</button></div>');
+}
+function mmGenExpSave() {
+  if (!mmCan('genexp')) { showToast('⚠️ এই কাজের অনুমতি নেই'); return; }
+  var cat = (document.getElementById('mmGxCat') || {}).value, sub = (document.getElementById('mmGxSub') || {}).value || '';
+  var amt = parseFloat((document.getElementById('mmGxAmt') || {}).value), note = ((document.getElementById('mmGxNote') || {}).value || '').trim();
+  if (!cat || isNaN(amt) || amt <= 0 || !note) { showToast('⚠️ খাত, পরিমাণ ও নোট আবশ্যক!'); return; }
+  if (mmSubCats(cat).length && !sub) { showToast('⚠️ সাব-ক্যাটাগরি বেছে নিন'); return; }
+  var date = todayStr(), voucher = ensureUniqueVoucher(generateNextVoucherNo(date), date);
+  if (!appData.expense) appData.expense = [];
+  appData.expense.push({ id: Date.now(), date: date, category: cat, subCategory: sub, amount: amt, voucher: voucher, note: note,
+    payMode: 'cash', payPerson: '', checkNo: '', checkbookId: '', clearDate: date, status: 'pending', actualClearedDate: '', mfsAccountId: '',
+    by: currentUser.name, needsApproval: true, rejected: false, rejectionReason: '', approvalRequestedAt: Date.now() });
+  try { logActivity('add', 'মডারেটর ব্যয়', cat + (sub ? ' / ' + sub : '') + ': ৳' + fmt(amt) + ' (' + voucher + ') — অনুমোদনের অপেক্ষায়'); } catch (e) {}
+  saveData(); mmCloseSheet(); showToast('✅ ব্যয় পাঠানো হয়েছে — এডমিনের অনুমোদনের অপেক্ষায়। ভাউচার: ' + voucher); mmAfter();
+}
+
 // ----- আরও -----
 function mmMoreHtml() {
   var h = '';
-  if (mmCan('stock')) {
-    var l = { low: [], out: [] }; try { l = _recLowStockList(); } catch (e) {}
-    var row = function (s, out) { return '<div class="am-row"><span>' + mmEsc(s.name) + '</span><span class="v" style="color:var(--' + (out ? 'am-bad' : 'am-warn') + ')">' + fmt(s.qty || 0) + ' ' + mmEsc(s.unit || '') + '</span></div>'; };
-    h += '<div class="am-h"><span>স্টক (শুধু দেখা)</span></div><div class="am-card">'
-      + (l.out.length ? '<div class="am-meta" style="margin:0 0 4px"><b>শেষ (' + fmt(l.out.length) + ')</b></div>' + l.out.slice(0, 30).map(function (s) { return row(s, true); }).join('') : '')
-      + (l.low.length ? '<div class="am-meta" style="margin:8px 0 4px"><b>কম (' + fmt(l.low.length) + ')</b></div>' + l.low.slice(0, 30).map(function (s) { return row(s, false); }).join('') : '')
-      + (!l.out.length && !l.low.length ? '<div class="am-empty" style="padding:10px">সব স্টক ঠিক আছে</div>' : '') + '</div>';
-  }
+  if (mmCan('stock')) h += '<div class="am-h"><span>স্টক (শুধু দেখা)</span></div>' + mmStockBody();
   if (mmCan('pcview')) h += '<button class="am-btn line" style="width:100%;margin-bottom:10px" onclick="mmSetUi(\'pc\')">🖥️ পিসি ভিউ</button>';
   h += '<button class="am-lo" style="margin-top:14px" onclick="mmLogoutTap(this)">লগআউট</button>';
   return h;
@@ -46507,7 +46626,7 @@ var AM_TG_TYPES = [['exp', '💸 ব্যয় অনুমোদনের অ
   ['audit', '🛡️ সংবেদনশীল কাজ — অ্যাডমিন ছাড়া কেউ আয়/ব্যয়/স্টক/অগ্রিম বেতন ইত্যাদি মুছলে বা বদলালে, বাকি মওকুফ হলে'],
   ['close', '🔒 রিসেপশন "দিন বন্ধ" করলে'],
   ['cdep', '🏕️ ক্যাম্পেইনারের ক্যাশ জমা (অমিলসহ)'], ['cexp', '🏕️ ক্যাম্পের প্রতিটা খরচের এন্ট্রি'],
-  ['note', '📣 রিসেপশন/ক্যাম্পেইনারের "এডমিনকে জানান" বার্তা'],
+  ['note', '📣 রিসেপশন/ক্যাম্পেইনারের "এডমিনকে জানান" বার্তা'], ['promo', '📢 ক্যাম্প প্রচার শুরু/শেষ (মডারেটরের মোবাইল ভিউ থেকে)'],
   ['sum', '🌙 দিনশেষ সামারি — রিসেপশনের সব এন্ট্রি ও বিল'],
   ['attin', '🟢 কর্মীর উপস্থিতি (ইন করলে সময়সহ)'], ['late', '⏰ দেরিতে আসা (শুধু দেরি হলে)'], ['early', '🚪 ডিউটি শেষের আগে বেরিয়ে যাওয়া'],
   ['camp', '🏕️ মেয়াদোত্তীর্ণ ক্যাম্প']];
@@ -46636,6 +46755,14 @@ function amTgCandidates(cfg) {
   }
   (appData.adminNotes || []).forEach(function (n) {
     add('note', 'an' + n.id, amTgEvTs(n), '📣 ' + (roleLab[n.role] || 'কর্মী') + ' ' + amTgClean(n.by || '') + ' এডমিনকে জানিয়েছেন:\n' + amTgClean(n.text).slice(0, 300));
+  });
+  // 📢 মডারেটরের প্রচার শুরু/শেষ (campSchedules[].promo)
+  (appData.campSchedules || []).forEach(function (sc) {
+    var pr = sc && sc.promo; if (!pr) return;
+    var who = amTgClean(pr.by || 'মডারেটর') + ((pr.team || []).length ? ' + ' + amTgClean((pr.team || []).join(', ')) : '');
+    var head = amTgClean(sc.name) + (sc.location ? ' — ' + amTgClean(sc.location) : '') + '\nক্যাম্পের তারিখ: ' + formatDate(sc.date);
+    if (typeof pr.startedAt === 'number') add('promo', 'prs' + sc.id + '_' + pr.startedAt, pr.startedAt, '📢 প্রচার শুরু\n' + head + '\nপ্রচারে: ' + who);
+    if (pr.status === 'done' && typeof pr.endedAt === 'number') add('promo', 'pre' + sc.id + '_' + pr.endedAt, pr.endedAt, '✅ প্রচার শেষ\n' + head + '\nপ্রচারে ছিলেন: ' + who);
   });
   // ---- সকালের ডাইজেস্ট (সকাল ৯টার পর): চেক ও স্টক ----
   if (cfg.types.chk && nowMin >= 540) {
