@@ -7621,6 +7621,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
     <button type="button" id="cbtab-oppatient" onclick="switchCamperSessionTab('oppatient')">
       <span class="obt-icon">🔪</span><span class="obt-label">অপারেশন</span>
     </button>
+    <button type="button" id="cbtab-note" onclick="amNoteOpen()">
+      <span class="obt-icon">📣</span><span class="obt-label">জানান</span>
+    </button>
     <button type="button" id="cbtab-more" onclick="showCamperSessionMoreSheet()">
       <span class="obt-icon">☰</span><span class="obt-label">মেন্যু</span>
     </button>
@@ -7676,6 +7679,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="panel-title" style="font-size:15px">🏕️ ক্যাম্প শুরু করুন</div>
       </div>
       <div class="panel-body" style="padding:12px">
+        <button type="button" id="cpTeamAttBtn" class="cs-act sec" style="display:none" onclick="showCampTeamAttendance(true)">👥 শেষ ক্যাম্পের টিম হাজিরা (ইন/আউট)</button>
         <button type="button" id="cpCampToggle" class="cs-toggle" onclick="toggleCampCards()"><span id="cpCampToggleLbl">১. ক্যাম্প বাছুন</span><span id="cpCampToggleArrow">▾</span></button>
         <div id="cpCampBody" style="display:none">
         <div id="cpCampCards" style="display:none"></div>
@@ -20471,7 +20475,120 @@ function markAttendance(staffId, type, date) {
   saveData();
   var staff = (appData.staff||[]).find(function(s){ return String(s.id)===String(staffId); });
   showToast('✅ '+(staff?staff.name:'কর্মী')+' — '+(type==='in'?'ইন':'আউট')+' রেকর্ড হয়েছে');
+  try { if (typeof renderRecPresentStaffChips==='function' && document.getElementById('recPresentStaffChips')) renderRecPresentStaffChips(); } catch(e) {}   // ডান সাইডবারের Present/Absent সাথে সাথে হালনাগাদ
 }
+
+// ===== ক্যাম্প টিম হাজিরা =====
+// ক্যাম্পেইনার ক্যাম্পে পৌঁছে "ক্যাম্প শুরু করুন" চাপলে টিমের সবার (নিয়মিত কর্মী + ডাক্তার + ক্যাম্পেইনার, যাঁরা স্টাফ-তালিকায় আছেন) ইন ধরা হয়।
+// ক্যাম্প চলাকালে/শেষে ক্যাম্পেইনার টিমের যে কাউকে ইন/আউট করতে ও নতুন কর্মী যোগ করতে পারেন। টিম ক্যাম্প-শিডিউলের teamIds-এ থাকে।
+function _attPush(staffId, type, date, extra) {
+  if (!appData.attendance) appData.attendance = [];
+  var now = Date.now() + Math.floor(Math.random() * 5);
+  var rec = { id: now, staffId: staffId, date: date, type: type, ts: now,
+    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }), by: currentUser ? currentUser.name : 'সিস্টেম' };
+  if (extra) Object.keys(extra).forEach(function (k) { rec[k] = extra[k]; });
+  appData.attendance.push(rec); return rec;
+}
+function _attLast(staffId, date) {
+  var r = getAttendanceForDate(staffId, date).slice().sort(function (a, b) { return a.ts - b.ts; });
+  return r.length ? r[r.length - 1] : null;
+}
+function _staffById(id) { return (appData.staff || []).find(function (x) { return String(x.id) === String(id); }); }
+function _staffByName(n) { n = String(n || '').trim(); return n ? (appData.staff || []).find(function (x) { return x.status === 'active' && String(x.name || '').trim() === n; }) : null; }
+function _campTeamIdsFor(schedule) {
+  var ids = [], add = function (st) { if (st && ids.indexOf(String(st.id)) < 0) ids.push(String(st.id)); };
+  (schedule.regularStaff || []).forEach(function (r) { add(_staffById(r.id) || _staffByName(r.name)); });
+  add(_staffByName(schedule.doctor));
+  if (currentUser) add(_staffByName(currentUser.name));
+  return ids;
+}
+function campTeamAutoIn(schedule) {
+  var ids = _campTeamIdsFor(schedule), today = todayStr(), n = 0;
+  schedule.teamIds = ids; schedule.teamAt = Date.now();
+  ids.forEach(function (id) {
+    var st = _staffById(id); if (!st) return;
+    var last = _attLast(st.id, today), onLeave = false; try { onLeave = !!getLeaveForDate(st.id, today); } catch (e) {}
+    if (onLeave || (last && last.type === 'in')) return;
+    _attPush(st.id, 'in', today, { campId: schedule.id, viaCamp: true }); n++;
+  });
+  return n;
+}
+function _campTeamSchedule() {
+  var list = (appData.campSchedules || []).filter(function (x) { return x.teamAt; });
+  if (typeof camperSession !== 'undefined' && camperSession) { var cur = list.find(function (x) { return x.id === camperSession.scheduleId; }); if (cur) return cur; }
+  return list.sort(function (a, b) { return b.teamAt - a.teamAt; })[0] || null;
+}
+function _campTeamRefreshViews() { try { if (typeof _refreshAllAttendanceViews === 'function') _refreshAllAttendanceViews(); } catch (e) {} }
+function showCampTeamAttendance(afterClose) {
+  var sc = _campTeamSchedule();
+  if (!sc) { showToast('ℹ️ ক্যাম্প টিমের তথ্য নেই — ক্যাম্প শুরু করার পর এটি পাওয়া যাবে'); return; }
+  var old = document.getElementById('campTeamModal'); if (old) old.remove();
+  var m = document.createElement('div'); m.id = 'campTeamModal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9500;display:flex;align-items:flex-end;justify-content:center';
+  m.addEventListener('click', function (e) { if (e.target === m) m.remove(); });
+  document.body.appendChild(m); m._after = !!afterClose; _campTeamRender();
+}
+function _campTeamRender() {
+  var m = document.getElementById('campTeamModal'), sc = _campTeamSchedule(); if (!m || !sc) return;
+  var today = todayStr(), esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  var ids = sc.teamIds || [];
+  var rows = ids.map(function (id) {
+    var st = _staffById(id); if (!st) return '';
+    var last = _attLast(st.id, today), isIn = last && last.type === 'in';
+    var chip = isIn ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">ইন ' + esc(last.time) + '</span>'
+      : last ? '<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">আউট ' + esc(last.time) + '</span>'
+      : '<span style="background:#fef3c7;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">ইন হননি</span>';
+    var btn = isIn ? '<button type="button" data-sid="' + esc(st.id) + '" onclick="campTeamMark(this.getAttribute(\'data-sid\'),\'out\')" style="border:0;background:#b91c1c;color:#fff;border-radius:10px;padding:9px 14px;font:inherit;font-weight:800;font-size:13px;cursor:pointer">আউট</button>'
+      : '<button type="button" data-sid="' + esc(st.id) + '" onclick="campTeamMark(this.getAttribute(\'data-sid\'),\'in\')" style="border:0;background:#15803d;color:#fff;border-radius:10px;padding:9px 14px;font:inherit;font-weight:800;font-size:13px;cursor:pointer">ইন</button>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #eef2f6"><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14.5px">' + esc(st.name) + '</div><div style="font-size:11.5px;color:#64748b">' + esc(st.desig || st.designation || '') + ' ' + chip + '</div></div>' + btn + '</div>';
+  }).join('');
+  var others = (appData.staff || []).filter(function (x) { return x.status === 'active' && ids.indexOf(String(x.id)) < 0; });
+  var opts = '<option value="">-- কর্মী বেছে নিন --</option>' + others.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + (x.desig ? ' (' + esc(x.desig) + ')' : '') + '</option>'; }).join('');
+  var anyIn = ids.some(function (id) { var l = _attLast(id, today); return l && l.type === 'in'; });
+  m.innerHTML = '<div style="background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow-y:auto">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><b style="font-size:16px;color:var(--primary)">👥 ক্যাম্প টিম হাজিরা</b><button type="button" onclick="document.getElementById(\'campTeamModal\').remove()" style="border:0;background:none;font-size:20px;cursor:pointer">&#10005;</button></div>'
+    + '<div style="font-size:12.5px;color:#64748b;margin-bottom:8px"><b>' + esc(sc.name) + '</b> · ' + esc(sc.location || '') + (m._after ? '<br>ক্যাম্প শেষ — যাঁরা হাসপাতালে ফিরছেন না, তাঁদের এখানেই আউট দিন।' : '<br>ক্যাম্প চলাকালে যে কাউকে ইন/আউট করা যায়; নতুন কর্মী যোগ হলে নিচ থেকে যোগ করুন।') + '</div>'
+    + (rows || '<div style="padding:10px;color:#94a3b8;font-size:13px">টিমে কেউ নেই</div>')
+    + (anyIn ? '<button type="button" onclick="campTeamAllOut()" style="width:100%;margin-top:10px;border:1.5px solid #fecaca;background:#fff5f5;color:#b91c1c;border-radius:12px;padding:11px;font:inherit;font-weight:800;cursor:pointer">সবাইকে আউট (ক্যাম্প থেকেই বাড়ি)</button>' : '')
+    + '<div style="margin-top:14px;padding-top:12px;border-top:1.5px dashed #cbd5e1"><div style="font-weight:800;font-size:13.5px;margin-bottom:6px">➕ ক্যাম্পে নতুন যোগ হওয়া কর্মী (ইন)</div>'
+    + '<div style="display:flex;gap:8px"><select id="campTeamAddSel" style="flex:1;min-width:0;padding:10px;border:1.5px solid #cbd5e1;border-radius:10px;font:inherit">' + opts + '</select><button type="button" onclick="campTeamAdd()" style="border:0;background:#0f4c81;color:#fff;border-radius:10px;padding:0 16px;font:inherit;font-weight:800;cursor:pointer">যোগ + ইন</button></div></div>'
+    + '<div style="font-size:11px;color:#94a3b8;margin-top:10px">ভুল হলে এটেন্ডেন্স শিটে সংশোধন করা যাবে।</div></div>';
+}
+function campTeamMark(sid, type) {
+  var st = _staffById(sid), sc = _campTeamSchedule(); if (!st || !sc) return;
+  _attPush(st.id, type, todayStr(), { campId: sc.id, viaCamp: true });
+  saveData(); showToast('✅ ' + st.name + ' — ' + (type === 'in' ? 'ইন' : 'আউট') + ' রেকর্ড হয়েছে');
+  _campTeamRefreshViews(); _campTeamRender();
+}
+function campTeamAdd() {
+  var sel = document.getElementById('campTeamAddSel'), sc = _campTeamSchedule(); if (!sel || !sel.value || !sc) { showToast('⚠️ কর্মী বেছে নিন'); return; }
+  var st = _staffById(sel.value); if (!st) return;
+  sc.teamIds = (sc.teamIds || []).concat([String(st.id)]);
+  var last = _attLast(st.id, todayStr());
+  if (!last || last.type !== 'in') _attPush(st.id, 'in', todayStr(), { campId: sc.id, viaCamp: true });
+  saveData(); showToast('✅ ' + st.name + ' — ক্যাম্প টিমে যোগ ও ইন রেকর্ড হয়েছে');
+  _campTeamRefreshViews(); _campTeamRender();
+}
+function campTeamAllOut() {
+  var sc = _campTeamSchedule(); if (!sc) return;
+  var today = todayStr(), ins = (sc.teamIds || []).map(_staffById).filter(function (st) { var l = st && _attLast(st.id, today); return l && l.type === 'in'; });
+  if (!ins.length) return;
+  if (!confirm('নিশ্চিত করুন\n\n' + ins.map(function (x) { return x.name; }).join(', ') + '\n\nসবাইকে এখন আউট দেখানো হবে?')) return;
+  ins.forEach(function (st) { _attPush(st.id, 'out', today, { campId: sc.id, viaCamp: true }); });
+  saveData(); showToast('✅ ' + ins.length + ' জনকে আউট দেখানো হয়েছে');
+  _campTeamRefreshViews(); _campTeamRender();
+}
+// ক্যাম্প নির্বাচন পেজে "শেষ ক্যাম্পের টিম হাজিরা" বাটন (ক্যাম্প ক্লোজের পরেও আউট দেওয়ার জন্য — শুধু আজ/গতকালের ক্যাম্প টিমের জন্য)
+function campTeamBtnRefresh() {
+  var b = document.getElementById('cpTeamAttBtn'); if (!b) return;
+  var show = false;
+  try {
+    var sc = _campTeamSchedule();
+    if (sc && currentUser && currentUser.role === 'campaigner') { var d = new Date(); d.setDate(d.getDate() - 1); show = (sc.teamAt || 0) >= d.getTime() - 86400000 && !(typeof camperSession !== 'undefined' && camperSession); }
+  } catch (e) {}
+  b.style.display = show ? '' : 'none';
+}
+setInterval(campTeamBtnRefresh, 3000);
 
 // ✅ IN/OUT বাটনে ক্লিক করলে সরাসরি রেকর্ড না করে আগে একটা কনফার্মেশন পপআপ দেখায় —
 // ভুলবশত ট্যাপ হয়ে গেলে যেন এন্ট্রি রেকর্ড না হয়ে যায়
@@ -27999,6 +28116,8 @@ function initCamperSessionConfirmed(selId) {
   // Mark schedule as active
   const sIdx = appData.campSchedules.findIndex(x => x.id === selId);
   if (sIdx >= 0) appData.campSchedules[sIdx].status = 'active';
+  // ✅ ক্যাম্পে পৌঁছে "ক্যাম্প শুরু" চাপলে টিমের সবাইকে ইন ধরা হয় (হাসপাতালে ইন না করে সরাসরি ক্যাম্পে এলেও)
+  let _autoIn = 0; try { if (sIdx >= 0) _autoIn = campTeamAutoIn(appData.campSchedules[sIdx]); } catch(e) { console.warn('[HMS] ক্যাম্প টিম অটো-ইন ব্যর্থ:', e); }
 
   saveData();
   campStockSelection = {};
@@ -28030,7 +28149,7 @@ function initCamperSessionConfirmed(selId) {
   // Init op patient table
   renderCamperOpPatients();
 
-  showToast(`✅ ক্যাম্প শুরু: ${schedule.name} | রিসিট নং ${receiptStart} থেকে`);
+  showToast(`✅ ক্যাম্প শুরু: ${schedule.name} | রিসিট নং ${receiptStart} থেকে` + (_autoIn ? ` | ${fmt(_autoIn)} জন কর্মীর ইন ধরা হয়েছে` : ''));
   addCamperRow();
   renderCamperSessionBottomBar();
 }
@@ -28095,6 +28214,7 @@ function showCamperSessionMoreSheet() {
         <button onclick="document.getElementById('camperSessionMoreModal').remove();switchCamperSessionTab('billing')" style="background:none;border:none;padding:14px 24px;font-family:inherit;font-size:15px;font-weight:600;color:var(--primary);text-align:left;cursor:pointer;border-bottom:1px solid var(--border)">🧾 বিল এন্ট্রি</button>
         <button onclick="document.getElementById('camperSessionMoreModal').remove();switchCamperSessionTab('returnstock')" style="background:none;border:none;padding:14px 24px;font-family:inherit;font-size:15px;font-weight:600;color:var(--primary);text-align:left;cursor:pointer;border-bottom:1px solid var(--border)">↩️ স্টক ফেরত</button>
         <button onclick="document.getElementById('camperSessionMoreModal').remove();showCamperCashSubmitModal()" style="background:none;border:none;padding:14px 24px;font-family:inherit;font-size:15px;font-weight:600;color:var(--success);text-align:left;cursor:pointer;border-bottom:1px solid var(--border)">💵 ক্যাশ জমা</button>
+        <button onclick="document.getElementById('camperSessionMoreModal').remove();showCampTeamAttendance()" style="background:none;border:none;padding:14px 24px;font-family:inherit;font-size:15px;font-weight:600;color:var(--primary);text-align:left;cursor:pointer;border-bottom:1px solid var(--border)">👥 টিম হাজিরা (ইন/আউট)</button>
         <button onclick="document.getElementById('camperSessionMoreModal').remove();closeCamperCamp()" style="background:none;border:none;padding:14px 24px;font-family:inherit;font-size:15px;font-weight:700;color:var(--danger);text-align:left;cursor:pointer">🔒 ক্যাম্প ক্লোজ</button>
       </div>
     </div>`;
@@ -28369,6 +28489,7 @@ function finalizeCampClose() {
   renderRoleBottomTabs('camper', 'camp');
 
   showToast(`✅ ক্যাম্প ক্লোজ! মোট আয়: ৳${fmt(totalIncome)} | রোগী: ${visits.length} জন | মতামত: ${rating.value}`);
+  setTimeout(function(){ try { showCampTeamAttendance(true); } catch(e) {} }, 700);   // যাঁরা হাসপাতালে ফিরছেন না তাঁদের আউট
 }
 
 // ===== CAMPER BILLING =====
@@ -37423,6 +37544,7 @@ function renderRecHome() {
   var _nb = document.getElementById('recHomeNoteBtn'); if (_nb) _nb.style.display = (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'owner') ? '' : 'none';
   var nEl = document.getElementById('recHomeName'); if (nEl) nEl.textContent = (currentUser && currentUser.name) || '';
   try { _recAttRender(); } catch(e) { console.warn('[HMS] এটেন্ডেন্স বাটন ব্যর্থ:', e); }
+  try { if (typeof renderRecPresentStaffChips==='function') renderRecPresentStaffChips(); } catch(e) {}
   try { renderRecMsgBox(); } catch(e) { console.warn('[HMS] বার্তা বক্স ব্যর্থ:', e); }
   var dEl = document.getElementById('recHomeDate'); if (dEl) dEl.textContent = '📅 ' + formatDate(today);
   var quickEl = document.getElementById('recHomeQuick');
@@ -46285,8 +46407,16 @@ function amBankHtml() {
   var b = amBalances(), tl = { cash_in: 'ক্যাশ যোগ', bank_in: 'ব্যাংক যোগ', cash_to_bank: 'ক্যাশ → ব্যাংক', bank_to_cash: 'ব্যাংক → ক্যাশ', cash_out: 'ক্যাশ ব্যয়', bank_out: 'ব্যাংক ব্যয়' };
   var sign = function (t) { return (t === 'cash_in' || t === 'bank_in') ? '+' : (t === 'cash_out' || t === 'bank_out') ? '−' : '⇄'; };
   var accs = (appData.mfsAccounts || []).map(function (a) { var bal = 0; try { bal = calcMfsAccountBalance(a.id); } catch (e) {} return '<div class="am-row"><span class="k">' + amEsc(a.name || a.title || a.label || 'অ্যাকাউন্ট') + '</span><span class="v">' + amMoney(bal) + '</span></div>'; }).join('');
-  var tx = (appData.bankTx || []).slice().sort(function (x, y) { return y.id - x.id; }).slice(0, 30).map(function (t) {
-    return '<div class="am-row" style="align-items:flex-start"><span>' + amEsc(tl[t.type] || t.type) + '<div class="am-meta" style="margin:0">' + formatDate(t.date) + (t.note ? ' · ' + amEsc(String(t.note).slice(0, 50)) : '') + (t.voucher ? ' · ' + amEsc(t.voucher) : '') + '</div></span><span class="v">' + sign(t.type) + ' ৳ ' + fmt(t.amount) + '</span></div>';
+  // ব্যালেন্স যে লেনদেনগুলো থেকে হিসাব হয় সেগুলোই এখানে: bankTx + অনুমোদিত/ক্লিয়ার ক্যাশ-ব্যাংক ব্যয় (প্রি-ক্যাম্প খরচসহ)
+  var all = (appData.bankTx || []).map(function (t) { return { id: t.id, date: t.date || '', label: tl[t.type] || t.type, note: t.note, voucher: t.voucher, amount: t.amount, sg: sign(t.type) }; });
+  (appData.expense || []).forEach(function (e) {
+    if (e.campDeferred || e.rejected || e.payMode === 'mfs' || e.status === 'pending') return;
+    var d = e.date || ''; try { d = expenseEffectiveDate(e) || d; } catch (x) {}
+    all.push({ id: e.id, date: d, label: (e.payMode === 'bank' ? 'ব্যাংক ব্যয়' : 'ক্যাশ ব্যয়') + (e.preCamp ? ' · প্রি-ক্যাম্প' : ''), note: [e.category, e.subCategory].filter(Boolean).join(' / ') + (e.note ? ' — ' + e.note : ''), voucher: e.voucher, amount: e.amount, sg: '−' });
+  });
+  all.sort(function (x, y) { return String(y.date).localeCompare(String(x.date)) || (y.id - x.id); });
+  var tx = all.slice(0, 40).map(function (t) {
+    return '<div class="am-row" style="align-items:flex-start"><span>' + amEsc(t.label) + '<div class="am-meta" style="margin:0">' + formatDate(t.date) + (t.note ? ' · ' + amEsc(String(t.note).slice(0, 60)) : '') + (t.voucher ? ' · ' + amEsc(t.voucher) : '') + '</div></span><span class="v">' + t.sg + ' ৳ ' + fmt(t.amount) + '</span></div>';
   }).join('');
   return amBack() + '<button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="amXferForm()">🔄 নতুন ট্রান্সফার (ক্যাশ ⇄ ব্যাংক ⇄ মোবাইল ব্যাংকিং)</button><div class="am-card"><div class="am-row"><span class="k">ক্যাশ</span><span class="v">' + amMoney(b.cash) + '</span></div><div class="am-row"><span class="k">ব্যাংক</span><span class="v">' + amMoney(b.bank) + '</span></div><div class="am-row"><span class="k">মোবাইল ব্যাংকিং</span><span class="v">' + amMoney(b.mfs) + '</span></div>' + accs + '<div class="am-row tot"><span>মোট</span><span>' + amMoney(b.total) + '</span></div></div>'
     + '<div class="am-h"><span>সাম্প্রতিক ব্যাংক/ক্যাশ লেনদেন</span></div>' + (tx ? '<div class="am-card" style="padding:4px 12px">' + tx + '</div>' : '<div class="am-card am-empty">কোনো লেনদেন নেই</div>');
@@ -47348,7 +47478,8 @@ function bsCardsHtml(vm, fm, refM) {
 var _amNoteLast = 0;
 function amNoteEnsureFab() {
   try {
-    var show = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'campaigner';
+    // ক্যাম্প চলাকালে (নিচের বার আছে) ফ্লোটিং নয় — বার-এর "জানান" বাটন; ক্যাম্প শুরুর আগের পেজে ফ্লোটিং থাকে
+    var show = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'campaigner' && !(typeof camperSession !== 'undefined' && camperSession);
     var f = document.getElementById('amNoteFab');
     if (!show) { if (f) f.remove(); return; }
     if (f) return;
