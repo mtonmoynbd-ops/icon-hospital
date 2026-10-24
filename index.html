@@ -44565,6 +44565,22 @@ var MM_SPECIAL = [
   ['m_genexp', '💸 ব্যয় এন্ট্রি (অনুমোদন সাপেক্ষে)', 'যেকোনো খাতে ব্যয় লেখা — এডমিন অনুমোদন না করা পর্যন্ত হিসাবে ধরা হবে না', false]
 ];
 var MM_DEF_ON = ['o_today', 'o_due', 'att', 'dlv', '_pc'];
+// যেসব পেজে অ্যাকশন বাটন (সেভ/পরিশোধ/ডেলিভারি/ছুটি…) আছে — মডারেটর ডিফল্টে শুধু দেখবে; এডমিন চাইলে "অ্যাকশনও" অন করবে
+var MM_ACT_PAGES = ['bill', 'appr', 'dlv', 'att', 'sal', 'dep', 'chk', 'op', 'bank', 'stock', 'o_loan'];
+var MM_KEEP = /^(mm|amCloseSheet|amLogout|amSetUi|amGo|amMoreOpen|amPcOpen|amPcvClose|amOpenReport|amCustody|amLogoutTap)/;
+function mmAct(id) { return (mmCfg().act || {})[id] === true; }
+function mmCfgActSet(k, v) { mmCfgSave(function (c) { c.act = c.act || {}; c.act[k] = !!v; }); }
+function mmCfgActToggle(k) { mmCfgActSet(k, !mmAct(k)); try { amLastHtml = ''; amRender(true); } catch (e) {} }
+var _mmOwnSheet = false;
+function mmPageKey() { return amTab === 'more' ? amSub : amTab; }
+// অ্যাকশন বাটন সরানো (নেভিগেশন/নিজস্ব mm* বাটন থাকে)
+function mmStrip(html) {
+  return String(html).replace(/<button\b[^>]*\bclass="[^"]*\bam-btn\b[^"]*"[^>]*>[\s\S]*?<\/button>/g, function (b) {
+    var m = b.match(/onclick="([A-Za-z_]\w*)\(/);
+    if (m) return MM_KEEP.test(m[1]) ? b : '';
+    return /\sonclick=/.test(b) ? '' : b;   // onclick আছে কিন্তু পরিচিত নেভিগেশন নয় (যেমন কল বাটন) → সরাও
+  });
+}
 function mmCfg() { var s = (typeof appData !== 'undefined' && appData.settings) || {}; return s.modMob || {}; }
 function mmOn() { return mmCfg().on !== false; }
 function mmDefault(id) {
@@ -44621,7 +44637,8 @@ function mmCfgAmHtml() {
   return h + mmCfgGroups().map(function (g) {
     return '<div class="am-h" style="margin-top:10px"><span>' + amEsc(g.label) + '</span></div>' + g.rows.map(function (r) {
       var on = mmAllow(r.id);
-      return '<div class="am-card" style="padding:8px 12px;display:flex;align-items:center;gap:8px"><span style="flex:1;min-width:0"><b style="font-size:14px">' + amEsc(r.name) + '</b>' + (r.desc ? '<div class="am-meta" style="margin:2px 0 0">' + amEsc(r.desc) + '</div>' : '') + '</span><button class="am-chip' + (on ? ' on' : '') + '" onclick="mmCfgToggle(\'' + r.id + '\')">' + (on ? 'দেওয়া আছে' : 'বন্ধ') + '</button></div>';
+      var act = on && MM_ACT_PAGES.indexOf(r.id) >= 0 ? '<div style="margin-top:6px"><button class="am-chip' + (mmAct(r.id) ? ' on' : '') + '" onclick="mmCfgActToggle(\'' + r.id + '\')">অ্যাকশন বাটনও: ' + (mmAct(r.id) ? 'চালু' : 'বন্ধ (শুধু দেখা)') + '</button></div>' : '';
+      return '<div class="am-card" style="padding:8px 12px"><div style="display:flex;align-items:center;gap:8px"><span style="flex:1;min-width:0"><b style="font-size:14px">' + amEsc(r.name) + '</b>' + (r.desc ? '<div class="am-meta" style="margin:2px 0 0">' + amEsc(r.desc) + '</div>' : '') + '</span><button class="am-chip' + (on ? ' on' : '') + '" onclick="mmCfgToggle(\'' + r.id + '\')">' + (on ? 'দেওয়া আছে' : 'বন্ধ') + '</button></div>' + act + '</div>';
     }).join('');
   }).join('');
 }
@@ -44634,7 +44651,7 @@ function mmCfgPcHtml() {
     + mmPreCatSelHtml(false)
     + mmCfgGroups().map(function (g) {
       return '<p style="font-weight:700;font-size:12px;color:var(--text-light);margin:12px 0 4px">' + amEsc(g.label) + '</p>' + g.rows.map(function (r) {
-        return '<label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f0f4f8;cursor:pointer"><input type="checkbox" ' + (mmAllow(r.id) ? 'checked' : '') + ' onchange="mmCfgSet(\'' + r.id + '\',this.checked)" style="width:15px;height:15px;margin-top:2px"><span><b>' + amEsc(r.name) + '</b>' + (r.desc ? '<br><span style="font-size:11px;color:var(--text-light)">' + amEsc(r.desc) + '</span>' : '') + '</span></label>';
+        return '<label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f0f4f8;cursor:pointer"><input type="checkbox" ' + (mmAllow(r.id) ? 'checked' : '') + ' onchange="mmCfgSet(\'' + r.id + '\',this.checked)" style="width:15px;height:15px;margin-top:2px"><span><b>' + amEsc(r.name) + '</b>' + (r.desc ? '<br><span style="font-size:11px;color:var(--text-light)">' + amEsc(r.desc) + '</span>' : '') + '</span></label>' + (MM_ACT_PAGES.indexOf(r.id) >= 0 ? '<label style="display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0 5px 26px;border-bottom:1px solid #f0f4f8;cursor:pointer;color:var(--text-light)"><input type="checkbox" ' + (mmAct(r.id) ? 'checked' : '') + ' onchange="mmCfgActSet(\'' + r.id + '\',this.checked)" style="width:14px;height:14px">↳ অ্যাকশন বাটনও দেওয়া (সেভ / পরিশোধ / ডেলিভারি ইত্যাদি) — বন্ধ থাকলে শুধু দেখা</label>' : '');
       }).join('');
     }).join('') + '</div>';
 }
@@ -44660,9 +44677,9 @@ function mmRender(force) {
   if (mmIsMod() && pg && pg.style.display !== 'none') amRender(!!force);
 }
 function mmAfter() { amLastHtml = ''; amRender(true); try { updateDemandBadge(); } catch (e) {} }
-function mmOpenSheet(h) { amOpenSheet(h); }
+function mmOpenSheet(h) { _mmOwnSheet = true; try { amOpenSheet(h); } finally { _mmOwnSheet = false; } }
 function mmCloseSheet() { amCloseSheet(); }
-function mmConfirm(t, b, o, f, a) { amConfirm(t, b, o, f, a); }
+function mmConfirm(t, b, o, f, a) { _mmOwnSheet = true; try { amConfirm(t, b, o, f, a); } finally { _mmOwnSheet = false; } }
 function mmEsc(s) { return amEsc(s); }
 
 // ----- মডারেটর মোডে amRender -----
@@ -44682,6 +44699,8 @@ function mmAmRender(force) {
   if (amTab === 'more' && amSub && !mmAllow(amSub)) amSub = '';
   try { amTabsDraw(); amTabHi(!!document.getElementById('amPcv')); } catch (e) {}
   var html = amTab === 'home' ? mmLiveHomeHtml() : amTab === 'appr' ? amApprHtml(p) : amTab === 'bill' ? amBillHtml() : amTab === 'camp' ? mmCampsHtml() : amMoreHtml();
+  var _mine = amTab === 'home' || amTab === 'camp' || (amTab === 'more' && (!amSub || amSub === 'm_demand' || amSub === 'live'));
+  if (!_mine && !mmAct(mmPageKey())) html = mmStrip(html);   // এডমিন/রিসেপশনের অ্যাকশন বাটন মডারেটরের জন্য নয় (এডমিন চাইলে অন করবে)
   if (!force && html === amLastHtml) return;
   amLastHtml = html; var st = main.scrollTop; main.innerHTML = amZw(html); try { amChipsToSelect(main); } catch (e) {} main.scrollTop = st;
 }
@@ -44734,8 +44753,11 @@ function amCkSub(s, key) {
     var who = amEsc(p.by || 'মডারেটর') + ((p.team || []).length ? ', ' + amEsc((p.team || []).join(', ')) : ''), ts = p.status === 'done' ? p.endedAt : p.startedAt;
     return sub((p.status === 'done' ? 'প্রচার শেষ: ' : 'প্রচারে: ') + who + (ts ? '<br>' + mmHM(ts) : ''), 'var(--am-ok)');
   }
-  if (key === 'doc') return (ck.doc && s.doctor) ? sub(amEsc(s.doctor)) : '';
-  if (key === 'staff') { var o = amCampPeople(s).others; return (ck.staff && o.length) ? sub(amEsc(o.join(', '))) : ''; }
+  if (key === 'doc') return (ck.doc && s.doctor) ? sub(amLvNm('ডাক্তার', String(s.doctor).replace(/^\s*(ডাঃ|ডা\.|ডাক্তার)\s*/, ''))) : '';
+  if (key === 'staff') {
+    var o = amCampPeople(s).others, pt = (s.parttimers || []).map(function (r) { return r.name; });
+    return (ck.staff && o.length) ? sub(o.map(function (n) { return amLvNm(pt.indexOf(n) >= 0 ? 'পার্টটাইমার' : amLvDesigOf(n), n); }).join(', ')) : '';
+  }
   return '';
 }
 function amCkRows(s, cost, mod) {
@@ -44773,7 +44795,7 @@ function mmLiveHtml() {
   if (mmAllow('o_today')) {
     var st = amDayStats(today);
     h += '<div class="am-grid" style="margin-bottom:10px"><div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের আয়</div><div class="v" style="color:var(--am-ok)">' + amMoney(st.inc) + '</div></div>'
-      + '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের ব্যয়</div><div class="v" style="color:var(--am-bad)">' + amMoney(st.exp) + '</div></div></div>';
+      + '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের ব্যয়</div><div class="v" style="color:var(--am-bad)">' + amMoney(st.opex) + '</div></div></div>';
   }
   var tiles = '';
   if (mmAllow('op')) {
@@ -44825,7 +44847,7 @@ function mmPromoCard(s) {
   return '<div class="am-lvc' + (st === 'on' ? ' on' : '') + '" style="--c:' + (st === 'on' ? '#16a34a' : '#b45309') + ';width:100%;box-sizing:border-box;margin-bottom:10px;cursor:default;gap:8px"><span class="bg"></span>'
     + '<div style="display:flex;gap:10px;align-items:stretch;width:100%">'
     + '<div style="flex:1;min-width:0"><div class="am-ap-t">' + amEsc(s.name) + ' ' + dayTag + '</div>'
-    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + '<br>ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট টিম ' + fmt(pp.total) + ' জন</b> · ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>'
+    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + '<br>ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট টিম মেম্বার ' + fmt(pp.total) + ' জন</b><br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>'
     + '<div class="am-ck">' + rows + '</div></div>'
     + (btns ? '<div class="am-btns" style="width:100%;margin-top:2px;flex-wrap:wrap">' + btns + '</div>' : '') + '</div>';
 }
@@ -45184,7 +45206,7 @@ function amSetFilter(f) { amFilter = f; amLastHtml = ''; amRender(true); }
 
 // ----- ডেটা -----
 function amDayStats(day) {
-  var out = { inc: 0, exp: 0, net: 0, pat: 0 };
+  var out = { inc: 0, exp: 0, net: 0, pat: 0, opex: 0 };
   try {
     var mf = getMonthlyFixedForPrefix(day.slice(0, 7));
     var dailyFixed = mf.totalFixed / daysInCurrentMonth();
@@ -45192,7 +45214,7 @@ function amDayStats(day) {
     var opex = (appData.expense || []).filter(function (e) { return expenseEffectiveDate(e) === day && !e.isFundExpense && !e.isInventoryPurchase && !isFixedCostExpenseCategory(e.category); })
       .reduce(function (s, e) { return s + (e.amount || 0); }, 0);
     var cogs = getCOGSForPrefix(day);
-    out.inc = inc; out.exp = opex + dailyFixed; out.net = inc - cogs - opex - dailyFixed;
+    out.inc = inc; out.opex = opex; out.exp = opex + dailyFixed; out.net = inc - cogs - opex - dailyFixed;
     out.pat = (appData.visits || []).filter(function (v) { return v.date === day; }).length;
   } catch (e) { console.warn('amDayStats', e); }
   return out;
@@ -45392,6 +45414,7 @@ function amDoDelDm(id) { appData.demands = (appData.demands || []).filter(functi
 
 // ----- শিট -----
 function amOpenSheet(html) {
+  if (mmIsMod() && !_mmOwnSheet && !mmAct(mmPageKey())) html = mmStrip(html);   // মডারেটর: অ্যাকশন বাটন ছাড়া
   amSheetOpen = true;
   document.getElementById('amSheet').innerHTML = html;
   document.getElementById('amBack').style.display = 'block';
@@ -45466,7 +45489,7 @@ function amCampPeople(s) {
 function amCampCard(s) {
   var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length;
   return '<div class="am-card" onclick="amCampDetail(' + s.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '</div><div>' + amStatusTag(s) + '</div></div>'
-    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + amPromoLine(s) + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + ' · <b>মোট টিম ' + fmt(pp.total) + ' জন</b><br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>';
+    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + amPromoLine(s) + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট টিম মেম্বার ' + fmt(pp.total) + ' জন</b><br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>';
 }
 // সম্পন্ন ক্যাম্প — ক্যাম্পেইনার প্যানেলের "আগের ক্যাম্প" কার্ডের নকশা; "বিস্তারিত" পিসি/ওনার/ক্যাম্পেইনারের একই পূর্ণ-পেজ ভিউ (showCampDetail)
 function amDoneCampCard(c) {
@@ -45515,7 +45538,7 @@ function amCampDetail(id) {
     + '<div class="am-row"><span class="k">ভিজিট ফি</span><span class="v">৳ ' + fmt(s.visitFee || 0) + '</span></div>'
     + (amPreCampCost(s.id) > 0 ? '<div class="am-row"><span class="k">প্রি-ক্যাম্প খরচ</span><span class="v">৳ ' + fmt(amPreCampCost(s.id)) + '</span></div>' : '')
     + '<div class="am-row"><span class="k">টিমের কর্মী</span><span class="v" style="text-align:right;max-width:62%">' + (staff || '—') + '</span></div>'
-    + '<div class="am-row tot"><span>মোট টিম</span><span>' + fmt(pp.total) + ' জন</span></div></div>'
+    + '<div class="am-row tot"><span>মোট টিম মেম্বার</span><span>' + fmt(pp.total) + ' জন</span></div></div>'
     + (s.status === 'cancelled' ? '<div class="am-meta" style="background:var(--am-badsoft);border-radius:10px;padding:8px;margin-bottom:8px"><b>বাতিলের কারণ:</b> ' + amEsc(s.cancelReason || '—') + (s.cancelledBy ? '<br>' + amEsc(s.cancelledBy) + ' · ' + amEsc(amFmtAt(s.cancelledAt)) : '') + '</div>' : '')
     + (hist ? '<div class="am-h"><span>রিশিডিউলের ইতিহাস</span></div><div class="am-card" style="padding:4px 12px">' + hist + '</div>' : '')
     + (open ? '<div class="am-btns" style="flex-wrap:wrap"><button class="am-btn pri" onclick="amReschedForm(' + id + ')">রিশিডিউল</button><button class="am-btn" onclick="amCampForm(' + id + ')">সংশোধন</button><button class="am-btn bad" onclick="amCancelForm(' + id + ')">বাতিল</button></div>' : ''));
@@ -46147,17 +46170,17 @@ function amAttHtml() {
   }).join('');
   var lt = { casual: 'CL', sick: 'SL', annual: 'AL', unpaid: 'বিনা বেতনে' };
   var recent = (appData.leaveRecords || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10).map(function (l) {
-    return '<div class="am-row"><span>' + amEsc(l.staffName || '—') + ' · ' + formatDate(l.date) + '<div class="am-meta" style="margin:0">' + amEsc(lt[l.type] || l.type) + (l.note ? ' — ' + amEsc(l.note) : '') + '</div></span>' + (mmIsMod() ? '' : '<button class="am-btn bad" style="flex:none;padding:6px 12px" onclick="amDelLeave(' + l.id + ')">বাতিল</button>') + '</div>';
+    return '<div class="am-row"><span>' + amEsc(l.staffName || '—') + ' · ' + formatDate(l.date) + '<div class="am-meta" style="margin:0">' + amEsc(lt[l.type] || l.type) + (l.note ? ' — ' + amEsc(l.note) : '') + '</div></span>' + (mmIsMod() && !mmAct('att') ? '' : '<button class="am-btn bad" style="flex:none;padding:6px 12px" onclick="amDelLeave(' + l.id + ')">বাতিল</button>') + '</div>';
   }).join('');
   return amBack() + '<div class="am-f"><label>তারিখ</label><input type="date" value="' + date + '" onchange="amAttDate=this.value;amLastHtml=\'\';amRender(true)"></div>'
     + '<div class="am-grid"><div class="am-stat ok"><div class="l">কর্মরত/আউট</div><div class="v">' + fmt(cnt.in + cnt.out) + '</div></div><div class="am-stat bad"><div class="l">অনুপস্থিত</div><div class="v">' + fmt(cnt.abs) + '</div></div></div>'
     + (cnt.leave ? '<div class="am-meta" style="margin:0 0 8px">ছুটিতে: ' + fmt(cnt.leave) + ' জন</div>' : '')
     + (rows || '<div class="am-card am-empty">কোনো সক্রিয় কর্মী নেই</div>')
-    + (mmIsMod() ? '' : '<button class="am-btn pri" style="width:100%;margin:6px 0 12px" onclick="amLeaveForm()">+ ছুটি যোগ করুন</button>')
+    + (mmIsMod() && !mmAct('att') ? '' : '<button class="am-btn pri" style="width:100%;margin:6px 0 12px" onclick="amLeaveForm()">+ ছুটি যোগ করুন</button>')
     + (recent ? '<div class="am-h"><span>সাম্প্রতিক ছুটি</span></div><div class="am-card" style="padding:4px 12px">' + recent + '</div>' : '');
 }
 function amLeaveForm() {
-  if (mmIsMod()) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } 
+  if (mmIsMod() && !mmAct('att')) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } 
   var opts = (appData.staff || []).filter(function (s) { return s.status === 'active'; }).map(function (s) { return '<option value="' + s.id + '">' + amEsc(s.name) + ' — ' + amEsc(s.desig || '') + '</option>'; }).join('');
   amOpenSheet('<div class="hd"><b>ছুটি যোগ</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
     + '<div class="am-f"><label>কর্মী *</label><select id="amLvStaff"><option value="">-- বেছে নিন --</option>' + opts + '</select></div>'
@@ -46167,7 +46190,7 @@ function amLeaveForm() {
     + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amSaveLeave()">সেভ করুন</button></div>');
 }
 function amSaveLeave() {
-  if (mmIsMod()) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } 
+  if (mmIsMod() && !mmAct('att')) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } 
   var g = function (i) { return ((document.getElementById(i) || {}).value || '').trim(); };
   var sid = g('amLvStaff'), date = g('amLvDate'), type = g('amLvType'), note = g('amLvNote');
   if (!sid || !date) { showToast('⚠️ কর্মী ও তারিখ আবশ্যক!'); return; }
@@ -46177,8 +46200,8 @@ function amSaveLeave() {
   appData.leaveRecords.push({ id: Date.now(), staffId: sid, staffName: s ? s.name : '—', date: date, type: type, note: note, by: currentUser.name });
   saveData(); try { renderAttendanceMain(); } catch (e) {} amCloseSheet(); showToast('✅ ছুটি যোগ হয়েছে'); amAfter();
 }
-function amDelLeave(id) { if (mmIsMod()) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } var l = (appData.leaveRecords || []).find(function (x) { return x.id === id; }); if (!l) return; amConfirm('ছুটি বাতিল করবেন?', amEsc(l.staffName) + ' — ' + formatDate(l.date), 'বাতিল করুন', 'amDoDelLeave', id); }
-function amDoDelLeave(id) { if (mmIsMod()) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } appData.leaveRecords = (appData.leaveRecords || []).filter(function (l) { return l.id !== id; }); saveData(); try { renderAttendanceMain(); } catch (e) {} showToast('🗑️ ছুটি বাতিল হয়েছে'); amAfter(); }
+function amDelLeave(id) { if (mmIsMod() && !mmAct('att')) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } var l = (appData.leaveRecords || []).find(function (x) { return x.id === id; }); if (!l) return; amConfirm('ছুটি বাতিল করবেন?', amEsc(l.staffName) + ' — ' + formatDate(l.date), 'বাতিল করুন', 'amDoDelLeave', id); }
+function amDoDelLeave(id) { if (mmIsMod() && !mmAct('att')) { showToast('⚠️ ছুটি দেওয়া/বাতিল শুধু এডমিন করতে পারবেন'); return; } appData.leaveRecords = (appData.leaveRecords || []).filter(function (l) { return l.id !== id; }); saveData(); try { renderAttendanceMain(); } catch (e) {} showToast('🗑️ ছুটি বাতিল হয়েছে'); amAfter(); }
 
 // --- বেতন ---
 var AM_MONTHS = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
@@ -46386,7 +46409,7 @@ function amLvCampCard(s) {
   var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length, rows = amCkRows(s, amPreCampCost(s.id), false);
   return '<div class="am-card" style="display:flex;gap:10px;align-items:stretch" onclick="amCampDetail(' + s.id + ')">'
     + '<div style="flex:1;min-width:0"><div class="am-ap-t">' + amEsc(s.name) + '</div>'
-    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + '<br>ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট টিম ' + fmt(pp.total) + ' জন</b> · ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>'
+    + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + '<br>ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট টিম মেম্বার ' + fmt(pp.total) + ' জন</b><br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>'
     + '<div class="am-ck" onclick="event.stopPropagation()">' + rows + '</div></div>';
 }
 function amLvNextCamp() {
@@ -46440,7 +46463,7 @@ function amLiveHtml() {
   var st = amDayStats(today);
   h += '<div class="am-grid" style="margin-bottom:10px">'
     + '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের আয়</div><div class="v" style="color:var(--am-ok)">' + amMoney(st.inc) + '</div></div>'
-    + '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের ব্যয়</div><div class="v" style="color:var(--am-bad)">' + amMoney(st.exp) + '</div></div></div>';
+    + '<div class="am-stat" style="cursor:pointer" onclick="amGoSub(\'o_today\')"><div class="l">আজকের ব্যয়</div><div class="v" style="color:var(--am-bad)">' + amMoney(st.opex) + '</div></div></div>';
   // আসন্ন অপারেশন ও ডেলিভারি
   var ops = amLvNextOf((appData.operations || []).filter(function (o) { return (o.status || 'completed') === 'scheduled'; }), 'date');
   var dlv = amLvNextOf((appData.deliveryOrders || []).filter(function (x) { return x.status === 'pending' && x.deliveryDate; }), 'deliveryDate');
