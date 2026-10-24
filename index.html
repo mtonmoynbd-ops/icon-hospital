@@ -8087,7 +8087,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       </div>
       <div class="rp-nav-footer">
         <div class="rp-nav-item" id="rtab-stockmgmt" onclick="switchRecTab('stockmgmt',this)"><span class="nav-icon">🗃️</span> স্টক ম্যানেজমেন্ট</div>
-        <div class="rp-nav-item" id="rtab-bulkstock" onclick="switchRecTab('bulkstock',this)"><span class="nav-icon">📦</span> বাল্ক স্টক ইন</div>
+        <div class="rp-nav-item" id="rtab-bulkstock" style="display:none" onclick="switchRecTab('bulkstock',this)"><span class="nav-icon">📦</span> বাল্ক স্টক ইন</div>
         <div class="rp-nav-item rp-nav-cash" onclick="showRecCashSubmitModal()"><span class="nav-icon">💵</span> ক্যাশ জমা</div>
         <div class="rp-nav-item rp-nav-logout" onclick="doLogout()"><span class="nav-icon">🚪</span> লগআউট</div>
       </div>
@@ -20435,7 +20435,7 @@ function _campStockRecvSelectHtml(selId, onchangeJs) {
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   return `<select id="${selId}" class="cx-in" onchange="${onchangeJs||''}" style="width:100%;margin:6px 0 10px"><option value="">— রিসেপশনিস্ট বাছুন —</option>${names.map(n => `<option value="${esc(n)}" ${n===cur?'selected':''}>${esc(n)}</option>`).join('')}</select>`;
 }
-function _campStockLedgerHtml(items, meOnlyHighlight) {
+function _campStockLedgerHtml(items, meOnlyHighlight, hl) {
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const me = _baseBy(currentUser ? currentUser.name : '');
   return items.map(r => {
@@ -20443,7 +20443,8 @@ function _campStockLedgerHtml(items, meOnlyHighlight) {
     const tm = (typeof _slipTime12 === 'function' && r.time) ? _slipTime12(r.time) : (r.time||'');
     const mine = meOnlyHighlight && r.receptionist && _baseBy(r.receptionist) === me;
     const rows = (r.items||[]).map(i => `<tr><td style="padding:4px 0">${esc(i.name)}</td><td style="padding:4px 0;text-align:right;font-weight:700;white-space:nowrap">${take?'−':'+'} ${fmt(i.qty)} ${esc(i.unit||'')}</td><td style="padding:4px 0;text-align:right;color:#64748b;white-space:nowrap">${fmt(i.before)} → <b style="color:#0f4c81">${fmt(i.after)}</b></td></tr>`).join('');
-    return `<div style="background:#fff;border:1.5px solid ${take?'#fed7aa':'#bbf7d0'};border-radius:12px;padding:11px 12px;margin-bottom:10px">
+    const isHl = hl && hl.indexOf(r.id) >= 0;
+    return `<div id="csl-${r.id}" style="background:${isHl?'#fffbeb':'#fff'};border:${isHl?'2.5px solid #f59e0b':'1.5px solid '+(take?'#fed7aa':'#bbf7d0')};${isHl?'box-shadow:0 0 0 4px rgba(245,158,11,.25);':''}border-radius:12px;padding:11px 12px;margin-bottom:10px">${isHl?'<div style="font-size:11px;font-weight:800;color:#b45309;margin-bottom:4px">🆕 নতুন লেনদেন</div>':''}
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="font-weight:800;font-size:14px">${take?'📤 স্টক নিয়েছেন':'↩️ স্টক ফেরত দিয়েছেন'} <span style="color:var(--primary)">— ${esc(r.campName)}</span></div>${mine?'<span style="font-size:11px;font-weight:800;color:#065f46;background:#dcfce7;border-radius:20px;padding:2px 8px;white-space:nowrap">আপনার কাছে</span>':''}</div>
       <div style="font-size:12px;color:#475569;margin:3px 0 6px">ক্যাম্পেইনার: <b>${esc(r.campaigner)}</b> &nbsp;|&nbsp; রিসেপশনিস্ট: <b>${esc(r.receptionist||'—')}</b><br>📅 ${formatDate(r.date)} &nbsp;🕐 ${esc(tm)}${r.campDate?' &nbsp;|&nbsp; ক্যাম্পের তারিখ: '+formatDate(r.campDate):''}</div>
       <table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="color:#64748b;font-size:11px"><td>পণ্য</td><td style="text-align:right">${take?'নিয়েছেন':'ফেরত'}</td><td style="text-align:right">হাসপাতালে স্টক (${take?'নেওয়ার আগে → পরে':'ফেরতের আগে → পরে'})</td></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -20460,16 +20461,24 @@ function showCampStockLedger() {
   document.body.appendChild(w);
 }
 function _campStockInboxHtml() {
-  const items = (appData.campStockLedger||[]).slice().sort((a,b) => b.id - a.id);
+  var items = (appData.campStockLedger||[]).filter(function(r){ return !r.seenRec; }).sort(function(a,b){ return b.id - a.id; });
   if (!items.length) return '';
-  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  return '<div class="rhd-alert"><div class="rhd-alert-h">📦 ক্যাম্প স্টক লেনদেন — সর্বশেষ <small>(ক্যাম্পেইনার কখন কী স্টক নিল/ফেরত দিল)</small></div><div class="rhd-alert-list">'
-    + items.slice(0,3).map(r => '<span class="rhd-alert-chip" onclick="showCampStockLedger()">' + (r.kind==='take'?'📤 ':'↩️ ') + esc(r.campName) + ' · ' + esc(r.campaigner) + ' · ' + formatDate(r.date) + '</span>').join('')
-    + '<span class="rhd-alert-chip" style="font-weight:800" onclick="showCampStockLedger()">সব রেকর্ড দেখুন ›</span></div></div>';
+  var esc = function(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+  return '<div class="rhd-alert" onclick="openCampStockFromBar()" style="cursor:pointer"><div class="rhd-alert-h">📦 ক্যাম্প স্টক লেনদেন দেখুন — '+fmt(items.length)+'টি নতুন <small>(ক্যাম্পেইনার কখন কী স্টক নিল/ফেরত দিল)</small></div><div class="rhd-alert-list">'
+    + items.slice(0,3).map(function(r){ return '<span class="rhd-alert-chip">' + (r.kind==='take'?'📤 ':'↩️ ') + esc(r.campName) + ' · ' + esc(r.campaigner) + ' · ' + formatDate(r.date) + '</span>'; }).join('')
+    + (items.length>3 ? '<span class="rhd-alert-chip" style="cursor:default">+'+fmt(items.length-3)+' টি আরও</span>' : '')
+    + '<span class="rhd-alert-chip" style="font-weight:800">দেখুন ›</span></div></div>';
+}
+function openCampStockFromBar() {
+  var ids = [];
+  (appData.campStockLedger||[]).forEach(function(r){ if (!r.seenRec) { ids.push(r.id); r.seenRec = true; r.seenBy = currentUser ? currentUser.name : ''; r.seenAt = new Date().toISOString(); } });
+  if (ids.length) { try { saveData(); } catch(e) {} }
+  window._rsmGoCamp = ids;
+  recGoTab('stockmgmt');
 }
 
 // ===== রিসেপশন: স্টক ম্যানেজমেন্ট (দৈনিক স্টক ব্যালেন্স শিট + ক্যাম্প স্টক লেনদেন + বর্তমান স্টক) =====
-var _rsm = { tab:'balance', mode:'day', itemId:'', itemName:'', from:'', to:'', date:'', q:'', cat:'', kind:'', cfrom:'', cto:'', cq:'' };
+var _rsm = { tab:'balance', mode:'day', month:'', open:{}, icat:'', itemId:'', from:'', to:'', q:'', kind:'', cfrom:'', cto:'', cq:'', hl:[] };
 function _stkIso(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function _stkAdd(str, n) { var p = str.split('-'); return _stkIso(new Date(+p[0], +p[1]-1, +p[2]+n)); }
 // stockLog এন্ট্রিকে ব্যালেন্স-শিটের কলামে ভাগ করে
@@ -20516,48 +20525,48 @@ function _stkItemSeries(item, from, to, by) {
   }
   return rows;
 }
-function _stkDayRows(date, by) {
-  var out = [];
-  (appData.stock||[]).forEach(function(it){
-    var m = _stkEmpty(), after = 0;
-    (by[it.id]||[]).forEach(function(l){
-      var c = _stkClass(l); if (!c) return;
-      var q = Number(l.qty)||0, sg = l.move === 'in' ? 1 : -1;
-      if (l.date > date) after += sg*q; else if (l.date === date) _stkBucket(m, l);
-    });
-    var closing = (Number(it.qty)||0) - after, opening = closing - _stkNet(m);
-    var moved = m.purchase||m.campIn||m.campOut||m.sale||m.adj;
-    if (moved || closing > 0 || opening > 0) out.push({ it:it, opening:opening, m:m, closing:closing });
-  });
-  return out;
-}
 function _stkVal(it) { return (Number(it.avgCost)||Number(it.buyPrice)||0); }
 function _stkEsc(x) { return String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function _stkNum(n) { n = Math.round((Number(n)||0)*100)/100; return fmt(n); }
-
-function rsmSet(k, v) { _rsm[k] = v; if (k === 'tab' || k === 'mode') renderRecStockMgmt(); else _rsmBody(); }
-function rsmPickItem(name) {
-  var it = (appData.stock||[]).find(function(x){ return x.name === name; });
-  _rsm.itemId = it ? it.id : ''; _rsm.itemName = it ? it.name : name; _rsmBody();
+function _stkCatOrder() {
+  var base = getStockCats().slice(), extra = [];
+  (appData.stock||[]).forEach(function(it){ var c = it.cat || 'অশ্রেণিভুক্ত'; if (base.indexOf(c) < 0 && extra.indexOf(c) < 0) extra.push(c); });
+  return base.concat(extra);
 }
+function _stkCatIcon(c) { if (/ওষুধ|মেডিসিন/.test(c)) return '💊'; if (/চশমা|লেন্স/.test(c)) return '👓'; if (/সার্জিক্যাল/.test(c)) return '🔪'; return '📦'; }
+function _stkCatLabel(c) { return c === 'ওষুধ' ? 'ওষুধ / মেডিসিন' : c; }
+function _stkSplit(rows, itemOf) {
+  var by = {};
+  rows.forEach(function(r){ var c = itemOf(r).cat || 'অশ্রেণিভুক্ত'; (by[c] = by[c] || []).push(r); });
+  return _stkCatOrder().filter(function(c){ return by[c]; }).map(function(c){ return { cat:c, rows:by[c] }; });
+}
+
+function rsmSet(k, v) { _rsm[k] = v; if (k === 'icat') _rsm.itemId = ''; if (k === 'tab' || k === 'mode' || k === 'month' || k === 'icat') renderRecStockMgmt(); else _rsmBody(); }
+function rsmToggleDay(d) { var isOpen = (d in _rsm.open) ? _rsm.open[d] : (d === todayStr()); _rsm.open[d] = !isOpen; _rsmBody(); }
+function rsmPickItemId(id) { _rsm.itemId = id; renderRecStockMgmt(); }
 function renderRecStockMgmt() {
   var host = document.getElementById('rec-stockmgmt'); if (!host) return;
   var t = todayStr();
-  if (!_rsm.to) _rsm.to = t; if (!_rsm.from) _rsm.from = _stkAdd(t, -14); if (!_rsm.date) _rsm.date = t;
+  if (!window._rsmGoCamp) _rsm.hl = [];
+  if (window._rsmGoCamp) { _rsm.tab = 'camp'; _rsm.kind = ''; _rsm.cfrom = ''; _rsm.cto = ''; _rsm.cq = ''; _rsm.hl = window._rsmGoCamp; window._rsmGoCamp = null; }
+  if (!_rsm.month) _rsm.month = t.substring(0,7);
+  if (!_rsm.to) _rsm.to = t; if (!_rsm.from) _rsm.from = _stkAdd(t, -14);
   var tabBtn = function(id, label) { return '<button type="button" onclick="rsmSet(\'tab\',\''+id+'\')" style="flex:1;min-width:120px;min-height:44px;border:1.5px solid '+(_rsm.tab===id?'var(--primary)':'#cbd5e1')+';background:'+(_rsm.tab===id?'var(--primary)':'#fff')+';color:'+(_rsm.tab===id?'#fff':'#334155')+';border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">'+label+'</button>'; };
   var inp = 'min-height:40px;border:1.5px solid #cbd5e1;border-radius:10px;padding:0 10px;font-family:inherit;font-size:13px;background:#fff';
   var ctl = '';
   if (_rsm.tab === 'balance') {
     ctl = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
-      + '<select onchange="rsmSet(\'mode\',this.value)" style="'+inp+'"><option value="day" '+(_rsm.mode==='day'?'selected':'')+'>📅 একদিনের সব পণ্য</option><option value="item" '+(_rsm.mode==='item'?'selected':'')+'>📈 একটি পণ্যের দিনভিত্তিক</option></select>';
+      + '<select onchange="rsmSet(\'mode\',this.value)" style="'+inp+'"><option value="day" '+(_rsm.mode==='day'?'selected':'')+'>📅 মাসের দিনভিত্তিক শিট</option><option value="item" '+(_rsm.mode==='item'?'selected':'')+'>📈 পণ্যভিত্তিক (ক্যাটাগরি → পণ্য)</option></select>';
     if (_rsm.mode === 'day') {
-      ctl += '<input type="date" value="'+_rsm.date+'" onchange="rsmSet(\'date\',this.value)" style="'+inp+'">'
-        + '<input type="text" placeholder="🔍 পণ্য খুঁজুন" value="'+_stkEsc(_rsm.q)+'" oninput="rsmSet(\'q\',this.value)" style="'+inp+';flex:1;min-width:140px">'
-        + '<select onchange="rsmSet(\'cat\',this.value)" style="'+inp+'"><option value="">সব ক্যাটাগরি</option>'
-        + Array.from(new Set((appData.stock||[]).map(function(x){return x.cat||'';}).filter(Boolean))).sort().map(function(c){ return '<option value="'+_stkEsc(c)+'" '+(_rsm.cat===c?'selected':'')+'>'+_stkEsc(c)+'</option>'; }).join('') + '</select>';
+      ctl += '<input type="month" value="'+_rsm.month+'" max="'+t.substring(0,7)+'" onchange="rsmSet(\'month\',this.value)" style="'+inp+'">'
+        + '<input type="text" placeholder="🔍 পণ্য খুঁজুন" value="'+_stkEsc(_rsm.q)+'" oninput="rsmSet(\'q\',this.value)" style="'+inp+';flex:1;min-width:140px">';
     } else {
-      ctl += '<input list="rsmItems" placeholder="পণ্যের নাম লিখুন/বাছুন" value="'+_stkEsc(_rsm.itemName)+'" onchange="rsmPickItem(this.value)" style="'+inp+';flex:1;min-width:180px">'
-        + '<datalist id="rsmItems">'+(appData.stock||[]).map(function(x){ return '<option value="'+_stkEsc(x.name)+'"></option>'; }).join('')+'</datalist>'
+      var cats = _stkCatOrder().filter(function(c){ return (appData.stock||[]).some(function(x){ return (x.cat||'অশ্রেণিভুক্ত') === c; }); });
+      if (_rsm.icat && cats.indexOf(_rsm.icat) < 0) _rsm.icat = '';
+      if (!_rsm.icat && cats.length) _rsm.icat = cats[0];
+      var its = (appData.stock||[]).filter(function(x){ return (x.cat||'অশ্রেণিভুক্ত') === _rsm.icat; }).sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'bn'); });
+      ctl += '<select onchange="rsmSet(\'icat\',this.value)" style="'+inp+'">'+cats.map(function(c){ return '<option value="'+_stkEsc(c)+'" '+(_rsm.icat===c?'selected':'')+'>'+_stkCatIcon(c)+' '+_stkEsc(_stkCatLabel(c))+'</option>'; }).join('')+'</select>'
+        + '<select onchange="rsmSet(\'itemId\',this.value)" style="'+inp+';flex:1;min-width:170px"><option value="">— সব পণ্যের সারসংক্ষেপ —</option>'+its.map(function(x){ return '<option value="'+_stkEsc(x.id)+'" '+(String(_rsm.itemId)===String(x.id)?'selected':'')+'>'+_stkEsc(x.name)+'</option>'; }).join('')+'</select>'
         + '<input type="date" value="'+_rsm.from+'" onchange="rsmSet(\'from\',this.value)" style="'+inp+'"><span style="color:#64748b">থেকে</span><input type="date" value="'+_rsm.to+'" onchange="rsmSet(\'to\',this.value)" style="'+inp+'">';
     }
     ctl += '</div>';
@@ -20577,53 +20586,94 @@ function renderRecStockMgmt() {
 function _rsmBody() {
   var el = document.getElementById('rsmBody'); if (!el) return;
   try {
-    if (_rsm.tab === 'balance') el.innerHTML = _rsm.mode === 'day' ? _rsmDayHtml() : _rsmItemHtml();
-    else if (_rsm.tab === 'camp') el.innerHTML = _rsmCampHtml();
+    if (_rsm.tab === 'balance') el.innerHTML = _rsm.mode === 'day' ? _rsmMonthHtml() : _rsmItemHtml();
+    else if (_rsm.tab === 'camp') { el.innerHTML = _rsmCampHtml(); if (_rsm.hl && _rsm.hl.length) { var h = document.getElementById('csl-' + _rsm.hl[0]); if (h) setTimeout(function(){ try { h.scrollIntoView({ behavior:'smooth', block:'center' }); } catch(e) {} }, 60); } }
     else el.innerHTML = _rsmCurrentHtml();
   } catch(e) { console.warn('rsm', e); el.innerHTML = '<p style="color:#b91c1c">দেখাতে সমস্যা হয়েছে: ' + _stkEsc(e.message) + '</p>'; }
 }
 var _rsmTh = 'padding:7px 8px;text-align:right;font-size:11.5px;color:#475569;background:#f1f5f9;white-space:nowrap;border-bottom:1.5px solid #cbd5e1';
 var _rsmTd = 'padding:7px 8px;text-align:right;font-size:13px;border-bottom:1px solid #eef2f7;white-space:nowrap';
 function _rsmCell(v, color) { return '<td style="'+_rsmTd+(v?';color:'+color+';font-weight:700':';color:#cbd5e1')+'">'+(v?_stkNum(v):'—')+'</td>'; }
-function _rsmDayHtml() {
-  var by = _stkByItem(), q = (_rsm.q||'').trim().toLowerCase();
-  var rows = _stkDayRows(_rsm.date, by).filter(function(r){ return (!q || String(r.it.name).toLowerCase().indexOf(q) >= 0) && (!_rsm.cat || (r.it.cat||'') === _rsm.cat); })
-    .sort(function(a,b){ return String(a.it.name).localeCompare(String(b.it.name), 'bn'); });
-  if (!rows.length) return '<p style="color:#94a3b8;text-align:center;padding:24px">এই দিনে দেখানোর মতো কোনো পণ্য/লেনদেন নেই।</p>';
+function _rsmAdjCell(v) { return '<td style="'+_rsmTd+(v?';font-weight:700;color:'+(v>0?'#047857':'#b91c1c'):';color:#cbd5e1')+'">'+(v?(v>0?'+':'−')+_stkNum(Math.abs(v)):'—')+'</td>'; }
+var _rsmHead = '<thead><tr><th style="'+_rsmTh+';text-align:left">@@FIRST@@</th><th style="'+_rsmTh+'">প্রারম্ভিক</th><th style="'+_rsmTh+'">নতুন ক্রয়</th><th style="'+_rsmTh+'">ক্যাম্প থেকে ফেরত</th><th style="'+_rsmTh+'">ক্যাম্পে দেওয়া</th><th style="'+_rsmTh+'">হাসপাতালে বিক্রি</th><th style="'+_rsmTh+'">সমন্বয়/অন্যান্য</th><th style="'+_rsmTh+'">সমাপনী</th></tr></thead>';
+// একটি ক্যাটাগরির আলাদা টেবিল (একদিনের)
+function _rsmCatTable(cat, rows) {
+  rows = rows.slice().sort(function(a,b){ return String(a.it.name).localeCompare(String(b.it.name), 'bn'); });
   var tv = { o:0, p:0, ci:0, co:0, s:0, a:0, c:0 };
   var body = rows.map(function(r){
     var v = _stkVal(r.it);
     tv.o += r.opening*v; tv.p += r.m.purchase*v; tv.ci += r.m.campIn*v; tv.co += r.m.campOut*v; tv.s += r.m.sale*v; tv.a += r.m.adj*v; tv.c += r.closing*v;
     return '<tr><td style="'+_rsmTd+';text-align:left;font-weight:700;white-space:normal;min-width:130px">'+_stkEsc(r.it.name)+' <span style="color:#94a3b8;font-weight:400;font-size:11px">'+_stkEsc(r.it.unit||'')+'</span></td>'
-      + '<td style="'+_rsmTd+'">'+_stkNum(r.opening)+'</td>'
-      + _rsmCell(r.m.purchase,'#047857') + _rsmCell(r.m.campIn,'#0369a1') + _rsmCell(r.m.campOut,'#c2410c') + _rsmCell(r.m.sale,'#b91c1c')
-      + '<td style="'+_rsmTd+(r.m.adj?';font-weight:700;color:'+(r.m.adj>0?'#047857':'#b91c1c'):';color:#cbd5e1')+'">'+(r.m.adj?(r.m.adj>0?'+':'−')+_stkNum(Math.abs(r.m.adj)):'—')+'</td>'
+      + '<td style="'+_rsmTd+'">'+_stkNum(r.opening)+'</td>' + _rsmCell(r.m.purchase,'#047857') + _rsmCell(r.m.campIn,'#0369a1') + _rsmCell(r.m.campOut,'#c2410c') + _rsmCell(r.m.sale,'#b91c1c') + _rsmAdjCell(r.m.adj)
       + '<td style="'+_rsmTd+';font-weight:800;color:var(--primary);background:#f8fafc">'+_stkNum(r.closing)+'</td></tr>';
   }).join('');
-  var tot = '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left">মোট মূল্য (৳, গড় ক্রয়মূল্যে)</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.o))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.p))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.ci))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.co))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.s))+'</td><td style="'+_rsmTd+'">'+(tv.a<0?'−':'')+fmt(Math.round(Math.abs(tv.a)))+'</td><td style="'+_rsmTd+';color:var(--primary)">'+fmt(Math.round(tv.c))+'</td></tr>';
-  return '<div style="font-size:12.5px;color:#475569;margin-bottom:8px">📅 <b>'+formatDate(_rsm.date)+'</b> — প্রারম্ভিক স্টক + ক্রয় + ক্যাম্প থেকে ফেরত − ক্যাম্পে দেওয়া − হাসপাতালে বিক্রি ± সমন্বয় = সমাপনী স্টক</div>'
-    + '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="'+_rsmTh+';text-align:left">পণ্য</th><th style="'+_rsmTh+'">প্রারম্ভিক</th><th style="'+_rsmTh+'">নতুন ক্রয়</th><th style="'+_rsmTh+'">ক্যাম্প থেকে ফেরত</th><th style="'+_rsmTh+'">ক্যাম্পে দেওয়া</th><th style="'+_rsmTh+'">হাসপাতালে বিক্রি</th><th style="'+_rsmTh+'">সমন্বয়/অন্যান্য</th><th style="'+_rsmTh+'">সমাপনী</th></tr></thead><tbody>'+body+tot+'</tbody></table></div>'
-    + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;line-height:1.6">সমাপনী স্টক আজকের বর্তমান স্টক থেকে পেছনের দিকে হিসাব করা, তাই আজকের সমাপনী সবসময় বর্তমান স্টকের সাথে মেলে। লগ ছাড়া সরাসরি স্টক বদলালে সেটা প্রারম্ভিক স্টকে ধরা পড়বে।</div>';
+  var R = function(x){ return fmt(Math.round(x)); };
+  var tot = '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left">মোট মূল্য (৳)</td><td style="'+_rsmTd+'">'+R(tv.o)+'</td><td style="'+_rsmTd+'">'+R(tv.p)+'</td><td style="'+_rsmTd+'">'+R(tv.ci)+'</td><td style="'+_rsmTd+'">'+R(tv.co)+'</td><td style="'+_rsmTd+'">'+R(tv.s)+'</td><td style="'+_rsmTd+'">'+(tv.a<0?'−':'')+R(Math.abs(tv.a))+'</td><td style="'+_rsmTd+';color:var(--primary)">'+R(tv.c)+'</td></tr>';
+  return '<div style="margin-bottom:12px"><div style="font-weight:800;font-size:13.5px;color:var(--primary);margin:2px 0 6px">'+_stkCatIcon(cat)+' '+_stkEsc(_stkCatLabel(cat))+' <span style="color:#94a3b8;font-weight:500;font-size:12px">('+rows.length+'টি পণ্য)</span></div><div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse">'+_rsmHead.replace('@@FIRST@@','পণ্য')+'<tbody>'+body+tot+'</tbody></table></div></div>';
 }
+// মাসের সব দিন: আজ খোলা, বাকিগুলো বন্ধ (ক্লিক করলে খোলে)
+function _rsmMonthHtml() {
+  var ym = _rsm.month, t = todayStr(), p = ym.split('-'), y = +p[0], mo = +p[1];
+  var from = ym + '-01', end = ym + '-' + String(new Date(y, mo, 0).getDate()).padStart(2,'0'), to = end > t ? t : end;
+  if (from > to) return '<p style="color:#94a3b8;text-align:center;padding:24px">এই মাসে এখনো কোনো দিন শুরু হয়নি।</p>';
+  var by = _stkByItem(), q = (_rsm.q||'').trim().toLowerCase(), days = {};
+  (appData.stock||[]).forEach(function(it){
+    if (q && String(it.name).toLowerCase().indexOf(q) < 0) return;
+    _stkItemSeries(it, from, to, by).forEach(function(r){
+      var mv = r.m.purchase||r.m.campIn||r.m.campOut||r.m.sale||r.m.adj;
+      if (mv || r.closing > 0 || r.opening > 0) (days[r.date] = days[r.date] || []).push({ it:it, opening:r.opening, m:r.m, closing:r.closing });
+    });
+  });
+  var R = function(x){ return fmt(Math.round(x)); }, out = '';
+  var d = to;
+  while (d >= from) {
+    var rows = days[d] || [], isOpen = (d in _rsm.open) ? _rsm.open[d] : (d === t);
+    var s2 = { p:0, s:0, co:0, ci:0, c:0 };
+    rows.forEach(function(r){ var v = _stkVal(r.it); s2.p += r.m.purchase*v; s2.s += r.m.sale*v; s2.co += r.m.campOut*v; s2.ci += r.m.campIn*v; s2.c += r.closing*v; });
+    var chips = '<span style="font-size:11.5px;color:#475569">সমাপনী <b style="color:var(--primary)">৳ '+R(s2.c)+'</b></span>'
+      + (s2.p ? '<span style="font-size:11.5px;color:#047857">ক্রয় ৳ '+R(s2.p)+'</span>' : '') + (s2.s ? '<span style="font-size:11.5px;color:#b91c1c">বিক্রি ৳ '+R(s2.s)+'</span>' : '')
+      + (s2.co ? '<span style="font-size:11.5px;color:#c2410c">ক্যাম্পে ৳ '+R(s2.co)+'</span>' : '') + (s2.ci ? '<span style="font-size:11.5px;color:#0369a1">ফেরত ৳ '+R(s2.ci)+'</span>' : '');
+    out += '<div style="background:#fff;border:1.5px solid '+(d===t?'var(--primary)':'#e2e8f0')+';border-radius:12px;margin-bottom:10px;overflow:hidden">'
+      + '<div onclick="rsmToggleDay(\''+d+'\')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 13px;cursor:pointer;background:'+(d===t?'#eef4fa':'#f8fafc')+'"><div style="font-weight:800;font-size:14px">'+(isOpen?'▼':'▶')+' 📅 '+formatDate(d)+(d===t?' <span style="color:var(--primary)">(আজ)</span>':'')+'</div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+chips+'</div></div>'
+      + (isOpen ? '<div style="padding:12px 12px 2px">'+(rows.length ? _stkSplit(rows, function(r){ return r.it; }).map(function(g){ return _rsmCatTable(g.cat, g.rows); }).join('') : '<p style="color:#94a3b8;text-align:center;padding:12px">এই দিনে কোনো স্টক বা লেনদেন নেই।</p>')+'</div>' : '')
+      + '</div>';
+    d = _stkAdd(d, -1);
+  }
+  return '<div style="font-size:12.5px;color:#475569;margin-bottom:8px">প্রারম্ভিক স্টক + নতুন ক্রয় + ক্যাম্প থেকে ফেরত − ক্যাম্পে দেওয়া − হাসপাতালে বিক্রি ± সমন্বয় = সমাপনী স্টক। দিনের শিরোনামে চাপলে খোলে/বন্ধ হয়।</div>' + out
+    + '<div style="font-size:11.5px;color:#94a3b8;margin-top:4px;line-height:1.6">সমাপনী স্টক আজকের বর্তমান স্টক থেকে পেছনের দিকে হিসাব করা, তাই আজকের সমাপনী সবসময় বর্তমান স্টকের সাথে মেলে। লগ ছাড়া সরাসরি স্টক বদলালে সেটা প্রারম্ভিক স্টকে ধরা পড়বে।</div>';
+}
+// ক্যাটাগরি বেছে — পণ্যের তালিকা (সারসংক্ষেপ) অথবা একটি পণ্যের দিনভিত্তিক
 function _rsmItemHtml() {
-  var it = (appData.stock||[]).find(function(x){ return String(x.id) === String(_rsm.itemId); });
-  if (!it) return '<p style="color:#94a3b8;text-align:center;padding:24px">উপরে একটি পণ্য বেছে নিন।</p>';
   if (_rsm.from > _rsm.to) return '<p style="color:#b91c1c">শুরুর তারিখ শেষ তারিখের আগে হতে হবে।</p>';
   var days = Math.round((new Date(_rsm.to) - new Date(_rsm.from))/86400000);
   if (days > 370) return '<p style="color:#b91c1c">সর্বোচ্চ ১ বছরের রেঞ্জ বাছুন।</p>';
-  var rows = _stkItemSeries(it, _rsm.from, _rsm.to, _stkByItem());
-  var sum = _stkEmpty(); rows.forEach(function(r){ ['purchase','campIn','campOut','sale','adj'].forEach(function(k){ sum[k] += r.m[k]; }); });
-  var body = rows.slice().reverse().map(function(r){
+  var by = _stkByItem();
+  var it = (appData.stock||[]).find(function(x){ return String(x.id) === String(_rsm.itemId); });
+  if (!it) {
+    var items = (appData.stock||[]).filter(function(x){ return (x.cat||'অশ্রেণিভুক্ত') === _rsm.icat; }).sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'bn'); });
+    if (!items.length) return '<p style="color:#94a3b8;text-align:center;padding:24px">এই ক্যাটাগরিতে কোনো পণ্য নেই।</p>';
+    var body = items.map(function(x){
+      var rows = _stkItemSeries(x, _rsm.from, _rsm.to, by), sum = _stkEmpty();
+      rows.forEach(function(r){ ['purchase','campIn','campOut','sale','adj'].forEach(function(k){ sum[k] += r.m[k]; }); });
+      return '<tr onclick="rsmPickItemId(\''+_stkEsc(x.id)+'\')" style="cursor:pointer"><td style="'+_rsmTd+';text-align:left;font-weight:700;white-space:normal;min-width:130px;color:var(--primary)">'+_stkEsc(x.name)+' <span style="color:#94a3b8;font-weight:400;font-size:11px">'+_stkEsc(x.unit||'')+'</span></td><td style="'+_rsmTd+'">'+_stkNum(rows[0].opening)+'</td>'
+        + _rsmCell(sum.purchase,'#047857') + _rsmCell(sum.campIn,'#0369a1') + _rsmCell(sum.campOut,'#c2410c') + _rsmCell(sum.sale,'#b91c1c') + _rsmAdjCell(sum.adj)
+        + '<td style="'+_rsmTd+';font-weight:800;color:var(--primary);background:#f8fafc">'+_stkNum(rows[rows.length-1].closing)+'</td></tr>';
+    }).join('');
+    return '<div style="font-weight:800;font-size:13.5px;color:var(--primary);margin:2px 0 6px">'+_stkCatIcon(_rsm.icat)+' '+_stkEsc(_stkCatLabel(_rsm.icat))+' — '+formatDate(_rsm.from)+' থেকে '+formatDate(_rsm.to)+' <span style="color:#94a3b8;font-weight:500;font-size:12px">(পণ্যে চাপলে দিনভিত্তিক দেখাবে)</span></div>'
+      + '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse">'+_rsmHead.replace('@@FIRST@@','পণ্য')+'<tbody>'+body+'</tbody></table></div>';
+  }
+  var rows2 = _stkItemSeries(it, _rsm.from, _rsm.to, by), sum2 = _stkEmpty();
+  rows2.forEach(function(r){ ['purchase','campIn','campOut','sale','adj'].forEach(function(k){ sum2[k] += r.m[k]; }); });
+  var body2 = rows2.slice().reverse().map(function(r){
     var any = r.m.purchase||r.m.campIn||r.m.campOut||r.m.sale||r.m.adj;
     return '<tr'+(any?'':' style="opacity:.55"')+'><td style="'+_rsmTd+';text-align:left">'+formatDate(r.date)+'</td><td style="'+_rsmTd+'">'+_stkNum(r.opening)+'</td>'
-      + _rsmCell(r.m.purchase,'#047857') + _rsmCell(r.m.campIn,'#0369a1') + _rsmCell(r.m.campOut,'#c2410c') + _rsmCell(r.m.sale,'#b91c1c')
-      + '<td style="'+_rsmTd+(r.m.adj?';font-weight:700;color:'+(r.m.adj>0?'#047857':'#b91c1c'):';color:#cbd5e1')+'">'+(r.m.adj?(r.m.adj>0?'+':'−')+_stkNum(Math.abs(r.m.adj)):'—')+'</td>'
+      + _rsmCell(r.m.purchase,'#047857') + _rsmCell(r.m.campIn,'#0369a1') + _rsmCell(r.m.campOut,'#c2410c') + _rsmCell(r.m.sale,'#b91c1c') + _rsmAdjCell(r.m.adj)
       + '<td style="'+_rsmTd+';font-weight:800;color:var(--primary);background:#f8fafc">'+_stkNum(r.closing)+'</td></tr>';
   }).join('');
-  var first = rows[0], last = rows[rows.length-1];
-  var tot = '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left">মোট ('+rows.length+' দিন)</td><td style="'+_rsmTd+'">'+_stkNum(first.opening)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.purchase)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.campIn)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.campOut)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.sale)+'</td><td style="'+_rsmTd+'">'+(sum.adj<0?'−':(sum.adj>0?'+':''))+_stkNum(Math.abs(sum.adj))+'</td><td style="'+_rsmTd+';color:var(--primary)">'+_stkNum(last.closing)+'</td></tr>';
-  return '<div style="font-size:13px;font-weight:800;margin-bottom:6px">'+_stkEsc(it.name)+' <span style="color:#64748b;font-weight:400">('+_stkEsc(it.unit||'')+') — বর্তমান স্টক: '+_stkNum(it.qty)+'</span></div>'
-    + '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="'+_rsmTh+';text-align:left">তারিখ</th><th style="'+_rsmTh+'">প্রারম্ভিক</th><th style="'+_rsmTh+'">নতুন ক্রয়</th><th style="'+_rsmTh+'">ক্যাম্প থেকে ফেরত</th><th style="'+_rsmTh+'">ক্যাম্পে দেওয়া</th><th style="'+_rsmTh+'">হাসপাতালে বিক্রি</th><th style="'+_rsmTh+'">সমন্বয়/অন্যান্য</th><th style="'+_rsmTh+'">সমাপনী</th></tr></thead><tbody>'+tot+body+'</tbody></table></div>';
+  var first = rows2[0], last = rows2[rows2.length-1];
+  var tot = '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left">মোট ('+rows2.length+' দিন)</td><td style="'+_rsmTd+'">'+_stkNum(first.opening)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum2.purchase)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum2.campIn)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum2.campOut)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum2.sale)+'</td><td style="'+_rsmTd+'">'+(sum2.adj<0?'−':(sum2.adj>0?'+':''))+_stkNum(Math.abs(sum2.adj))+'</td><td style="'+_rsmTd+';color:var(--primary)">'+_stkNum(last.closing)+'</td></tr>';
+  return '<div style="font-size:13px;font-weight:800;margin-bottom:6px">'+_stkCatIcon(it.cat||'')+' '+_stkEsc(it.name)+' <span style="color:#64748b;font-weight:400">('+_stkEsc(it.unit||'')+') — বর্তমান স্টক: '+_stkNum(it.qty)+'</span></div>'
+    + '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse">'+_rsmHead.replace('@@FIRST@@','তারিখ')+'<tbody>'+tot+body2+'</tbody></table></div>';
 }
 function _rsmCampHtml() {
   var all = (appData.campStockLedger||[]).slice().sort(function(a,b){ return b.id - a.id; });
@@ -20632,24 +20682,58 @@ function _rsmCampHtml() {
     return (!_rsm.kind || r.kind === _rsm.kind) && (!_rsm.cfrom || r.date >= _rsm.cfrom) && (!_rsm.cto || r.date <= _rsm.cto)
       && (!q || (String(r.campName)+' '+String(r.campaigner)+' '+String(r.receptionist)).toLowerCase().indexOf(q) >= 0);
   });
-  // এখনো ফেরত আসেনি — ক্যাম্প+পণ্য ধরে নেওয়া − ফেরত
   var out = {};
   all.forEach(function(r){ var key = (r.campRef||'')+'|'+r.campName+'|'+(r.campDate||'');
     (r.items||[]).forEach(function(i){ var k2 = key+'|'+i.itemId; var o = out[k2] = out[k2] || { camp:r.campName, date:r.campDate, name:i.name, unit:i.unit, qty:0 }; o.qty += (r.kind==='take' ? 1 : -1) * (Number(i.qty)||0); }); });
   var pend = Object.keys(out).map(function(k){ return out[k]; }).filter(function(o){ return o.qty > 0; });
   var pendHtml = pend.length ? '<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:10px 12px;margin-bottom:12px"><div style="font-weight:800;color:#9a3412;font-size:13px;margin-bottom:4px">⏳ ক্যাম্পে আছে, এখনো ফেরত আসেনি</div>'
     + pend.map(function(o){ return '<div style="font-size:12.5px;padding:2px 0">'+_stkEsc(o.camp)+(o.date?' ('+formatDate(o.date)+')':'')+' — <b>'+_stkEsc(o.name)+'</b>: '+_stkNum(o.qty)+' '+_stkEsc(o.unit||'')+'</div>'; }).join('') + '</div>' : '';
-  return pendHtml + (items.length ? _campStockLedgerHtml(items, true) : '<p style="color:#94a3b8;text-align:center;padding:24px">কোনো ক্যাম্প স্টক লেনদেন পাওয়া যায়নি।</p>');
+  return pendHtml + (items.length ? _campStockLedgerHtml(items, true, _rsm.hl) : '<p style="color:#94a3b8;text-align:center;padding:24px">কোনো ক্যাম্প স্টক লেনদেন পাওয়া যায়নি।</p>');
 }
+// বর্তমান স্টক — ক্যাটাগরি অনুযায়ী আলাদা আলাদা টেবিল
 function _rsmCurrentHtml() {
   var q = (_rsm.q||'').trim().toLowerCase();
-  var list = (appData.stock||[]).filter(function(x){ return !q || String(x.name).toLowerCase().indexOf(q) >= 0; }).sort(function(a,b){ return String(a.cat||'').localeCompare(String(b.cat||''),'bn') || String(a.name).localeCompare(String(b.name),'bn'); });
+  var list = (appData.stock||[]).filter(function(x){ return !q || String(x.name).toLowerCase().indexOf(q) >= 0; });
   if (!list.length) return '<p style="color:#94a3b8;text-align:center;padding:24px">কোনো পণ্য নেই।</p>';
-  var tv = 0;
-  var body = list.map(function(x){ var v = (Number(x.qty)||0) * _stkVal(x); tv += v;
-    return '<tr><td style="'+_rsmTd+';text-align:left;font-weight:700;white-space:normal">'+_stkEsc(x.name)+'</td><td style="'+_rsmTd+';text-align:left;color:#64748b">'+_stkEsc(x.cat||'')+'</td><td style="'+_rsmTd+';font-weight:800;color:'+((Number(x.qty)||0)<=0?'#b91c1c':'var(--primary)')+'">'+_stkNum(x.qty)+' '+_stkEsc(x.unit||'')+'</td><td style="'+_rsmTd+'">৳ '+fmt(Math.round(v))+'</td></tr>'; }).join('');
-  return '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="'+_rsmTh+';text-align:left">পণ্য</th><th style="'+_rsmTh+';text-align:left">ক্যাটাগরি</th><th style="'+_rsmTh+'">হাসপাতালে স্টক</th><th style="'+_rsmTh+'">মূল্য (গড় ক্রয়মূল্যে)</th></tr></thead><tbody>'+body
-    + '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left" colspan="3">মোট স্টক মূল্য</td><td style="'+_rsmTd+';color:var(--primary)">৳ '+fmt(Math.round(tv))+'</td></tr></tbody></table></div>';
+  var grand = 0;
+  var tables = _stkSplit(list, function(x){ return x; }).map(function(g){
+    var rows = g.rows.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'bn'); }), tv = 0;
+    var body = rows.map(function(x){ var v = (Number(x.qty)||0) * _stkVal(x); tv += v;
+      return '<tr><td style="'+_rsmTd+';text-align:left;font-weight:700;white-space:normal">'+_stkEsc(x.name)+'</td><td style="'+_rsmTd+';font-weight:800;color:'+((Number(x.qty)||0)<=0?'#b91c1c':'var(--primary)')+'">'+_stkNum(x.qty)+' '+_stkEsc(x.unit||'')+'</td><td style="'+_rsmTd+'">৳ '+fmt(Math.round(v))+'</td></tr>'; }).join('');
+    grand += tv;
+    return '<div style="margin-bottom:12px"><div style="font-weight:800;font-size:13.5px;color:var(--primary);margin:2px 0 6px">'+_stkCatIcon(g.cat)+' '+_stkEsc(_stkCatLabel(g.cat))+' <span style="color:#94a3b8;font-weight:500;font-size:12px">('+rows.length+'টি পণ্য)</span></div><div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="'+_rsmTh+';text-align:left">পণ্য</th><th style="'+_rsmTh+'">হাসপাতালে স্টক</th><th style="'+_rsmTh+'">মূল্য (গড় ক্রয়মূল্যে)</th></tr></thead><tbody>'+body
+      + '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left" colspan="2">মোট</td><td style="'+_rsmTd+';color:var(--primary)">৳ '+fmt(Math.round(tv))+'</td></tr></tbody></table></div></div>';
+  }).join('');
+  return tables + '<div style="font-weight:800;text-align:right;color:var(--primary);font-size:14px">সব ক্যাটাগরির মোট স্টক মূল্য: ৳ '+fmt(Math.round(grand))+'</div>';
+}
+
+// ===== রিসেপশন: ক্যাম্পেইনারের জমা স্লিপ রেকর্ড (শেষ ১০ দিন) — প্রিন্ট না দিলেও রেকর্ড থাকে =====
+function _camperSlipRecordList() {
+  var me = currentUser && currentUser.name, lim = _stkAdd(todayStr(), -10);
+  return (appData.camperDeposits||[]).filter(function(r){
+    return !r.cancelled && r.date >= lim && (r.sentTo === 'reception' || (r.heldBy && me && _baseBy(r.heldBy) === _baseBy(me)));
+  }).sort(function(a,b){ return b.id - a.id; });
+}
+function _camperSlipRecordLinkHtml() {
+  var n = _camperSlipRecordList().length; if (!n) return '';
+  return '<div class="rhd-alert" style="background:#eff6ff;border-color:#bfdbfe"><div class="rhd-alert-h" style="color:#1e40af">📄 ক্যাম্পেইনারের জমা স্লিপ রেকর্ড <small>(শেষ ১০ দিনের '+fmt(n)+'টি — প্রিন্ট না দিলেও এখানে থাকে)</small></div><div class="rhd-alert-list"><span class="rhd-alert-chip" style="font-weight:800" onclick="showCamperSlipRecord()">রেকর্ড দেখুন ›</span></div></div>';
+}
+function showCamperSlipRecord() {
+  var old = document.getElementById('camperSlipRecordModal'); if (old) old.remove();
+  var esc = function(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+  var me = currentUser && currentUser.name;
+  var list = _camperSlipRecordList();
+  var body = list.length ? list.map(function(r){
+    var sn = r.snap||{}, neg = (r.amount||0) < 0;
+    var mine = r.heldBy && me && _baseBy(r.heldBy) === _baseBy(me);
+    var tm = (typeof _slipTime12 === 'function' && r.time) ? _slipTime12(r.time) : (r.time||'');
+    var st = r.printedAt ? '<span style="font-size:11px;font-weight:800;color:#16a34a;background:#dcfce7;border-radius:20px;padding:2px 8px">🖨️ প্রিন্ট হয়েছে</span>' : '<span style="font-size:11px;font-weight:800;color:#b45309;background:#fef3c7;border-radius:20px;padding:2px 8px">প্রিন্ট বাকি</span>';
+    return '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start"><div><div style="font-weight:800">'+esc(sn.campName||'ক্যাম্প')+'</div><div style="font-size:12px;color:#475569;margin-top:2px">ক্যাম্পেইনার: <b>'+esc(_baseBy(r.by))+'</b> &nbsp;|&nbsp; 📅 '+formatDate(r.date)+' '+esc(tm)+'</div><div style="font-size:12px;margin-top:2px;font-weight:800;color:'+(neg?'#b45309':'#047857')+'">'+(neg?'রিফিল পাওনা ':'৳ ')+(neg?'৳ ':'')+fmt(Math.abs(r.amount||0))+(mine?' <span style="color:#7c2d12;font-weight:700">· আপনি গ্রহণ করেছেন</span>':'')+'</div></div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">'+st+'<button type="button" class="btn btn-outline btn-sm" onclick="previewCamperDeposit('+r.id+')">👁️ প্রিভিউ / প্রিন্ট</button></div></div></div>';
+  }).join('') : '<p style="color:#94a3b8;text-align:center;padding:24px">শেষ ১০ দিনে কোনো স্লিপ নেই।</p>';
+  var w = document.createElement('div'); w.id = 'camperSlipRecordModal';
+  w.style.cssText = 'position:fixed;inset:0;background:#f0f4f8;z-index:10040;overflow-y:auto;-webkit-overflow-scrolling:touch';
+  w.innerHTML = '<div style="max-width:620px;margin:0 auto;min-height:100vh;padding:0 0 30px"><div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1.5px solid #e2e8f0;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:16px;color:var(--primary)">📄 জমা স্লিপ রেকর্ড (শেষ ১০ দিন)</div><button type="button" onclick="document.getElementById(\'camperSlipRecordModal\').remove()" style="background:#f1f5f9;border:none;border-radius:10px;min-height:40px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;color:#475569;font-family:inherit">✕ বন্ধ</button></div><div style="padding:12px">'+body+'</div></div>';
+  document.body.appendChild(w);
 }
 
 function showCamperCashSubmitModal() {
@@ -35216,6 +35300,7 @@ function switchRecTab(name, btn) {
   if (name==='lookup') renderPriceCatalog();
   if (name==='opsheet') { moveOpsheetIntoRecTab(); } else { restoreOpsheetFromRecTab(); }
   if (name==='bulkstock') { openBulkStockInEmbedded(); }
+  if (name==='bulkstock') { var _sm = document.getElementById('rtab-stockmgmt'); if (_sm) _sm.classList.add('active'); }
   if (name==='stockmgmt') { renderRecStockMgmt(); }
 }
 
@@ -37675,6 +37760,7 @@ function _recMyRecentEntries(limit) {
   (appData.dueHistory||[]).forEach(function(h){ if (_baseBy(h.by)===me && h.type==='collect') rows.push({kind:'due', id:h.id, k:h.ts||h.id, by:h.by, date:h.date, time:'', memo:h.memoNo||'', tag:'💵 বাকি আদায়', bg:'#dcfce7', fg:'#15803d', cat:'বাকি আদায়', ref:h.patName||'—', amt:h.amount||0, st:(h.remainingDue>0?'<span style="color:#9333ea">অবশিষ্ট ৳ '+fmt(h.remainingDue)+'</span>':'<span style="color:#16a34a">সম্পূর্ণ</span>')}); });
   (appData.expense||[]).forEach(function(e){ if (_baseBy(e.by)===me) { var st = e.rejected ? '<span style="color:#dc2626">❌ বাতিল</span>' : (e.needsApproval && e.status==='pending' ? '<span style="color:#b45309">⏳ অনুমোদনের অপেক্ষায়</span>' : '<span style="color:#16a34a">✓ গৃহীত</span>'); rows.push({kind:'exp', id:e.id, k:e.id, by:e.by, date:e.date, time:'', memo:e.voucher||e.memo||'', tag:'💸 ব্যয়', bg:'#ffe4e6', fg:'#be123c', cat:(e.category||'—')+(e.subCategory?(' › '+e.subCategory):''), ref:e.ref||e.note||'—', amt:e.amount||0, st:st}); } });
   (appData.recDeposits||[]).forEach(function(d){ if (_baseBy(d.by)===me) rows.push({kind:'dep', id:d.id, k:d.id, by:d.by, date:d.date, time:d.time||'', memo:(d.memoFrom&&d.memoFrom!=='—')?(d.memoFrom+'–'+d.memoTo):'', tag:'🏦 ক্যাশ জমা', bg:'#f3e8ff', fg:'#7e22ce', cat:(d.kind==='interim'?'মধ্যবর্তী জমা':(d.seq>1?'চূড়ান্ত জমা':'ডিউটি শেষে জমা'))+(d.seq?' ('+_bnOrd(d.seq)+')':''), ref:(d.visitCount||0)+' জন রোগী', amt:d.amount||0, st:(d.diff===undefined||d.diff===null)?(d.kind==='interim'?'<span style="color:#0369a1">হাতে ৳ '+fmt(d.handLeft||0)+'</span>':''):(d.diff===0?'<span style="color:#16a34a">✓ মিলেছে</span>':'<span style="color:'+(d.diff<0?'#dc2626':'#b45309')+'">'+(d.diff<0?'ঘাটতি':'বেশি')+' ৳ '+fmt(Math.abs(d.diff))+'</span>')}); });
+  (appData.camperDeposits||[]).forEach(function(d){ if (d.heldBy && _baseBy(d.heldBy)===_baseBy(me) && !d.cancelled) rows.push({kind:'cdep', id:d.id, k:d.id, by:d.by, date:d.date, time:d.time||'', memo:'', tag:'🏕️ ক্যাম্প জমা', bg:'#ffedd5', fg:'#c2410c', cat:esc((d.snap&&d.snap.campName)||'ক্যাম্প')+' <small style="color:#9a3412">(ক্যাম্পেইনার থেকে গৃহীত)</small>', ref:esc(_baseBy(d.by||'')), amt:Math.abs(d.amount||0), st:'<span style="color:#16a34a">✓ গৃহীত</span>'}); });
   rows.sort(function(a,b){ return (b.k||0)-(a.k||0); });
   return rows.slice(0, limit||10).map(function(r){ r.today = r.date===today; return r; });
 }
@@ -37855,6 +37941,7 @@ function recEntryDetail(kind, id) {
   var esc = function(s){ return (s==null||s===''?'—':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
   var grid = function(pairs){ return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:10px">'+pairs.map(function(p){ return '<div><b>'+p[0]+':</b> '+p[1]+'</div>'; }).join('')+'</div>'; };
   if (kind==='dep') { showRecDepositDetail(id); return; }
+  if (kind==='cdep') { previewCamperDeposit(id); return; }
   if (kind==='visit') {
     var v = (appData.visits||[]).find(function(x){ return x.id===id; });
     if (!v) { showToast('⚠️ এন্ট্রিটি আর পাওয়া যাচ্ছে না'); return; }
@@ -37954,6 +38041,7 @@ function renderRecHome() {
     // ✅ ক্যাম্পেইনার রিসেপশনে যে ক্যাশ জমার স্লিপ পাঠিয়েছেন (এখনো প্রিন্ট হয়নি) — সতর্কতা ও করণীয় গণনায় যোগ
     try { alEl.innerHTML += _camperSlipInboxHtml('reception'); } catch(e) {}
     try { alEl.innerHTML += _campStockInboxHtml(); } catch(e) {}
+    try { alEl.innerHTML += _camperSlipRecordLinkHtml(); } catch(e) {}
   }
   var pEl = document.getElementById('recHomePending'); if (pEl) pEl.textContent = fmt(pending);
   function card(icon, label, val, sub, color, bg, tab, urgent, zero) {
