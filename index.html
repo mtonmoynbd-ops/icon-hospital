@@ -8086,6 +8086,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="rp-nav-item" id="rtab-opsheet" onclick="switchRecTab('opsheet',this)"><span class="nav-icon">🏥</span> অপারেশন শিট<span id="recOpsheetBadge" class="nbadge" style="display:none">0</span></div>
       </div>
       <div class="rp-nav-footer">
+        <div class="rp-nav-item" id="rtab-stockmgmt" onclick="switchRecTab('stockmgmt',this)"><span class="nav-icon">🗃️</span> স্টক ম্যানেজমেন্ট</div>
         <div class="rp-nav-item" id="rtab-bulkstock" onclick="switchRecTab('bulkstock',this)"><span class="nav-icon">📦</span> বাল্ক স্টক ইন</div>
         <div class="rp-nav-item rp-nav-cash" onclick="showRecCashSubmitModal()"><span class="nav-icon">💵</span> ক্যাশ জমা</div>
         <div class="rp-nav-item rp-nav-logout" onclick="doLogout()"><span class="nav-icon">🚪</span> লগআউট</div>
@@ -8777,6 +8778,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 
     <!-- BULK STOCK IN TAB (RECEPTION) — embedded মোডে renderBulkStockInPage() এখানে রেন্ডার করে -->
     <div id="rec-bulkstock" class="rec-tab-view"></div>
+    <div id="rec-stockmgmt" class="rec-tab-view"></div>
 
     </div>
     <aside class="rec-widgets-col">
@@ -14096,7 +14098,7 @@ function confirmCashSubmit(role) {
       kind: _kind, seq: _recPrevDeps(currentUser.name, today, Infinity).length + 1, prevDeps: _recPrevDeps(currentUser.name, today, Infinity), handLeft: _cc.remaining - amt,
       entSnap: _recSlipEntries(currentUser.name, today),
       // ✅ জমার মুহূর্তের নগদ হিসাবের স্ন্যাপশট — জমার স্লিপ (২ পেজের PDF) এই মান থেকেই তৈরি হয়, পরে আবার ডাউনলোডেও একই থাকে
-      ccSnap: { cashIn:_cc.cashIn, ownCash:_cc.ownCash, adminCash:_cc.adminCash, mdHeld:_cc.mdHeld, cashOut:_cc.cashOut, prevDeposited:_cc.deposited, mfs:_cc.mfs, dueIn:_cc.dueIn, carry:_cc.carry||0, poolHeld:_cc.poolHeld||0 },
+      ccSnap: { cashIn:_cc.cashIn, campRecv:_cc.campRecv||0, campRecvList:_cc.campRecvList||[], ownCash:_cc.ownCash, adminCash:_cc.adminCash, mdHeld:_cc.mdHeld, cashOut:_cc.cashOut, prevDeposited:_cc.deposited, mfs:_cc.mfs, dueIn:_cc.dueIn, carry:_cc.carry||0, poolHeld:_cc.poolHeld||0 },
       id: Date.now()+1,
       date: today,
       time: timeStr,
@@ -14131,10 +14133,10 @@ function confirmCashSubmit(role) {
         let _held = false;
         if (_rcv.to === 'receptionist') {
           _camperDep.receiver = 'receptionist'; _camperDep.receiverName = _rcv.name; _camperDep.heldBy = _rcv.name;
-          _camperDep.sentTo = 'reception'; _camperDep.sentAt = new Date().toISOString();      // স্লিপ সরাসরি রিসেপশনিস্টের প্যানেলে যায়
           _held = !!_custodyFrom() && today >= _custodyFrom();      // কাস্টডি-নিয়মে টাকা রিসেপশনিস্টের হাতে — তিনি জমা দিলে তবেই মূল ক্যাশে ঢুকবে
           _camperDep.heldCustody = _held;
         } else { _camperDep.receiver = 'md'; }
+        if (_rcv.send === 'reception' || _rcv.send === 'admin') { _camperDep.sentTo = _rcv.send; _camperDep.sentAt = new Date().toISOString(); }   // প্রিন্টের জন্য বাছাই করা জায়গায় স্লিপ পাঠানো
         if (amt > 0 && !_held) appData.bankTx.push({ id: Date.now()+1, type:'cash_in', amount: amt, date: today, ref:'camp-settle', by: currentUser.name,
           note: note || `ক্যাম্পেইনার ক্যাম্পের ক্যাশ জমা — ${currentUser.name}`, campDepositId: _camperDep.id });
         camperSession.cashSubmittedDepId = _camperDep.id;
@@ -14257,6 +14259,7 @@ function buildRecDepositSlipHtml(d) {
     ${prevLine}
     ${sn && sn.carry>0 ? `<div style="font-size:11px;color:#b45309;margin-bottom:4px">এই জমায় আগের দিনের জমা-না-হওয়া নগদ ${sg(sn.carry)} অন্তর্ভুক্ত</div>` : ''}
     ${sn && (sn.adminCash>0 || sn.mdHeld>0) ? `<div style="font-size:11px;color:#6b7280;margin-bottom:4px">গৃহীত নগদের মধ্যে: নিজস্ব বিল ও আদায় ${sg(sn.ownCash)}${sn.adminCash>0?' | '+esc(_adm('short'))+'-এন্ট্রি বিল (রিসেপশনিস্ট গৃহীত) '+sg(sn.adminCash):''}${sn.mdHeld>0?' | '+esc(_adm('short'))+' নিজে গৃহীত (এই জমার বাইরে) '+sg(sn.mdHeld):''}</div>` : ''}
+    ${sn && sn.campRecv>0 ? `<div style="font-size:11.5px;color:#7c2d12;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 9px;margin-bottom:6px;line-height:1.6"><b>🏕️ ক্যাম্পেইনার থেকে গৃহীত নগদ (এই জমার অন্তর্ভুক্ত): ${sg(sn.campRecv)}</b><br>${(sn.campRecvList||[]).map(c=>esc(c.by||'ক্যাম্পেইনার')+(c.camp?' — '+esc(c.camp):'')+': '+sg(c.amount)).join(' &nbsp;|&nbsp; ')}<br><span style="color:#6b7280">বাকি ${sg(Math.max(0,(sn.cashIn||0)-sn.campRecv))} হাসপাতালের নিজস্ব বিল/আদায়ের নগদ।</span></div>` : ''}
     ${sec('নম্বর সিরিজ (মেমো ও ভাউচার)')}
     <div class="dp-grid" style="grid-template-columns:repeat(${seriesCards.length},1fr)">${seriesCards.join('')}</div>
     ${sec('আজকের এন্ট্রির সারসংক্ষেপ'+(d.entSnap?' ('+esc(_slipTime12(d.time))+' পর্যন্ত)':''))}
@@ -14902,8 +14905,8 @@ function previewCamperDeposit(id) {
   const footer = `<div id="slipPvStatus" style="font-size:12px;color:#475569;margin-bottom:8px;text-align:center">${st}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">`
     + (isCamper
-      ? ((d.receiver !== 'md' ? `<button class="btn btn-primary" style="${btn}" onclick="sendCamperDeposit(${d.id},'reception')">📤 রিসেপশনে ${d.receiver==='receptionist'?'(আবার) ':''}পাঠান</button>` : '')
-         + (d.receiver !== 'receptionist' ? `<button class="btn btn-primary" style="${btn}" onclick="sendCamperDeposit(${d.id},'admin')">📤 অ্যাডমিনে পাঠান</button>` : ''))
+      ? `<button class="btn btn-primary" style="${btn}" onclick="sendCamperDeposit(${d.id},'reception')">📤 রিসেপশনে পাঠান</button>
+         <button class="btn btn-primary" style="${btn}" onclick="sendCamperDeposit(${d.id},'admin')">📤 অ্যাডমিনে পাঠান</button>`
       : `<button class="btn btn-primary" style="${btn}" onclick="printCamperDeposit(${d.id})">🖨️ প্রিন্ট করুন</button>`
         + (neg && rem>0 ? `<button class="btn btn-success" style="${btn}" onclick="showCamperRefundModal(${d.id})">💸 রিফিল দিন</button>` : '')
         + (neg && lastRef ? `<button class="btn btn-outline" style="${btn}" onclick="printCamperRefundVoucher(${lastRef.refundId})">🧾 ভাউচার প্রিন্ট</button>` : ''))
@@ -20377,26 +20380,40 @@ function _recNamesList() {
   return out;
 }
 function _camperReceiverPickerHtml(net) {
-  if (!(net >= 0)) return '';
-  const names = _recNamesList(); if (!names.length) return '';
+  const names = _recNamesList();
   const lb = 'display:flex;gap:8px;align-items:flex-start;background:#fff;border:1.5px solid #cbd5e1;border-radius:12px;padding:9px 11px;margin-bottom:6px;font-size:12.5px;line-height:1.5;cursor:pointer';
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-  return `<div style="margin-bottom:12px">
+  let h = '';
+  if (net >= 0 && names.length) {
+    h += `<div style="margin-bottom:12px">
     <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:6px">কার কাছে টাকা জমা দিচ্ছেন?</div>
     <label style="${lb}"><input type="radio" name="campDepTo" value="md" checked onchange="_campDepToChg()" style="margin-top:3px"><span><b>👔 ${_adm('title')}</b> — স্লিপে গ্রহণকারী হিসেবে ${_adm('title')}-এর স্বাক্ষর থাকবে।</span></label>
-    <label style="${lb}"><input type="radio" name="campDepTo" value="receptionist" onchange="_campDepToChg()" style="margin-top:3px"><span><b>🧑‍💼 রিসেপশনিস্ট</b> — টাকা তাঁর হাতে থাকবে (তিনি নিজের ক্যাশ জমায় ${_adm('title')}-কে দেবেন)। স্লিপে তাঁর নাম ও স্বাক্ষরের ঘর থাকবে এবং স্লিপ সরাসরি তাঁর প্যানেলে যাবে।</span></label>
+    <label style="${lb}"><input type="radio" name="campDepTo" value="receptionist" onchange="_campDepToChg()" style="margin-top:3px"><span><b>🧑‍💼 রিসেপশনিস্ট</b> — টাকা তাঁর হাতে থাকবে (তিনি নিজের ক্যাশ জমায় ${_adm('title')}-কে দেবেন)। স্লিপে তাঁর নাম ও স্বাক্ষরের ঘর থাকবে।</span></label>
     <select id="campDepRecName" class="cx-in" style="display:none;margin-top:4px">${names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>
   </div>`;
+  }
+  h += `<div style="margin-bottom:12px">
+    <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:6px">🖨️ স্লিপ প্রিন্টের জন্য কোথায় পাঠাবেন?</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <label style="${lb};flex:1;min-width:110px;margin-bottom:0"><input type="radio" name="campSlipTo" value="reception" style="margin-top:3px"><span><b>📤 রিসেপশনে</b></span></label>
+      <label style="${lb};flex:1;min-width:110px;margin-bottom:0"><input type="radio" name="campSlipTo" value="admin" checked style="margin-top:3px"><span><b>📤 অ্যাডমিনে</b></span></label>
+      <label style="${lb};flex:1;min-width:110px;margin-bottom:0"><input type="radio" name="campSlipTo" value="none" style="margin-top:3px"><span><b>🕐 পরে পাঠাব</b></span></label>
+    </div></div>`;
+  return h;
 }
 function _campDepToChg() {
   const r = document.querySelector('input[name="campDepTo"]:checked'), sel = document.getElementById('campDepRecName');
-  if (sel) sel.style.display = (r && r.value === 'receptionist') ? 'block' : 'none';
+  const rcv = r && r.value === 'receptionist';
+  if (sel) sel.style.display = rcv ? 'block' : 'none';
+  const t = document.querySelector('input[name="campSlipTo"][value="' + (rcv ? 'reception' : 'admin') + '"]'); if (t) t.checked = true;   // ডিফল্ট: যাকে টাকা দিচ্ছেন তার কাছেই প্রিন্টের স্লিপ
 }
 function _camperReadReceiver(amt) {
   const r = document.querySelector('input[name="campDepTo"]:checked');
-  if (!r || r.value !== 'receptionist' || !(amt > 0)) return { to:'md', name:'' };
+  const st = document.querySelector('input[name="campSlipTo"]:checked');
+  const send = st ? st.value : 'none';
+  if (!r || r.value !== 'receptionist' || !(amt > 0)) return { to:'md', name:'', send: send };
   const sel = document.getElementById('campDepRecName'), n = sel ? sel.value : '';
-  return n ? { to:'receptionist', name:n } : { to:'md', name:'' };
+  return n ? { to:'receptionist', name:n, send: send } : { to:'md', name:'', send: send };
 }
 
 // ===== ক্যাম্প স্টক লেনদেন রেকর্ড (ক্যাম্পেইনার ↔ রিসেপশনিস্ট) =====
@@ -20451,6 +20468,190 @@ function _campStockInboxHtml() {
     + '<span class="rhd-alert-chip" style="font-weight:800" onclick="showCampStockLedger()">সব রেকর্ড দেখুন ›</span></div></div>';
 }
 
+// ===== রিসেপশন: স্টক ম্যানেজমেন্ট (দৈনিক স্টক ব্যালেন্স শিট + ক্যাম্প স্টক লেনদেন + বর্তমান স্টক) =====
+var _rsm = { tab:'balance', mode:'day', itemId:'', itemName:'', from:'', to:'', date:'', q:'', cat:'', kind:'', cfrom:'', cto:'', cq:'' };
+function _stkIso(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _stkAdd(str, n) { var p = str.split('-'); return _stkIso(new Date(+p[0], +p[1]-1, +p[2]+n)); }
+// stockLog এন্ট্রিকে ব্যালেন্স-শিটের কলামে ভাগ করে
+function _stkClass(l) {
+  var n = String(l.note||'');
+  if (l.reversed) return null;     // বাতিল বিলের স্টক আগেই ফেরত গেছে — নেট প্রভাব শূন্য
+  if (l.move === 'out') {
+    if (n.indexOf('ক্যাম্প স্টক নেওয়া') === 0) return 'campOut';
+    if (n.indexOf('🔧 সমন্বয়') === 0) return 'adj';
+    if (l.visitId || n === 'বিল') return 'sale';
+    return 'adj';
+  }
+  if (n.indexOf('ক্যাম্প স্টক ফেরত') === 0) return 'campIn';
+  if (n.indexOf('🔧 সমন্বয়') === 0) return 'adj';
+  return 'purchase';
+}
+function _stkEmpty() { return { purchase:0, campIn:0, campOut:0, sale:0, adj:0 }; }
+function _stkNet(m) { return m.purchase + m.campIn + m.adj - m.campOut - m.sale; }
+function _stkByItem() {
+  var by = {};
+  (appData.stockLog||[]).forEach(function(l){ if (!l.itemId || !l.date) return; (by[l.itemId] = by[l.itemId] || []).push(l); });
+  return by;
+}
+function _stkBucket(m, l) {
+  var c = _stkClass(l); if (!c) return false;
+  var q = Number(l.qty)||0;
+  if (c === 'adj') m.adj += (l.move === 'in' ? q : -q); else m[c] += q;
+  return true;
+}
+// একটা পণ্যের দিনভিত্তিক সিরিজ — আজকের স্টক থেকে পেছনের দিকে হিসাব, তাই সমাপনী সবসময় বর্তমান স্টকের সাথে মেলে
+function _stkItemSeries(item, from, to, by) {
+  var logs = by[item.id] || [], map = {}, after = 0;
+  logs.forEach(function(l){
+    var c = _stkClass(l); if (!c) return;
+    var q = Number(l.qty)||0, sg = l.move === 'in' ? 1 : -1;
+    if (l.date > to) { after += sg*q; return; }
+    if (l.date >= from) { _stkBucket(map[l.date] = map[l.date] || _stkEmpty(), l); }
+  });
+  var rows = [], closing = (Number(item.qty)||0) - after, d = to;
+  while (d >= from) {
+    var m = map[d] || _stkEmpty(), net = _stkNet(m), opening = closing - net;
+    rows.unshift({ date:d, opening:opening, m:m, closing:closing });
+    closing = opening; d = _stkAdd(d, -1);
+  }
+  return rows;
+}
+function _stkDayRows(date, by) {
+  var out = [];
+  (appData.stock||[]).forEach(function(it){
+    var m = _stkEmpty(), after = 0;
+    (by[it.id]||[]).forEach(function(l){
+      var c = _stkClass(l); if (!c) return;
+      var q = Number(l.qty)||0, sg = l.move === 'in' ? 1 : -1;
+      if (l.date > date) after += sg*q; else if (l.date === date) _stkBucket(m, l);
+    });
+    var closing = (Number(it.qty)||0) - after, opening = closing - _stkNet(m);
+    var moved = m.purchase||m.campIn||m.campOut||m.sale||m.adj;
+    if (moved || closing > 0 || opening > 0) out.push({ it:it, opening:opening, m:m, closing:closing });
+  });
+  return out;
+}
+function _stkVal(it) { return (Number(it.avgCost)||Number(it.buyPrice)||0); }
+function _stkEsc(x) { return String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function _stkNum(n) { n = Math.round((Number(n)||0)*100)/100; return fmt(n); }
+
+function rsmSet(k, v) { _rsm[k] = v; if (k === 'tab' || k === 'mode') renderRecStockMgmt(); else _rsmBody(); }
+function rsmPickItem(name) {
+  var it = (appData.stock||[]).find(function(x){ return x.name === name; });
+  _rsm.itemId = it ? it.id : ''; _rsm.itemName = it ? it.name : name; _rsmBody();
+}
+function renderRecStockMgmt() {
+  var host = document.getElementById('rec-stockmgmt'); if (!host) return;
+  var t = todayStr();
+  if (!_rsm.to) _rsm.to = t; if (!_rsm.from) _rsm.from = _stkAdd(t, -14); if (!_rsm.date) _rsm.date = t;
+  var tabBtn = function(id, label) { return '<button type="button" onclick="rsmSet(\'tab\',\''+id+'\')" style="flex:1;min-width:120px;min-height:44px;border:1.5px solid '+(_rsm.tab===id?'var(--primary)':'#cbd5e1')+';background:'+(_rsm.tab===id?'var(--primary)':'#fff')+';color:'+(_rsm.tab===id?'#fff':'#334155')+';border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">'+label+'</button>'; };
+  var inp = 'min-height:40px;border:1.5px solid #cbd5e1;border-radius:10px;padding:0 10px;font-family:inherit;font-size:13px;background:#fff';
+  var ctl = '';
+  if (_rsm.tab === 'balance') {
+    ctl = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
+      + '<select onchange="rsmSet(\'mode\',this.value)" style="'+inp+'"><option value="day" '+(_rsm.mode==='day'?'selected':'')+'>📅 একদিনের সব পণ্য</option><option value="item" '+(_rsm.mode==='item'?'selected':'')+'>📈 একটি পণ্যের দিনভিত্তিক</option></select>';
+    if (_rsm.mode === 'day') {
+      ctl += '<input type="date" value="'+_rsm.date+'" onchange="rsmSet(\'date\',this.value)" style="'+inp+'">'
+        + '<input type="text" placeholder="🔍 পণ্য খুঁজুন" value="'+_stkEsc(_rsm.q)+'" oninput="rsmSet(\'q\',this.value)" style="'+inp+';flex:1;min-width:140px">'
+        + '<select onchange="rsmSet(\'cat\',this.value)" style="'+inp+'"><option value="">সব ক্যাটাগরি</option>'
+        + Array.from(new Set((appData.stock||[]).map(function(x){return x.cat||'';}).filter(Boolean))).sort().map(function(c){ return '<option value="'+_stkEsc(c)+'" '+(_rsm.cat===c?'selected':'')+'>'+_stkEsc(c)+'</option>'; }).join('') + '</select>';
+    } else {
+      ctl += '<input list="rsmItems" placeholder="পণ্যের নাম লিখুন/বাছুন" value="'+_stkEsc(_rsm.itemName)+'" onchange="rsmPickItem(this.value)" style="'+inp+';flex:1;min-width:180px">'
+        + '<datalist id="rsmItems">'+(appData.stock||[]).map(function(x){ return '<option value="'+_stkEsc(x.name)+'"></option>'; }).join('')+'</datalist>'
+        + '<input type="date" value="'+_rsm.from+'" onchange="rsmSet(\'from\',this.value)" style="'+inp+'"><span style="color:#64748b">থেকে</span><input type="date" value="'+_rsm.to+'" onchange="rsmSet(\'to\',this.value)" style="'+inp+'">';
+    }
+    ctl += '</div>';
+  } else if (_rsm.tab === 'camp') {
+    ctl = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
+      + '<select onchange="rsmSet(\'kind\',this.value)" style="'+inp+'"><option value="">সব লেনদেন</option><option value="take" '+(_rsm.kind==='take'?'selected':'')+'>📤 ক্যাম্পে দেওয়া</option><option value="return" '+(_rsm.kind==='return'?'selected':'')+'>↩️ ক্যাম্প থেকে ফেরত</option></select>'
+      + '<input type="date" value="'+_rsm.cfrom+'" onchange="rsmSet(\'cfrom\',this.value)" style="'+inp+'"><span style="color:#64748b">থেকে</span><input type="date" value="'+_rsm.cto+'" onchange="rsmSet(\'cto\',this.value)" style="'+inp+'">'
+      + '<input type="text" placeholder="🔍 ক্যাম্প/ক্যাম্পেইনার" value="'+_stkEsc(_rsm.cq)+'" oninput="rsmSet(\'cq\',this.value)" style="'+inp+';flex:1;min-width:140px"></div>';
+  } else {
+    ctl = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><input type="text" placeholder="🔍 পণ্য খুঁজুন" value="'+_stkEsc(_rsm.q)+'" oninput="rsmSet(\'q\',this.value)" style="'+inp+';flex:1;min-width:160px"><button type="button" onclick="recGoTab(\'bulkstock\')" style="min-height:40px;border:none;border-radius:10px;background:var(--primary);color:#fff;font-weight:800;padding:0 14px;cursor:pointer;font-family:inherit">📦 নতুন ক্রয় / বাল্ক স্টক ইন</button></div>';
+  }
+  host.innerHTML = '<div style="padding:4px 2px"><div style="font-size:18px;font-weight:800;color:var(--primary);margin-bottom:10px">🗃️ স্টক ম্যানেজমেন্ট</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' + tabBtn('balance','📊 দৈনিক স্টক ব্যালেন্স') + tabBtn('camp','🏕️ ক্যাম্প স্টক লেনদেন') + tabBtn('current','📋 বর্তমান স্টক') + '</div>'
+    + ctl + '<div id="rsmBody"></div></div>';
+  _rsmBody();
+}
+function _rsmBody() {
+  var el = document.getElementById('rsmBody'); if (!el) return;
+  try {
+    if (_rsm.tab === 'balance') el.innerHTML = _rsm.mode === 'day' ? _rsmDayHtml() : _rsmItemHtml();
+    else if (_rsm.tab === 'camp') el.innerHTML = _rsmCampHtml();
+    else el.innerHTML = _rsmCurrentHtml();
+  } catch(e) { console.warn('rsm', e); el.innerHTML = '<p style="color:#b91c1c">দেখাতে সমস্যা হয়েছে: ' + _stkEsc(e.message) + '</p>'; }
+}
+var _rsmTh = 'padding:7px 8px;text-align:right;font-size:11.5px;color:#475569;background:#f1f5f9;white-space:nowrap;border-bottom:1.5px solid #cbd5e1';
+var _rsmTd = 'padding:7px 8px;text-align:right;font-size:13px;border-bottom:1px solid #eef2f7;white-space:nowrap';
+function _rsmCell(v, color) { return '<td style="'+_rsmTd+(v?';color:'+color+';font-weight:700':';color:#cbd5e1')+'">'+(v?_stkNum(v):'—')+'</td>'; }
+function _rsmDayHtml() {
+  var by = _stkByItem(), q = (_rsm.q||'').trim().toLowerCase();
+  var rows = _stkDayRows(_rsm.date, by).filter(function(r){ return (!q || String(r.it.name).toLowerCase().indexOf(q) >= 0) && (!_rsm.cat || (r.it.cat||'') === _rsm.cat); })
+    .sort(function(a,b){ return String(a.it.name).localeCompare(String(b.it.name), 'bn'); });
+  if (!rows.length) return '<p style="color:#94a3b8;text-align:center;padding:24px">এই দিনে দেখানোর মতো কোনো পণ্য/লেনদেন নেই।</p>';
+  var tv = { o:0, p:0, ci:0, co:0, s:0, a:0, c:0 };
+  var body = rows.map(function(r){
+    var v = _stkVal(r.it);
+    tv.o += r.opening*v; tv.p += r.m.purchase*v; tv.ci += r.m.campIn*v; tv.co += r.m.campOut*v; tv.s += r.m.sale*v; tv.a += r.m.adj*v; tv.c += r.closing*v;
+    return '<tr><td style="'+_rsmTd+';text-align:left;font-weight:700;white-space:normal;min-width:130px">'+_stkEsc(r.it.name)+' <span style="color:#94a3b8;font-weight:400;font-size:11px">'+_stkEsc(r.it.unit||'')+'</span></td>'
+      + '<td style="'+_rsmTd+'">'+_stkNum(r.opening)+'</td>'
+      + _rsmCell(r.m.purchase,'#047857') + _rsmCell(r.m.campIn,'#0369a1') + _rsmCell(r.m.campOut,'#c2410c') + _rsmCell(r.m.sale,'#b91c1c')
+      + '<td style="'+_rsmTd+(r.m.adj?';font-weight:700;color:'+(r.m.adj>0?'#047857':'#b91c1c'):';color:#cbd5e1')+'">'+(r.m.adj?(r.m.adj>0?'+':'−')+_stkNum(Math.abs(r.m.adj)):'—')+'</td>'
+      + '<td style="'+_rsmTd+';font-weight:800;color:var(--primary);background:#f8fafc">'+_stkNum(r.closing)+'</td></tr>';
+  }).join('');
+  var tot = '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left">মোট মূল্য (৳, গড় ক্রয়মূল্যে)</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.o))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.p))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.ci))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.co))+'</td><td style="'+_rsmTd+'">'+fmt(Math.round(tv.s))+'</td><td style="'+_rsmTd+'">'+(tv.a<0?'−':'')+fmt(Math.round(Math.abs(tv.a)))+'</td><td style="'+_rsmTd+';color:var(--primary)">'+fmt(Math.round(tv.c))+'</td></tr>';
+  return '<div style="font-size:12.5px;color:#475569;margin-bottom:8px">📅 <b>'+formatDate(_rsm.date)+'</b> — প্রারম্ভিক স্টক + ক্রয় + ক্যাম্প থেকে ফেরত − ক্যাম্পে দেওয়া − হাসপাতালে বিক্রি ± সমন্বয় = সমাপনী স্টক</div>'
+    + '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="'+_rsmTh+';text-align:left">পণ্য</th><th style="'+_rsmTh+'">প্রারম্ভিক</th><th style="'+_rsmTh+'">নতুন ক্রয়</th><th style="'+_rsmTh+'">ক্যাম্প থেকে ফেরত</th><th style="'+_rsmTh+'">ক্যাম্পে দেওয়া</th><th style="'+_rsmTh+'">হাসপাতালে বিক্রি</th><th style="'+_rsmTh+'">সমন্বয়/অন্যান্য</th><th style="'+_rsmTh+'">সমাপনী</th></tr></thead><tbody>'+body+tot+'</tbody></table></div>'
+    + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;line-height:1.6">সমাপনী স্টক আজকের বর্তমান স্টক থেকে পেছনের দিকে হিসাব করা, তাই আজকের সমাপনী সবসময় বর্তমান স্টকের সাথে মেলে। লগ ছাড়া সরাসরি স্টক বদলালে সেটা প্রারম্ভিক স্টকে ধরা পড়বে।</div>';
+}
+function _rsmItemHtml() {
+  var it = (appData.stock||[]).find(function(x){ return String(x.id) === String(_rsm.itemId); });
+  if (!it) return '<p style="color:#94a3b8;text-align:center;padding:24px">উপরে একটি পণ্য বেছে নিন।</p>';
+  if (_rsm.from > _rsm.to) return '<p style="color:#b91c1c">শুরুর তারিখ শেষ তারিখের আগে হতে হবে।</p>';
+  var days = Math.round((new Date(_rsm.to) - new Date(_rsm.from))/86400000);
+  if (days > 370) return '<p style="color:#b91c1c">সর্বোচ্চ ১ বছরের রেঞ্জ বাছুন।</p>';
+  var rows = _stkItemSeries(it, _rsm.from, _rsm.to, _stkByItem());
+  var sum = _stkEmpty(); rows.forEach(function(r){ ['purchase','campIn','campOut','sale','adj'].forEach(function(k){ sum[k] += r.m[k]; }); });
+  var body = rows.slice().reverse().map(function(r){
+    var any = r.m.purchase||r.m.campIn||r.m.campOut||r.m.sale||r.m.adj;
+    return '<tr'+(any?'':' style="opacity:.55"')+'><td style="'+_rsmTd+';text-align:left">'+formatDate(r.date)+'</td><td style="'+_rsmTd+'">'+_stkNum(r.opening)+'</td>'
+      + _rsmCell(r.m.purchase,'#047857') + _rsmCell(r.m.campIn,'#0369a1') + _rsmCell(r.m.campOut,'#c2410c') + _rsmCell(r.m.sale,'#b91c1c')
+      + '<td style="'+_rsmTd+(r.m.adj?';font-weight:700;color:'+(r.m.adj>0?'#047857':'#b91c1c'):';color:#cbd5e1')+'">'+(r.m.adj?(r.m.adj>0?'+':'−')+_stkNum(Math.abs(r.m.adj)):'—')+'</td>'
+      + '<td style="'+_rsmTd+';font-weight:800;color:var(--primary);background:#f8fafc">'+_stkNum(r.closing)+'</td></tr>';
+  }).join('');
+  var first = rows[0], last = rows[rows.length-1];
+  var tot = '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left">মোট ('+rows.length+' দিন)</td><td style="'+_rsmTd+'">'+_stkNum(first.opening)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.purchase)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.campIn)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.campOut)+'</td><td style="'+_rsmTd+'">'+_stkNum(sum.sale)+'</td><td style="'+_rsmTd+'">'+(sum.adj<0?'−':(sum.adj>0?'+':''))+_stkNum(Math.abs(sum.adj))+'</td><td style="'+_rsmTd+';color:var(--primary)">'+_stkNum(last.closing)+'</td></tr>';
+  return '<div style="font-size:13px;font-weight:800;margin-bottom:6px">'+_stkEsc(it.name)+' <span style="color:#64748b;font-weight:400">('+_stkEsc(it.unit||'')+') — বর্তমান স্টক: '+_stkNum(it.qty)+'</span></div>'
+    + '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="'+_rsmTh+';text-align:left">তারিখ</th><th style="'+_rsmTh+'">প্রারম্ভিক</th><th style="'+_rsmTh+'">নতুন ক্রয়</th><th style="'+_rsmTh+'">ক্যাম্প থেকে ফেরত</th><th style="'+_rsmTh+'">ক্যাম্পে দেওয়া</th><th style="'+_rsmTh+'">হাসপাতালে বিক্রি</th><th style="'+_rsmTh+'">সমন্বয়/অন্যান্য</th><th style="'+_rsmTh+'">সমাপনী</th></tr></thead><tbody>'+tot+body+'</tbody></table></div>';
+}
+function _rsmCampHtml() {
+  var all = (appData.campStockLedger||[]).slice().sort(function(a,b){ return b.id - a.id; });
+  var q = (_rsm.cq||'').trim().toLowerCase();
+  var items = all.filter(function(r){
+    return (!_rsm.kind || r.kind === _rsm.kind) && (!_rsm.cfrom || r.date >= _rsm.cfrom) && (!_rsm.cto || r.date <= _rsm.cto)
+      && (!q || (String(r.campName)+' '+String(r.campaigner)+' '+String(r.receptionist)).toLowerCase().indexOf(q) >= 0);
+  });
+  // এখনো ফেরত আসেনি — ক্যাম্প+পণ্য ধরে নেওয়া − ফেরত
+  var out = {};
+  all.forEach(function(r){ var key = (r.campRef||'')+'|'+r.campName+'|'+(r.campDate||'');
+    (r.items||[]).forEach(function(i){ var k2 = key+'|'+i.itemId; var o = out[k2] = out[k2] || { camp:r.campName, date:r.campDate, name:i.name, unit:i.unit, qty:0 }; o.qty += (r.kind==='take' ? 1 : -1) * (Number(i.qty)||0); }); });
+  var pend = Object.keys(out).map(function(k){ return out[k]; }).filter(function(o){ return o.qty > 0; });
+  var pendHtml = pend.length ? '<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:10px 12px;margin-bottom:12px"><div style="font-weight:800;color:#9a3412;font-size:13px;margin-bottom:4px">⏳ ক্যাম্পে আছে, এখনো ফেরত আসেনি</div>'
+    + pend.map(function(o){ return '<div style="font-size:12.5px;padding:2px 0">'+_stkEsc(o.camp)+(o.date?' ('+formatDate(o.date)+')':'')+' — <b>'+_stkEsc(o.name)+'</b>: '+_stkNum(o.qty)+' '+_stkEsc(o.unit||'')+'</div>'; }).join('') + '</div>' : '';
+  return pendHtml + (items.length ? _campStockLedgerHtml(items, true) : '<p style="color:#94a3b8;text-align:center;padding:24px">কোনো ক্যাম্প স্টক লেনদেন পাওয়া যায়নি।</p>');
+}
+function _rsmCurrentHtml() {
+  var q = (_rsm.q||'').trim().toLowerCase();
+  var list = (appData.stock||[]).filter(function(x){ return !q || String(x.name).toLowerCase().indexOf(q) >= 0; }).sort(function(a,b){ return String(a.cat||'').localeCompare(String(b.cat||''),'bn') || String(a.name).localeCompare(String(b.name),'bn'); });
+  if (!list.length) return '<p style="color:#94a3b8;text-align:center;padding:24px">কোনো পণ্য নেই।</p>';
+  var tv = 0;
+  var body = list.map(function(x){ var v = (Number(x.qty)||0) * _stkVal(x); tv += v;
+    return '<tr><td style="'+_rsmTd+';text-align:left;font-weight:700;white-space:normal">'+_stkEsc(x.name)+'</td><td style="'+_rsmTd+';text-align:left;color:#64748b">'+_stkEsc(x.cat||'')+'</td><td style="'+_rsmTd+';font-weight:800;color:'+((Number(x.qty)||0)<=0?'#b91c1c':'var(--primary)')+'">'+_stkNum(x.qty)+' '+_stkEsc(x.unit||'')+'</td><td style="'+_rsmTd+'">৳ '+fmt(Math.round(v))+'</td></tr>'; }).join('');
+  return '<div style="overflow-x:auto;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="'+_rsmTh+';text-align:left">পণ্য</th><th style="'+_rsmTh+';text-align:left">ক্যাটাগরি</th><th style="'+_rsmTh+'">হাসপাতালে স্টক</th><th style="'+_rsmTh+'">মূল্য (গড় ক্রয়মূল্যে)</th></tr></thead><tbody>'+body
+    + '<tr style="background:#eef4fa;font-weight:800"><td style="'+_rsmTd+';text-align:left" colspan="3">মোট স্টক মূল্য</td><td style="'+_rsmTd+';color:var(--primary)">৳ '+fmt(Math.round(tv))+'</td></tr></tbody></table></div>';
+}
+
 function showCamperCashSubmitModal() {
   try { _camperReconcileSession(); } catch(e) {}
   buildCashSubmitModal('campaigner');
@@ -20471,7 +20672,8 @@ function showPastCampCashSubmitModal(campId) {
         ? '⚠️ নেগেটিভ জমায় এখন প্রধান ক্যাশ বদলায় না — অ্যাডমিন/রিসেপশন রিফিল দিলে তখন ক্যাশ থেকে বাদ যাবে।'
         : '⚠️ এই ক্যাম্পের আয়-ব্যয় এতদিন প্রধান ক্যাশে ধরা হয়নি — এই জমা নিশ্চিত করলেই প্রধান ক্যাশে যোগ হবে।')
     : 'ℹ️ এই ক্যাম্পের আয়-ব্যয় ক্লোজের সময়ই প্রধান ক্যাশে ধরা হয়ে গেছে — এই জমা শুধু রেকর্ড ও স্লিপের জন্য, ব্যালেন্স আর বদলাবে না।';
-  _cashSheet({ title: c.name, rows, net, warn, z: 10000, notePlaceholder: c.name+' ক্যাম্প জমা', noteValue: c.name+' ক্যাম্প জমা', confirm: `confirmPastCampCashSubmit(${campId})` });
+  const _slipNote = '📄 জমা নিশ্চিত করলে ২ পেজের জমার স্লিপ তৈরি হবে — ১ম কপিতে গ্রহণকারী (আপনার বাছাই করা ' + _adm('title') + ' / রিসেপশনিস্ট) স্বাক্ষর করবেন (আপনি রাখবেন), ২য় কপিতে আপনি স্বাক্ষর করবেন (অফিস রাখবে)।';
+  _cashSheet({ title: c.name, rows, net, warn, extra: _camperReceiverPickerHtml(net), slipNote: _slipNote, z: 10000, notePlaceholder: c.name+' ক্যাম্প জমা', noteValue: c.name+' ক্যাম্প জমা', confirm: `confirmPastCampCashSubmit(${campId})` });
 }
 
 // ✅ নির্দিষ্ট বন্ধ হওয়া ক্যাম্পের ক্যাশ জমা নিশ্চিত করে — জমা হয়ে গেলে সেই ক্যাম্পের কার্ডে বাটন আর দেখাবে না
@@ -20486,8 +20688,18 @@ function confirmPastCampCashSubmit(campId) {
   if (c) c.cashSubmitted = true;
   let _pastDep = null;
   if (c) { try { _pastDep = _saveCamperDeposit(_camperSnapPast(c), amt, note, c.id, _deferred); } catch(e) { console.warn('camper deposit record', e); } }
+  let _pastHeld = false;
+  if (_pastDep) {
+    const _rcv = _camperReadReceiver(amt);
+    if (_rcv.to === 'receptionist') {
+      _pastDep.receiver = 'receptionist'; _pastDep.receiverName = _rcv.name; _pastDep.heldBy = _rcv.name;
+      _pastHeld = _deferred && !!_custodyFrom() && todayStr() >= _custodyFrom();
+      _pastDep.heldCustody = _pastHeld;
+    } else { _pastDep.receiver = 'md'; }
+    if (_rcv.send === 'reception' || _rcv.send === 'admin') { _pastDep.sentTo = _rcv.send; _pastDep.sentAt = new Date().toISOString(); }
+  }
   if (_deferred) {
-    if (amt > 0) appData.bankTx.push({ id: Date.now()+1, type:'cash_in', amount: amt, date: todayStr(), ref:'camp-settle', by: currentUser.name,
+    if (amt > 0 && !_pastHeld) appData.bankTx.push({ id: Date.now()+1, type:'cash_in', amount: amt, date: todayStr(), ref:'camp-settle', by: currentUser.name,
       note: note || `ক্যাম্পেইনার ক্যাম্পের ক্যাশ জমা — ${currentUser.name}`, campDepositId: _pastDep ? _pastDep.id : null });
   } else if (amt !== 0) {
     appData.bankTx.push({
@@ -35004,6 +35216,7 @@ function switchRecTab(name, btn) {
   if (name==='lookup') renderPriceCatalog();
   if (name==='opsheet') { moveOpsheetIntoRecTab(); } else { restoreOpsheetFromRecTab(); }
   if (name==='bulkstock') { openBulkStockInEmbedded(); }
+  if (name==='stockmgmt') { renderRecStockMgmt(); }
 }
 
 // ===== চশমা অর্ডার লিস্ট (রিসেপশন) — বিলে চশমা কাস্টমাইজেশনের দৈনিক তালিকা + প্রিন্ট =====
@@ -37385,7 +37598,9 @@ function _recCashClosing() {
   var ownCash = Math.max(0, sum(ownInc, function(e){ return e.amount; }) - ownMfs);
   var adminCash = Math.max(0, sum(admInc, function(e){ return e.amount; }) - admMfs);
   var mdHeld = Math.max(0, sum(mdInc, function(e){ return e.amount; }) - sum(mdVis, function(v){ return v.mfsPaid; }));
-  var campRecv = sum((appData.camperDeposits||[]).filter(function(d){ return d.heldBy && mine(d.heldBy) && d.date===today && (d.amount||0)>0; }), function(d){ return d.amount; });   // ক্যাম্পেইনার যে নগদ সরাসরি এই রিসেপশনিস্টকে দিয়েছেন
+  var campRecvArr = (appData.camperDeposits||[]).filter(function(d){ return d.heldBy && mine(d.heldBy) && d.date===today && (d.amount||0)>0; });
+  var campRecvList = campRecvArr.map(function(d){ return { by:_baseBy(d.by||''), camp:((d.snap&&d.snap.campName)||''), amount:d.amount||0 }; });
+  var campRecv = sum(campRecvArr, function(d){ return d.amount; });   // ক্যাম্পেইনার যে নগদ সরাসরি এই রিসেপশনিস্টকে দিয়েছেন
   var cashIn = ownCash + adminCash + campRecv;
   var dueIn = sum(ownInc.filter(function(e){ return e.category==='বাকি আদায়'; }), function(e){ return e.amount; });
   // ক্যাম্পেইনারকে নিজের নগদ থেকে দেওয়া তহবিল রিফিল — রিসেপশনের জমাযোগ্য নগদ থেকে কমে
@@ -37399,7 +37614,7 @@ function _recCashClosing() {
     remaining = (_hm.in - _hm.out - _hm.dep) + poolHeld;
     carry = remaining - (cashIn - cashOut - deposited);
   }
-  return { cashIn:cashIn, campRecv:campRecv, ownCash:ownCash, adminCash:adminCash, mdHeld:mdHeld, cashOut:cashOut, refillOut:refillOut, deposited:deposited, remaining:remaining, carry:carry, poolHeld:poolHeld, mfs:ownMfs+admMfs, dueIn:dueIn };
+  return { cashIn:cashIn, campRecv:campRecv, campRecvList:campRecvList, ownCash:ownCash, adminCash:adminCash, mdHeld:mdHeld, cashOut:cashOut, refillOut:refillOut, deposited:deposited, remaining:remaining, carry:carry, poolHeld:poolHeld, mfs:ownMfs+admMfs, dueIn:dueIn };
 }
 // কম/শেষ হওয়া স্টকের তালিকা (অ্যাডমিনের "কম স্টক সতর্কতা"-র একই নিয়ম: কম = ০ এর বেশি কিন্তু নিম্নসীমা বা তার নিচে, নেই = ০)
 function _recLowStockList() {
