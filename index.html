@@ -4035,6 +4035,15 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
       </div>
 
+      <!-- স্টক ব্যালেন্স (রিসেপশনের স্টক ব্যালেন্সের মতো: দৈনিক শিট / পণ্যভিত্তিক / ক্যাম্প স্টক লেনদেন / বর্তমান স্টক) -->
+      <div class="panel">
+        <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stBalBody','stBalIcon'); if(!document.getElementById('stBalBody').classList.contains('collapsed')) renderAdminStockBalance('adm-stkbal-host');">
+          <div class="panel-title">📊 স্টক ব্যালেন্স <span id="stBalIcon" class="stock-collapse-icon">▶</span></div>
+          <span style="font-size:12px;color:var(--text-light)">দৈনিক প্রারম্ভিক → সমাপনী · ক্যাম্প স্টক লেনদেন</span>
+        </div>
+        <div class="panel-body stock-panel-body collapsed" id="stBalBody"><div id="adm-stkbal-host"></div></div>
+      </div>
+
       <!-- স্টক লগ -->
       <div class="panel">
         <div class="panel-header stock-panel-header" onclick="toggleStockPanel('stLogBody','stLogIcon')">
@@ -11634,7 +11643,7 @@ function showPage(name) {
   if (name === 'opprofit') { initOpProfitFilters(); }
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
-  if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); }
+  if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); var _sbb = document.getElementById('stBalBody'); if (_sbb && !_sbb.classList.contains('collapsed')) renderAdminStockBalance('adm-stkbal-host'); }
   if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); if (typeof renderRecCampSchedule==='function') renderRecCampSchedule(); }
   if (name === 'demand')       { initDemandForm();
     const dmm=document.getElementById('dmFilterMonth'); if (dmm && !dmm.value) dmm.value=todayStr().substring(0,7);
@@ -16404,32 +16413,48 @@ function buildBoardReportHtml(month, year) {
     const b = _campBr.get(c), eb = campExpBuckets(c);
     const cogs = c.totalCOGS||0, staff = c.regularStaffCost||0;
     const staffNames = (c.regularStaff||[]).map(s=>s.name).filter(Boolean).join(', ');
-    const cost = eb.total + cogs + staff;
+    const cost = eb.total + cogs;   // কর্মীর মাসিক বেতনের সেদিনের অংশ ব্যয়ে ধরা হয় না — শুধু মোবাইল কার্ড এক্সপ্যান্ডে চূড়ান্ত নিটে দেখানো হয়
     const income = getCampBilledIncome(c,_cmapB), later = getCampLaterCollections(c,_cmapB);
     const stillDue = (appData.campVisits||[]).filter(v => v.campName === c.name && v.date === c.date).reduce((s,v)=>s+(v.due||0),0);
-    return { c, b, eb, cogs, staff, staffNames, income, later, stillDue, pts: campPatients(c), cost, net: income - cost, st: _campSettle(c) };
+    return { c, b, eb, cogs, staff, staffNames, income, later, stillDue, pts: campPatients(c), cost, net: income - cost, netFinal: income - cost - staff, st: _campSettle(c) };
   });
-  const cdIncTotal = _cd.reduce((s,x)=>s+x.income,0), cdCostTotal = _cd.reduce((s,x)=>s+x.cost,0), cdNetTotal = _cd.reduce((s,x)=>s+x.net,0);
+  const cdIncTotal = _cd.reduce((s,x)=>s+x.income,0), cdCostTotal = _cd.reduce((s,x)=>s+x.cost,0), cdNetTotal = _cd.reduce((s,x)=>s+x.net,0), cdNetFinalTotal = _cd.reduce((s,x)=>s+x.netFinal,0);
   const cdDepTotal = _cd.reduce((s,x)=>s+x.st.dep,0), cdRefillTotal = _cd.reduce((s,x)=>s+x.st.refill,0), cdStaffTotal = _cd.reduce((s,x)=>s+x.staff,0);
   const _sg = n => (n>=0?'':'- ') + '৳ ' + fmt(Math.abs(n));
+  const _cdEsc = t => String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const campRows = _cd.map((x,i)=>{
     const c=x.c, b=x.b, eb=x.eb;
-    const incParts = [['ভিজিট',b.visit],['ওষুধ',b.med],['চশমা',b.glass],['টেস্ট',b.test],['অন্যান্য',b.other]].filter(p=>(p[1]||0)>0.5).map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
-    const expParts = [['যাতায়াত',eb.travel],['খাওয়া',eb.food],['প্রচার',eb.promo],['রেন্ট',eb.rent],['বোনাস',eb.bonus],['পার্টটাইমার',eb.part],['প্রি-ক্যাম্প',eb.pre],['অন্যান্য',eb.other]].filter(p=>(p[1]||0)>0.5).map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
-    return `<tr>
+    const incList = [['ভিজিট',b.visit],['ওষুধ',b.med],['চশমা',b.glass],['টেস্ট',b.test],['অন্যান্য',b.other]].filter(p=>(p[1]||0)>0.5);
+    const expList = [['যাতায়াত',eb.travel],['খাওয়া',eb.food],['প্রচার',eb.promo],['রেন্ট',eb.rent],['বোনাস',eb.bonus],['পার্টটাইমার',eb.part],['প্রি-ক্যাম্প',eb.pre],['অন্যান্য',eb.other]].filter(p=>(p[1]||0)>0.5);
+    const incParts = incList.map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
+    const expPartsNoPre = expList.filter(p=>p[0]!=='প্রি-ক্যাম্প').map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
+    const campExpOnly = eb.total - (eb.pre||0);   // প্রি-ক্যাম্প বাদে ক্যাম্পের নিজের ব্যয়
+    // মোবাইল কার্ডের এক্সপ্যান্ড অংশের তথ্য (A4/প্রিন্টে অদৃশ্য data-অ্যাট্রিবিউট; মোবাইল ভিউ এখান থেকে পড়ে)
+    const cdData = {
+      loc: c.location||'', doc: (typeof c.doctor === 'string' ? c.doctor : '') || '', rcpt: campReceiptText(c), pts: fmt(x.pts),
+      inc: incList.map(p=>[p[0], '৳ '+fmt(p[1])]), income: '৳ '+fmt(x.income),
+      later: x.later>0.5 ? '৳ '+fmt(x.later) : '', due: x.stillDue>0.5 ? '৳ '+fmt(x.stillDue) : '',
+      exp: expList.filter(p=>p[0]!=='প্রি-ক্যাম্প').map(p=>[p[0], '৳ '+fmt(p[1])]), campExp: '৳ '+fmt(campExpOnly),
+      pre: eb.pre>0.5 ? '৳ '+fmt(eb.pre) : '', preKhat: eb.pre>0.5 ? (_preKhat(eb)||'') : '',
+      cogs: x.cogs>0.5 ? '৳ '+fmt(x.cogs) : '', cost: '৳ '+fmt(x.cost),
+      netB: _sg(x.net), netBPos: x.net>=0,
+      staff: (c.regularStaff||[]).filter(s=>s&&s.name).map(s=>[s.name, '৳ '+fmt(s.dailyPay||0)]), staffTotal: x.staff>0.5 ? '৳ '+fmt(x.staff) : '',
+      net: '৳ '+fmt(Math.abs(x.netFinal)), netPos: x.netFinal>=0,
+      dep: x.st.dep>0.5 ? '৳ '+fmt(x.st.dep) : '', refill: x.st.refill>0.5 ? '৳ '+fmt(x.st.refill) : ''
+    };
+    return `<tr data-cd="${encodeURIComponent(JSON.stringify(cdData))}">
       <td>${i+1}</td>
       <td>${formatDate(c.date)}</td>
       <td style="color:#9d174d;font-weight:600">${campReceiptText(c)}</td>
-      <td style="font-weight:600">${c.name} — ${c.location}<div style="font-size:10.5px;font-weight:500;color:#475569">👥 ${fmt(x.pts)} জন রোগী</div></td>
+      <td style="font-weight:600">${_cdEsc(c.name)} — ${_cdEsc(c.location)}<div style="font-size:10.5px;font-weight:500;color:#475569">👥 ${fmt(x.pts)} জন রোগী</div></td>
       <td style="text-align:right"><div class="cd-m" style="font-weight:700;color:#065f46">৳ ${fmt(x.income)}</div><div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">${incParts||'—'}</div>${x.later>0.5?`<div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">পরে আদায় ৳ ${fmt(x.later)} — আদায়ের মাসে "বাকি আদায়"-এ</div>`:''}${x.stillDue>0.5?`<div class="cd-s" style="font-size:10px;color:#b45309;line-height:1.35">এখনো বাকি ৳ ${fmt(x.stillDue)}</div>`:''}</td>
       <td style="text-align:right"><div class="cd-m" style="font-weight:700;color:#991b1b">৳ ${fmt(x.cost)}</div>
-        <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">ক্যাম্প ব্যয় ৳ ${fmt(eb.total)}${expParts?` (${expParts})`:''}</div>
+        <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">ক্যাম্প ব্যয় ৳ ${fmt(campExpOnly)}${expPartsNoPre?` (${expPartsNoPre})`:''}</div>
         ${eb.pre>0.5?`<div class="cd-s" style="font-size:10px;color:#9a3412;line-height:1.35">⛺ প্রি-ক্যাম্প খরচ ৳ ${fmt(eb.pre)} — খাত: ${_preKhat(eb)||'—'}</div>`:''}
-        <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">পণ্যের COGS ৳ ${fmt(x.cogs)}${x.staff>0?` · কর্মীর দৈনিক বেতন ৳ ${fmt(x.staff)}${x.staffNames?' ('+x.staffNames+')':''}`:''}</div></td>
+        <div class="cd-s" style="font-size:10px;color:#6b7280;line-height:1.35">পণ্যের COGS ৳ ${fmt(x.cogs)}</div></td>
       <td style="text-align:right">
         ${x.st.dep>0.5?`<div class="cd-m" style="font-weight:700;color:#065f46">জমা ৳ ${fmt(x.st.dep)}</div>`:''}${x.st.refill>0.5?`<div class="cd-m" style="font-weight:700;color:#b45309">রিফিল ৳ ${fmt(x.st.refill)}</div>`:''}${(x.st.dep<=0.5&&x.st.refill<=0.5)?`<div class="cd-s" style="font-size:10.5px;color:#6b7280">জমা/রিফিল হয়নি</div>`:''}
         <div class="cd-s" style="font-size:10.5px;font-weight:700;color:${x.net>=0?'#065f46':'#991b1b'};line-height:1.35">(${x.net>=0?'নিট লাভ':'নিট লস'} ${_sg(Math.abs(x.net))})</div>
-        <div class="cd-s" style="font-size:9.5px;color:#6b7280;line-height:1.3">${x.staff>0?`কর্মীর বেতন ৳ ${fmt(x.staff)} ধরে`:'কর্মীর বেতন ধরা নেই'}</div>
       </td>
     </tr>`;
   }).join('');
@@ -16964,11 +16989,11 @@ function buildBoardReportHtml(month, year) {
   <!-- ক্যাম্প -->
   <h2>৭. ক্যাম্প বিস্তারিত (আয়, ব্যয় ও নিট লাভ/লস — রিসিট নং সহ)</h2>
   ${camps.length?`<table>
-    <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্প</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">প্রকৃত জমা / রিফিল<br><span style="font-weight:500;font-size:10px">(নিট লাভ/লস — কর্মীর বেতন ধরে)</span></th></tr></thead>
+    <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্প</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">প্রকৃত জমা / রিফিল<br><span style="font-weight:500;font-size:10px">(নিট লাভ/লস)</span></th></tr></thead>
     <tbody>${campRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="4"><strong>মোট (${fmt(camps.length)}টি ক্যাম্প · ${fmt(totalCampPatients)} জন রোগী)</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdIncTotal)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdCostTotal)}</strong></td><td style="text-align:right"><div style="font-weight:700;color:#065f46">জমা ৳ ${fmt(cdDepTotal)}</div>${cdRefillTotal>0.5?`<div style="font-weight:700;color:#b45309">রিফিল ৳ ${fmt(cdRefillTotal)}</div>`:''}<div style="font-size:10.5px;font-weight:700;color:${cdNetTotal>=0?'#065f46':'#991b1b'}">(${cdNetTotal>=0?'নিট লাভ':'নিট লস'} ${_sg(Math.abs(cdNetTotal))})</div><div style="font-size:9.5px;color:#6b7280;font-weight:500">কর্মীর বেতন ৳ ${fmt(cdStaffTotal)} ধরে</div></td></tr></tfoot>
+    <tfoot><tr class="sum-row"><td colspan="4"><strong>মোট (${fmt(camps.length)}টি ক্যাম্প · ${fmt(totalCampPatients)} জন রোগী)</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdIncTotal)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdCostTotal)}</strong></td><td style="text-align:right"><div style="font-weight:700;color:#065f46">জমা ৳ ${fmt(cdDepTotal)}</div>${cdRefillTotal>0.5?`<div style="font-weight:700;color:#b45309">রিফিল ৳ ${fmt(cdRefillTotal)}</div>`:''}<div style="font-size:10.5px;font-weight:700;color:${cdNetTotal>=0?'#065f46':'#991b1b'}">(${cdNetTotal>=0?'নিট লাভ':'নিট লস'} ${_sg(Math.abs(cdNetTotal))})</div></td></tr></tfoot>
   </table>
-  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* আয় = ক্যাম্পের দিনে পাওয়া আয়; ক্যাম্পের পরে আদায় হওয়া বাকি আদায়ের মাসে "বাকি আদায়" ক্যাটাগরিতে ধরা। নিট = আয় − ক্যাম্প ব্যয় (পার্টটাইমারসহ) − পণ্যের COGS − ক্যাম্পে যাওয়া নিয়মিত কর্মীর সেদিনের বেতন (মাসিক ÷ ৩০; মাসিক বেতনেও ধরা আছে বলে এটা শুধু ক্যাম্পের হিসাব দেখানোর জন্য)। শেষ কলামে মূল অঙ্ক = ক্যাম্পেইনারের প্রকৃত জমা/রিফিল (জমার স্লিপ অনুযায়ী); ব্রেকেটের নিট লাভ/লস কর্মীর বেতন ধরে হিসাব করা। প্রি-ক্যাম্প খরচ "অন্যান্য"-এ না মিশিয়ে খাতসহ আলাদা দেখানো হয়েছে।</div>`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
+  <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* আয় = ক্যাম্পের দিনে পাওয়া আয়; ক্যাম্পের পরে আদায় হওয়া বাকি আদায়ের মাসে "বাকি আদায়" ক্যাটাগরিতে ধরা। ব্যয় = ক্যাম্প ব্যয় (পার্টটাইমারসহ) + প্রি-ক্যাম্প খরচ (খাতসহ আলাদা দেখানো) + পণ্যের COGS; ক্যাম্পে যাওয়া নিয়মিত কর্মীর মাসিক বেতনের সেদিনের অংশ এখানে ব্যয়ে ধরা হয় না (মোবাইল ভিউতে কার্ড এক্সপ্যান্ড করলে সেটা ধরে চূড়ান্ত নিট দেখা যায়)। নিট = আয় − ব্যয়। শেষ কলামে মূল অঙ্ক = ক্যাম্পেইনারের প্রকৃত জমা/রিফিল (জমার স্লিপ অনুযায়ী)।</div>`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
 
   <!-- অপারেশন -->
   <h2>৮. অপারেশন আয় ও সার্জন পারিশ্রমিক</h2>
@@ -17498,16 +17523,28 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           if (_dn) o.sub.push('(' + _dn + ')');
           break;
         case 'campdet':
-          o.date = dateOf(c[1]); o.amt = c[6]; o.cls = /^[-−]/.test(c[6]) ? 'neg' : 'pos';
+          // ক্যাম্প কার্ড: ভাঁজ অবস্থায় নাম·স্থান·তারিখ·জমা·রোগী; ট্যাপে এক্সপ্যান্ড হয়ে সব বিস্তারিত + কর্মীর সেদিনের বেতন ধরে নিট লাভ/লস
+          var _cdd = null; try { _cdd = JSON.parse(decodeURIComponent(tr.getAttribute('data-cd') || '')); } catch (e) {}
+          o.date = dateOf(c[1]);
           var _tc = tr.children[3], _pe = _tc && _tc.querySelector('div');
-          o.title = _pe ? c[3].replace(tx(_pe), '').trim() : c[3];
+          var _full = _pe ? c[3].replace(tx(_pe), '').trim() : c[3];
+          if (_cdd) {
+            o.camp = _cdd;
+            var _nm = _full.split(' — ')[0];
+            o.title = _nm;
+            o.cls = _cdd.netPos ? 'pos' : 'neg';
+            o.amt = _cdd.dep ? 'জমা ' + _cdd.dep : (_cdd.refill ? 'রিফিল ' + _cdd.refill : 'জমা হয়নি');
+            o.amtCls = _cdd.dep ? 'pos' : (_cdd.refill ? 'warn' : 'mut');
+            if (_cdd.loc) o.sub.push('📍 ' + _cdd.loc);
+            o.sub.push('👥 ' + _cdd.pts + ' জন');
+            break;
+          }
+          o.amt = c[6]; o.cls = /^[-−]/.test(c[6]) ? 'neg' : 'pos';
+          o.title = _full;
           if (_pe) o.chips.push([tx(_pe), '']);
           var _m = function(i){ var e = tr.children[i] && tr.children[i].querySelector('.cd-m'); return e ? tx(e) : c[i]; };
-          var _s = function(i){ var a = tr.children[i] ? Array.prototype.map.call(tr.children[i].querySelectorAll('.cd-s'), tx) : []; return a.filter(Boolean); };
           o.ie = [['আয়', _m(4), 'i'], ['ব্যয়', _m(5), 'e']];
           put(o.sub, 'রিসিট', c[2]);
-          _s(4).forEach(function(s, i){ if (s !== '—') o.sub.push((i === 0 ? 'আয়: ' : '') + s); });
-          _s(5).forEach(function(s){ o.sub.push(s); });
           break;
         case 'camp':
           o.date = dateOf(c[1]); o.title = c[3] + (blank(c[4]) ? '' : ' · ' + c[4]); o.amt = c[c.length - 1]; o.cls = 'pos';
@@ -17549,8 +17586,9 @@ function _boardMobileSrcdoc(fullHtml, nav) {
       if (o.multi) o.multi.forEach(function(m){ var sp = mk('span', 'cc-m cc-' + m[2]); sp.appendChild(mk('span', 'cc-ml', m[0])); sp.appendChild(mk('span', 'cc-mv', m[1])); ti.appendChild(sp); });
       else ti.textContent = o.title;
       l1.appendChild(ti);
-      if (o.amt) l1.appendChild(mk('span', 'cc-a' + (o.cls ? ' ' + o.cls : ''), o.amt));
+      if (o.amt) l1.appendChild(mk('span', 'cc-a' + (o.camp ? (o.amtCls ? ' ' + o.amtCls : '') : (o.cls ? ' ' + o.cls : '')), o.amt));
       d.appendChild(l1);
+      if (o.camp) d.classList.add('cc-camp');
       if (o.ie) { var ie = mk('div', 'cc-l2 cc-ie'); o.ie.forEach(function(m){ var sp = mk('span', 'cc-m cc-' + m[2]); sp.appendChild(mk('span', 'cc-ml', m[0])); sp.appendChild(mk('span', 'cc-mv', m[1])); ie.appendChild(sp); }); d.appendChild(ie); }
       if (o.sub.length || o.chips.length) {
         var l2 = mk('div', 'cc-l2');
@@ -17561,6 +17599,47 @@ function _boardMobileSrcdoc(fullHtml, nav) {
           l2.appendChild(x);
         }
         d.appendChild(l2);
+      }
+      if (o.camp) {
+        var K = o.camp, row = function(parent, k, v, cls){ var r = mk('div', 'cd-r' + (cls ? ' ' + cls : '')); r.appendChild(mk('span', 'cd-k', k)); r.appendChild(mk('span', 'cd-v', v)); parent.appendChild(r); return r; };
+        // ভাঁজ অবস্থার দ্বিতীয় লাইনে আয় · ব্যয় দ্রুত দেখা
+        var l3 = mk('div', 'cc-l2 cc-ie');
+        [['আয়', K.income, 'i'], ['ব্যয়', K.cost, 'e']].forEach(function(m){ var sp = mk('span', 'cc-m cc-' + m[2]); sp.appendChild(mk('span', 'cc-ml', m[0])); sp.appendChild(mk('span', 'cc-mv', m[1])); l3.appendChild(sp); });
+        l3.appendChild(mk('span', 'cc-hint', 'ট্যাপ করুন ▾'));
+        d.appendChild(l3);
+        var det = mk('div', 'cd-det');
+        var meta = mk('div', 'cd-sec');
+        if (K.rcpt && K.rcpt !== '—') row(meta, 'রিসিট নং', K.rcpt);
+        if (K.doc) row(meta, 'ডাক্তার', K.doc);
+        row(meta, 'রোগী সংখ্যা', K.pts + ' জন');
+        det.appendChild(meta);
+        var si = mk('div', 'cd-sec'); si.appendChild(mk('div', 'cd-h i', '💰 আয়'));
+        (K.inc || []).forEach(function(p){ row(si, p[0], p[1]); });
+        row(si, 'মোট আয়', K.income, 'tot i');
+        if (K.later) row(si, 'পরে আদায় (আদায়ের মাসে ধরা)', K.later, 'note');
+        if (K.due) row(si, 'এখনো বাকি', K.due, 'note w');
+        det.appendChild(si);
+        var se = mk('div', 'cd-sec'); se.appendChild(mk('div', 'cd-h e', '🧾 ব্যয়'));
+        (K.exp || []).forEach(function(p){ row(se, p[0], p[1]); });
+        row(se, 'ক্যাম্প ব্যয়', K.campExp, 'sub');
+        if (K.pre) { row(se, '⛺ প্রি-ক্যাম্প খরচ', K.pre, 'sub'); if (K.preKhat) se.appendChild(mk('div', 'cd-note', 'খাত: ' + K.preKhat)); }
+        if (K.cogs) row(se, 'পণ্যের COGS', K.cogs, 'sub');
+        row(se, 'মোট ব্যয়', K.cost, 'tot e');
+        det.appendChild(se);
+        var sn = mk('div', 'cd-sec'); sn.appendChild(mk('div', 'cd-h', '📊 নিট হিসাব'));
+        row(sn, 'আয় − ব্যয়', K.netB, 'sub ' + (K.netBPos ? 'i' : 'e'));
+        if (K.staff && K.staff.length) {
+          K.staff.forEach(function(p){ row(sn, '− ' + p[0] + ' (সেদিনের বেতন)', p[1], 'sub e'); });
+          row(sn, 'কর্মীর সেদিনের বেতন (মাসিক হারে)', K.staffTotal, 'sub e');
+        } else row(sn, 'কর্মীর বেতন', 'ধরা নেই', 'note');
+        row(sn, K.netPos ? 'নিট লাভ' : 'নিট লস', K.net, 'big ' + (K.netPos ? 'i' : 'e'));
+        det.appendChild(sn);
+        var sd = mk('div', 'cd-sec');
+        if (K.dep) row(sd, 'প্রকৃত জমা', K.dep, 'sub i');
+        if (K.refill) row(sd, 'রিফিল (ক্যাম্পেইনারকে)', K.refill, 'sub w');
+        if (!K.dep && !K.refill) row(sd, 'জমা/রিফিল', 'হয়নি', 'note');
+        det.appendChild(sd);
+        d.appendChild(det);
       }
       return d;
     };
@@ -17693,6 +17772,32 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc-arr .cc-t{color:#b91c1c}
     .cc-arr .cc-s{color:#b91c1c;font-size:10.5px}
     .cc-ie{gap:14px;font-size:12px;margin-top:2px;padding-left:2px}
+    /* ক্যাম্প কার্ড (ভাঁজ/এক্সপ্যান্ড) */
+    .cc-a.warn{color:#b45309}.cc-a.mut{color:#94a3b8;font-weight:600;font-size:12px}
+    .cc.cc-camp{padding:5px 9px 6px;cursor:pointer}
+    .cc.cc-camp .cc-t{white-space:normal;overflow:visible;line-height:1.3}
+    .cc.cc-camp .cc-s{white-space:normal;overflow:visible}
+    .cc-hint{margin-left:auto;font-size:10px;color:#94a3b8;white-space:nowrap}
+    .cc.open .cc-hint{display:none}
+    .cd-det{display:none;margin-top:6px;border-top:1px dashed #cfe0f1;padding-top:4px}
+    .cc.open .cd-det{display:block}
+    .cd-sec{padding:4px 0;border-bottom:1px solid #eef2f7}
+    .cd-sec:last-child{border-bottom:0}
+    .cd-h{font-size:11.5px;font-weight:700;color:#0f4c81;margin-bottom:2px}
+    .cd-h.i{color:#065f46}.cd-h.e{color:#991b1b}
+    .cd-r{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;line-height:1.5;color:#334155}
+    .cd-k{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+    .cd-v{flex:0 0 auto;font-weight:700;white-space:nowrap}
+    .cd-r.sub .cd-k{padding-left:8px;color:#475569}
+    .cd-r.tot{border-top:1px solid #e3eaf2;margin-top:2px;padding-top:2px;font-weight:700}
+    .cd-r.i .cd-v,.cd-r.i.tot .cd-k{color:#065f46}
+    .cd-r.e .cd-v,.cd-r.e.tot .cd-k{color:#991b1b}
+    .cd-r.w .cd-v{color:#b45309}
+    .cd-r.note{font-size:11px;color:#64748b}
+    .cd-note{font-size:10.5px;color:#9a3412;line-height:1.4;padding-left:8px;overflow-wrap:anywhere}
+    .cd-r.big{margin-top:3px;padding:5px 8px;border-radius:8px;font-size:13.5px;font-weight:700}
+    .cd-r.big.i{background:#d1fae5}.cd-r.big.e{background:#fee2e2}
+    .cd-r.big .cd-v{font-size:14.5px}
     .cc-chip{font-size:10.5px;font-weight:700;border-radius:10px;padding:0 6px;background:#eef2f7;color:#475569;line-height:17px;white-space:nowrap}
     .cc-chip.i{background:#d1fae5;color:#065f46}
     .cc-chip.e{background:#fee2e2;color:#991b1b}
@@ -20564,11 +20669,15 @@ function _stkSplit(rows, itemOf) {
   return _stkCatOrder().filter(function(c){ return by[c]; }).map(function(c){ return { cat:c, rows:by[c] }; });
 }
 
-function rsmSet(k, v) { _rsm[k] = v; if (k === 'icat') _rsm.itemId = ''; if (k === 'tab' || k === 'mode' || k === 'month' || k === 'icat') renderRecStockMgmt(); else _rsmBody(); }
+function rsmSet(k, v) { _rsm[k] = v; if (k === 'icat') _rsm.itemId = ''; if (k === 'tab' || k === 'mode' || k === 'month' || k === 'icat') _rsmRender(_rsm.host || 'rec-stockmgmt', _rsm.title); else _rsmBody(); }
 function rsmToggleDay(d) { var isOpen = (d in _rsm.open) ? _rsm.open[d] : (d === todayStr()); _rsm.open[d] = !isOpen; _rsmBody(); }
-function rsmPickItemId(id) { _rsm.itemId = id; renderRecStockMgmt(); }
-function renderRecStockMgmt() {
-  var host = document.getElementById('rec-stockmgmt'); if (!host) return;
+function rsmPickItemId(id) { _rsm.itemId = id; _rsmRender(_rsm.host || 'rec-stockmgmt', _rsm.title); }
+function renderRecStockMgmt() { _rsmRender('rec-stockmgmt', '🗃️ স্টক ম্যানেজমেন্ট'); }
+// অ্যাডমিন প্যানেল: স্টক ম্যানেজমেন্ট পেজের "📊 স্টক ব্যালেন্স" প্যানেল (রিসেপশনের হুবহু একই শিট — দৈনিক/পণ্যভিত্তিক, ক্যাম্প স্টক লেনদেন, বর্তমান স্টক)
+function renderAdminStockBalance(hostId) { _rsmRender(hostId || 'adm-stkbal-host', ''); }
+function _rsmRender(hostId, title) {
+  _rsm.host = hostId; _rsm.title = title;
+  var host = document.getElementById(hostId); if (!host) return;
   var t = todayStr();
   if (!window._rsmGoCamp) _rsm.hl = [];
   if (window._rsmGoCamp) { _rsm.tab = 'camp'; _rsm.kind = ''; _rsm.cfrom = ''; _rsm.cto = ''; _rsm.cq = ''; _rsm.hl = window._rsmGoCamp; window._rsmGoCamp = null; }
@@ -20599,18 +20708,18 @@ function renderRecStockMgmt() {
       + '<input type="date" value="'+_rsm.cfrom+'" onchange="rsmSet(\'cfrom\',this.value)" style="'+inp+'"><span style="color:#64748b">থেকে</span><input type="date" value="'+_rsm.cto+'" onchange="rsmSet(\'cto\',this.value)" style="'+inp+'">'
       + '<input type="text" placeholder="🔍 ক্যাম্প/ক্যাম্পেইনার" value="'+_stkEsc(_rsm.cq)+'" oninput="rsmSet(\'cq\',this.value)" style="'+inp+';flex:1;min-width:140px"></div>';
   } else {
-    ctl = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><input type="text" placeholder="🔍 পণ্য খুঁজুন" value="'+_stkEsc(_rsm.q)+'" oninput="rsmSet(\'q\',this.value)" style="'+inp+';flex:1;min-width:160px"><button type="button" onclick="recGoTab(\'bulkstock\')" style="min-height:40px;border:none;border-radius:10px;background:var(--primary);color:#fff;font-weight:800;padding:0 14px;cursor:pointer;font-family:inherit">📦 নতুন ক্রয় / বাল্ক স্টক ইন</button></div>';
+    ctl = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><input type="text" placeholder="🔍 পণ্য খুঁজুন" value="'+_stkEsc(_rsm.q)+'" oninput="rsmSet(\'q\',this.value)" style="'+inp+';flex:1;min-width:160px"><button type="button" onclick="'+(_rsm.host==='rec-stockmgmt' ? 'recGoTab(\'bulkstock\')' : 'openBulkStockInPage()')+'" style="min-height:40px;border:none;border-radius:10px;background:var(--primary);color:#fff;font-weight:800;padding:0 14px;cursor:pointer;font-family:inherit">📦 নতুন ক্রয় / বাল্ক স্টক ইন</button></div>';
   }
-  host.innerHTML = '<div style="padding:4px 2px"><div style="font-size:18px;font-weight:800;color:var(--primary);margin-bottom:10px">🗃️ স্টক ম্যানেজমেন্ট</div>'
+  host.innerHTML = '<div style="padding:4px 2px">'+(title ? '<div style="font-size:18px;font-weight:800;color:var(--primary);margin-bottom:10px">'+title+'</div>' : '')
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' + tabBtn('balance','📊 দৈনিক স্টক ব্যালেন্স') + tabBtn('camp','🏕️ ক্যাম্প স্টক লেনদেন') + tabBtn('current','📋 বর্তমান স্টক') + '</div>'
-    + ctl + '<div id="rsmBody"></div></div>';
+    + ctl + '<div class="rsm-body"></div></div>';
   _rsmBody();
 }
 function _rsmBody() {
-  var el = document.getElementById('rsmBody'); if (!el) return;
+  var el = document.querySelector('#' + (_rsm.host || 'rec-stockmgmt') + ' .rsm-body'); if (!el) return;
   try {
     if (_rsm.tab === 'balance') el.innerHTML = _rsm.mode === 'day' ? _rsmMonthHtml() : _rsmItemHtml();
-    else if (_rsm.tab === 'camp') { el.innerHTML = _rsmCampHtml(); if (_rsm.hl && _rsm.hl.length) { var h = document.querySelector('#rsmBody [data-hl="1"]'); if (h) setTimeout(function(){ try { h.scrollIntoView({ behavior:'smooth', block:'center' }); } catch(e) {} }, 60); } }
+    else if (_rsm.tab === 'camp') { el.innerHTML = _rsmCampHtml(); if (_rsm.hl && _rsm.hl.length) { var h = document.querySelector('#' + (_rsm.host || 'rec-stockmgmt') + ' [data-hl="1"]'); if (h) setTimeout(function(){ try { h.scrollIntoView({ behavior:'smooth', block:'center' }); } catch(e) {} }, 60); } }
     else el.innerHTML = _rsmCurrentHtml();
   } catch(e) { console.warn('rsm', e); el.innerHTML = '<p style="color:#b91c1c">দেখাতে সমস্যা হয়েছে: ' + _stkEsc(e.message) + '</p>'; }
 }
@@ -47807,7 +47916,8 @@ function amOwnHtml(sub) {
   if (sub === 'stock') {
     var l = { low: [], out: [] }; try { l = _recLowStockList(); } catch (e) {}
     var n = l.low.length + l.out.length;
-    pre = '<div class="am-f"><input id="amOwnQ" type="search" placeholder="🔎 পণ্যের নাম খুঁজুন" value="' + amEsc(amOwnQv) + '" oninput="amOwnFilter(this.value)"></div>'
+    pre = '<details class="am-stkbal" style="margin-bottom:10px;background:#fff;border:1px solid #e3eaf2;border-radius:12px;padding:0 10px" ontoggle="if(this.open)renderAdminStockBalance(\'amStkBalHost\')"><summary style="cursor:pointer;font-weight:700;font-size:13.5px;color:#0f4c81;padding:10px 0;list-style:none">📊 স্টক ব্যালেন্স (দৈনিক / ক্যাম্প স্টক) ▾</summary><div id="amStkBalHost" style="padding-bottom:8px;overflow-x:auto"></div></details>'
+      + '<div class="am-f"><input id="amOwnQ" type="search" placeholder="🔎 পণ্যের নাম খুঁজুন" value="' + amEsc(amOwnQv) + '" oninput="amOwnFilter(this.value)"></div>'
       + (n ? '<button class="am-btn pri" style="width:100%;margin-bottom:10px" onclick="amStockDemand()">⚠️ কম/শেষ স্টক (' + fmt(n) + ' টি) থেকে ডিমান্ড নোট বানান</button>' : '');
   }
   if (sub === 'bank') return amBankOwnHtml();
