@@ -16435,7 +16435,7 @@ function buildBoardReportHtml(month, year) {
     const stillDue = (appData.campVisits||[]).filter(v => v.campName === c.name && v.date === c.date).reduce((s,v)=>s+(v.due||0),0);
     return { c, b, eb, cogs, staff, staffNames, income, later, stillDue, pts: campPatients(c), cost, net: income - cost, doc: _campDoc(c), netFinal: income - cost - staff - _campDoc(c).share, st: _campSettle(c) };
   });
-  const cdIncTotal = _cd.reduce((s,x)=>s+x.income,0), cdCostTotal = _cd.reduce((s,x)=>s+x.cost,0), cdNetTotal = _cd.reduce((s,x)=>s+x.net,0), cdNetFinalTotal = _cd.reduce((s,x)=>s+x.netFinal,0);
+  const cdIncTotal = _cd.reduce((s,x)=>s+x.income,0), cdCostTotal = _cd.reduce((s,x)=>s+x.cost,0), cdNetTotal = _cd.reduce((s,x)=>s+x.net,0), cdNetFinalTotal = _cd.reduce((s,x)=>s+x.netFinal,0), cdDocTotal = _cd.reduce((s,x)=>s+x.doc.share,0);
   const cdDepTotal = _cd.reduce((s,x)=>s+x.st.dep,0), cdRefillTotal = _cd.reduce((s,x)=>s+x.st.refill,0), cdStaffTotal = _cd.reduce((s,x)=>s+x.staff,0);
   const _sg = n => (n>=0?'':'- ') + '৳ ' + fmt(Math.abs(n));
   const _cdEsc = t => String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -17012,7 +17012,7 @@ function buildBoardReportHtml(month, year) {
   ${camps.length?`<table>
     <thead><tr><th>#</th><th>তারিখ</th><th>রিসিট নং</th><th>ক্যাম্প</th><th style="text-align:right">আয়</th><th style="text-align:right">ব্যয়</th><th style="text-align:right">প্রকৃত জমা / রিফিল<br><span style="font-weight:500;font-size:10px">(নিট লাভ/লস)</span></th></tr></thead>
     <tbody>${campRows}</tbody>
-    <tfoot><tr class="sum-row"><td colspan="4"><strong>মোট (${fmt(camps.length)}টি ক্যাম্প · ${fmt(totalCampPatients)} জন রোগী)</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdIncTotal)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdCostTotal)}</strong></td><td style="text-align:right"><div style="font-weight:700;color:#065f46">জমা ৳ ${fmt(cdDepTotal)}</div>${cdRefillTotal>0.5?`<div style="font-weight:700;color:#b45309">রিফিল ৳ ${fmt(cdRefillTotal)}</div>`:''}<div style="font-size:10.5px;font-weight:700;color:${cdNetTotal>=0?'#065f46':'#991b1b'}">(${cdNetTotal>=0?'নিট লাভ':'নিট লস'} ${_sg(Math.abs(cdNetTotal))})</div></td></tr></tfoot>
+    <tfoot><tr class="sum-row" data-ctot="${encodeURIComponent(JSON.stringify({ n: fmt(camps.length), pts: fmt(totalCampPatients), inc: '৳ '+fmt(cdIncTotal), cost: '৳ '+fmt(cdCostTotal), dep: cdDepTotal>0.5?'৳ '+fmt(cdDepTotal):'', refill: cdRefillTotal>0.5?'৳ '+fmt(cdRefillTotal):'', netB: _sg(cdNetTotal), netBPos: cdNetTotal>=0, pay: '৳ '+fmt(cdStaffTotal+cdDocTotal), net: '৳ '+fmt(Math.abs(cdNetFinalTotal)), netPos: cdNetFinalTotal>=0, lossN: _cd.filter(x=>x.netFinal<0).length }))}"><td colspan="4"><strong>মোট (${fmt(camps.length)}টি ক্যাম্প · ${fmt(totalCampPatients)} জন রোগী)</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdIncTotal)}</strong></td><td style="text-align:right"><strong>৳ ${fmt(cdCostTotal)}</strong></td><td style="text-align:right"><div style="font-weight:700;color:#065f46">জমা ৳ ${fmt(cdDepTotal)}</div>${cdRefillTotal>0.5?`<div style="font-weight:700;color:#b45309">রিফিল ৳ ${fmt(cdRefillTotal)}</div>`:''}<div style="font-size:10.5px;font-weight:700;color:${cdNetTotal>=0?'#065f46':'#991b1b'}">(${cdNetTotal>=0?'নিট লাভ':'নিট লস'} ${_sg(Math.abs(cdNetTotal))})</div></td></tr></tfoot>
   </table>
   <div style="font-size:11px;color:#6b7280;margin-top:-4px;margin-bottom:12px">* আয় = ক্যাম্পের দিনে পাওয়া আয়; ক্যাম্পের পরে আদায় হওয়া বাকি আদায়ের মাসে "বাকি আদায়" ক্যাটাগরিতে ধরা। ব্যয় = ক্যাম্প ব্যয় (পার্টটাইমারসহ) + প্রি-ক্যাম্প খরচ (খাতসহ আলাদা দেখানো) + পণ্যের COGS; ক্যাম্পে যাওয়া নিয়মিত কর্মীর মাসিক বেতনের সেদিনের অংশ এখানে ব্যয়ে ধরা হয় না (মোবাইল ভিউতে কার্ড এক্সপ্যান্ড করলে সেটা ধরে চূড়ান্ত নিট দেখা যায়)। নিট = আয় − ব্যয়। শেষ কলামে মূল অঙ্ক = ক্যাম্পেইনারের প্রকৃত জমা/রিফিল (জমার স্লিপ অনুযায়ী)।</div>`:'<p style="color:#9ca3af">এই মাসে কোনো ক্যাম্প নেই।</p>'}
 
@@ -17673,6 +17673,24 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     };
 
     var renderTot = function(tr) {
+      var ct = null; try { ct = tr.getAttribute('data-ctot') ? JSON.parse(decodeURIComponent(tr.getAttribute('data-ctot'))) : null; } catch (e) {}
+      if (ct) {
+        // ক্যাম্প মোট — প্রতিটা কার্ডের চূড়ান্ত নিটের (কর্মী ও ডাক্তারের সেদিনের বেতন ধরে) যোগফলের সাথে মেলানো
+        var t = mk('div', 'cc-tot ' + (ct.netPos ? 'ct-pos' : 'ct-neg'));
+        t.appendChild(mk('span', 'cc-tl', 'মোট (' + ct.n + 'টি ক্যাম্প · ' + ct.pts + ' জন রোগী)'));
+        var g = mk('div', 'cc-tg');
+        var cell = function(k, v, cls){ var c = mk('div', 'cc-tc' + (cls ? ' ' + cls : '')); c.appendChild(mk('span', 'cc-tk', k)); c.appendChild(mk('span', 'cc-tn', v)); g.appendChild(c); };
+        cell('আয়', ct.inc); cell('ক্যাম্প ব্যয় + COGS', ct.cost);
+        if (ct.dep) cell('জমা', ct.dep); if (ct.refill) cell('রিফিল', ct.refill);
+        cell('আয় − ব্যয়', ct.netB);
+        cell('− কর্মী ও ডাক্তারের সেদিনের বেতন', ct.pay);
+        t.appendChild(g);
+        var fin = mk('div', 'ct-fin ' + (ct.netPos ? 'i' : 'e'));
+        fin.appendChild(mk('span', '', (ct.netPos ? 'মোট নিট লাভ' : 'মোট নিট লস') + (ct.lossN ? ' (' + ct.lossN + 'টি ক্যাম্পে লস)' : '')));
+        fin.appendChild(mk('b', '', ct.net));
+        t.appendChild(fin);
+        return t;
+      }
       var idx = 0, vals = [], label = '';
       Array.prototype.forEach.call(tr.children, function(td, k) {
         var span = parseInt(td.getAttribute('colspan') || '1', 10) || 1, v = tx(td);
@@ -17842,7 +17860,10 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc-tc{display:flex;flex-direction:column;min-width:0}
     .cc-tk{font-size:10.5px;font-weight:400;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cc-tn{font-size:13px;font-weight:700;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
-    .cc-tot{overflow:hidden}.cc-tc:last-child:nth-child(odd){grid-column:1/-1}
+    .cc-tot{overflow:hidden}
+    .ct-fin{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-top:5px;padding:5px 8px;border-radius:8px;font-size:13px;font-weight:700}
+    .ct-fin.i{background:#d1fae5;color:#065f46}.ct-fin.e{background:#fee2e2;color:#991b1b}
+    .ct-fin b{font-size:14.5px;white-space:nowrap}.cc-tc:last-child:nth-child(odd){grid-column:1/-1}
     .cc-empty{padding:8px;text-align:center;color:#94a3b8;font-size:12px}
     p,div{font-size:inherit}
     .badge{display:inline-block;font-size:11px}
