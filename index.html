@@ -16429,12 +16429,15 @@ function buildBoardReportHtml(month, year) {
     const incParts = incList.map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
     const expPartsNoPre = expList.filter(p=>p[0]!=='প্রি-ক্যাম্প').map(p=>`${p[0]} ${fmt(p[1])}`).join(' · ');
     const campExpOnly = eb.total - (eb.pre||0);   // প্রি-ক্যাম্প বাদে ক্যাম্পের নিজের ব্যয়
+    const _sch = (appData.campSchedules||[]).find(z => z.id === c.id) || (appData.campSchedules||[]).find(z => z.name === c.name && z.date === c.date) || {};
+    const _pr = _sch.promo || {};
     // মোবাইল কার্ডের এক্সপ্যান্ড অংশের তথ্য (A4/প্রিন্টে অদৃশ্য data-অ্যাট্রিবিউট; মোবাইল ভিউ এখান থেকে পড়ে)
     const cdData = {
       loc: c.location||'', doc: (typeof c.doctor === 'string' ? c.doctor : '') || '', rcpt: campReceiptText(c), pts: fmt(x.pts),
       inc: incList.map(p=>[p[0], '৳ '+fmt(p[1])]), income: '৳ '+fmt(x.income),
       later: x.later>0.5 ? '৳ '+fmt(x.later) : '', due: x.stillDue>0.5 ? '৳ '+fmt(x.stillDue) : '',
       exp: expList.filter(p=>p[0]!=='প্রি-ক্যাম্প').map(p=>[p[0], '৳ '+fmt(p[1])]), campExp: '৳ '+fmt(campExpOnly),
+      campExpShort: '৳ '+fmt(campExpOnly), promoBy: _pr.by||'', promoTeam: (_pr.team||[]).filter(Boolean),
       pre: eb.pre>0.5 ? '৳ '+fmt(eb.pre) : '', preKhat: eb.pre>0.5 ? (_preKhat(eb)||'') : '',
       cogs: x.cogs>0.5 ? '৳ '+fmt(x.cogs) : '', cost: '৳ '+fmt(x.cost),
       netB: _sg(x.net), netBPos: x.net>=0,
@@ -17604,7 +17607,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
         var K = o.camp, row = function(parent, k, v, cls){ var r = mk('div', 'cd-r' + (cls ? ' ' + cls : '')); r.appendChild(mk('span', 'cd-k', k)); r.appendChild(mk('span', 'cd-v', v)); parent.appendChild(r); return r; };
         // ভাঁজ অবস্থার দ্বিতীয় লাইনে আয় · ব্যয় দ্রুত দেখা
         var l3 = mk('div', 'cc-l2 cc-ie');
-        [['আয়', K.income, 'i'], ['ব্যয়', K.cost, 'e']].forEach(function(m){ var sp = mk('span', 'cc-m cc-' + m[2]); sp.appendChild(mk('span', 'cc-ml', m[0])); sp.appendChild(mk('span', 'cc-mv', m[1])); l3.appendChild(sp); });
+        [['আয়', K.income, 'i'], ['ক্যাম্প ব্যয়', K.campExpShort, 'e']].forEach(function(m){ var sp = mk('span', 'cc-m cc-' + m[2]); sp.appendChild(mk('span', 'cc-ml', m[0])); sp.appendChild(mk('span', 'cc-mv', m[1])); l3.appendChild(sp); });
         l3.appendChild(mk('span', 'cc-hint', 'ট্যাপ করুন ▾'));
         d.appendChild(l3);
         var det = mk('div', 'cd-det');
@@ -17623,6 +17626,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
         (K.exp || []).forEach(function(p){ row(se, p[0], p[1]); });
         row(se, 'ক্যাম্প ব্যয়', K.campExp, 'sub');
         if (K.pre) { row(se, '⛺ প্রি-ক্যাম্প খরচ', K.pre, 'sub'); if (K.preKhat) se.appendChild(mk('div', 'cd-note', 'খাত: ' + K.preKhat)); }
+        if (K.promoBy || (K.promoTeam && K.promoTeam.length)) se.appendChild(mk('div', 'cd-note cd-promo', '📢 প্রচার: ' + (K.promoBy ? 'মডারেটর ' + K.promoBy : '') + (K.promoTeam && K.promoTeam.length ? (K.promoBy ? ' · ' : '') + 'সাথে ' + K.promoTeam.join(', ') : (K.promoBy ? ' (একা)' : ''))));
         if (K.cogs) row(se, 'পণ্যের COGS', K.cogs, 'sub');
         row(se, 'মোট ব্যয়', K.cost, 'tot e');
         det.appendChild(se);
@@ -17648,6 +17652,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
       var idx = 0, vals = [], label = '';
       Array.prototype.forEach.call(tr.children, function(td, k) {
         var span = parseInt(td.getAttribute('colspan') || '1', 10) || 1, v = tx(td);
+        var _dv = td.querySelectorAll('div'); if (_dv.length > 1) v = Array.prototype.map.call(_dv, tx).filter(Boolean).join(' · ');
         if (k === 0) label = v; else if (v) vals.push({ l: L[idx] || '', v: v });
         idx += span;
       });
@@ -17795,6 +17800,7 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cd-r.w .cd-v{color:#b45309}
     .cd-r.note{font-size:11px;color:#64748b}
     .cd-note{font-size:10.5px;color:#9a3412;line-height:1.4;padding-left:8px;overflow-wrap:anywhere}
+    .cd-note.cd-promo{color:#475569;font-size:10px}
     .cd-r.big{margin-top:3px;padding:5px 8px;border-radius:8px;font-size:13.5px;font-weight:700}
     .cd-r.big.i{background:#d1fae5}.cd-r.big.e{background:#fee2e2}
     .cd-r.big .cd-v{font-size:14.5px}
@@ -17807,10 +17813,11 @@ function _boardMobileSrcdoc(fullHtml, nav) {
     .cc-tot.dark{background:linear-gradient(135deg,#0f4c81,#1a6bb5);border-color:#0f4c81;color:#fff}
     .cc-tl{font-size:13px;font-weight:700;display:block}
     .cc-tot.one .cc-tl{display:inline}
-    .cc-tg{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:3px 10px;margin-top:3px}
+    .cc-tg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 10px;margin-top:3px}
     .cc-tc{display:flex;flex-direction:column;min-width:0}
     .cc-tk{font-size:10.5px;font-weight:400;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .cc-tn{font-size:13px;font-weight:700;white-space:nowrap}
+    .cc-tn{font-size:13px;font-weight:700;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+    .cc-tot{overflow:hidden}.cc-tc:last-child:nth-child(odd){grid-column:1/-1}
     .cc-empty{padding:8px;text-align:center;color:#94a3b8;font-size:12px}
     p,div{font-size:inherit}
     .badge{display:inline-block;font-size:11px}
