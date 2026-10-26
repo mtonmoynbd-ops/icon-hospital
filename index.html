@@ -3287,6 +3287,46 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 
     <!-- CAMP -->
     <div id="pg-camp" class="page-view">
+      <style>
+        .cv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+        .cv-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+        .cv-card h4{margin:0;font-size:15px;color:var(--primary)}
+        .cv-un{font-size:11px;font-weight:700;background:#e0f2fe;color:#075985;border-radius:999px;padding:2px 9px}
+        .cv-gap{font-size:12px;font-weight:800;border-radius:10px;padding:5px 9px}
+        .cv-gap.ok{background:#dcfce7;color:#166534}.cv-gap.mid{background:#fef3c7;color:#92400e}.cv-gap.old{background:#fee2e2;color:#991b1b}.cv-gap.none{background:#f1f5f9;color:#475569}
+        .cv-st{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+        .cv-st div{background:#f8fafc;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#64748b}
+        .cv-st b{display:block;font-size:13px;color:#1f2937}
+        .cv-hist{font-size:12px;border-top:1px dashed #e2e8f0;padding-top:6px}
+        .cv-hist div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+        .cv-help{font-size:12.5px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+        .cv-help a.call{background:#16a34a;color:#fff;border-radius:8px;padding:4px 12px;font-weight:800;text-decoration:none;font-size:12.5px}
+        .cv-btns{display:flex;gap:8px;flex-wrap:wrap}
+        .cv-flt{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .cv-flt select,.cv-flt input{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff}
+        #csVillageInfo .cv-card{border-color:#fde68a;background:#fffdf7}
+      </style>
+      <div class="panel">
+        <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 14px">
+          <button class="btn btn-success" onclick="openCampAddModal()">➕ নতুন ক্যাম্প যোগ করুন</button>
+          <button class="btn btn-outline" onclick="toggleCampVillageDB()">📍 গ্রাম ডাটাবেজ (ইউনিয়ন → গ্রাম)</button>
+          <span id="campVillageSummaryLine" style="font-size:12px;color:var(--text-light)"></span>
+        </div>
+      </div>
+      <div class="panel" id="campVillagePanel" style="display:none">
+        <div class="panel-header" style="flex-wrap:wrap;gap:8px">
+          <div class="panel-title">📍 ক্যাম্প গ্রাম ডাটাবেজ</div>
+          <div class="cv-flt">
+            <select id="cvUnion" onchange="renderCampVillageDB()"><option value="">সব ইউনিয়ন</option></select>
+            <input type="search" id="cvQ" placeholder="গ্রাম খুঁজুন" oninput="renderCampVillageDB()">
+            <select id="cvGap" onchange="renderCampVillageDB()"><option value="">সময় — সব</option><option value="30">৩০+ দিন আগে ক্যাম্প</option><option value="90">৯০+ দিন আগে ক্যাম্প</option><option value="180">১৮০+ দিন আগে ক্যাম্প</option><option value="never">কখনো ক্যাম্প হয়নি</option></select>
+            <select id="cvSort" onchange="renderCampVillageDB()"><option value="gap">সবচেয়ে পুরোনো ক্যাম্প আগে</option><option value="recent">সাম্প্রতিক ক্যাম্প আগে</option><option value="success">বেশি সফল আগে</option><option value="count">বেশি ক্যাম্প আগে</option><option value="name">নাম অনুযায়ী</option></select>
+            <button class="btn btn-primary btn-sm" onclick="cvEditOpen('')">➕ নতুন গ্রাম</button>
+            <button class="btn btn-outline btn-sm" onclick="cvImportLegacy()" title="আগের ক্যাম্পের স্থান-লেখা থেকে গ্রামের তালিকা তৈরি">🔄 পুরোনো ক্যাম্প থেকে তৈরি</button>
+          </div>
+        </div>
+        <div class="panel-body"><div id="campVillageStats" style="font-size:12.5px;color:var(--text-light);margin-bottom:10px"></div><div id="campVillageBody" class="cv-grid"></div></div>
+      </div>
       <!-- ⚠️ মেয়াদোত্তীর্ণ ক্যাম্প — শিডিউল করা ছিল কিন্তু তারিখ পার হয়ে গেছে, এখনো একটিভ/ক্লোজ করা হয়নি।
            তালিকায় ডেটা থাকলেই দেখা যাবে (renderOverdueCampSchedule), না থাকলে পুরো প্যানেল লুকানো থাকবে। -->
       <div class="panel" id="campOverduePanelWrap" style="display:none;border:1.5px solid var(--danger)">
@@ -6726,9 +6766,15 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <div class="panel-body">
           <div id="campScheduleForm" style="display:none;background:#f8fafc;border-radius:10px;padding:16px;margin-bottom:16px">
             <div class="form-row three">
-              <div class="field"><label>ক্যাম্পের নাম *</label><input type="text" id="csName" placeholder="ক্যাম্পের নাম"></div>
-              <div class="field"><label>স্থান/লোকেশন *</label><input type="text" id="csLocation" placeholder="গ্রাম/উপজেলা"></div>
+              <div class="field"><label>ইউনিয়ন</label><input type="text" id="csUnion" list="csUnionList" placeholder="ইউনিয়নের নাম" oninput="csVillageLookup('union')" autocomplete="off"><datalist id="csUnionList"></datalist></div>
+              <div class="field"><label>গ্রাম <span style="font-size:10px;color:var(--accent)">(আগের গ্রাম বাছলে ইতিহাস দেখাবে)</span></label><input type="text" id="csVillage" list="csVillageList" placeholder="গ্রামের নাম" oninput="csVillageLookup('village')" onchange="csVillageLookup('village')" autocomplete="off"><datalist id="csVillageList"></datalist></div>
               <div class="field"><label>তারিখ *</label><input type="date" id="csDate"></div>
+            </div>
+            <div id="csVillageInfo" style="margin-bottom:10px"></div>
+            <div class="form-row three">
+              <div class="field"><label>ক্যাম্পের নাম *</label><input type="text" id="csName" placeholder="ক্যাম্পের নাম"></div>
+              <div class="field"><label>স্থান/লোকেশন * <span style="font-size:10px;color:var(--text-light)">(গ্রাম+ইউনিয়ন থেকে নিজে ভরে)</span></label><input type="text" id="csLocation" placeholder="গ্রাম/উপজেলা"></div>
+              <div class="field"><label>📞 স্থানীয় সহযোগী <span style="font-size:10px;color:var(--text-light)">(নাম ও মোবাইল)</span></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input type="text" id="csHelperName" placeholder="সহযোগীর নাম"><input type="tel" id="csHelperPhone" placeholder="মোবাইল নম্বর" inputmode="tel"></div></div>
             </div>
             <div class="form-row three">
               <div class="field"><label>ভিজিট ফি (৳)</label><input type="number" id="csVisitFee" placeholder="০" min="0"></div>
@@ -6755,7 +6801,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
             </div>
             <input type="hidden" id="csEditId">
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
-              <button class="btn btn-outline btn-sm" onclick="document.getElementById('campScheduleForm').style.display='none'">বাতিল</button>
+              <button class="btn btn-outline btn-sm" onclick="csFormClose()">বাতিল</button>
               <button class="btn btn-success" onclick="saveCampSchedule()">✅ সেভ করুন</button>
             </div>
           </div>
@@ -7958,6 +8004,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         #camper-billing .cb-del{margin-left:auto;width:44px;height:44px;border-radius:12px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;font-size:18px;cursor:pointer;flex-shrink:0}
         #camper-billing .cb-sel{flex:1;min-width:0}
         #camper-billing .cb-row-bot{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+        #camper-billing .cb-pw{min-width:0}
+        #camper-billing .cb-hint{font-size:10.5px;color:#92400e;font-weight:700;line-height:1.3;margin-top:2px;text-align:center;white-space:nowrap}
+        #camper-billing .cb-hint:empty{display:none}
         #camper-billing .cb-step{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:#fff}
         #camper-billing .cb-step button{width:44px;height:46px;border:none;background:#f1f5f9;font-size:22px;font-weight:700;color:var(--primary);cursor:pointer}
         #camper-billing .cb-step button:active{background:#dbeafe}
@@ -11401,7 +11450,7 @@ const PATH_SYNCED_MODULES = [
   'attendance', 'leaveRecords', 'operations', 'surgeons', 'vendors',
   'shareholders', 'staff', 'monthClosings', 'shareholderWithdrawals',
   'doctors', 'doctorCommissions', 'doctorDayPayments', 'staffAdvances', 'waOutbox', 'tgOutbox', 'adminNotes',
-  'dueHistory', 'investors', 'investorWithdrawals', 'investorCapitalInflows', 'boardPositions', 'testFees', 'fixedBills'
+  'dueHistory', 'investors', 'investorWithdrawals', 'investorCapitalInflows', 'boardPositions', 'testFees', 'fixedBills', 'campVillages'
 ];
 
 function updateSyncStatusUI() {
@@ -11735,7 +11784,7 @@ function showPage(name) {
   if (name === 'appointletter') { renderAppointLetterForm(); renderAppointLetterHistory(); }
   if (name === 'attendance') { initAttendanceStandalonePage(); }
   if (name === 'stock')        { renderStockTable(); renderStockLog(); updateStockCatSelects(); populatePurchaseMonthFilter(); renderPurchaseRecord(); var _sbb = document.getElementById('stBalBody'); if (_sbb && !_sbb.classList.contains('collapsed')) renderAdminStockBalance('adm-stkbal-host'); }
-  if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); if (typeof renderRecCampSchedule==='function') renderRecCampSchedule(); }
+  if (name === 'camp')         { initCampForm(); renderCampList(); renderCampOps(); if (typeof renderRecCampSchedule==='function') renderRecCampSchedule(); try { renderCampVillageDB(); } catch(e) {} }
   if (name === 'demand')       { initDemandForm();
     const dmm=document.getElementById('dmFilterMonth'); if (dmm && !dmm.value) dmm.value=todayStr().substring(0,7);
     renderDemandList();
@@ -14635,12 +14684,12 @@ function buildCamperDepositSlipHtml(d) {
   const stT = stock.reduce((t,i)=>t+i.taken,0), stS = stock.reduce((t,i)=>t+i.sold,0), stR = stock.reduce((t,i)=>t+i.returned,0), stU = stock.reduce((t,i)=>t+Math.max(0,i.taken-i.sold),0);
   const isGl = i => i.glass === true || (i.glass === undefined && (appData.stock||[]).some(x => x.name === i.name && x.cat === 'চশমা/লেন্স'));
   const medItems = stock.filter(i => !isGl(i)), glItems = stock.filter(isGl);
-  const stRow = i => `<tr><td>${esc(String(i.name).slice(0,32))}</td><td style="text-align:right">${fmt(i.taken)}</td><td style="text-align:right">${fmt(i.sold)}</td><td style="text-align:right">${fmt(i.returned)}</td><td style="text-align:right;${(i.taken-i.sold)>0?'color:#b45309;font-weight:700':''}">${fmt(Math.max(0,i.taken-i.sold))}</td></tr>`;
+  const stRow = i => `<tr><td>${esc(String(i.name).slice(0,32))}</td><td style="text-align:right">${fmt(i.taken)}</td><td style="text-align:right">${fmt(i.sold)}</td><td style="text-align:right;${(i.taken-i.sold)>0?'color:#b45309;font-weight:700':''}">${fmt(Math.max(0,i.taken-i.sold))}</td><td style="text-align:right">${fmt(i.returned)}</td></tr>`;
   const stGrp = (t, cont) => `<tr class="dp-grp"><td colspan="5">${t}${cont?' (চলমান)':''}</td></tr>`;
   const stRows = [];
   if (medItems.length) { stRows.push({ g:'মেডিসিন', h:stGrp('মেডিসিন — '+fmt(medItems.length)+' আইটেম'), grp:true }); medItems.forEach(i => stRows.push({ g:'মেডিসিন', h:stRow(i) })); }
   if (glItems.length)  { stRows.push({ g:'চশমা / লেন্স', h:stGrp('চশমা / লেন্স — '+fmt(glItems.length)+' আইটেম'), grp:true }); glItems.forEach(i => stRows.push({ g:'চশমা / লেন্স', h:stRow(i) })); }
-  const stHead = '<thead><tr><th>আইটেম</th><th style="text-align:right">নেওয়া</th><th style="text-align:right">বিক্রি</th><th style="text-align:right">ফেরত</th><th style="text-align:right">অবিক্রিত</th></tr></thead>';
+  const stHead = '<thead><tr><th>আইটেম</th><th style="text-align:right">নেওয়া</th><th style="text-align:right">বিক্রি</th><th style="text-align:right">অবিক্রিত</th><th style="text-align:right">ফেরত</th></tr></thead>';
   const stTable = rows => `<table class="dp-t dp-st">${stHead}<tbody>${rows.map(r=>r.h).join('')}</tbody></table>`;
   let stockTables = '';
   if (stRows.length > 20) {          // আইটেম বেশি হলে দুই কলামে ভাগ — পেজে সব আইটেমই ধরে
@@ -14651,7 +14700,7 @@ function buildCamperDepositSlipHtml(d) {
     stockTables = `<div class="dp-2">${stTable(left)}${stTable(right)}</div>`;
   } else if (stRows.length) { stockTables = stTable(stRows); }
   const stockBlock = stock.length ? `${stockTables}
-      <div style="font-size:10.5px;color:#4b5563;margin:2px 0 4px">${fmt(stock.length)} আইটেম — নেওয়া ${fmt(stT)} | বিক্রি ${fmt(stS)} | ফেরত ${fmt(stR)} | অবিক্রিত ${fmt(stU)}</div>` : `<div style="font-size:11px;color:#6b7280">এই ক্যাম্পের জন্য কোনো স্টক নেওয়া হয়নি।</div>`;
+      <div style="font-size:10.5px;color:#4b5563;margin:2px 0 4px">${fmt(stock.length)} আইটেম — নেওয়া ${fmt(stT)} | বিক্রি ${fmt(stS)} | অবিক্রিত ${fmt(stU)} | ফেরত ${fmt(stR)}</div>` : `<div style="font-size:11px;color:#6b7280">এই ক্যাম্পের জন্য কোনো স্টক নেওয়া হয়নি।</div>`;
   const expTable = () => expList.length ? `${sec('ক্যাম্পেইনারের খরচের তালিকা')}
         <table class="dp-t"><thead><tr><th>খাত</th><th style="text-align:right">টাকা</th></tr></thead><tbody>
           ${expList.slice(0,6).map(e=>`<tr><td>${esc(e.category)}${e.note?' <small style="color:#6b7280">'+esc(String(e.note).slice(0,18))+'</small>':''}</td><td style="text-align:right">${sg(e.amount||0)}</td></tr>`).join('')}
@@ -20131,6 +20180,23 @@ function _custRecHolderHtml(name, h, label) {
   const catE = _custGroup(exps, 'category'); const refAmt = refs.reduce((t,r)=>t+(r.amount||0),0);
   const td = h.days[today] || { in:0, out:0 };
   const old = _custOldDays(h, today);
+  // 🏕️ আজ ক্যাম্পেইনারের কাছ থেকে এই রিসেপশনিস্ট যে জমা/রিফিল-ফেরত নিয়েছেন — ক্যাম্পের নাম, রোগী, সময়সহ বিস্তারিত
+  const depCards = isPool ? '' : (appData.camperDeposits||[]).filter(r => !r.cancelled && r.date === today && ((r.heldBy && _baseBy(r.heldBy) === name) || (r.receiverName && _baseBy(r.receiverName) === name)))
+    .sort((a,b) => (a.id||0) - (b.id||0)).map(r => {
+      const sn = r.snap || {}, amt = r.amount || 0, neg = amt < 0;
+      const tm = (typeof _slipTime12 === 'function' && r.time) ? _slipTime12(r.time) : (r.time || '');
+      const dfx = (r.diff == null) ? '' : (Math.abs(r.diff) < 0.005 ? '<span style="color:#16a34a">হিসাব মিলেছে</span>' : '<span style="color:#dc2626">'+(r.diff > 0 ? 'বেশি ' : 'কম ')+'৳ '+fmt(Math.abs(r.diff))+'</span>');
+      const rcp = sn.receiptFrom ? (sn.receiptTo && sn.receiptTo !== sn.receiptFrom ? esc(sn.receiptFrom)+' – '+esc(sn.receiptTo) : esc(sn.receiptFrom)) : '—';
+      const mini = (k, v) => '<div style="background:#fff;border-radius:8px;padding:5px 9px"><div style="font-size:10px;color:#64748b">'+k+'</div><div style="font-size:12.5px;font-weight:800;color:#1f2937">'+v+'</div></div>';
+      return '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;margin-top:8px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="min-width:0"><b style="font-size:13.5px">🏕️ '+esc(sn.campName||'ক্যাম্প')+'</b><div style="font-size:11.5px;color:#64748b;margin-top:2px">📍 '+esc(sn.location||'—')+(sn.campDate ? ' · 📅 '+formatDate(sn.campDate) : '')+'</div></div>'
+        + '<div style="text-align:right;flex:none"><div style="font-size:10px;color:#64748b">'+(neg ? 'রিফিল ফেরত' : 'জমা নিয়েছেন')+'</div><b style="font-size:17px;color:'+(neg ? '#b91c1c' : '#b45309')+'">'+(neg ? '− ' : '')+'৳ '+fmt(Math.abs(amt))+'</b></div></div>'
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:6px;margin-top:8px">'
+        + mini('🕒 ক্যাশ গ্রহণের সময়', esc(tm||'—')) + mini('👥 রোগী', fmt(sn.patients||0)+' জন') + mini('জমা দিয়েছেন', esc(_baseBy(r.by||'')||'—'))
+        + mini('ক্যাম্প আয়', '৳ '+fmt(sn.income||0)) + mini('ক্যাম্পেইনারের খরচ', '৳ '+fmt(sn.expense||0)) + mini('রিসিট রেঞ্জ', rcp) + '</div>'
+        + '<div style="font-size:11.5px;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+(dfx ? '<span>প্রত্যাশিত ৳ '+fmt(r.expected||0)+' — '+dfx+'</span>' : '')+(r.note ? '<span style="color:#64748b">📝 '+esc(r.note)+'</span>' : '')+'</div></div>';
+    }).join('');
+  const depTotal = isPool ? 0 : (appData.camperDeposits||[]).filter(r => !r.cancelled && r.date === today && ((r.heldBy && _baseBy(r.heldBy) === name) || (r.receiverName && _baseBy(r.receiverName) === name))).reduce((t,r) => t + (r.amount||0), 0);
   const kv = (k, v, c) => '<div style="background:#f8fafc;border-radius:8px;padding:6px 10px"><div style="font-size:10.5px;color:#64748b">'+k+'</div><div style="font-size:13.5px;font-weight:800;color:'+(c||'#1f2937')+'">'+v+'</div></div>';
   const tbl = (title, rows, color) => '<div style="flex:1;min-width:190px"><div style="font-size:11.5px;font-weight:700;color:'+color+';margin-bottom:3px">'+title+'</div>'
     + (rows.length ? rows.map(r => '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;border-bottom:1px dashed #eef2f7"><span>'+esc(r[0])+'</span><b>৳ '+fmt(r[1])+'</b></div>').join('') : '<div style="font-size:11.5px;color:#94a3b8">আজ কিছু নেই</div>') + '</div>';
@@ -20145,6 +20211,7 @@ function _custRecHolderHtml(name, h, label) {
     + (isPool ? '' : '<div style="display:flex;gap:16px;flex-wrap:wrap">'
       + tbl('আয়ের খাত — আজকের বিল ('+fmt(vs.length)+' জন, ছাড়ের পর)', billCats.concat(catI), '#15803d')
       + tbl('ব্যয়ের খাত (আজ)', catE.concat(refAmt ? [['ক্যাম্পেইনার তহবিল রিফিল', refAmt]] : []), '#be123c') + '</div>')
+    + (depCards ? '<div style="margin-top:12px;font-size:12.5px;font-weight:800;color:#b45309">🏕️ আজ ক্যাম্পেইনারের জমা (মোট '+(depTotal<0?'− ':'')+'৳ '+fmt(Math.abs(depTotal))+')</div>'+depCards : '')
     + (old.length ? '<div style="margin-top:10px;font-size:11.5px;color:#92400e;font-weight:700">⏳ আগের দিনের জমা-না-হওয়া নগদ</div><div>'
       + old.map(o => '<span style="display:inline-block;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:3px 11px;font-size:12px;margin:4px 6px 0 0">'+formatDate(o[0])+' · <b>'+(o[1]<0?'− ':'')+'৳ '+fmt(Math.abs(o[1]))+'</b></span>').join('') + '</div>' : '')
     + '</div>';
@@ -27375,6 +27442,7 @@ function toggleCampScheduleForm() {
   if (f.style.display === 'block') {
     document.getElementById('csDate').value = todayStr();
     document.getElementById('csEditId').value = '';
+    csVillageReset();
     renderCsRegularStaff([]);
     document.getElementById('csParttimeRows').innerHTML = '';
     csParttimeCount = 0;
@@ -27423,6 +27491,239 @@ function addCsParttimeRow(name='', pay='') {
   container.appendChild(div);
 }
 
+// ================== ক্যাম্প গ্রাম ডাটাবেজ (ইউনিয়ন → গ্রাম) ==================
+// appData.campVillages: { id, union, village, helperName, helperPhone, note }  — ক্যাম্প শিডিউলে villageId/union/village সংরক্ষিত হয়।
+// ইতিহাস (কবে কবে ক্যাম্প, রোগী, আয়, সফলতা) বন্ধ ক্যাম্প রেকর্ড (appData.camps) থেকে এসে গ্রামের সাথে মিলে যায়।
+function _cvNorm(x) { return String(x == null ? '' : x).toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ''); }
+function _cvEsc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+function _cvList() { if (!appData.campVillages) appData.campVillages = []; return appData.campVillages; }
+function _cvFind(union, village) {
+  var u = _cvNorm(union), v = _cvNorm(village); if (!v) return null;
+  var all = _cvList().filter(function (x) { return _cvNorm(x.village) === v; });
+  if (!all.length) return null;
+  return all.filter(function (x) { return _cvNorm(x.union) === u; })[0] || (u ? null : all[0]);
+}
+var _CV_SCORE = { 'খুব সফল': 4, 'সফল': 3, 'মোটামুটি': 2, 'অসফল': 1 };
+var _CV_EMO = { 'খুব সফল': '🌟', 'সফল': '✅', 'মোটামুটি': '🆗', 'অসফল': '❌' };
+// প্রতিটি ক্যাম্প/শিডিউল কোন গ্রামের — শিডিউলের villageId, না থাকলে স্থান-লেখায় গ্রামের নাম মিললে
+function _cvAssign() {
+  var list = _cvList(), map = {}; list.forEach(function (v) { map[v.id] = { v: v, camps: [], sched: [] }; });
+  var byLen = list.slice().sort(function (a, b) { return _cvNorm(b.village).length - _cvNorm(a.village).length; });
+  var pick = function (loc, vid) {
+    if (vid && map[vid]) return map[vid];
+    var n = _cvNorm(loc); if (!n) return null;
+    for (var i = 0; i < byLen.length; i++) { var vn = _cvNorm(byLen[i].village); if (vn.length >= 2 && n.indexOf(vn) >= 0) return map[byLen[i].id]; }
+    return null;
+  };
+  var scheds = appData.campSchedules || [];
+  (appData.camps || []).forEach(function (c) {
+    var sc = scheds.filter(function (x) { return x.id === c.id; })[0];
+    var m = pick(c.location || (sc && sc.location), (sc && sc.villageId) || c.villageId); if (m) m.camps.push(c);
+  });
+  scheds.forEach(function (sc) {
+    if (sc.status === 'closed' || sc.status === 'cancelled') return;
+    var m = pick(sc.location, sc.villageId); if (m) m.sched.push(sc);
+  });
+  return map;
+}
+function _cvStats(m) {
+  var camps = m.camps.slice().sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+  var pts = camps.reduce(function (t, c) { return t + (c.totalPatients || (c.patients || []).length || 0); }, 0);
+  var inc = camps.reduce(function (t, c) { return t + (c.settleIncome != null ? c.settleIncome : (c.totalIncome || 0)); }, 0);
+  var rated = camps.filter(function (c) { return _CV_SCORE[c.rating]; });
+  var avg = rated.length ? rated.reduce(function (t, c) { return t + _CV_SCORE[c.rating]; }, 0) / rated.length : 0;
+  var last = camps[0] || null, days = null;
+  if (last && last.date) { days = Math.round((new Date(todayStr() + 'T00:00:00') - new Date(last.date + 'T00:00:00')) / 86400000); }
+  var lab = avg >= 3.5 ? 'খুব সফল' : avg >= 2.5 ? 'সফল' : avg >= 1.5 ? 'মোটামুটি' : avg > 0 ? 'অসফল' : '';
+  var next = m.sched.filter(function (x) { return (x.date || '') >= todayStr(); }).sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })[0] || null;
+  return { camps: camps, n: camps.length, pts: pts, inc: inc, avg: avg, lab: lab, last: last, days: days, next: next };
+}
+function _cvAgo(d) { if (d == null) return ''; if (d < 0) return 'আগামী'; if (d === 0) return 'আজ'; if (d < 30) return fmt(d) + ' দিন আগে'; if (d < 365) return fmt(Math.round(d / 30)) + ' মাস আগে'; return fmt((d / 365).toFixed(1)) + ' বছর আগে'; }
+function _cvCardHtml(m, compact) {
+  var v = m.v, st = _cvStats(m), cls = st.days == null ? 'none' : st.days >= 90 ? 'old' : st.days >= 30 ? 'mid' : 'ok';
+  var gapTxt = st.last ? ('সর্বশেষ ক্যাম্প: ' + formatDate(st.last.date) + ' · ' + _cvAgo(st.days)) : 'এখানে কখনো ক্যাম্প হয়নি';
+  var hist = st.camps.slice(0, compact ? 3 : 4).map(function (c) {
+    return '<div><span>' + formatDate(c.date) + ' · ' + fmt(c.totalPatients || (c.patients || []).length || 0) + ' জন</span><span>৳ ' + fmt(c.settleIncome != null ? c.settleIncome : (c.totalIncome || 0)) + ' ' + (_CV_EMO[c.rating] || '') + '</span></div>';
+  }).join('');
+  var phone = String(v.helperPhone || '').replace(/[^\d+]/g, '');
+  var help = (v.helperName || v.helperPhone)
+    ? '<div class="cv-help"><span>👤 <b>' + _cvEsc(v.helperName || 'সহযোগী') + '</b>' + (v.helperPhone ? ' · ' + _cvEsc(v.helperPhone) : '') + '</span>' + (phone ? '<a class="call" href="tel:' + phone + '">📞 কল</a>' : '') + '</div>'
+    : '<div class="cv-help" style="background:#f8fafc;border-color:#e2e8f0;color:#64748b"><span>সহযোগীর নম্বর সেভ নেই</span></div>';
+  return '<div class="cv-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h4>📍 ' + _cvEsc(v.village) + '</h4>' + (v.union ? '<span class="cv-un">' + _cvEsc(v.union) + '</span>' : '') + '</div>'
+    + '<div class="cv-gap ' + cls + '">' + gapTxt + '</div>'
+    + (st.next ? '<div style="font-size:12px;color:#1d4ed8;font-weight:700">📅 নির্ধারিত: ' + formatDate(st.next.date) + ' — ' + _cvEsc(st.next.name) + '</div>' : '')
+    + '<div class="cv-st"><div>ক্যাম্প<b>' + fmt(st.n) + ' বার</b></div><div>মোট রোগী<b>' + fmt(st.pts) + ' জন</b></div><div>সফলতা<b>' + (st.lab ? (_CV_EMO[st.lab] || '') + ' ' + st.lab : '—') + '</b></div></div>'
+    + (st.n ? '<div class="cv-st"><div>গড় রোগী<b>' + fmt(Math.round(st.pts / st.n)) + ' জন</b></div><div>মোট আয়<b>৳ ' + fmt(st.inc) + '</b></div><div>গড় আয়<b>৳ ' + fmt(Math.round(st.inc / st.n)) + '</b></div></div>' : '')
+    + (hist ? '<div class="cv-hist">' + hist + (st.n > (compact ? 3 : 4) ? '<div style="color:#64748b"><span>… আরও ' + fmt(st.n - (compact ? 3 : 4)) + 'টি</span></div>' : '') + '</div>' : '')
+    + help
+    + (v.note ? '<div style="font-size:11.5px;color:#64748b">📝 ' + _cvEsc(v.note) + '</div>' : '')
+    + '<div class="cv-btns"><button class="btn btn-success btn-sm" onclick="cvAssign(\'' + v.id + '\')">📅 ক্যাম্প বরাদ্দ</button><button class="btn btn-outline btn-sm" onclick="cvEditOpen(\'' + v.id + '\')">✏️ সম্পাদনা</button></div></div>';
+}
+function toggleCampVillageDB() {
+  var p = document.getElementById('campVillagePanel'); if (!p) return;
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  if (p.style.display !== 'none') renderCampVillageDB();
+}
+function renderCampVillageDB() {
+  var sum = document.getElementById('campVillageSummaryLine');
+  var map = _cvAssign(), list = _cvList();
+  if (sum) { var nu = {}; list.forEach(function (v) { if (v.union) nu[_cvNorm(v.union)] = 1; }); sum.textContent = list.length ? (fmt(list.length) + 'টি গ্রাম · ' + fmt(Object.keys(nu).length) + 'টি ইউনিয়ন সংরক্ষিত') : 'গ্রাম ডাটাবেজ এখনো খালি'; }
+  var panel = document.getElementById('campVillagePanel'), body = document.getElementById('campVillageBody');
+  if (!panel || !body || panel.style.display === 'none') return;
+  var usel = document.getElementById('cvUnion'), uval = usel.value;
+  var unions = Array.from(new Set(list.map(function (v) { return v.union || ''; }).filter(Boolean))).sort();
+  usel.innerHTML = '<option value="">সব ইউনিয়ন</option>' + unions.map(function (u) { return '<option value="' + _cvEsc(u) + '"' + (u === uval ? ' selected' : '') + '>' + _cvEsc(u) + '</option>'; }).join('') + (list.some(function (v) { return !v.union; }) ? '<option value="__none"' + (uval === '__none' ? ' selected' : '') + '>ইউনিয়ন লেখা নেই</option>' : '');
+  var q = _cvNorm((document.getElementById('cvQ') || {}).value), gap = (document.getElementById('cvGap') || {}).value || '', sort = (document.getElementById('cvSort') || {}).value || 'gap';
+  var rows = list.map(function (v) { return map[v.id]; }).filter(function (m) {
+    var v = m.v;
+    if (uval === '__none' ? v.union : (uval && v.union !== uval)) return false;
+    if (q && _cvNorm(v.village).indexOf(q) < 0 && _cvNorm(v.helperName).indexOf(q) < 0) return false;
+    var st = _cvStats(m);
+    if (gap === 'never') return st.n === 0;
+    if (gap) return st.days != null && st.days >= parseInt(gap, 10);
+    return true;
+  });
+  var cache = {}; rows.forEach(function (m) { cache[m.v.id] = _cvStats(m); });
+  rows.sort(function (a, b) {
+    var A = cache[a.v.id], B = cache[b.v.id];
+    if (sort === 'name') return String(a.v.village).localeCompare(String(b.v.village), 'bn');
+    if (sort === 'count') return B.n - A.n;
+    if (sort === 'success') return B.avg - A.avg || B.n - A.n;
+    if (sort === 'recent') return (A.days == null ? 1e9 : A.days) - (B.days == null ? 1e9 : B.days);
+    return (B.days == null ? 1e9 : B.days) - (A.days == null ? 1e9 : A.days);   // gap: সবচেয়ে পুরোনো (বা কখনো না) আগে
+  });
+  var stats = document.getElementById('campVillageStats');
+  if (stats) stats.innerHTML = fmt(rows.length) + 'টি গ্রাম দেখানো হচ্ছে' + (rows.length ? ' · মোট ক্যাম্প ' + fmt(rows.reduce(function (t, m) { return t + cache[m.v.id].n; }, 0)) + 'টি · রোগী ' + fmt(rows.reduce(function (t, m) { return t + cache[m.v.id].pts; }, 0)) + ' জন' : '');
+  body.innerHTML = rows.length ? rows.map(function (m) { return _cvCardHtml(m); }).join('') : '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:24px;font-size:13.5px">' + (list.length ? 'এই ফিল্টারে কোনো গ্রাম নেই' : 'এখনো কোনো গ্রাম সংরক্ষিত নেই — "➕ নতুন গ্রাম" চাপুন, অথবা "🔄 পুরোনো ক্যাম্প থেকে তৈরি" দিয়ে আগের ক্যাম্পের স্থান থেকে তালিকা বানান') + '</div>';
+}
+function cvAssign(id) {
+  var v = _cvList().filter(function (x) { return String(x.id) === String(id); })[0]; if (!v) return;
+  var _sh = document.getElementById('amSheet');
+  if (window._amVdbOpen && _sh && _sh.style.display === 'block') { window._amVdbOpen = false; amCampForm(null, { union: v.union || '', village: v.village, helperName: v.helperName || '', helperPhone: v.helperPhone || '' }); return; }
+  openCampAddModal({ union: v.union || '', village: v.village, helperName: v.helperName || '', helperPhone: v.helperPhone || '' });
+}
+// পুরোনো ক্যাম্প/শিডিউলের স্থান-লেখা থেকে গ্রামের তালিকা (ইউনিয়ন পরে সম্পাদনায় দেওয়া যাবে)
+function cvImportLegacy() {
+  var seen = {}; _cvList().forEach(function (v) { seen[_cvNorm(v.village)] = 1; });
+  var locs = {}; (appData.camps || []).concat(appData.campSchedules || []).forEach(function (c) { var l = String(c.location || '').trim(); if (l && !seen[_cvNorm(l)]) locs[_cvNorm(l)] = l; });
+  var keys = Object.keys(locs);
+  if (!keys.length) { showToast('ℹ️ নতুন কোনো স্থান পাওয়া যায়নি'); return; }
+  _cxAskConfirm(fmt(keys.length) + 'টি স্থান আগের ক্যাম্প থেকে গ্রাম হিসেবে যোগ হবে (ইউনিয়ন খালি থাকবে, পরে সম্পাদনা করে দিতে পারবেন)। করবেন?', 'যোগ করুন', function () {
+    var base = Date.now();
+    keys.forEach(function (k, i) { _cvList().push({ id: 'v' + (base + i), union: '', village: locs[k], helperName: '', helperPhone: '', note: '', createdAt: base }); });
+    saveData(); renderCampVillageDB(); if (window._amVdbOpen) amVillageDB(); showToast('✅ ' + fmt(keys.length) + 'টি গ্রাম যোগ হয়েছে');
+  });
+}
+// গ্রাম যোগ/সম্পাদনা (সহযোগীর নাম ও নম্বরসহ)
+function cvEditOpen(id) {
+  var v = id ? _cvList().filter(function (x) { return String(x.id) === String(id); })[0] : null;
+  var old = document.getElementById('cvEditWrap'); if (old) old.remove();
+  var w = document.createElement('div'); w.id = 'cvEditWrap';
+  w.style.cssText = 'position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto';
+  w.addEventListener('click', function (e) { if (e.target === w) w.remove(); });
+  var inp = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;margin-top:3px';
+  w.innerHTML = '<div style="background:#fff;border-radius:14px;padding:18px;max-width:420px;width:100%"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="font-size:16px;color:var(--primary)">📍 ' + (v ? 'গ্রামের তথ্য সম্পাদনা' : 'নতুন গ্রাম') + '</b><button onclick="document.getElementById(\'cvEditWrap\').remove()" style="border:0;background:none;font-size:20px;cursor:pointer">✕</button></div>'
+    + '<input type="hidden" id="cvEId" value="' + _cvEsc(v ? v.id : '') + '">'
+    + '<label style="font-size:12.5px;font-weight:700">ইউনিয়ন</label><input id="cvEUnion" style="' + inp + '" value="' + _cvEsc(v ? v.union : '') + '" placeholder="ইউনিয়নের নাম" list="csUnionList">'
+    + '<div style="height:8px"></div><label style="font-size:12.5px;font-weight:700">গ্রাম *</label><input id="cvEVillage" style="' + inp + '" value="' + _cvEsc(v ? v.village : '') + '" placeholder="গ্রামের নাম">'
+    + '<div style="height:8px"></div><label style="font-size:12.5px;font-weight:700">স্থানীয় সহযোগীর নাম</label><input id="cvEHName" style="' + inp + '" value="' + _cvEsc(v ? v.helperName : '') + '" placeholder="যিনি সার্বিক সহযোগিতা করেন">'
+    + '<div style="height:8px"></div><label style="font-size:12.5px;font-weight:700">সহযোগীর মোবাইল নম্বর</label><input id="cvEHPhone" type="tel" inputmode="tel" style="' + inp + '" value="' + _cvEsc(v ? v.helperPhone : '') + '" placeholder="01XXXXXXXXX">'
+    + '<div style="height:8px"></div><label style="font-size:12.5px;font-weight:700">নোট</label><input id="cvENote" style="' + inp + '" value="' + _cvEsc(v ? v.note : '') + '" placeholder="যেমন: মসজিদ মাঠ, বৃহস্পতিবার হাট">'
+    + '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px">' + (v ? '<button class="btn btn-danger btn-sm" onclick="cvDelete(\'' + v.id + '\')">🗑️ মুছুন</button>' : '<span></span>') + '<div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'cvEditWrap\').remove()">বাতিল</button><button class="btn btn-success" onclick="cvEditSave()">✅ সেভ</button></div></div></div>';
+  document.body.appendChild(w);
+  var ul = document.getElementById('csUnionList'); if (ul) csUnionListRefresh();
+}
+function cvEditSave() {
+  var g = function (i) { return ((document.getElementById(i) || {}).value || '').trim(); };
+  var id = g('cvEId'), union = g('cvEUnion'), village = g('cvEVillage');
+  if (!village) { showToast('⚠️ গ্রামের নাম দিন'); return; }
+  var dup = _cvFind(union, village); if (dup && String(dup.id) !== String(id)) { showToast('⚠️ এই ইউনিয়নে এই গ্রাম আগেই আছে'); return; }
+  var rec = id ? _cvList().filter(function (x) { return String(x.id) === id; })[0] : null;
+  if (!rec) { rec = { id: 'v' + Date.now(), createdAt: Date.now() }; _cvList().push(rec); }
+  rec.union = union; rec.village = village; rec.helperName = g('cvEHName'); rec.helperPhone = g('cvEHPhone'); rec.note = g('cvENote');
+  saveData(); var w = document.getElementById('cvEditWrap'); if (w) w.remove();
+  renderCampVillageDB(); if (window._amVdbOpen) amVillageDB(); showToast('✅ গ্রামের তথ্য সেভ হয়েছে');
+}
+function cvDelete(id) {
+  _cxAskConfirm('এই গ্রামটি ডাটাবেজ থেকে মুছবেন? (আগের ক্যাম্প রেকর্ড মুছবে না)', 'মুছুন', function () {
+    appData.campVillages = _cvList().filter(function (x) { return String(x.id) !== String(id); });
+    saveData(); var w = document.getElementById('cvEditWrap'); if (w) w.remove(); renderCampVillageDB(); if (window._amVdbOpen) amVillageDB(); showToast('🗑️ মুছে ফেলা হয়েছে');
+  });
+}
+// ---- ক্যাম্প যোগের ফর্মে গ্রাম-লুকআপ ----
+function csUnionListRefresh() {
+  var set = Array.from(new Set(_cvList().map(function (v) { return v.union || ''; }).filter(Boolean))).sort();
+  var ul = document.getElementById('csUnionList'); if (ul) ul.innerHTML = set.map(function (u) { return '<option value="' + _cvEsc(u) + '">'; }).join('');
+}
+function csVillageReset(sched) {
+  csUnionListRefresh();
+  var set = function (id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; };
+  var v = sched && sched.villageId ? _cvList().filter(function (x) { return x.id === sched.villageId; })[0] : null;
+  set('csUnion', (v && v.union) || (sched && sched.union) || ''); set('csVillage', (v && v.village) || (sched && sched.village) || '');
+  set('csHelperName', v ? v.helperName : ''); set('csHelperPhone', v ? v.helperPhone : '');
+  var loc = document.getElementById('csLocation'); if (loc) loc.dataset.auto = '';
+  csVillageLookup('init');
+}
+function csVillageLookup(src) {
+  var g = function (i) { return ((document.getElementById(i) || {}).value || '').trim(); };
+  var union = g('csUnion'), village = g('csVillage');
+  var vl = document.getElementById('csVillageList');
+  if (vl) { var pool = _cvList().filter(function (v) { return !union || _cvNorm(v.union) === _cvNorm(union); }); vl.innerHTML = pool.map(function (v) { return '<option value="' + _cvEsc(v.village) + '">' + (v.union ? _cvEsc(v.union) : '') + '</option>'; }).join(''); }
+  var rec = _cvFind(union, village);
+  if (rec && src !== 'init') {
+    var un = document.getElementById('csUnion'); if (un && !un.value && rec.union) un.value = rec.union;
+    var hn = document.getElementById('csHelperName'), hp = document.getElementById('csHelperPhone');
+    if (hn && !hn.value) hn.value = rec.helperName || ''; if (hp && !hp.value) hp.value = rec.helperPhone || '';
+  }
+  // স্থান/লোকেশন নিজে ভরে (হাতে লেখা থাকলে ছোঁয়া হয় না)
+  var loc = document.getElementById('csLocation');
+  if (loc && village) { var auto = village + (union ? ', ' + union : ''); if (!loc.value || loc.dataset.auto === loc.value) { loc.value = auto; loc.dataset.auto = auto; } }
+  var info = document.getElementById('csVillageInfo'); if (!info) return;
+  if (!rec) { info.innerHTML = village ? '<div style="font-size:12px;color:#64748b">🆕 নতুন গ্রাম — সেভ করলে ডাটাবেজে যোগ হবে' + (union ? '' : ' (ইউনিয়নও দিলে ভালো)') + '</div>' : ''; return; }
+  var m = _cvAssign()[rec.id]; info.innerHTML = '<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:4px">📍 এই গ্রামে আগে ক্যাম্প করা হয়েছে — বিস্তারিত:</div>' + (m ? _cvCardHtml(m, true).replace(/<div class="cv-btns">.*?<\/div><\/div>$/, '</div>') : '');
+}
+function csVillageUpsert() {
+  var g = function (i) { return ((document.getElementById(i) || {}).value || '').trim(); };
+  var union = g('csUnion'), village = g('csVillage'); if (!village) return null;
+  var rec = _cvFind(union, village);
+  if (!rec) { rec = { id: 'v' + Date.now(), createdAt: Date.now(), note: '' }; _cvList().push(rec); }
+  rec.union = union || rec.union || ''; rec.village = village;
+  var hn = g('csHelperName'), hp = g('csHelperPhone');
+  if (hn || hp) { rec.helperName = hn; rec.helperPhone = hp; } else { rec.helperName = rec.helperName || ''; rec.helperPhone = rec.helperPhone || ''; }
+  return rec;
+}
+// ---- ফর্মটি মডালে খোলা (ক্যাম্প রেকর্ড পেজ থেকে — সেটিংসে না গিয়ে) ----
+function openCampAddModal(pre) {
+  var f = document.getElementById('campScheduleForm'); if (!f) return;
+  if (document.getElementById('campAddModal')) return;
+  window._csFormHome = { parent: f.parentNode, next: f.nextSibling };
+  var w = document.createElement('div'); w.id = 'campAddModal';
+  w.style.cssText = 'position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto';
+  w.innerHTML = '<div style="background:#fff;border-radius:14px;padding:14px 16px;max-width:900px;width:100%;margin:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:16px;color:var(--primary)">➕ নতুন ক্যাম্প শিডিউল</b><button onclick="csFormClose()" style="border:0;background:none;font-size:22px;cursor:pointer">✕</button></div><div id="campAddModalBody"></div></div>';
+  document.body.appendChild(w);
+  document.getElementById('campAddModalBody').appendChild(f);
+  f.style.display = 'block'; f.style.marginBottom = '0';
+  document.getElementById('csDate').value = (pre && pre.date) || todayStr();
+  document.getElementById('csEditId').value = '';
+  ['csName','csLocation','csVisitFee'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.value = ''; if (el.dataset) el.dataset.auto = ''; } });
+  renderCsRegularStaff([]);
+  document.getElementById('csParttimeRows').innerHTML = ''; csParttimeCount = 0;
+  populateCsDoctorSelect('');
+  var sel = document.getElementById('csCamper');
+  if (sel) sel.innerHTML = '<option value="">-- কর্মী বেছে নিন --</option>' + _campStaffPool().map(function (s) { return '<option value="' + s.name + '">' + s.name + ' (' + (s.designation || s.role || '') + ')</option>'; }).join('');
+  csVillageReset();
+  if (pre) {
+    var set = function (id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; };
+    set('csUnion', pre.union); set('csVillage', pre.village); set('csHelperName', pre.helperName); set('csHelperPhone', pre.helperPhone);
+    csVillageLookup('init');
+  }
+}
+function csFormClose() {
+  var f = document.getElementById('campScheduleForm'), m = document.getElementById('campAddModal');
+  if (m && f && window._csFormHome) { var h = window._csFormHome; if (h.next && h.next.parentNode === h.parent) h.parent.insertBefore(f, h.next); else h.parent.appendChild(f); f.style.display = 'none'; m.remove(); window._csFormHome = null; }
+  else if (f) f.style.display = 'none';
+}
+
 function saveCampSchedule() {
   const name     = document.getElementById('csName').value.trim();
   const location = document.getElementById('csLocation').value.trim();
@@ -27452,19 +27753,25 @@ function saveCampSchedule() {
   });
 
   const staffSummary = [...regularStaff.map(s=>s.name), ...parttimers.map(p=>p.name)].join(', ');
+  // গ্রাম ডাটাবেজ: গ্রাম লিখলে সংরক্ষণ/আপডেট (ইউনিয়ন, স্থানীয় সহযোগীর নাম ও মোবাইলসহ)
+  const _vil = csVillageUpsert();
+  const _vx = _vil ? { villageId: _vil.id, union: _vil.union||'', village: _vil.village } : {};
 
   if (!appData.campSchedules) appData.campSchedules = [];
   if (editId) {
     const idx = appData.campSchedules.findIndex(s => s.id == editId);
-    if (idx >= 0) appData.campSchedules[idx] = { ...appData.campSchedules[idx], name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary };
+    if (idx >= 0) appData.campSchedules[idx] = { ...appData.campSchedules[idx], name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary, ..._vx };
   } else {
-    appData.campSchedules.push({ id: Date.now(), name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary, status: 'scheduled' });
+    appData.campSchedules.push({ id: Date.now(), name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary, status: 'scheduled', ..._vx });
   }
   saveData();
   renderCampScheduleTable();
-  document.getElementById('campScheduleForm').style.display = 'none';
   ['csName','csLocation','csVisitFee','csCamper','csDoctor'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('csEditId').value = '';
+  csVillageReset();
+  csFormClose();
+  try { if (typeof renderRecCampSchedule==='function') renderRecCampSchedule(); } catch(e) {}
+  try { renderCampVillageDB(); } catch(e) {}
   showToast('✅ ক্যাম্প শিডিউল সেভ হয়েছে');
 }
 
@@ -27498,6 +27805,7 @@ function editCampSchedule(id) {
   document.getElementById('csCamper').value   = s.camper||'';
   populateCsDoctorSelect(s.doctor||'');
   document.getElementById('csEditId').value   = s.id;
+  csVillageReset(s);
   document.getElementById('campScheduleForm').style.display = 'block';
   // ক্যাম্পেইনার ড্রপডাউন populate ও সিলেক্ট
   const sel = document.getElementById('csCamper');
@@ -29601,7 +29909,7 @@ function addCamperRow(kind) {
     <div class="cb-row-top"><select id="cpItem-${id}" class="cb-in cb-sel" onchange="setCamperItemPrice(${id})"></select></div>
     <div class="cb-row-bot">
       <div class="cb-step"><button type="button" onclick="cbStepQty(${id},-1)">−</button><input type="number" id="cpQty-${id}" value="1" min="1" inputmode="numeric" oninput="updateCamperSummary()"><button type="button" onclick="cbStepQty(${id},1)">+</button></div>
-      <input type="number" class="cb-in" placeholder="মূল্য ৳" id="cpPrice-${id}" min="0" inputmode="decimal" oninput="updateCamperSummary()">
+      <div class="cb-pw"><input type="number" class="cb-in" placeholder="মূল্য ৳" id="cpPrice-${id}" min="0" inputmode="decimal" oninput="updateCamperSummary()"><div class="cb-hint" id="cpHint-${id}"></div></div>
       <div class="cb-sub" id="cpSub-${id}">৳ ০</div>
     </div>`;
   document.getElementById('camperServiceRows').appendChild(div);
@@ -29678,7 +29986,8 @@ function setCamperItemPrice(id) {
     const min = stockItem.sellMin||0, max = stockItem.sellMax||0;
     priceEl.value = '';
     priceEl.min = min; priceEl.max = max || 999999;
-    priceEl.placeholder = `${fmt(min)}-${fmt(max)}`;
+    priceEl.placeholder = 'মূল্য ৳';
+    const _h = document.getElementById('cpHint-' + id); if (_h) _h.textContent = `(সর্বনিম্ন ${fmt(min)} – সর্বোচ্চ ${fmt(max)})`;
     priceEl.title = `সর্বনিম্ন: ৳${fmt(min)} | সর্বোচ্চ: ৳${fmt(max)}`;
     priceEl.style.background = '#fff9f0';
     priceEl.onblur = function() {
@@ -29692,6 +30001,7 @@ function setCamperItemPrice(id) {
     priceEl.value = price||'';
     priceEl.min = 0; priceEl.removeAttribute('max');
     priceEl.placeholder = 'মূল্য';
+    const _h2 = document.getElementById('cpHint-' + id); if (_h2) _h2.textContent = '';
     priceEl.title = '';
     priceEl.style.background = '';
     priceEl.onblur = null;
@@ -46775,7 +47085,8 @@ function amCampHtml() {
   var over = all.filter(function (s) { return live(s) && (s.date || '') < t && s.status !== 'active'; }).sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
   var cancelled = all.filter(function (s) { return s.status === 'cancelled'; }).sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 5);
   var done = (appData.camps || []).slice().sort(function (a, b) { return (b.id || 0) - (a.id || 0); }).slice(0, 10);
-  var h = '<button class="am-btn pri" style="width:100%;margin-bottom:12px;padding:14px" onclick="amCampForm()">+ নতুন ক্যাম্প যোগ করুন</button>';
+  var h = '<button class="am-btn pri" style="width:100%;margin-bottom:8px;padding:14px" onclick="amCampForm()">+ নতুন ক্যাম্প যোগ করুন</button>'
+    + '<button class="am-btn line" style="width:100%;margin-bottom:12px" onclick="amVillageDB()">📍 গ্রাম ডাটাবেজ (ইউনিয়ন → গ্রাম) · ' + fmt(_cvList().length) + 'টি</button>';
   if (over.length) h += '<div class="am-h"><span style="color:var(--am-bad)">মেয়াদোত্তীর্ণ — রিশিডিউল/বাতিল দিন (' + fmt(over.length) + ')</span></div>' + over.map(amCampCard).join('');
   h += '<div class="am-h"><span>আসন্ন (' + fmt(up.length) + ')</span></div>' + (up.length ? up.map(amCampCard).join('') : '<div class="am-card am-empty">কোনো আসন্ন ক্যাম্প নেই</div>');
   if (done.length) h += '<div class="am-h"><span>সম্পন্ন ক্যাম্প</span></div>' + done.map(amDoneCampCard).join('');
@@ -46847,8 +47158,10 @@ function amDoCancel(id) {
   amCloseSheet(); showToast('❌ ক্যাম্প বাতিল হয়েছে'); amAfter();
 }
 var amPtN = 0;
-function amCampForm(id) {
+function amCampForm(id, pre) {
   var s = id ? (appData.campSchedules || []).find(function (x) { return x.id === id; }) : null;
+  var _vr = s && s.villageId ? _cvList().filter(function (x) { return x.id === s.villageId; })[0] : null;
+  var _pv = pre || (_vr ? { union: _vr.union, village: _vr.village, helperName: _vr.helperName, helperPhone: _vr.helperPhone } : (s ? { union: s.union || '', village: s.village || '' } : {}));
   var docs = (appData.doctors || []).filter(function (d) { return d.status === 'active'; });
   var pool = []; try { pool = _campStaffPool(); } catch (e) {}
   var selDoc = s ? s.doctor : '';
@@ -46864,7 +47177,11 @@ function amCampForm(id) {
   amOpenSheet('<div class="hd"><b>' + (s ? 'ক্যাম্প সংশোধন' : 'নতুন ক্যাম্প') + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
     + '<input type="hidden" id="amCsId" value="' + (s ? s.id : '') + '"><input type="hidden" id="amCsOldDate" value="' + (s ? amEsc(s.date) : '') + '">'
     + '<div class="am-f"><label>ক্যাম্পের নাম *</label><input id="amCsName" value="' + amEsc(s ? s.name : '') + '" placeholder="যেমন: দোহার ফ্রি আই ক্যাম্প"></div>'
+    + '<div class="am-f"><label>ইউনিয়ন</label><input id="amCsUnion" list="amCsUnionList" autocomplete="off" value="' + amEsc(_pv.union || '') + '" placeholder="ইউনিয়নের নাম" oninput="amCsVillageLookup()"><datalist id="amCsUnionList">' + Array.from(new Set(_cvList().map(function (v) { return v.union || ''; }).filter(Boolean))).map(function (u) { return '<option value="' + amEsc(u) + '">'; }).join('') + '</datalist></div>'
+    + '<div class="am-f"><label>গ্রাম <span class="am-meta" style="margin:0">(আগের গ্রাম বাছলে ইতিহাস দেখাবে)</span></label><input id="amCsVillage" list="amCsVillageList" autocomplete="off" value="' + amEsc(_pv.village || '') + '" placeholder="গ্রামের নাম" oninput="amCsVillageLookup()" onchange="amCsVillageLookup()"><datalist id="amCsVillageList"></datalist></div>'
+    + '<div id="amCsVInfo" style="margin-bottom:10px"></div>'
     + '<div class="am-f"><label>স্থান *</label><input id="amCsLoc" value="' + amEsc(s ? s.location : '') + '"></div>'
+    + '<div class="am-f"><label>📞 স্থানীয় সহযোগীর নাম ও মোবাইল</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="amCsHName" value="' + amEsc(_pv.helperName || '') + '" placeholder="নাম"><input id="amCsHPhone" type="tel" inputmode="tel" value="' + amEsc(_pv.helperPhone || '') + '" placeholder="মোবাইল"></div></div>'
     + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amCsDate" value="' + (s ? s.date : todayStr()) + '" onchange="amCsDateChg()"></div>'
     + '<div class="am-f" id="amCsRsWrap" style="display:none"><label>তারিখ বদলানোর (রিশিডিউলের) কারণ *</label><textarea id="amCsRsReason" placeholder="এই কারণসহ রিশিডিউলের রেকর্ড সংরক্ষিত হবে"></textarea></div>'
     + '<div class="am-f"><label>ডাক্তার *</label><select id="amCsDoc">' + dopts + '</select></div>'
@@ -46874,6 +47191,24 @@ function amCampForm(id) {
     + '<div class="am-f"><label>পার্টটাইমার</label><div id="amPtRows"></div><button type="button" class="am-btn line" style="width:100%" onclick="amAddPt()">+ পার্টটাইমার যোগ</button></div>'
     + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amSaveCamp()">সেভ করুন</button></div>');
   if (s) (s.parttimers || []).forEach(function (p) { amAddPt(p.name, p.pay); });
+  amCsVillageLookup('init');
+}
+function amCsVillageLookup(src) {
+  var g = function (i) { return ((document.getElementById(i) || {}).value || '').trim(); };
+  var union = g('amCsUnion'), village = g('amCsVillage');
+  var vl = document.getElementById('amCsVillageList');
+  if (vl) vl.innerHTML = _cvList().filter(function (v) { return !union || _cvNorm(v.union) === _cvNorm(union); }).map(function (v) { return '<option value="' + amEsc(v.village) + '">' + amEsc(v.union || '') + '</option>'; }).join('');
+  var rec = _cvFind(union, village);
+  if (rec && src !== 'init') {
+    var un = document.getElementById('amCsUnion'); if (un && !un.value && rec.union) un.value = rec.union;
+    var hn = document.getElementById('amCsHName'), hp = document.getElementById('amCsHPhone');
+    if (hn && !hn.value) hn.value = rec.helperName || ''; if (hp && !hp.value) hp.value = rec.helperPhone || '';
+  }
+  var loc = document.getElementById('amCsLoc');
+  if (loc && village && src !== 'init') { var auto = village + (union ? ', ' + union : ''); if (!loc.value || loc.dataset.auto === loc.value) { loc.value = auto; loc.dataset.auto = auto; } }
+  var info = document.getElementById('amCsVInfo'); if (!info) return;
+  if (!rec) { info.innerHTML = village ? '<div class="am-meta" style="margin:0">🆕 নতুন গ্রাম — সেভ করলে ডাটাবেজে যোগ হবে</div>' : ''; return; }
+  var m = _cvAssign()[rec.id]; info.innerHTML = '<div style="font-size:12px;font-weight:800;color:#f59e0b;margin-bottom:4px">📍 এই গ্রামে আগে ক্যাম্প করা হয়েছে:</div>' + (m ? _cvCardHtml(m, true).replace(/<div class="cv-btns">.*?<\/div><\/div>$/, '</div>') : '');
 }
 function amCsDateChg() {
   var old = (document.getElementById('amCsOldDate') || {}).value || '', nd = (document.getElementById('amCsDate') || {}).value || '';
@@ -46901,19 +47236,49 @@ function amSaveCamp() {
     if (pn) parttimers.push({ name: pn, pay: pp });
   });
   var staffSummary = regularStaff.map(function (s) { return s.name; }).concat(parttimers.map(function (p) { return p.name; })).join(', ');
+  // গ্রাম ডাটাবেজ আপসার্ট
+  var _vu = v('amCsUnion'), _vv = v('amCsVillage'), _vx = {};
+  if (_vv) {
+    var _rec = _cvFind(_vu, _vv); if (!_rec) { _rec = { id: 'v' + Date.now(), createdAt: Date.now(), note: '' }; _cvList().push(_rec); }
+    _rec.union = _vu || _rec.union || ''; _rec.village = _vv;
+    var _hn = v('amCsHName'), _hp = v('amCsHPhone'); if (_hn || _hp) { _rec.helperName = _hn; _rec.helperPhone = _hp; } else { _rec.helperName = _rec.helperName || ''; _rec.helperPhone = _rec.helperPhone || ''; }
+    _vx = { villageId: _rec.id, union: _rec.union, village: _rec.village };
+  }
   if (!appData.campSchedules) appData.campSchedules = [];
   if (editId) {
     var idx = appData.campSchedules.findIndex(function (s) { return String(s.id) === String(editId); });
     if (idx >= 0) {
       var cur = appData.campSchedules[idx];
       if (dateChanged) { amPushResched(cur, date, rsReason); if (cur.status !== 'active') cur.status = 'scheduled'; }
-      appData.campSchedules[idx] = Object.assign(cur, { name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary });
+      appData.campSchedules[idx] = Object.assign(cur, { name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary }, _vx);
     }
   } else {
-    appData.campSchedules.push({ id: Date.now(), name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary, status: 'scheduled' });
+    appData.campSchedules.push({ id: Date.now(), name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary, status: 'scheduled', villageId: _vx.villageId, union: _vx.union, village: _vx.village });
   }
   saveData(); try { renderCampScheduleTable(); } catch (e) {}
   amCloseSheet(); showToast(dateChanged ? '📅 ক্যাম্প রিশিডিউল ও সংশোধন সেভ হয়েছে' : '✅ ক্যাম্প শিডিউল সেভ হয়েছে'); amAfter();
+}
+
+// ----- গ্রাম ডাটাবেজ (অ্যাডমিন মোবাইল) -----
+var amVdbUnion = '', amVdbQ = '';
+function amVillageDB() {
+  window._amVdbOpen = true;
+  var map = _cvAssign(), list = _cvList();
+  var unions = Array.from(new Set(list.map(function (v) { return v.union || ''; }).filter(Boolean))).sort();
+  var q = _cvNorm(amVdbQ);
+  var rows = list.map(function (v) { return map[v.id]; }).filter(function (m) {
+    if (amVdbUnion && m.v.union !== amVdbUnion) return false;
+    if (q && _cvNorm(m.v.village).indexOf(q) < 0 && _cvNorm(m.v.helperName).indexOf(q) < 0) return false; return true; });
+  var cache = {}; rows.forEach(function (m) { cache[m.v.id] = _cvStats(m); });
+  rows.sort(function (a, b) { return (cache[b.v.id].days == null ? 1e9 : cache[b.v.id].days) - (cache[a.v.id].days == null ? 1e9 : cache[a.v.id].days); });
+  var html = '<div class="hd"><b>📍 গ্রাম ডাটাবেজ</b><button class="x" onclick="window._amVdbOpen=false;amCloseSheet()">&#10005;</button></div>'
+    + '<div class="am-f"><label>ইউনিয়ন</label><select onchange="amVdbUnion=this.value;amVillageDB()"><option value="">সব ইউনিয়ন</option>' + unions.map(function (u) { return '<option value="' + amEsc(u) + '"' + (u === amVdbUnion ? ' selected' : '') + '>' + amEsc(u) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="am-f"><input type="search" placeholder="🔎 গ্রাম/সহযোগী খুঁজুন" value="' + amEsc(amVdbQ) + '" oninput="amVdbQ=this.value;clearTimeout(window._amVdbT);window._amVdbT=setTimeout(amVillageDB,350)"></div>'
+    + '<div class="am-meta" style="margin:0 0 8px">' + fmt(rows.length) + 'টি গ্রাম — সবচেয়ে পুরোনো ক্যাম্প আগে</div>'
+    + '<div style="display:flex;flex-direction:column;gap:10px">' + (rows.length ? rows.map(function (m) { return _cvCardHtml(m, true); }).join('') : '<div class="am-card am-empty">কোনো গ্রাম নেই — ক্যাম্প যোগের সময় গ্রাম লিখলে এখানে জমবে</div>') + '</div>'
+    + '<div class="am-btns" style="margin-top:10px"><button class="am-btn line" onclick="cvEditOpen(\'\')">➕ নতুন গ্রাম</button><button class="am-btn line" onclick="cvImportLegacy()">🔄 পুরোনো থেকে তৈরি</button></div>';
+  var keep = (document.getElementById('amSheet') || {}).scrollTop || 0;
+  amOpenSheet(html); document.getElementById('amSheet').scrollTop = keep;
 }
 
 // ----- বিল ও বাকি -----
