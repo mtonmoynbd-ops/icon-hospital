@@ -21191,23 +21191,107 @@ function formatTime(ts) {
   return new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
 }
 
-function markAttendance(staffId, type, date) {
-  staffId = staffId || '';
+// ===== উপস্থিতির স্থান (কে কোথায় ইন করলো, কোথায় গেল, কোথা থেকে আউট) =====
+// প্রতিটি ইন/আউট রেকর্ডে loc: hospital | camp | promo | market | other (+ locLabel: ক্যাম্পের নাম / অন্য ডিউটির নাম)।
+// এক স্থান থেকে আরেক স্থানে যাওয়া = ওই স্থান থেকে আউট + নতুন স্থানে ইন (move:true) — মোট ডিউটি সময় সব স্থান মিলিয়ে গোনা হয়।
+var ATT_LOCS = {
+  hospital: { ic: '🏥', nm: 'হাসপাতাল', c: '#0f766e', bg: '#ccfbf1' },
+  camp:     { ic: '🏕️', nm: 'ক্যাম্প',   c: '#b45309', bg: '#fef3c7' },
+  promo:    { ic: '📢', nm: 'প্রচার',    c: '#7c3aed', bg: '#ede9fe' },
+  market:   { ic: '🛍️', nm: 'মার্কেটিং', c: '#0369a1', bg: '#e0f2fe' },
+  other:    { ic: '📌', nm: 'অন্য ডিউটি', c: '#475569', bg: '#f1f5f9' }
+};
+function attLocOf(r) { return !r ? 'hospital' : (r.loc || (r.viaCamp ? 'camp' : 'hospital')); }
+function attLocName(r) {
+  var k = attLocOf(r); if (!ATT_LOCS[k]) k = 'other';
+  if ((k === 'camp' || k === 'other') && r && r.locLabel) return String(r.locLabel);
+  return ATT_LOCS[k].nm;
+}
+function attLocIcon(r) { var k = attLocOf(r); return (ATT_LOCS[k] || ATT_LOCS.other).ic; }
+function attLocText(r) { return attLocIcon(r) + ' ' + attLocName(r); }
+// কর্মীর এখনকার অবস্থা: last রেকর্ড ইন হলে সেই স্থানে আছেন
+function attState(staffId, date) {
+  var recs = getAttendanceForDate(staffId, date).slice().sort(function (a, b) { return a.ts - b.ts; });
+  var last = recs.length ? recs[recs.length - 1] : null;
+  var isIn = !!(last && last.type === 'in');
+  return { recs: recs, last: last, isIn: isIn, loc: isIn ? attLocOf(last) : '', label: isIn ? attLocName(last) : '', since: isIn ? last.ts : 0 };
+}
+// ক্যাম্প বাটনে কোন ক্যাম্প দেখাবে: চলমান সেশন → না থাকলে আজকের শিডিউল
+function attCampTarget() {
+  try {
+    var sess = appData.activeCampSession;
+    if (sess && sess.name) return { id: sess.scheduleId || null, label: sess.name };
+    var t = todayStr(), sc = (appData.campSchedules || []).filter(function (x) { return x.date === t && x.status !== 'done' && x.status !== 'cancelled'; })[0];
+    if (sc) return { id: sc.id, label: sc.name };
+  } catch (e) {}
+  return { id: null, label: 'ক্যাম্প' };
+}
+function _attAdd(staffId, date, type, loc, label, campId, extra) {
   if (!appData.attendance) appData.attendance = [];
-  var now = Date.now();
-  appData.attendance.push({
-    id: now,
-    staffId: staffId,
-    date: date,
-    type: type,
-    ts: now,
-    time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true}),
-    by: currentUser ? currentUser.name : 'সিস্টেম'
-  });
+  var now = Math.max(Date.now(), (window._attLastTs || 0) + 1); window._attLastTs = now;   // একসাথে করা আউট+ইন (মুভ) যেন সবসময় সঠিক ক্রমে থাকে
+  var rec = { id: now, staffId: staffId, date: date, type: type, ts: now,
+    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }), by: currentUser ? currentUser.name : 'সিস্টেম',
+    loc: loc || 'hospital' };
+  if (label) rec.locLabel = label;
+  if (campId) { rec.campId = campId; if (rec.loc === 'camp') rec.viaCamp = true; }
+  if (extra) Object.keys(extra).forEach(function (k) { rec[k] = extra[k]; });
+  appData.attendance.push(rec); return rec;
+}
+// নতুন স্থানে ইন; আগে অন্য স্থানে ইন থাকলে সেখান থেকে আউট করে মুভ হিসেবে রেকর্ড
+function attGoTo(staffId, date, loc, label, campId) {
+  var st = attState(staffId, date);
+  if (st.isIn && st.loc === loc && (loc !== 'camp' || !campId || !st.last.campId || String(st.last.campId) === String(campId)) && (loc !== 'other' || st.label === label)) return false;
+  if (st.isIn) {
+    _attAdd(staffId, date, 'out', st.loc, st.label, st.last.campId, { move: true, toLoc: loc, toLabel: label || '' });
+    _attAdd(staffId, date, 'in', loc, label, campId, { move: true, fromLoc: st.loc, fromLabel: st.label });
+  } else {
+    _attAdd(staffId, date, 'in', loc, label, campId);
+  }
+  return true;
+}
+// আউট — যে স্থানে ইন ছিলেন সেই স্থান থেকেই আউট
+function attOutNow(staffId, date) {
+  var st = attState(staffId, date);
+  if (st.isIn) _attAdd(staffId, date, 'out', st.loc, st.label, st.last.campId);
+  else _attAdd(staffId, date, 'out', st.last ? attLocOf(st.last) : 'hospital', st.last ? attLocName(st.last) : '', st.last ? st.last.campId : null);
+}
+function markAttendance(staffId, type, date, opts) {
+  staffId = staffId || '';
+  opts = opts || {};
+  if (type === 'in') { if (!attGoTo(staffId, date, opts.loc || 'hospital', opts.locLabel || '', opts.campId || null)) { showToast('ℹ️ আগেই এই স্থানে ইন আছেন'); return; } }
+  else attOutNow(staffId, date);
   saveData();
   var staff = (appData.staff||[]).find(function(s){ return String(s.id)===String(staffId); });
-  showToast('✅ '+(staff?staff.name:'কর্মী')+' — '+(type==='in'?'ইন':'আউট')+' রেকর্ড হয়েছে');
+  var lastR = attState(staffId, date).last;
+  showToast('✅ '+(staff?staff.name:'কর্মী')+' — '+(type==='in'?'ইন':'আউট')+(lastR ? ' ('+attLocText(lastR)+')' : '')+' রেকর্ড হয়েছে');
   try { if (typeof renderRecPresentStaffChips==='function' && document.getElementById('recPresentStaffChips')) renderRecPresentStaffChips(); } catch(e) {}   // ডান সাইডবারের Present/Absent সাথে সাথে হালনাগাদ
+}
+// সেদিনের যাতায়াত (🏥 ৯:০০ → 🏕️ ১১:৩০ → 🚪 ৪:০০ (ক্যাম্প থেকে))
+function attTrailHtml(staffId, date, small) {
+  var recs = getAttendanceForDate(staffId, date).slice().sort(function (a, b) { return a.ts - b.ts; });
+  if (!recs.length) return '';
+  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  var parts = [];
+  recs.forEach(function (r) {
+    if (r.type === 'out' && r.move) return;                 // মুভের আউট — পরের ইন-এ "এখানে এলেন" দেখানো হয়
+    if (r.type === 'in') parts.push('<span style="white-space:nowrap">' + esc(attLocText(r)) + ' <b style="font-weight:700">' + esc(r.time) + '</b></span>');
+    else parts.push('<span style="white-space:nowrap;color:#b91c1c">🚪 ' + esc(r.time) + ' <span style="font-weight:600">(' + esc(attLocName(r)) + ' থেকে আউট)</span></span>');
+  });
+  return '<div style="font-size:' + (small ? 10.5 : 11.5) + 'px;color:#475569;line-height:1.6;margin-top:3px">' + parts.join(' → ') + '</div>';
+}
+// স্থানভিত্তিক ডিউটি সময় (মিনিট): { hospital: n, camp: n, ... }
+function attMinutesByLoc(staffId, date) {
+  var recs = getAttendanceForDate(staffId, date).slice().sort(function (a, b) { return a.ts - b.ts; }), out = {}, cur = null;
+  recs.forEach(function (r) {
+    if (r.type === 'in') cur = r;
+    else if (r.type === 'out' && cur) { var k = attLocOf(cur); out[k] = (out[k] || 0) + Math.round((r.ts - cur.ts) / 60000); cur = null; }
+  });
+  return out;
+}
+function attMinsByLocHtml(staffId, date) {
+  var m = attMinutesByLoc(staffId, date), keys = Object.keys(m).filter(function (k) { return m[k] > 0; });
+  if (keys.length < 2) return '';
+  return ' <span style="color:#64748b;font-weight:600">(' + keys.map(function (k) { return (ATT_LOCS[k] || ATT_LOCS.other).ic + ' ' + Math.floor(m[k] / 60) + 'ঘ ' + (m[k] % 60) + 'মি'; }).join(' · ') + ')</span>';
 }
 
 // ===== ক্যাম্প টিম হাজিরা =====
@@ -21239,9 +21323,10 @@ function campTeamAutoIn(schedule) {
   schedule.teamIds = ids; schedule.teamAt = Date.now();
   ids.forEach(function (id) {
     var st = _staffById(id); if (!st) return;
-    var last = _attLast(st.id, today), onLeave = false; try { onLeave = !!getLeaveForDate(st.id, today); } catch (e) {}
-    if (onLeave || (last && last.type === 'in')) return;
-    _attPush(st.id, 'in', today, { campId: schedule.id, viaCamp: true }); n++;
+    var onLeave = false; try { onLeave = !!getLeaveForDate(st.id, today); } catch (e) {}
+    if (onLeave) return;
+    // হাসপাতাল/প্রচার/অন্য স্থানে ইন থাকলে সেখান থেকে মুভ হয়ে ক্যাম্পে; আগে ইন না থাকলে সরাসরি ক্যাম্পে ইন
+    if (attGoTo(st.id, today, 'camp', schedule.name || 'ক্যাম্প', schedule.id)) n++;
   });
   return n;
 }
@@ -21266,47 +21351,57 @@ function _campTeamRender() {
   var ids = sc.teamIds || [];
   var rows = ids.map(function (id) {
     var st = _staffById(id); if (!st) return '';
-    var last = _attLast(st.id, today), isIn = last && last.type === 'in';
-    var chip = isIn ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">ইন ' + esc(last.time) + '</span>'
-      : last ? '<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">আউট ' + esc(last.time) + '</span>'
+    var as = attState(st.id, today), last = as.last, isIn = as.isIn, atCamp = isIn && as.loc === 'camp';
+    var chip = isIn ? '<span style="background:' + (ATT_LOCS[as.loc]||ATT_LOCS.other).bg + ';color:' + (ATT_LOCS[as.loc]||ATT_LOCS.other).c + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">' + attLocIcon(last) + ' ' + esc(attLocName(last)) + ' · ইন ' + esc(last.time) + '</span>'
+      : last ? '<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">আউট ' + esc(last.time) + ' (' + esc(attLocName(last)) + ' থেকে)</span>'
       : '<span style="background:#fef3c7;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">ইন হননি</span>';
-    var btn = isIn ? '<button type="button" data-sid="' + esc(st.id) + '" onclick="campTeamMark(this.getAttribute(\'data-sid\'),\'out\')" style="border:0;background:#b91c1c;color:#fff;border-radius:10px;padding:9px 14px;font:inherit;font-weight:800;font-size:13px;cursor:pointer">আউট</button>'
-      : '<button type="button" data-sid="' + esc(st.id) + '" onclick="campTeamMark(this.getAttribute(\'data-sid\'),\'in\')" style="border:0;background:#15803d;color:#fff;border-radius:10px;padding:9px 14px;font:inherit;font-weight:800;font-size:13px;cursor:pointer">ইন</button>';
+    var bs = 'border:0;color:#fff;border-radius:10px;padding:9px 12px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap';
+    var sidA = 'data-sid="' + esc(st.id) + '"';
+    var btn = atCamp
+      ? '<div style="display:flex;flex-direction:column;gap:5px"><button type="button" ' + sidA + ' onclick="campTeamMark(this.getAttribute(\'data-sid\'),\'out\')" style="' + bs + ';background:#b91c1c">আউট</button><button type="button" ' + sidA + ' onclick="campTeamMove(this.getAttribute(\'data-sid\'),\'hospital\')" style="' + bs + ';background:#0f766e">🏥 হাসপাতালে</button></div>'
+      : '<div style="display:flex;flex-direction:column;gap:5px"><button type="button" ' + sidA + ' onclick="campTeamMark(this.getAttribute(\'data-sid\'),\'in\')" style="' + bs + ';background:#15803d">' + (isIn ? '🏕️ ক্যাম্পে ইন' : 'ইন') + '</button>' + (isIn ? '<button type="button" ' + sidA + ' onclick="campTeamMark(this.getAttribute(\'data-sid\'),\'out\')" style="' + bs + ';background:#b91c1c">আউট</button>' : '') + '</div>';
     return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #eef2f6"><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14.5px">' + esc(st.name) + '</div><div style="font-size:11.5px;color:#64748b">' + esc(st.desig || st.designation || '') + ' ' + chip + '</div></div>' + btn + '</div>';
   }).join('');
   var others = (appData.staff || []).filter(function (x) { return x.status === 'active' && ids.indexOf(String(x.id)) < 0; });
   var opts = '<option value="">-- কর্মী বেছে নিন --</option>' + others.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + (x.desig ? ' (' + esc(x.desig) + ')' : '') + '</option>'; }).join('');
-  var anyIn = ids.some(function (id) { var l = _attLast(id, today); return l && l.type === 'in'; });
+  var anyIn = ids.some(function (id) { var l = attState(id, today); return l.isIn && l.loc === 'camp'; });
   m.innerHTML = '<div style="background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow-y:auto">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><b style="font-size:16px;color:var(--primary)">👥 ক্যাম্প টিম হাজিরা</b><button type="button" onclick="document.getElementById(\'campTeamModal\').remove()" style="border:0;background:none;font-size:20px;cursor:pointer">&#10005;</button></div>'
     + '<div style="font-size:12.5px;color:#64748b;margin-bottom:8px"><b>' + esc(sc.name) + '</b> · ' + esc(sc.location || '') + (m._after ? '<br>ক্যাম্প শেষ — যাঁরা হাসপাতালে ফিরছেন না, তাঁদের এখানেই আউট দিন।' : '<br>ক্যাম্প চলাকালে যে কাউকে ইন/আউট করা যায়; নতুন কর্মী যোগ হলে নিচ থেকে যোগ করুন।') + '</div>'
     + (rows || '<div style="padding:10px;color:#94a3b8;font-size:13px">টিমে কেউ নেই</div>')
-    + (anyIn ? '<button type="button" onclick="campTeamAllOut()" style="width:100%;margin-top:10px;border:1.5px solid #fecaca;background:#fff5f5;color:#b91c1c;border-radius:12px;padding:11px;font:inherit;font-weight:800;cursor:pointer">সবাইকে আউট (ক্যাম্প থেকেই বাড়ি)</button>' : '')
+    + (anyIn ? '<button type="button" onclick="campTeamAllOut()" style="width:100%;margin-top:10px;border:1.5px solid #fecaca;background:#fff5f5;color:#b91c1c;border-radius:12px;padding:11px;font:inherit;font-weight:800;cursor:pointer">ক্যাম্পে থাকা সবাইকে আউট (ক্যাম্প থেকেই বাড়ি)</button>' : '')
     + '<div style="margin-top:14px;padding-top:12px;border-top:1.5px dashed #cbd5e1"><div style="font-weight:800;font-size:13.5px;margin-bottom:6px">➕ ক্যাম্পে নতুন যোগ হওয়া কর্মী (ইন)</div>'
     + '<div style="display:flex;gap:8px"><select id="campTeamAddSel" style="flex:1;min-width:0;padding:10px;border:1.5px solid #cbd5e1;border-radius:10px;font:inherit">' + opts + '</select><button type="button" onclick="campTeamAdd()" style="border:0;background:#0f4c81;color:#fff;border-radius:10px;padding:0 16px;font:inherit;font-weight:800;cursor:pointer">যোগ + ইন</button></div></div>'
     + '<div style="font-size:11px;color:#94a3b8;margin-top:10px">ভুল হলে এটেন্ডেন্স শিটে সংশোধন করা যাবে।</div></div>';
 }
 function campTeamMark(sid, type) {
   var st = _staffById(sid), sc = _campTeamSchedule(); if (!st || !sc) return;
-  _attPush(st.id, type, todayStr(), { campId: sc.id, viaCamp: true });
-  saveData(); showToast('✅ ' + st.name + ' — ' + (type === 'in' ? 'ইন' : 'আউট') + ' রেকর্ড হয়েছে');
+  var today = todayStr();
+  if (type === 'in') attGoTo(st.id, today, 'camp', sc.name || 'ক্যাম্প', sc.id); else attOutNow(st.id, today);
+  saveData(); showToast('✅ ' + st.name + ' — ' + (type === 'in' ? 'ক্যাম্পে ইন' : 'আউট') + ' রেকর্ড হয়েছে');
+  _campTeamRefreshViews(); _campTeamRender();
+}
+// ক্যাম্প থেকে সরাসরি হাসপাতালে ফেরা (ক্যাম্পে আউট + হাসপাতালে ইন)
+function campTeamMove(sid, loc) {
+  var st = _staffById(sid); if (!st) return;
+  attGoTo(st.id, todayStr(), loc, '', null);
+  saveData(); showToast('✅ ' + st.name + ' — ক্যাম্প থেকে ' + ATT_LOCS[loc].nm + 'এ রেকর্ড হয়েছে');
   _campTeamRefreshViews(); _campTeamRender();
 }
 function campTeamAdd() {
   var sel = document.getElementById('campTeamAddSel'), sc = _campTeamSchedule(); if (!sel || !sel.value || !sc) { showToast('⚠️ কর্মী বেছে নিন'); return; }
   var st = _staffById(sel.value); if (!st) return;
   sc.teamIds = (sc.teamIds || []).concat([String(st.id)]);
-  var last = _attLast(st.id, todayStr());
-  if (!last || last.type !== 'in') _attPush(st.id, 'in', todayStr(), { campId: sc.id, viaCamp: true });
+  attGoTo(st.id, todayStr(), 'camp', sc.name || 'ক্যাম্প', sc.id);
   saveData(); showToast('✅ ' + st.name + ' — ক্যাম্প টিমে যোগ ও ইন রেকর্ড হয়েছে');
   _campTeamRefreshViews(); _campTeamRender();
 }
 function campTeamAllOut() {
   var sc = _campTeamSchedule(); if (!sc) return;
-  var today = todayStr(), ins = (sc.teamIds || []).map(_staffById).filter(function (st) { var l = st && _attLast(st.id, today); return l && l.type === 'in'; });
+  var today = todayStr(), ins = (sc.teamIds || []).map(_staffById).filter(function (st) { var l = st && attState(st.id, today); return l && l.isIn && l.loc === 'camp'; });
   if (!ins.length) return;
   if (!confirm('নিশ্চিত করুন\n\n' + ins.map(function (x) { return x.name; }).join(', ') + '\n\nসবাইকে এখন আউট দেখানো হবে?')) return;
-  ins.forEach(function (st) { _attPush(st.id, 'out', today, { campId: sc.id, viaCamp: true }); });
+  ins.forEach(function (st) { attOutNow(st.id, today); });
   saveData(); showToast('✅ ' + ins.length + ' জনকে আউট দেখানো হয়েছে');
   _campTeamRefreshViews(); _campTeamRender();
 }
@@ -21324,15 +21419,76 @@ setInterval(campTeamBtnRefresh, 3000);
 
 // ✅ IN/OUT বাটনে ক্লিক করলে সরাসরি রেকর্ড না করে আগে একটা কনফার্মেশন পপআপ দেখায় —
 // ভুলবশত ট্যাপ হয়ে গেলে যেন এন্ট্রি রেকর্ড না হয়ে যায়
-function confirmMarkAttendance(sid, type, date, refreshFnName) {
+function confirmMarkAttendance(sid, type, date, refreshFnName) { attPlaceModal(sid, type, date, refreshFnName); }
+var _attPM = null;
+function attPlaceModal(sid, type, date, refreshFnName) {
   var staff = (appData.staff||[]).find(function(s){ return String(s.id)===String(sid); });
-  var name = staff ? staff.name : 'কর্মী';
-  var typeLabel = type==='in' ? 'ইন' : 'আউট';
-  var timeStr = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
-  var ok = confirm('নিশ্চিত করুন\n\n'+name+' — '+typeLabel+'\nসময়: '+timeStr+' ('+date+')\n\nরেকর্ড করা হবে?');
-  if (!ok) return;
-  markAttendance(sid, type, date);
-  if (refreshFnName && typeof window[refreshFnName]==='function') window[refreshFnName]();
+  if (!staff) return;
+  _attPM = { sid: sid, type: type, date: date, fn: refreshFnName || '', other: false };
+  var old = document.getElementById('attPlaceWrap'); if (old) old.remove();
+  var w = document.createElement('div'); w.id = 'attPlaceWrap';
+  w.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+  w.addEventListener('click', function (e) { if (e.target === w) w.remove(); });
+  document.body.appendChild(w);
+  _attPlaceRender();
+}
+function _attPlaceRender() {
+  var w = document.getElementById('attPlaceWrap'); if (!w || !_attPM) return;
+  var P = _attPM, staff = (appData.staff||[]).find(function(s){ return String(s.id)===String(P.sid); }); if (!staff) return;
+  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); };
+  var st = attState(P.sid, P.date), camp = attCampTarget();
+  var timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  var nowLine = st.isIn ? ('এখন: ' + attLocText(st.last) + ' (ইন ' + esc(st.last.time) + ' থেকে)') : (st.last ? ('এখন বাইরে — শেষ আউট ' + esc(st.last.time) + ' (' + esc(attLocName(st.last)) + ' থেকে)') : 'আজ এখনো কোনো রেকর্ড নেই');
+  var btn = function (loc, label, sub, big) {
+    var L = ATT_LOCS[loc];
+    return '<button type="button" onclick="attPick(\'' + loc + '\')" style="display:flex;align-items:center;gap:10px;width:100%;min-height:' + (big ? 58 : 50) + 'px;padding:8px 14px;margin-bottom:8px;border-radius:14px;border:1.5px solid ' + L.c + ';background:' + L.bg + ';color:' + L.c + ';font-family:inherit;font-weight:800;font-size:' + (big ? 16 : 15) + 'px;cursor:pointer;text-align:left"><span style="font-size:22px">' + L.ic + '</span><span style="flex:1;min-width:0"><span style="display:block">' + esc(label) + '</span>' + (sub ? '<span style="display:block;font-size:11.5px;font-weight:600;opacity:.8">' + esc(sub) + '</span>' : '') + '</span></button>';
+  };
+  var places = function (exceptLoc) {
+    var h = '';
+    if (exceptLoc !== 'hospital') h += btn('hospital', 'হাসপাতাল', '', true);
+    if (exceptLoc !== 'camp') h += btn('camp', 'ক্যাম্প', camp.label !== 'ক্যাম্প' ? camp.label : '');
+    if (exceptLoc !== 'promo') h += btn('promo', 'প্রচার', 'ফিল্ডে প্রচার ডিউটি');
+    if (exceptLoc !== 'market') h += btn('market', 'মার্কেটিং', 'ফিল্ডে মার্কেটিং');
+    h += btn('other', 'অন্য ডিউটি', 'নাম লিখে দিন');
+    return h;
+  };
+  var body = '';
+  if (P.other) {
+    body = '<div style="font-weight:800;margin-bottom:8px">📌 কোন ডিউটি? (নাম লিখুন)</div><input id="attOtherLbl" type="text" placeholder="যেমন: ব্যাংক, সরবরাহ, মিটিং…" style="width:100%;box-sizing:border-box;min-height:48px;border:1.5px solid #cbd5e1;border-radius:12px;padding:0 12px;font-family:inherit;font-size:15px;margin-bottom:10px">'
+      + '<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:8px"><button type="button" onclick="_attPM.other=false;_attPlaceRender()" style="min-height:48px;border-radius:12px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#475569;font-family:inherit;font-weight:800;cursor:pointer">← ফিরুন</button><button type="button" onclick="attPickOtherGo()" style="min-height:48px;border-radius:12px;border:0;background:#0f4c81;color:#fff;font-family:inherit;font-weight:800;cursor:pointer">✅ ইন করুন</button></div>';
+  } else if (P.type === 'in') {
+    body = (st.isIn ? '<div style="font-size:12.5px;color:#92400e;background:#fef3c7;border-radius:10px;padding:7px 10px;margin-bottom:10px">ইতিমধ্যে ' + esc(attLocText(st.last)) + '-এ ইন আছেন। অন্য জায়গায় গেলে নিচ থেকে বাছুন — আগের স্থান থেকে আউট ও নতুন স্থানে ইন একসাথে রেকর্ড হবে।</div>' : '<div style="font-weight:800;margin-bottom:8px">কোথায় ইন করছেন?</div>')
+      + places(st.isIn ? st.loc : '');
+  } else {
+    body = (st.isIn
+        ? '<button type="button" onclick="attPick(\'out\')" style="display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:8px 14px;margin-bottom:12px;border-radius:14px;border:0;background:#dc2626;color:#fff;font-family:inherit;font-weight:800;font-size:16px;cursor:pointer;text-align:left"><span style="font-size:22px">🚪</span><span>আউট — ' + esc(attLocText(st.last)) + ' থেকে</span></button>'
+          + '<div style="font-weight:800;margin-bottom:8px;font-size:13.5px;color:#475569">অথবা অন্য জায়গায় যাচ্ছেন (আউট + নতুন স্থানে ইন):</div>' + places(st.loc)
+        : '<div style="font-size:12.5px;color:#92400e;background:#fef3c7;border-radius:10px;padding:7px 10px;margin-bottom:10px">এখন ইন অবস্থায় নেই। শুধু আউট রেকর্ড করতে চাইলে নিচের বাটন, নতুন জায়গায় ইন করতে চাইলে স্থান বাছুন।</div>'
+          + '<button type="button" onclick="attPick(\'out\')" style="width:100%;min-height:48px;margin-bottom:10px;border-radius:12px;border:1.5px solid #fecaca;background:#fff5f5;color:#b91c1c;font-family:inherit;font-weight:800;cursor:pointer">🚪 শুধু আউট রেকর্ড করুন</button>' + places(''));
+  }
+  w.innerHTML = '<div style="background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow-y:auto">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px"><div><div style="font-size:17px;font-weight:800;color:var(--primary)">' + esc(staff.name) + ' — ' + (P.type === 'in' ? 'ইন' : 'আউট / স্থান বদল') + '</div><div style="font-size:12px;color:#64748b;margin-top:2px">' + esc(nowLine) + ' · এখন ' + esc(timeStr) + '</div></div>'
+    + '<button type="button" onclick="document.getElementById(\'attPlaceWrap\').remove()" style="border:0;background:none;font-size:22px;cursor:pointer;color:#94a3b8">&#10005;</button></div>' + body + '</div>';
+}
+function _attPlaceDone() {
+  var P = _attPM; var w = document.getElementById('attPlaceWrap'); if (w) w.remove();
+  if (P && P.fn && typeof window[P.fn] === 'function') window[P.fn]();
+  try { if (typeof _refreshAllAttendanceViews === 'function') _refreshAllAttendanceViews(); } catch (e) {}
+}
+function attPick(loc) {
+  var P = _attPM; if (!P) return;
+  if (loc === 'out') { markAttendance(P.sid, 'out', P.date); _attPlaceDone(); return; }
+  if (loc === 'other') { P.other = true; _attPlaceRender(); setTimeout(function () { var i = document.getElementById('attOtherLbl'); if (i) i.focus(); }, 60); return; }
+  var camp = attCampTarget();
+  markAttendance(P.sid, 'in', P.date, loc === 'camp' ? { loc: 'camp', locLabel: camp.label, campId: camp.id } : { loc: loc });
+  _attPlaceDone();
+}
+function attPickOtherGo() {
+  var P = _attPM; if (!P) return;
+  var v = ((document.getElementById('attOtherLbl') || {}).value || '').trim();
+  if (!v) { showToast('⚠️ কোন ডিউটি লিখুন'); return; }
+  markAttendance(P.sid, 'in', P.date, { loc: 'other', locLabel: v });
+  _attPlaceDone();
 }
 
 // ✅ ইতিমধ্যে রেকর্ড হওয়া ইন/আউট সময় সংশোধন (বা ভুল এন্ট্রি মুছে ফেলা) করার মডাল — সাথে এই এন্ট্রির
@@ -21523,14 +21679,15 @@ function _buildAttendRow(s, date, extraBtns) {
   if(leave) timeInfo='<div style="font-size:11px;color:#ea580c;font-weight:600">🗓️ '+(leaveTypes[leave.type]||'ছুটি')+'</div>';
   else if(lastIn) timeInfo='<div style="font-size:10px;color:#888">ইন: '+formatTime(lastIn.ts)+' <span onclick="event.stopPropagation();editAttendanceRecord('+lastIn.id+')" style="cursor:pointer;color:var(--primary)" title="সংশোধন করুন">✏️</span>'
       +(lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts)+' <span onclick="event.stopPropagation();editAttendanceRecord('+lastOut.id+')" style="cursor:pointer;color:var(--primary)" title="সংশোধন করুন">✏️</span>':' | এখনো কর্মরত')+'</div>';
-  var hoursInfo=(!leave&&totalMins>0)?'<div style="font-size:11px;color:#16a34a">⏱️ '+hrs+'ঘ '+mins+'মি</div>':'';
+  var hoursInfo=(!leave&&totalMins>0)?'<div style="font-size:11px;color:#16a34a">⏱️ মোট ডিউটি '+hrs+'ঘ '+mins+'মি'+attMinsByLocHtml(s.id,date)+'</div>':'';
+  if(!leave) hoursInfo=attTrailHtml(s.id,date)+hoursInfo;
   var rightSide='';
   if(leave) rightSide='<div style="font-size:11px;color:#ea580c;background:#fff;border:1px solid #fb923c;border-radius:6px;padding:4px 10px">ছুটিতে</div>';
   else if(extraBtns) rightSide=extraBtns(s,isIn,lastOut,date);
   return '<div style="display:flex;align-items:center;gap:10px;background:'+bg+';border:1.5px solid '+border+';border-radius:9px;padding:7px 10px">'
     +'<div style="flex:1;min-width:0">'
     +'<div style="font-weight:700;font-size:14px;color:var(--primary)">'+s.name+'</div>'
-    +'<div style="font-size:11px;color:#888">'+(s.desig||'')+'</div>'
+    +'<div style="font-size:11px;color:#888">'+(s.desig||'')+(isIn&&!leave?' · <b style="color:'+(ATT_LOCS[attLocOf(lastIn)]||ATT_LOCS.other).c+'">'+attLocText(lastIn).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'-এ</b>':'')+'</div>'
     +timeInfo+hoursInfo+'</div>'
     +rightSide+'</div>';
 }
@@ -21653,8 +21810,8 @@ function renderAttendanceDetailTable(prefix) {
       var inT = lastIn ? formatTime(lastIn.ts) : '—';
       var outT = (lastOut && !isIn) ? formatTime(lastOut.ts) : (isIn ? 'চলছে' : '—');
       cells += '<td onclick="openAttendDayDetail(\''+s.id+'\',\''+dd+'\')" style="cursor:pointer;text-align:center;background:'+(isIn?'#f0fff4':'#f8fafc')+';padding:4px 2px;border:1px solid #f1f5f9">'
-        +'<div style="font-size:9px;color:#16a34a;font-weight:600">'+inT+'</div>'
-        +'<div style="font-size:9px;color:'+(isIn?'#94a3b8':'#dc2626')+'">'+outT+'</div>'+editBadge+'</td>';
+        +'<div style="font-size:9px;color:#16a34a;font-weight:600">'+(lastIn?attLocIcon(lastIn)+' ':'')+inT+'</div>'
+        +'<div style="font-size:9px;color:'+(isIn?'#94a3b8':'#dc2626')+'">'+((lastOut&&!isIn)?attLocIcon(lastOut)+' ':'')+outT+'</div>'+editBadge+'</td>';
     }
     var workDays = calcWorkDays(s.id, month, year);
     var workHrs  = calcWorkHours(s.id, month, year);
@@ -21673,7 +21830,7 @@ function renderAttendanceDetailTable(prefix) {
     +'<th style="font-size:10px;min-width:40px">দিন</th><th style="font-size:10px;min-width:44px">ঘন্টা</th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table></div>'
     +'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#666">'
-    +'<span>🟩 উপস্থিত</span> <span>🟧 ছুটি</span> <span>⬜ অনুপস্থিত</span> <span>✏️ সংশোধিত (সেলে ক্লিক করে কারণ দেখুন)</span>'
+    +'<span>🟩 উপস্থিত</span> <span>🟧 ছুটি</span> <span>⬜ অনুপস্থিত</span> <span>🏥 হাসপাতাল · 🏕️ ক্যাম্প · 📢 প্রচার · 🛍️ মার্কেটিং · 📌 অন্য</span> <span>✏️ সংশোধিত (সেলে ক্লিক করে কারণ দেখুন)</span>'
     +'</div>';
 }
 
@@ -21707,7 +21864,8 @@ function _buildAttendChip(s, date) {
   var bg=leave?'#fff7ed':isIn?'#f0fff4':'#f8fafc';
   var border=leave?'#fb923c':isIn?'#86efac':'#e2e8f0';
   var dot=leave?'🗓️':isIn?'🟢':'⚪';
-  var tip=s.name+(leave?' | ছুটিতে':'')+(lastIn?(' | ইন: '+formatTime(lastIn.ts)):'')+((lastOut&&lastIn&&lastOut.ts>lastIn.ts)?(' | আউট: '+formatTime(lastOut.ts)):'');
+  var _as=attState(s.id,date);
+  var tip=s.name+(leave?' | ছুটিতে':'')+(_as.isIn?(' | '+attLocText(_as.last)):'')+(lastIn?(' | ইন: '+formatTime(lastIn.ts)):'')+((lastOut&&lastIn&&lastOut.ts>lastIn.ts)?(' | আউট: '+formatTime(lastOut.ts)):'');
   var sid=s.id;
   var inBg=isIn?'#dcfce7':'white', inColor=isIn?'#16a34a':'#666', inBorder=isIn?'#86efac':'#d1d5db';
   var outBg=(!isIn&&lastOut)?'#fee2e2':'white', outColor=(!isIn&&lastOut)?'#dc2626':'#666', outBorder=(!isIn&&lastOut)?'#fca5a5':'#d1d5db';
@@ -21718,6 +21876,7 @@ function _buildAttendChip(s, date) {
   return '<div title="'+tip.replace(/"/g,'&quot;')+'" style="display:inline-flex;align-items:center;gap:5px;background:'+bg+';border:1.5px solid '+border+';border-radius:18px;padding:4px 6px 4px 10px;font-size:12px;white-space:nowrap">'
     +'<span style="font-size:9px">'+dot+'</span>'
     +'<span style="font-weight:700;color:var(--primary);max-width:120px;overflow:hidden;text-overflow:ellipsis">'+s.name+'</span>'
+    +(_as.isIn&&!leave?'<span title="'+attLocName(_as.last).replace(/"/g,'&quot;')+'" style="font-size:10.5px;font-weight:700;color:'+(ATT_LOCS[_as.loc]||ATT_LOCS.other).c+';background:'+(ATT_LOCS[_as.loc]||ATT_LOCS.other).bg+';border-radius:10px;padding:1px 7px;max-width:90px;overflow:hidden;text-overflow:ellipsis">'+attLocIcon(_as.last)+' '+attLocName(_as.last).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>':'')
     +actions+'</div>';
 }
 
@@ -28267,15 +28426,16 @@ function buildReadOnlyHTML(feature, role) {
       const bg=lv?'#fff7ed':isIn?'#f0fff4':'#f8fafc';
       const border=lv?'#fb923c':isIn?'#86efac':'#e2e8f0';
       const statusColor=lv?'#ea580c':isIn?'#16a34a':'#94a3b8';
-      const statusText=lv?'ছুটি':isIn?'কর্মরত':'অনুপস্থিত';
+      const _as=attState(s.id,today2);
+      const statusText=lv?'ছুটি':isIn?('কর্মরত — '+attLocText(_as.last)):'অনুপস্থিত';
       let timeInfo='<div style="font-size:11px;color:#aaa">রেকর্ড নেই</div>';
       if(lastIn) timeInfo='<div style="font-size:11px;color:'+(isOwnerMonthly?'#166534':'#16a34a')+'">ইন: '+formatTime(lastIn.ts)+(lastOut&&lastOut.ts>lastIn.ts?' | আউট: '+formatTime(lastOut.ts):' | কর্মরত')+'</div>';
       if(lv) timeInfo='<div style="font-size:11px;color:#ea580c">🗓️ ছুটিতে</div>';
-      const hoursInfo=mins>0?'<div style="font-size:11px;color:'+(isOwnerMonthly?'#166534':'#059669')+'">⏱ '+hrs+'ঘ '+mn+'মি</div>':'';
+      const hoursInfo=(recs.length&&!lv?attTrailHtml(s.id,today2,true):'')+(mins>0?'<div style="font-size:11px;color:'+(isOwnerMonthly?'#166534':'#059669')+'">⏱ মোট ডিউটি '+hrs+'ঘ '+mn+'মি'+attMinsByLocHtml(s.id,today2)+'</div>':'');
       return '<div style="display:flex;align-items:center;gap:10px;background:'+bg+';border:1.5px solid '+border+';border-radius:10px;padding:10px 12px">'
         +'<div style="flex:1"><div style="font-weight:700">'+s.name+'</div><div style="font-size:11px;color:#888">'+(s.desig||'')+'</div>'
         +timeInfo+hoursInfo+'</div>'
-        +'<span style="font-size:12px;font-weight:700;color:'+statusColor+'">'+statusText+'</span>'
+        +'<span style="font-size:12px;font-weight:700;color:'+statusColor+';text-align:right;max-width:42%">'+statusText+'</span>'
         +'</div>';
     });
     return '<div style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:15px">🕐 আজকের এটেন্ডেন্স '+badge+'</div>'
@@ -36660,7 +36820,7 @@ function renderRecPresentStaffChips() {
     var lastIn = recs.filter(function(r){return r.type==='in';}).sort(function(a,b){return b.ts-a.ts;})[0];
     var lastOut = recs.filter(function(r){return r.type==='out';}).sort(function(a,b){return b.ts-a.ts;})[0];
     var isIn = lastIn && (!lastOut || lastIn.ts>lastOut.ts);
-    if (isIn) { present.push({ name:s.name, desig:s.desig||'', ts:lastIn.ts }); return; }
+    if (isIn) { var _st=attState(s.id,today); present.push({ name:s.name, desig:s.desig||'', ts:lastIn.ts, loc:_st.isIn?attLocText(_st.last):'' }); return; }
     var onLeave = (typeof getLeaveForDate==='function') ? getLeaveForDate(s.id, today) : null;
     if (!onLeave) absent.push({ name:s.name, desig:s.desig||'' });
   });
@@ -36668,7 +36828,7 @@ function renderRecPresentStaffChips() {
   else {
     present.sort(function(a,b){ return a.ts-b.ts; });
     wrap.innerHTML = present.map(function(p){
-      return '<span class="rec-staff-chip"><span class="chip-dot"></span>'+p.name+(p.desig?' <span class="chip-desig">('+p.desig+')</span>':'')+' <span class="chip-time">'+formatTime(p.ts)+'</span></span>';
+      return '<span class="rec-staff-chip"><span class="chip-dot"></span>'+p.name+(p.desig?' <span class="chip-desig">('+p.desig+')</span>':'')+' <span class="chip-time">'+(p.loc?p.loc.replace(/&/g,'&amp;').replace(/</g,'&lt;')+' · ':'')+formatTime(p.ts)+'</span></span>';
     }).join('');
   }
   if (absentWrap) {
@@ -40612,7 +40772,7 @@ function _receptionistPresentToday() {
   var today = todayStr();
   var staff = (appData.staff||[]).filter(function(s){ return s.status==='active' && (recNames.indexOf(s.name)>-1 || /রিসেপশন/.test(s.desig||'')); });
   if (!staff.length) return { known:false, present:true };
-  var present = staff.some(function(s){ return getAttendanceForDate(s.id, today).some(function(r){ return r.type==='in'; }); });
+  var present = staff.some(function(s){ return getAttendanceForDate(s.id, today).some(function(r){ return r.type==='in' && attLocOf(r)==='hospital'; }); });
   return { known:true, present:present };
 }
 function _recStaffList() {
@@ -47265,11 +47425,11 @@ function amAttHtml() {
     var first = recs.find(function (r) { return r.type === 'in'; }), last = recs[recs.length - 1], st;
     if (lv) { cnt.leave++; st = '<span class="am-tag w">ছুটি</span>'; }
     else if (!recs.length) { cnt.abs++; st = '<span class="am-tag r">অনুপস্থিত</span>'; }
-    else if (last.type === 'in') { cnt.in++; st = '<span class="am-tag g">কর্মরত</span>'; }
-    else { cnt.out++; st = '<span class="am-tag">আউট</span>'; }
+    else if (last.type === 'in') { cnt.in++; st = '<span class="am-tag g">কর্মরত</span><div class="am-meta" style="margin:3px 0 0;text-align:right;font-weight:700">' + amEsc(attLocText(last)) + '</div>'; }
+    else { cnt.out++; st = '<span class="am-tag">আউট</span><div class="am-meta" style="margin:3px 0 0;text-align:right">' + amEsc(attLocText(last)) + ' থেকে</div>'; }
     var mins = 0; try { mins = calcDayMinutes(s.id, date); } catch (e) {}
     return '<div class="am-card" style="padding:10px 14px"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '<div class="am-meta" style="margin:0">' + amEsc(s.desig || '') + '</div></div><div>' + st + '</div></div>'
-      + (recs.length ? '<div class="am-meta">ইন: ' + (first ? amEsc(first.time) : '—') + (last && last.type === 'out' ? ' · আউট: ' + amEsc(last.time) : '') + (mins ? ' · ' + fmt((mins / 60).toFixed(1)) + ' ঘণ্টা' : '') + '</div>' : '') + '</div>';
+      + (recs.length ? '<div class="am-meta">ইন: ' + (first ? amEsc(first.time) : '—') + (last && last.type === 'out' ? ' · আউট: ' + amEsc(last.time) : '') + (mins ? ' · মোট ডিউটি ' + fmt((mins / 60).toFixed(1)) + ' ঘণ্টা' : '') + '</div>' + attTrailHtml(s.id, date, true) : '') + '</div>';
   }).join('');
   var lt = { casual: 'CL', sick: 'SL', annual: 'AL', unpaid: 'বিনা বেতনে' };
   var recent = (appData.leaveRecords || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10).map(function (l) {
@@ -47482,17 +47642,22 @@ function amLiveCardHtml() {
 function amLvStaff() {
   var today = todayStr(), recNames = (appData.users || []).filter(function (u) { return u && u.role === 'receptionist'; }).map(function (u) { return u.name; });
   try { Object.keys(USERS || {}).forEach(function (k) { var u = USERS[k]; if (u && u.role === 'receptionist' && recNames.indexOf(u.name) < 0) recNames.push(u.name); }); } catch (e) {}
-  var on = [], recKnown = false, recOn = false;
+  // কে এখন কোথায় (এক কর্মী = এক স্থান): হাসপাতাল / ক্যাম্প / মাঠে (প্রচার, মার্কেটিং, অন্য)
+  var on = [], hosp = [], camp = [], field = [], recKnown = false, recOn = false;
   (appData.staff || []).filter(function (x) { return x.status === 'active'; }).forEach(function (x) {
     var isRec = recNames.indexOf(x.name) > -1 || /রিসেপশন/.test(x.desig || '');
     if (isRec) recKnown = true;
     try {
       if (getLeaveForDate(x.id, today)) return;
-      var recs = getAttendanceForDate(x.id, today).slice().sort(function (p, q) { return p.ts - q.ts; });
-      if (recs.length && recs[recs.length - 1].type === 'in') { on.push(x); if (isRec) recOn = true; }
+      var st = attState(x.id, today);
+      if (!st.isIn) return;
+      on.push(x);
+      if (st.loc === 'camp') camp.push(x);
+      else if (st.loc === 'hospital') { hosp.push(x); if (isRec) recOn = true; }
+      else field.push({ x: x, loc: st.loc, label: st.label, ts: st.since });
     } catch (e) {}
   });
-  return { on: on, recOn: recKnown ? recOn : null };
+  return { on: on, hosp: hosp, camp: camp, field: field, recOn: recKnown ? recOn : null };
 }
 function amDesigShort(d) {
   d = String(d || '').trim(); if (!d) return '';
@@ -47536,16 +47701,18 @@ function amLvTopCards() {
   var hosp = '<button class="am-lvc" style="--c:#0f766e" onclick="amCustody(\'rec\')"><span class="bg"></span>'
     + '<span class="k">🧾 হাসপাতাল' + (recOn ? ' <span class="am-dot"></span>' : '') + '</span>'
     + '<span class="v" style="color:' + (d.recTotal < 0 ? 'var(--am-bad)' : 'var(--am-text)') + '">' + money(d.recTotal) + '</span>'
-    + '<span class="th">' + (lv.on.length ? lv.on.map(function (x) { return amLvNm(x.desig, x.name); }).join(' · ') : 'এখন কেউ উপস্থিত নেই') + '</span></button>';
+    + '<span class="th">' + (lv.hosp.length ? lv.hosp.map(function (x) { return amLvNm(x.desig, x.name); }).join(' · ') : 'এখন কেউ উপস্থিত নেই') + '</span></button>';
   // ক্যাম্প কার্ড
   var sess = appData.activeCampSession, camp;
   if (d.campLive && sess) {
     var ppl = [], seen = {};
     var add = function (dg, nm) { if (!nm || seen[nm]) return; seen[nm] = 1; ppl.push(amLvNm(dg, nm)); };
-    add('ডাঃ', sess.doctor);
-    if (sess.by) add(amLvDesigOf(_baseBy(sess.by)) || 'ক্যাম্পেইনার', _baseBy(sess.by));
-    (sess.regularStaff || []).forEach(function (r) { add(amLvDesigOf(r.name), r.name); });
-    (sess.parttimers || []).forEach(function (r) { add('পার্টটাইমার', r.name); });
+    // ক্যাম্প কার্ডে শুধু যাঁরা এখন সত্যিই ক্যাম্পে (এটেন্ডেন্স অনুযায়ী) — হাসপাতাল/মাঠে থাকা কেউ এখানে আসেন না
+    lv.camp.forEach(function (x) { add(x.desig, x.name); });
+    // স্টাফ-তালিকায় নেই এমন টিম সদস্য (যাঁদের এটেন্ডেন্স রাখা যায় না) আগের মতোই দেখানো হয়
+    var _inStaff = function (nm) { return (appData.staff || []).some(function (t) { return t.status === 'active' && t.name === nm; }); };
+    if (sess.doctor && !_inStaff(sess.doctor)) add('ডাঃ', sess.doctor);
+    (sess.parttimers || []).forEach(function (r) { if (r.name && !_inStaff(r.name)) add('পার্টটাইমার', r.name); });
     camp = '<button class="am-lvc on" style="--c:#b45309" onclick="amCustody(\'camp\')"><span class="bg"></span>'
       + '<span class="k">🏕️ ' + amEsc(sess.name || 'ক্যাম্প') + ' <span class="am-dot"></span></span>'
       + '<span class="v" style="color:' + (d.campTotal < 0 ? 'var(--am-bad)' : 'var(--am-text)') + '">' + money(d.campTotal) + '</span>'
@@ -47558,7 +47725,13 @@ function amLvTopCards() {
       + '<span class="v">' + (lastDep ? '৳ ' + fmt(lastDep.amount || 0) : '—') + '</span>'
       + '<span class="th">' + (nx ? '<b style="font-weight:500">আসন্ন:</b> ' + amEsc(nx.name) + '<br>' + amEsc(nx.location || '—') + '<br>' + formatDate(nx.date) : 'আসন্ন ক্যাম্প নেই') + '</span></button>';
   }
-  return '<div class="am-lv2">' + hosp + camp + '</div>';
+  // মাঠে (প্রচার / মার্কেটিং / অন্য ডিউটি) — এক লাইনে
+  var fld = '';
+  if (lv.field.length) {
+    fld = '<div style="display:flex;align-items:center;gap:8px;margin:-2px 0 10px;padding:8px 12px;background:#fff;border:1px solid var(--am-line,#e3eaf2);border-radius:12px;font-size:12.5px;overflow-x:auto;white-space:nowrap"><b style="color:#64748b;flex:none">মাঠে:</b>'
+      + lv.field.map(function (f) { var L = ATT_LOCS[f.loc] || ATT_LOCS.other; return '<span style="flex:none;background:' + L.bg + ';color:' + L.c + ';border-radius:999px;padding:3px 10px;font-weight:700">' + L.ic + ' ' + amEsc(f.x.name) + ' · ' + amEsc(f.loc === 'other' ? (f.label || L.nm) : L.nm) + '</span>'; }).join('') + '</div>';
+  }
+  return '<div class="am-lv2">' + hosp + camp + '</div>' + fld;
 }
 function amLvNextOf(list, dateKey) {
   var t = todayStr(), up = list.filter(function (x) { return (x[dateKey] || '') >= t; }).sort(function (a, b) { return (a[dateKey] || '').localeCompare(b[dateKey] || ''); });
