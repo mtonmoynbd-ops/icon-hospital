@@ -6852,6 +6852,11 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                   <option value="">-- ডাক্তার বেছে নিন --</option>
                 </select></div>
             </div>
+            <div class="form-row three">
+              <div class="field"><label>🕘 ক্যাম্পের সময় <span style="font-size:10px;color:var(--text-light)">(শুরু — শেষ)</span></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input type="time" id="csTimeFrom"><input type="time" id="csTimeTo"></div></div>
+              <div class="field"><label>🤝 সহযোগী সংগঠন <span style="font-size:10px;color:var(--text-light)">(লিফলেটে আসবে)</span></label><input type="text" id="csLocalOrg" placeholder="স্থানীয় সংগঠনের নাম"></div>
+              <div class="field"><label>👥 বিশেষ ব্যক্তিবর্গ <span style="font-size:10px;color:var(--text-light)">(কমা দিয়ে নাম)</span></label><input type="text" id="csGuests" placeholder="নাম ১, নাম ২"></div>
+            </div>
             <!-- নিয়মিত কর্মী (স্যালারি শিট থেকে) -->
             <div class="field" style="margin-bottom:10px">
               <label style="font-weight:600;font-size:13px">👥 নিয়মিত কর্মী <span style="color:var(--text-light);font-weight:400">(বেতন মাসিক ÷ ৩০)</span></label>
@@ -15418,7 +15423,7 @@ function vchInboxHtml(mobile) {
   const rows = items.map(r => {
     const lines = r.kind==='exp' ? (r.expIds||[]).map(_expVFind).filter(Boolean).map(_vchLineOf) : r.kind==='promo' ? _vchPromoEntries(r.campId, r.by||r.from).map(_vchLineOf) : (r.lines||[]);
     const tot = lines.reduce((t,l)=>t+(l.amount||0),0);
-    const sum = lines.slice(0,3).map(l => esc(l.cat) + (l.note ? ' — ' + esc(String(l.note).slice(0,30)) : '')).join(' · ') + (lines.length>3 ? ' … +' + fmt(lines.length-3) : '');
+    const sum = lines.map(l => '<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dashed #e2e8f0"><span style="min-width:0">' + esc(l.cat) + (l.note ? ' <span style="color:#94a3b8">— ' + esc(String(l.note).slice(0,40)) + '</span>' : '') + '</span><span style="white-space:nowrap;font-weight:700">৳ ' + fmt(l.amount||0) + '</span></div>').join('');
     const btn = 'min-height:40px;border-radius:10px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;padding:0 12px;';
     return '<div style="background:#fff;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;margin-top:8px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0"><b style="font-size:13.5px">' + esc(_baseBy(r.from)) + '</b> <span style="font-size:11.5px;color:#64748b">(' + esc(({moderator:'মডারেটর',campaigner:'ক্যাম্পেইনার'})[r.fromRole] || r.fromRole || '') + ')</span>' + (r.kind==='camper' ? '<div style="font-size:11.5px;color:#64748b">🏕️ ' + esc(r.campName) + (r.voucherNo ? ' · ' + esc(r.voucherNo) : '') + '</div>' : (r.kind==='promo' ? '<div style="font-size:11.5px;color:#64748b">📢 প্রচার ভাউচার' + (r.voucherNo ? ' · ' + esc(r.voucherNo) : '') + '</div>' : '')) + '<div style="font-size:12px;color:#475569;margin-top:2px;overflow-wrap:anywhere">' + sum + '</div>' + (r.note ? '<div style="font-size:11.5px;color:#92400e">📝 ' + esc(r.note) + '</div>' : '') + '</div><b style="color:#b91c1c;white-space:nowrap">৳ ' + fmt(tot) + '</b></div>'
       + '<div style="display:flex;gap:8px;margin-top:8px"><button type="button" onclick="vchInboxPrint(' + r.id + ')" style="' + btn + 'flex:1;border:0;background:#0f4c81;color:#fff">🖨️ প্রিন্ট</button><button type="button" onclick="vchInboxDel(' + r.id + ')" style="' + btn + 'border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b">✕ সরান</button></div></div>';
@@ -28284,7 +28289,7 @@ function openCampAddModal(pre) {
   f.style.display = 'block'; f.style.marginBottom = '0';
   document.getElementById('csDate').value = (pre && pre.date) || todayStr();
   document.getElementById('csEditId').value = '';
-  ['csName','csLocation','csVisitFee'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.value = ''; if (el.dataset) el.dataset.auto = ''; } });
+  ['csName','csLocation','csVisitFee','csTimeFrom','csTimeTo','csLocalOrg','csGuests'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.value = ''; if (el.dataset) el.dataset.auto = ''; } });
   renderCsRegularStaff([]);
   document.getElementById('csParttimeRows').innerHTML = ''; csParttimeCount = 0;
   populateCsDoctorSelect('');
@@ -28575,6 +28580,8 @@ function saveCampSchedule() {
   const _dOpt    = document.getElementById('csDoctor').selectedOptions[0];
   const doctorId = _dOpt ? (_dOpt.getAttribute('data-id') || '') : '';
   const editId   = document.getElementById('csEditId').value;
+  const _g2 = id => ((document.getElementById(id)||{}).value||'').trim();
+  const _lx = { timeFrom: _g2('csTimeFrom'), timeTo: _g2('csTimeTo'), localOrg: _g2('csLocalOrg'), guests: _g2('csGuests') };
   if (!name || !location || !date) { showToast('⚠️ নাম, স্থান ও তারিখ আবশ্যক!'); return; }
   if (!doctor) { showToast('⚠️ ক্যাম্পের ডাক্তার তালিকা থেকে বেছে নিন!'); return; }
 
@@ -28601,13 +28608,13 @@ function saveCampSchedule() {
   if (!appData.campSchedules) appData.campSchedules = [];
   if (editId) {
     const idx = appData.campSchedules.findIndex(s => s.id == editId);
-    if (idx >= 0) appData.campSchedules[idx] = { ...appData.campSchedules[idx], name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary, ..._vx };
+    if (idx >= 0) appData.campSchedules[idx] = { ...appData.campSchedules[idx], name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary, ..._vx, ..._lx };
   } else {
-    appData.campSchedules.push({ id: Date.now(), name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary, status: 'scheduled', ..._vx });
+    appData.campSchedules.push({ id: Date.now(), name, location, date, visitFee, camper, doctor, doctorId, regularStaff, parttimers, staff: staffSummary, status: 'scheduled', ..._vx, ..._lx });
   }
   saveData();
   renderCampScheduleTable();
-  ['csName','csLocation','csVisitFee','csCamper','csDoctor'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['csName','csLocation','csVisitFee','csCamper','csDoctor','csTimeFrom','csTimeTo','csLocalOrg','csGuests'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('csEditId').value = '';
   csVillageReset();
   csFormClose();
@@ -28644,6 +28651,7 @@ function editCampSchedule(id) {
   document.getElementById('csLocation').value = s.location;
   document.getElementById('csDate').value     = s.date;
   document.getElementById('csVisitFee').value = s.visitFee||'';
+  [['csTimeFrom','timeFrom'],['csTimeTo','timeTo'],['csLocalOrg','localOrg'],['csGuests','guests']].forEach(function (p) { var el = document.getElementById(p[0]); if (el) el.value = s[p[1]] || ''; });
   document.getElementById('csCamper').value   = s.camper||'';
   populateCsDoctorSelect(s.doctor||'');
   document.getElementById('csEditId').value   = s.id;
@@ -38998,6 +39006,19 @@ function _lfDateTxt(d) {
   var dt = new Date(+p[0], +p[1] - 1, +p[2]);
   return _lfBn(+p[2]) + ' ' + _CV_BN_M[+p[1] - 1] + ' ' + _lfBn(+p[0]) + ', ' + _LF_BN_WD[dt.getDay()];
 }
+function _lfTimeTxt(t) {
+  if (!t) return '';
+  var p = String(t).split(':'), h = +p[0], m = +(p[1] || 0);
+  if (isNaN(h)) return '';
+  var per = (h >= 4 && h < 6) ? 'ভোর' : (h >= 6 && h < 12) ? 'সকাল' : (h >= 12 && h < 15) ? 'দুপুর' : (h >= 15 && h < 18) ? 'বিকাল' : (h >= 18 && h < 20) ? 'সন্ধ্যা' : 'রাত';
+  var h12 = h % 12; if (h12 === 0) h12 = 12;
+  return per + ' ' + _lfBn(h12) + (m ? ':' + (m < 10 ? '০' : '') + _lfBn(m) : '') + 'টা';
+}
+function _lfSchedTime(s) {
+  var a = _lfTimeTxt(s.timeFrom), b = _lfTimeTxt(s.timeTo);
+  if (a && b) return a + ' থেকে ' + b + ' পর্যন্ত';
+  return a ? a + ' থেকে' : (b ? b + ' পর্যন্ত' : '');
+}
 function _lfVillageOf(s) {
   try {
     var all = _cvList(), v = null;
@@ -39009,15 +39030,15 @@ function _lfVillageOf(s) {
 function _lfDefaults(s) {
   var st = appData.settings || {}, v = _lfVillageOf(s) || {}, sv = s.leaflet || {};
   var d = {
-    ribbon: 'সুখবর!', headline: 'চক্ষু পরীক্ষা ও স্বল্পমূল্যে ছানি অপারেশনের সুযোগ!',
-    title: s.name || '', date: s.date || '', time: '',
+    ribbon: 'সুখবর!', headline: 'চক্ষু পরীক্ষা ও স্বল্পমূল্যে ছানি অপারেশনের সুযোগ',
+    title: s.name || '', date: s.date || '', time: _lfSchedTime(s),
     fee: (s.visitFee > 0) ? ('৳ ' + fmt(s.visitFee)) : '',
     venue: s.location || '', msg: '',
-    services: 'চক্ষু পরীক্ষা ও প্রয়োজনীয় চিকিৎসা পরামর্শ\nক্যাম্পে ছানি ধরা পড়লে রোগীদের স্বল্পমূল্যে ছানি অপারেশনের ব্যবস্থা\nচশমা ও ওষুধ সংক্রান্ত পরামর্শ',
-    note: '', org: '', persons: '', helperName: v.helperName || '', helperPhone: v.helperPhone || '',
+    services: 'চক্ষু পরীক্ষা ও প্রয়োজনীয় চিকিৎসা পরামর্শ\nছানি ধরা পড়লে রোগীদের স্বল্পমূল্যে ছানি অপারেশনের ব্যবস্থা\nচশমা ও ওষুধ সংক্রান্ত পরামর্শ',
+    note: '', org: s.localOrg || '', persons: s.guests || '', helperName: v.helperName || '', helperPhone: v.helperPhone || '',
     contactPhone: st.phone || ''
   };
-  ['ribbon','headline','time','msg','services','note','org','persons','helperName','helperPhone','contactPhone'].forEach(function (k) {
+  ['ribbon','headline','msg','services','note'].forEach(function (k) {
     if (sv[k] != null && !(k === 'note' && sv[k] === _LF_OLD_NOTE)) d[k] = sv[k];
   });
   return d;
@@ -39044,13 +39065,12 @@ function openCampLeafletModal(id) {
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="font-size:16px;color:var(--primary)">📄 ক্যাম্প প্রচার লিফলেট</b><button type="button" onclick="closeCampLeafletModal()" style="border:0;background:none;font-size:22px;cursor:pointer">✕</button></div>'
     + row(fld('উপরের ছোট শিরোনাম', 'lfRibbon', d.ribbon) + fld('মূল ঘোষণা (বড় অক্ষরে)', 'lfHeadline', d.headline))
     + row(fld('ক্যাম্পের নাম *', 'lfTitle', d.title) + fld('তারিখ', 'lfDate', d.date, 'date'))
-    + row(fld('সময়', 'lfTime', d.time, 'text', 'যেমন: সকাল ১০টা থেকে বিকাল ৪টা') + fld('ভিজিট ফি', 'lfFee', d.fee, 'text', 'যেমন: ৳ ১০০'))
-    + row(fld('স্থান / ঠিকানা', 'lfVenue', d.venue))
+    + row(fld('ভিজিট ফি', 'lfFee', d.fee, 'text', 'যেমন: ৳ ১০০') + fld('স্থান / ঠিকানা', 'lfVenue', d.venue))
     + row(area('আমন্ত্রণ বার্তা (ফাঁকা রাখলে স্বয়ংক্রিয় লেখা হবে)', 'lfMsg', d.msg, 3))
     + row(area('সেবাসমূহ (প্রতি লাইনে একটি)', 'lfServices', d.services, 4) + area('অতিরিক্ত নির্দেশনা (ঐচ্ছিক)', 'lfNote', d.note, 4))
-    + '<div style="font-size:12px;font-weight:800;color:#0f4c81;margin:6px 0 8px;border-top:1px dashed #cbd5e1;padding-top:10px">🤝 সার্বিক সহযোগিতায়</div>'
-    + row(fld('স্থানীয় সংগঠনের নাম', 'lfOrg', d.org, 'text', 'যেমন: ... যুব উন্নয়ন সংঘ') + fld('সুপরিচিত ব্যক্তির নাম (কমা দিয়ে)', 'lfPersons', d.persons, 'text', 'নাম ১, নাম ২'))
-    + row(fld('স্থানীয় সহযোগীর নাম', 'lfHelperName', d.helperName) + fld('সহযোগীর মোবাইল', 'lfHelperPhone', d.helperPhone) + fld('যোগাযোগের নম্বর (হাসপাতাল)', 'lfContactPhone', d.contactPhone))
+    + '<div style="font-size:12px;color:#475569;background:#f1f5f9;border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.7">'
+    + '🕘 সময়: <b>' + _lfEsc(d.time || 'দেওয়া নেই') + '</b><br>🤝 সহযোগী সংগঠন: <b>' + _lfEsc(d.org || 'দেওয়া নেই') + '</b><br>👥 বিশেষ ব্যক্তিবর্গ: <b>' + _lfEsc(d.persons || 'দেওয়া নেই') + '</b>'
+    + '<br><span style="color:#94a3b8">এগুলো ক্যাম্প শিডিউলের সংশোধন (✏️) থেকে বদলাতে হয়।</span></div>'
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">'
     + '<button type="button" onclick="closeCampLeafletModal()" style="padding:9px 16px;border:1.5px solid #cbd5e1;background:#fff;border-radius:10px;font-family:inherit;font-weight:700;cursor:pointer">বাতিল</button>'
     + '<button type="button" onclick="printCampLeaflet(' + id + ')" style="padding:9px 18px;border:none;background:linear-gradient(135deg,#16a34a,#0f8c46);color:#fff;border-radius:10px;font-family:inherit;font-weight:800;cursor:pointer">🖨️ প্রিন্ট</button>'
@@ -39061,35 +39081,34 @@ function printCampLeaflet(id) {
   var s = (appData.campSchedules || []).find(function (x) { return x.id === id; });
   if (!s) return;
   var g = function (i) { var el = document.getElementById(i); return el ? String(el.value || '').trim() : ''; };
+  var d0 = _lfDefaults(s);
   var v = {
-    ribbon: g('lfRibbon'), headline: g('lfHeadline'), title: g('lfTitle'), date: g('lfDate'), time: g('lfTime'), fee: g('lfFee'),
-    venue: g('lfVenue'), msg: g('lfMsg'), services: g('lfServices'), note: g('lfNote'), org: g('lfOrg'), persons: g('lfPersons'),
-    helperName: g('lfHelperName'), helperPhone: g('lfHelperPhone'), contactPhone: g('lfContactPhone')
+    ribbon: g('lfRibbon'), headline: g('lfHeadline'), title: g('lfTitle'), date: g('lfDate'), fee: g('lfFee'),
+    venue: g('lfVenue'), msg: g('lfMsg'), services: g('lfServices'), note: g('lfNote'),
+    time: d0.time, org: d0.org, persons: d0.persons, helperName: d0.helperName, helperPhone: d0.helperPhone, contactPhone: d0.contactPhone
   };
   if (!v.title) { showToast('⚠️ ক্যাম্পের নাম লিখুন'); return; }
-  s.leaflet = Object.assign({}, s.leaflet || {}, {
-    ribbon: v.ribbon, headline: v.headline, time: v.time, msg: v.msg, services: v.services, note: v.note, org: v.org,
-    persons: v.persons, helperName: v.helperName, helperPhone: v.helperPhone, contactPhone: v.contactPhone
-  });
+  s.leaflet = Object.assign({}, s.leaflet || {}, { ribbon: v.ribbon, headline: v.headline, msg: v.msg, services: v.services, note: v.note });
   try { saveData(); } catch (e) {}
   closeCampLeafletModal();
   exportDocumentPDF(_lfBuildHtml(v), 'Camp_Leaflet_' + (s.date || ''), '📄 ' + _lfEsc(v.title) + ' — প্রচার লিফলেট');
 }
 function _lfBuildHtml(v) {
   var st = appData.settings || {};
-  var hospRaw = st.hospName || 'ICON Eye Hospital', hosp = _lfEsc(hospRaw);
+  var hosp = _lfEsc(st.hospName || 'ICON Eye Hospital');
   var lines = function (t) { return String(t || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean); };
   var svc = lines(v.services).map(function (x) { return '<li>' + _lfEsc(x) + '</li>'; }).join('');
   var persons = String(v.persons || '').split(/[,،;\n]/).map(function (x) { return x.trim(); }).filter(Boolean).map(_lfEsc);
   var dtxt = _lfDateTxt(v.date);
-  var msg = v.msg || ('প্রিয় এলাকাবাসী, ' + (dtxt ? dtxt + (v.time ? ' ' + v.time : '') + ' ' : '') + (v.venue ? v.venue + '-এ ' : '') + hospRaw + '-এর আয়োজনে চক্ষু ক্যাম্প অনুষ্ঠিত হবে। চোখের সমস্যায় ভোগা সবাইকে ক্যাম্পে আসার জন্য আন্তরিক আমন্ত্রণ জানাচ্ছি।');
+  var venueRaw = v.venue || '';
+  var msg = v.msg || ('প্রিয় এলাকাবাসী, ' + (dtxt ? dtxt + (v.time ? ', ' + v.time : '') + ' ' : '') + (venueRaw ? venueRaw + '-এ ' : '') + (st.hospName || 'ICON Eye Hospital') + '-এর আয়োজনে চক্ষু ক্যাম্প অনুষ্ঠিত হবে। চোখের সমস্যায় ভোগা সবাইকে ক্যাম্পে আসার জন্য আন্তরিক আমন্ত্রণ জানাচ্ছি।');
   var row = function (k, val, big) { return val ? '<div class="lf-r' + (big ? ' lf-big' : '') + '"><span class="lf-k">' + k + '</span><span class="lf-c">:</span><span class="lf-v">' + val + '</span></div>' : ''; };
   var supHtml = '';
   if (v.org || persons.length || v.helperName) {
-    supHtml = '<div class="lf-col"><div class="lf-tag">সহযোগিতায়</div>'
+    supHtml = '<div class="lf-sup"><span class="lf-tag lf-t2">সার্বিক সহযোগিতায়</span>'
       + (v.org ? '<div class="lf-s1">' + _lfEsc(v.org) + '</div>' : '')
-      + persons.map(function (p) { return '<div class="lf-s2">' + p + '</div>'; }).join('')
-      + (v.helperName ? '<div class="lf-s3">' + _lfEsc(v.helperName) + (v.helperPhone ? '<br>' + _lfEsc(v.helperPhone) : '') + '</div>' : '')
+      + (persons.length ? '<div class="lf-s2">' + persons.join(' &nbsp;·&nbsp; ') + '</div>' : '')
+      + (v.helperName ? '<div class="lf-s3">স্থানীয় যোগাযোগ: ' + _lfEsc(v.helperName) + (v.helperPhone ? ' — ' + _lfEsc(v.helperPhone) : '') + '</div>' : '')
       + '</div>';
   }
   var contact = [];
@@ -39097,51 +39116,52 @@ function _lfBuildHtml(v) {
   if (st.email) contact.push('✉️ ' + _lfEsc(st.email));
   var one =
     '<div class="lf-cell"><div class="lf">'
-    + '<div class="lf-head">' + (typeof LOGO_B64 !== 'undefined' ? '<img class="lf-logo" src="' + LOGO_B64 + '" alt="">' : '')
-    + '<div><div class="lf-hn">' + hosp + '</div>' + (st.tagline ? '<div class="lf-tg">' + _lfEsc(st.tagline) + '</div>' : '') + '</div></div>'
-    + (v.ribbon ? '<div class="lf-rib">' + _lfEsc(v.ribbon) + '</div>' : '')
+    + '<div class="lf-head">' + (typeof LOGO_B64 !== 'undefined' ? '<img class="lf-logo" src="' + LOGO_B64 + '" alt="' + hosp + '">' : '<div class="lf-hn">' + hosp + '</div>')
+    + (st.tagline ? '<div class="lf-tg">' + _lfEsc(st.tagline) + '</div>' : '') + '</div>'
+    + (v.ribbon ? '<div class="lf-rib"><span>' + _lfEsc(v.ribbon) + '</span></div>' : '')
     + (v.headline ? '<div class="lf-hl">' + _lfEsc(v.headline) + '</div>' : '')
     + '<div class="lf-camp">' + _lfEsc(v.title) + '</div>'
     + '<div class="lf-info">'
     + row('তারিখ', _lfEsc(dtxt), true)
     + row('সময়', _lfEsc(v.time))
     + row('ভিজিট ফি', _lfEsc(v.fee), true)
-    + row('স্থান', _lfEsc(v.venue))
+    + row('স্থান', _lfEsc(venueRaw))
     + '</div>'
     + '<div class="lf-msg">' + _lfEsc(msg) + '</div>'
-    + (svc ? '<div class="lf-bar"><span>লক্ষ্য করুন</span></div><ul class="lf-svc">' + svc + '</ul>' : '')
+    + (svc ? '<div class="lf-h2"><span>সেবাসমূহ</span></div><ul class="lf-svc">' + svc + '</ul>' : '')
     + (v.note ? '<div class="lf-note">' + _lfEsc(v.note) + '</div>' : '')
-    + '<div class="lf-spons">'
-    + '<div class="lf-col"><div class="lf-tag">আয়োজনে</div><div class="lf-s1">' + hosp + '</div></div>'
     + supHtml
-    + '</div>'
-    + '<div class="lf-foot">' + (st.address ? '<div>📍 ' + _lfEsc(st.address) + '</div>' : '') + (contact.length ? '<div>' + contact.join(' &nbsp;|&nbsp; ') + '</div>' : '') + '</div>'
-    + '</div></div>';
+    + '<div class="lf-foot"><span class="lf-tag lf-t3">আয়োজনে</span><div class="lf-fn">' + hosp + '</div>'
+    + (st.address ? '<div class="lf-fa">📍 ' + _lfEsc(st.address) + '</div>' : '')
+    + (contact.length ? '<div class="lf-fa">' + contact.join(' &nbsp;|&nbsp; ') + '</div>' : '')
+    + '</div></div></div>';
   var css = '<style>'
     + '@page{size:A4 landscape;margin:0}'
     + '.lf-sheet{width:297mm;height:209mm;display:flex;position:relative;background:#fff;box-sizing:border-box;overflow:hidden;margin:0 auto;font-family:\'Hind Siliguri\',Arial,sans-serif;color:#111;page-break-inside:avoid;break-inside:avoid}'
     + '.lf-sheet *{box-sizing:border-box}'
     + '.lf-cell{width:148.5mm;height:209mm;padding:6mm}'
-    + '.lf{height:100%;border:1px solid #444;border-radius:3mm;display:flex;flex-direction:column;overflow:hidden;padding:4mm 5mm}'
-    + '.lf-head{display:flex;align-items:center;gap:3mm;border-bottom:1.5px solid #111;padding-bottom:2.5mm}'
-    + '.lf-logo{height:13mm;object-fit:contain;filter:grayscale(1)}'
-    + '.lf-hn{font-size:16pt;font-weight:800;line-height:1.2}.lf-tg{font-size:8.5pt;color:#444;margin-top:.5mm}'
-    + '.lf-rib{text-align:center;font-size:15pt;font-weight:800;margin-top:3mm;letter-spacing:.3px}'
-    + '.lf-hl{text-align:center;font-size:17pt;font-weight:800;line-height:1.3;margin-top:1.5mm;border-top:1px solid #777;border-bottom:1px solid #777;padding:2mm 1mm}'
-    + '.lf-camp{text-align:center;font-size:10pt;font-weight:600;color:#333;margin-top:2mm}'
-    + '.lf-info{margin-top:2.5mm;border:1px solid #555;border-radius:2mm;padding:2mm 3.5mm}'
-    + '.lf-r{display:flex;gap:1.5mm;font-size:10.5pt;line-height:1.5;padding:.6mm 0}.lf-big{font-size:13pt;font-weight:800}'
-    + '.lf-k{width:20mm;flex-shrink:0;font-weight:800}.lf-c{flex-shrink:0;font-weight:700}.lf-v{font-weight:600;min-width:0;overflow-wrap:anywhere}.lf-big .lf-v{font-weight:800}'
-    + '.lf-msg{margin-top:2.5mm;font-size:10pt;line-height:1.6;text-align:justify}'
-    + '.lf-bar{text-align:center;margin-top:2.5mm;border-top:1.5px solid #111;border-bottom:1.5px solid #111;padding:.8mm 0;font-size:12.5pt;font-weight:800}'
-    + '.lf-svc{margin:2mm 0 0;padding:0;list-style:none;font-size:10pt;font-weight:600;line-height:1.5}'
-    + '.lf-svc li{padding-left:4.5mm;position:relative;margin-bottom:.8mm}.lf-svc li:before{content:"●";position:absolute;left:0;font-size:7pt;top:1mm}'
-    + '.lf-note{margin-top:2mm;font-size:9.5pt;font-weight:700;text-align:center;border:1px solid #555;border-radius:2mm;padding:1.4mm 2.5mm}'
-    + '.lf-spons{margin-top:auto;display:flex;gap:3mm;border-top:1px solid #777;padding-top:2.5mm}'
-    + '.lf-col{flex:1;text-align:center;min-width:0}'
-    + '.lf-tag{display:inline-block;border:1px solid #111;border-radius:99px;padding:.3mm 4mm;font-size:9pt;font-weight:800;margin-bottom:1.2mm}'
-    + '.lf-s1{font-size:11pt;font-weight:800;line-height:1.35}.lf-s2{font-size:10pt;font-weight:700;line-height:1.4}.lf-s3{font-size:9pt;font-weight:600;color:#333;margin-top:.8mm;line-height:1.4}'
-    + '.lf-foot{margin-top:2.5mm;border-top:1px solid #111;padding-top:1.8mm;text-align:center;font-size:9pt;font-weight:600;line-height:1.5}'
+    + '.lf{height:100%;border:1px solid #cfe3ec;border-radius:3mm;display:flex;flex-direction:column;overflow:hidden;padding:5mm 6mm;background:#fff}'
+    + '.lf-head{text-align:center;border-bottom:1px solid #cfe3ec;padding-bottom:2.5mm}'
+    + '.lf-logo{height:15mm;width:auto;max-width:100%;object-fit:contain;display:block;margin:0 auto}'
+    + '.lf-hn{font-size:15pt;font-weight:600}.lf-tg{font-size:8.5pt;color:#444;margin-top:1.2mm}'
+    + '.lf-rib{text-align:center;margin-top:3mm}.lf-rib span{display:inline-block;background:#fff3cf;border-radius:99px;padding:.8mm 6mm;font-size:12pt;font-weight:600}'
+    + '.lf-hl{text-align:center;font-size:15.5pt;font-weight:700;line-height:1.35;margin-top:2.5mm}'
+    + '.lf-camp{text-align:center;font-size:9.5pt;color:#333;margin-top:1mm}'
+    + '.lf-info{margin-top:3mm;background:#eaf6fb;border-radius:2.5mm;padding:2.5mm 4mm}'
+    + '.lf-r{display:flex;gap:1.5mm;font-size:10.5pt;line-height:1.55;padding:.5mm 0}.lf-big{font-size:11.5pt}'
+    + '.lf-k{width:20mm;flex-shrink:0;font-weight:500;color:#333}.lf-c{flex-shrink:0}.lf-v{font-weight:600;min-width:0;overflow-wrap:anywhere}'
+    + '.lf-msg{margin-top:3mm;font-size:9.8pt;line-height:1.65;color:#222;text-align:justify}'
+    + '.lf-h2{text-align:center;margin-top:3mm}.lf-h2 span{display:inline-block;background:#e2f4e8;border-radius:99px;padding:.7mm 6mm;font-size:11pt;font-weight:600}'
+    + '.lf-svc{margin:2mm 0 0;padding:0;list-style:none;font-size:10pt;line-height:1.55}'
+    + '.lf-svc li{padding-left:4.5mm;position:relative;margin-bottom:.8mm}.lf-svc li:before{content:"";position:absolute;left:.5mm;top:2.1mm;width:1.6mm;height:1.6mm;border-radius:50%;background:#0a88b5}'
+    + '.lf-note{margin-top:2.5mm;font-size:9.3pt;text-align:center;background:#fff3cf;border-radius:2mm;padding:1.4mm 2.5mm}'
+    + '.lf-tag{display:inline-block;border-radius:99px;padding:.4mm 4.5mm;font-size:8.5pt;font-weight:600;margin-bottom:1.3mm}'
+    + '.lf-t2{background:#efe8fa}.lf-t3{background:#e2f4e8}'
+    + '.lf-sup{margin-top:auto;text-align:center;padding-top:2.5mm}'
+    + '.lf-s1{font-size:11pt;font-weight:600;line-height:1.35}.lf-s2{font-size:10pt;line-height:1.45;margin-top:.8mm}.lf-s3{font-size:9pt;color:#444;margin-top:.8mm}'
+    + '.lf-foot{margin-top:3mm;border-top:1px solid #cfe3ec;padding-top:2.5mm;text-align:center}'
+    + '.lf-sup+.lf-foot{margin-top:2.5mm}.lf-note+.lf-foot,.lf-svc+.lf-foot,.lf-msg+.lf-foot{margin-top:auto}'
+    + '.lf-fn{font-size:11pt;font-weight:600;line-height:1.3}.lf-fa{font-size:9pt;line-height:1.5;color:#222;margin-top:.3mm}'
     + '@media screen{'
     + '#printPreviewOverlay .print-preview-card{width:max-content!important;max-width:100%!important}'
     + '#printPreviewBody{padding:0!important;overflow:auto!important}'
@@ -48206,6 +48226,9 @@ function amCampForm(id, pre) {
     + '<div class="am-f"><label>ডাক্তার *</label><select id="amCsDoc">' + dopts + '</select></div>'
     + '<div class="am-f"><label>ক্যাম্পেইনার</label><select id="amCsCamper">' + copts + '</select></div>'
     + '<div class="am-f"><label>ভিজিট ফি (৳)</label><input type="number" inputmode="numeric" id="amCsFee" value="' + (s ? (s.visitFee || '') : '') + '"></div>'
+    + '<div class="am-f"><label>🕘 ক্যাম্পের সময় (শুরু — শেষ)</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="time" id="amCsTF" value="' + amEsc(s ? (s.timeFrom || '') : '') + '"><input type="time" id="amCsTT" value="' + amEsc(s ? (s.timeTo || '') : '') + '"></div></div>'
+    + '<div class="am-f"><label>🤝 সহযোগী সংগঠন (লিফলেটে আসবে)</label><input id="amCsOrg" value="' + amEsc(s ? (s.localOrg || '') : '') + '" placeholder="স্থানীয় সংগঠনের নাম"></div>'
+    + '<div class="am-f"><label>👥 বিশেষ ব্যক্তিবর্গ (কমা দিয়ে নাম)</label><input id="amCsGuests" value="' + amEsc(s ? (s.guests || '') : '') + '" placeholder="নাম ১, নাম ২"></div>'
     + '<div class="am-f"><label>নিয়মিত কর্মী (দৈনিক = মূল বেতন ÷ ৩০)</label><div class="am-staff">' + staff + '</div></div>'
     + '<div class="am-f"><label>পার্টটাইমার</label><div id="amPtRows"></div><button type="button" class="am-btn line" style="width:100%" onclick="amAddPt()">+ পার্টটাইমার যোগ</button></div>'
     + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amSaveCamp()">সেভ করুন</button></div>');
@@ -48241,6 +48264,7 @@ function amAddPt(name, pay) {
 function amSaveCamp() {
   var v = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
   var name = v('amCsName'), location = v('amCsLoc'), date = v('amCsDate'), doctor = v('amCsDoc'), camper = v('amCsCamper');
+  var _lx = { timeFrom: v('amCsTF'), timeTo: v('amCsTT'), localOrg: v('amCsOrg'), guests: v('amCsGuests') };
   var visitFee = parseFloat(v('amCsFee')) || 0, editId = v('amCsId'), oldDate = v('amCsOldDate'), rsReason = v('amCsRsReason');
   var dOpt = document.getElementById('amCsDoc').selectedOptions[0], doctorId = dOpt ? (dOpt.getAttribute('data-id') || '') : '';
   if (!name || !location || !date) { showToast('⚠️ নাম, স্থান ও তারিখ আবশ্যক!'); return; }
@@ -48267,10 +48291,10 @@ function amSaveCamp() {
     if (idx >= 0) {
       var cur = appData.campSchedules[idx];
       if (dateChanged) { amPushResched(cur, date, rsReason); if (cur.status !== 'active') cur.status = 'scheduled'; }
-      appData.campSchedules[idx] = Object.assign(cur, { name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary }, _vx);
+      appData.campSchedules[idx] = Object.assign(cur, { name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary, timeFrom: _lx.timeFrom, timeTo: _lx.timeTo, localOrg: _lx.localOrg, guests: _lx.guests }, _vx);
     }
   } else {
-    appData.campSchedules.push({ id: Date.now(), name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary, status: 'scheduled', villageId: _vx.villageId, union: _vx.union, village: _vx.village });
+    appData.campSchedules.push({ id: Date.now(), name: name, location: location, date: date, visitFee: visitFee, camper: camper, doctor: doctor, doctorId: doctorId, regularStaff: regularStaff, parttimers: parttimers, staff: staffSummary, status: 'scheduled', villageId: _vx.villageId, union: _vx.union, village: _vx.village, timeFrom: _lx.timeFrom, timeTo: _lx.timeTo, localOrg: _lx.localOrg, guests: _lx.guests });
   }
   saveData(); try { renderCampScheduleTable(); } catch (e) {}
   amCloseSheet(); showToast(dateChanged ? '📅 ক্যাম্প রিশিডিউল ও সংশোধন সেভ হয়েছে' : '✅ ক্যাম্প শিডিউল সেভ হয়েছে'); amAfter();
