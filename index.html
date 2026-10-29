@@ -39032,6 +39032,19 @@ var _LF_IC = {
 };
 function _lfIc(n, cls) { return '<svg class="' + (cls || 'lf-i') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + _LF_IC[n] + '</svg>'; }
 var _LF_IC_CSS = '.lf-i{width:3.3mm;height:3.3mm;vertical-align:-.55mm;margin-right:1.2mm;color:#0f4c81;flex-shrink:0}';
+function _lfAutoMsg(v) {
+  var st = appData.settings || {};
+  var dtxt = _lfDateTxt(v.date);
+  var when = (dtxt ? 'আগামী ' + dtxt : '') + (v.time ? (dtxt ? ', ' : '') + v.time : '');
+  var where = v.venue ? (when ? ' ' : '') + v.venue + '-এ' : '';
+  var first = (st.hospName || 'ICON Eye Hospital') + '-এর উদ্যোগে ' + when + where + ' চক্ষু চিকিৎসা ও পরামর্শ ক্যাম্প অনুষ্ঠিত হবে।';
+  return 'সম্মানিত এলাকাবাসী,\n' + first + ' ক্যাম্পে চোখের পরীক্ষা ও পরামর্শের পাশাপাশি ছানি রোগীদের জন্য স্বল্পমূল্যে অপারেশনের সুযোগ রয়েছে। সবাইকে সপরিবারে আসার আন্তরিক আমন্ত্রণ রইল।';
+}
+function _lfMsgHtml(msg) {
+  return String(msg || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return '<p>' + _lfEsc(x) + '</p>'; }).join('');
+}
+var _LF_BIS = '<div class="lf-bis"><div class="ar">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div><div class="bn">বিসমিল্লাহির রাহমানির রাহিম</div></div>';
+var _LF_BIS_CSS = '.lf-bis{text-align:center;line-height:1.25}.lf-bis .ar{font-family:\'Amiri\',\'Noto Naskh Arabic\',\'Scheherazade New\',\'Traditional Arabic\',\'Times New Roman\',serif;font-size:10pt;font-weight:400;color:#0a2540;direction:rtl}.lf-bis .bn{font-size:7.2pt;font-weight:300;color:#444;letter-spacing:.2px}';
 function _lfTimeTxt(t) {
   if (!t) return '';
   var p = String(t).split(':'), h = +p[0], m = +(p[1] || 0);
@@ -39063,11 +39076,14 @@ function _lfDefaults(s) {
     services: 'চক্ষু পরীক্ষা ও প্রয়োজনীয় চিকিৎসা পরামর্শ\nছানি ধরা পড়লে রোগীদের স্বল্পমূল্যে ছানি অপারেশনের ব্যবস্থা\nচশমা ও ওষুধ সংক্রান্ত পরামর্শ',
     layout: '1', title2: 'চক্ষু চিকিৎসা ও পরামর্শ ক্যাম্প',
     note: '', org: s.localOrg || '', persons: s.guests || '', helperName: v.helperName || '', helperPhone: v.helperPhone || '',
-    contactPhone: st.phone || ''
+    contactPhone: st.phone || '',
+    showPersons: true, showHName: true, showHPhone: true, showBism: true
   };
-  ['ribbon','headline','msg','services','note','layout','title2'].forEach(function (k) {
+  ['ribbon','headline','services','note','layout','title2'].forEach(function (k) {
     if (sv[k] != null && !(k === 'note' && sv[k] === _LF_OLD_NOTE)) d[k] = sv[k];
   });
+  ['showPersons','showHName','showHPhone','showBism'].forEach(function (k) { if (sv[k] === false) d[k] = false; });
+  d.msg = sv.msg ? sv.msg : _lfAutoMsg(d);
   return d;
 }
 function closeCampLeafletModal() { var m = document.getElementById('campLeafletModal'); if (m) m.remove(); }
@@ -39085,6 +39101,7 @@ function openCampLeafletModal(id) {
     return '<div style="flex:1;min-width:200px"><label style="' + lab + '">' + label + '</label><textarea id="' + idv + '" rows="' + rows + '" placeholder="' + _lfEsc(ph || '') + '" style="' + inp + ';resize:vertical">' + _lfEsc(val) + '</textarea></div>';
   };
   var row = function (h) { return '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">' + h + '</div>'; };
+  var chk = function (idv, label, on) { return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="' + idv + '"' + (on ? ' checked' : '') + ' style="width:16px;height:16px"> ' + label + '</label>'; };
   var w = document.createElement('div');
   w.id = 'campLeafletModal';
   w.style.cssText = 'position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto';
@@ -39094,10 +39111,13 @@ function openCampLeafletModal(id) {
     + row(fld('ছোট শিরোনাম (শুধু ডিজাইন ১)', 'lfRibbon', d.ribbon) + fld('মূল ঘোষণা (শুধু ডিজাইন ১)', 'lfHeadline', d.headline))
     + row(fld('ক্যাম্পের নাম *', 'lfTitle', d.title) + fld('তারিখ', 'lfDate', d.date, 'date'))
     + row(fld('ভিজিট ফি', 'lfFee', d.fee, 'text', 'যেমন: ৳ ১০০') + fld('স্থান / ঠিকানা', 'lfVenue', d.venue))
-    + row(area('আমন্ত্রণ বার্তা (ফাঁকা রাখলে স্বয়ংক্রিয় লেখা হবে)', 'lfMsg', d.msg, 3))
+    + row(area('✉️ আমন্ত্রণ চিঠি (প্রয়োজনে এখানে এডিট করুন)', 'lfMsg', d.msg, 7))
     + row(area('সেবাসমূহ (প্রতি লাইনে একটি)', 'lfServices', d.services, 4) + area('অতিরিক্ত নির্দেশনা (ঐচ্ছিক)', 'lfNote', d.note, 4))
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;font-weight:600;color:#334155;margin-bottom:10px">'
+    + chk('lfShBism', 'বিসমিল্লাহ দেখাও', d.showBism) + chk('lfShPersons', 'বিশেষ ব্যক্তিবর্গের নাম দেখাও', d.showPersons)
+    + chk('lfShHName', 'স্থানীয় যোগাযোগের নাম দেখাও', d.showHName) + chk('lfShHPhone', 'স্থানীয় যোগাযোগের নম্বর দেখাও', d.showHPhone) + '</div>'
     + '<div style="font-size:12px;color:#475569;background:#f1f5f9;border-radius:9px;padding:8px 10px;margin-bottom:10px;line-height:1.7">'
-    + '🕘 সময়: <b>' + _lfEsc(d.time || 'দেওয়া নেই') + '</b><br>🤝 সহযোগী সংগঠন: <b>' + _lfEsc(d.org || 'দেওয়া নেই') + '</b><br>👥 বিশেষ ব্যক্তিবর্গ: <b>' + _lfEsc(d.persons || 'দেওয়া নেই') + '</b>'
+    + '🕘 সময়: <b>' + _lfEsc(d.time || 'দেওয়া নেই') + '</b><br>🤝 সহযোগী সংগঠন: <b>' + _lfEsc(d.org || 'দেওয়া নেই') + '</b><br>👥 বিশেষ ব্যক্তিবর্গ: <b>' + _lfEsc(d.persons || 'দেওয়া নেই') + '</b><br>📞 স্থানীয় যোগাযোগ: <b>' + _lfEsc(([d.helperName, d.helperPhone].filter(Boolean).join(' — ')) || 'দেওয়া নেই') + '</b>'
     + '<br><span style="color:#94a3b8">এগুলো ক্যাম্প শিডিউলের সংশোধন (✏️) থেকে বদলাতে হয়।</span></div>'
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">'
     + '<button type="button" onclick="closeCampLeafletModal()" style="padding:9px 16px;border:1.5px solid #cbd5e1;background:#fff;border-radius:10px;font-family:inherit;font-weight:700;cursor:pointer">বাতিল</button>'
@@ -39115,8 +39135,14 @@ function printCampLeaflet(id) {
     venue: g('lfVenue'), msg: g('lfMsg'), services: g('lfServices'), note: g('lfNote'), layout: g('lfLayout') || '1', title2: g('lfTitle2'),
     time: d0.time, org: d0.org, persons: d0.persons, helperName: d0.helperName, helperPhone: d0.helperPhone, contactPhone: d0.contactPhone
   };
+  var ck = function (i) { var el = document.getElementById(i); return el ? !!el.checked : true; };
+  var flags = { showBism: ck('lfShBism'), showPersons: ck('lfShPersons'), showHName: ck('lfShHName'), showHPhone: ck('lfShHPhone') };
+  v.bism = flags.showBism;
+  if (!flags.showPersons) v.persons = '';
+  if (!flags.showHName) v.helperName = '';
+  if (!flags.showHPhone) v.helperPhone = '';
   if (!v.title) { showToast('⚠️ ক্যাম্পের নাম লিখুন'); return; }
-  s.leaflet = Object.assign({}, s.leaflet || {}, { ribbon: v.ribbon, headline: v.headline, msg: v.msg, services: v.services, note: v.note, layout: v.layout, title2: v.title2 });
+  s.leaflet = Object.assign({}, s.leaflet || {}, { ribbon: v.ribbon, headline: v.headline, msg: (v.msg && v.msg !== _lfAutoMsg(_lfDefaults(Object.assign({}, s, { leaflet: {} })))) ? v.msg : '', services: v.services, note: v.note, layout: v.layout, title2: v.title2, showBism: flags.showBism, showPersons: flags.showPersons, showHName: flags.showHName, showHPhone: flags.showHPhone });
   try { saveData(); } catch (e) {}
   closeCampLeafletModal();
   exportDocumentPDF(_lfBuildHtml(v), 'Camp_Leaflet_' + (s.date || ''), '📄 ' + _lfEsc(v.title) + ' — প্রচার লিফলেট');
@@ -39130,14 +39156,14 @@ function _lfBuildHtml(v) {
   var persons = String(v.persons || '').split(/[,،;\n]/).map(function (x) { return x.trim(); }).filter(Boolean).map(_lfEsc);
   var dtxt = _lfDateTxt(v.date);
   var venueRaw = v.venue || '';
-  var msg = v.msg || ('প্রিয় এলাকাবাসী, ' + (dtxt ? dtxt + (v.time ? ', ' + v.time : '') + ' ' : '') + (venueRaw ? venueRaw + '-এ ' : '') + (st.hospName || 'ICON Eye Hospital') + '-এর আয়োজনে চক্ষু ক্যাম্প অনুষ্ঠিত হবে। চোখের সমস্যায় ভোগা সবাইকে ক্যাম্পে আসার জন্য আন্তরিক আমন্ত্রণ জানাচ্ছি।');
+  var msg = v.msg || _lfAutoMsg(v);
   var row = function (k, val, big) { return val ? '<div class="lf-r' + (big ? ' lf-big' : '') + '"><span class="lf-k">' + k + '</span><span class="lf-c">:</span><span class="lf-v">' + val + '</span></div>' : ''; };
   var supHtml = '';
-  if (v.org || persons.length || v.helperName) {
+  if (v.org || persons.length || v.helperName || v.helperPhone) {
     supHtml = '<div class="lf-sup"><span class="lf-tag lf-t2">সার্বিক সহযোগিতায়</span>'
       + (v.org ? '<div class="lf-s1">' + _lfEsc(v.org) + '</div>' : '')
       + (persons.length ? '<div class="lf-s2">' + persons.join(' &nbsp;·&nbsp; ') + '</div>' : '')
-      + (v.helperName ? '<div class="lf-s3">স্থানীয় যোগাযোগ: ' + _lfEsc(v.helperName) + (v.helperPhone ? ' — ' + _lfEsc(v.helperPhone) : '') + '</div>' : '')
+      + ((v.helperName || v.helperPhone) ? '<div class="lf-s3">স্থানীয় যোগাযোগ: ' + _lfEsc([v.helperName, v.helperPhone].filter(Boolean).join(' — ')) + '</div>' : '')
       + '</div>';
   }
   var contact = [];
@@ -39145,6 +39171,7 @@ function _lfBuildHtml(v) {
   if (st.email) contact.push(_lfIc('mail') + _lfEsc(st.email));
   var one =
     '<div class="lf-cell"><div class="lf">'
+    + (v.bism !== false ? _LF_BIS : '')
     + '<div class="lf-head">' + (typeof LOGO_B64 !== 'undefined' ? '<img class="lf-logo" src="' + LOGO_B64 + '" alt="' + hosp + '">' : '<div class="lf-hn">' + hosp + '</div>')
     + (st.tagline ? '<div class="lf-tg">' + _lfEsc(st.tagline) + '</div>' : '') + '</div>'
     + (v.ribbon ? '<div class="lf-rib"><span>' + _lfEsc(v.ribbon) + '</span></div>' : '')
@@ -39156,7 +39183,7 @@ function _lfBuildHtml(v) {
     + row('ভিজিট ফি', _lfEsc(v.fee), true)
     + row('স্থান', _lfEsc(venueRaw))
     + '</div>'
-    + '<div class="lf-msg">' + _lfEsc(msg) + '</div>'
+    + '<div class="lf-msg">' + _lfMsgHtml(msg) + '</div>'
     + (svc ? '<div class="lf-h2"><span>সেবাসমূহ</span></div><ul class="lf-svc">' + svc + '</ul>' : '')
     + (v.note ? '<div class="lf-note">' + _lfEsc(v.note) + '</div>' : '')
     + supHtml
@@ -39168,20 +39195,20 @@ function _lfBuildHtml(v) {
     + '@page{size:A4 landscape;margin:0}'
     + '.lf-sheet{width:297mm;height:209mm;display:flex;position:relative;background:#fff;box-sizing:border-box;overflow:hidden;margin:0 auto;font-family:\'Hind Siliguri\',Arial,sans-serif;color:#111;page-break-inside:avoid;break-inside:avoid}'
     + '.lf-sheet *{box-sizing:border-box}'
-    + '.lf-cell{width:148.5mm;height:209mm;padding:6mm}'
-    + '.lf{height:100%;border:1px solid #cfe3ec;border-radius:3mm;display:flex;flex-direction:column;overflow:hidden;padding:5mm 6mm;background:#fff}'
+    + '.lf-cell{width:148.5mm;height:209mm;padding:5mm}'
+    + '.lf{height:100%;border:1px solid #cfe3ec;border-radius:3mm;display:flex;flex-direction:column;overflow:hidden;padding:4mm 5.5mm;background:#fff}'
     + '.lf-head{text-align:center;border-bottom:1px solid #cfe3ec;padding-bottom:2.5mm}'
-    + '.lf-logo{height:15mm;width:auto;max-width:100%;object-fit:contain;display:block;margin:0 auto}'
+    + '.lf-logo{height:13mm;width:auto;max-width:100%;object-fit:contain;display:block;margin:0 auto}'
     + '.lf-hn{font-size:15pt;font-weight:600}.lf-tg{font-size:8.5pt;color:#444;margin-top:1.2mm}'
-    + '.lf-rib{text-align:center;margin-top:3mm}.lf-rib span{display:inline-block;background:#fff3cf;border-radius:99px;padding:.8mm 6mm;font-size:12pt;font-weight:600}'
-    + '.lf-hl{text-align:center;font-size:15.5pt;font-weight:700;line-height:1.35;margin-top:2.5mm}'
+    + '.lf-rib{text-align:center;margin-top:2.2mm}.lf-rib span{display:inline-block;background:#fff3cf;border-radius:99px;padding:.8mm 6mm;font-size:12pt;font-weight:600}'
+    + '.lf-hl{text-align:center;font-size:14.5pt;font-weight:700;line-height:1.3;margin-top:2mm}'
     + '.lf-camp{text-align:center;font-size:9.5pt;color:#333;margin-top:1mm}'
-    + '.lf-info{margin-top:3mm;background:#eaf6fb;border-radius:2.5mm;padding:2.5mm 4mm}'
-    + '.lf-r{display:flex;gap:1.5mm;font-size:10.5pt;line-height:1.55;padding:.5mm 0}.lf-big{font-size:11.5pt}'
+    + '.lf-info{margin-top:2.5mm;background:#eaf6fb;border-radius:2.5mm;padding:2mm 4mm}'
+    + '.lf-r{display:flex;gap:1.5mm;font-size:10pt;line-height:1.5;padding:.3mm 0}.lf-big{font-size:11pt}'
     + '.lf-k{width:20mm;flex-shrink:0;font-weight:500;color:#333}.lf-c{flex-shrink:0}.lf-v{font-weight:600;min-width:0;overflow-wrap:anywhere}'
-    + '.lf-msg{margin-top:3mm;font-size:9.8pt;line-height:1.65;color:#222;text-align:justify}'
+    + '.lf-msg{margin-top:2.5mm;font-size:9.4pt;line-height:1.55;color:#222;text-align:justify}'
     + '.lf-h2{text-align:center;margin-top:3mm}.lf-h2 span{display:inline-block;background:#e2f4e8;border-radius:99px;padding:.7mm 6mm;font-size:11pt;font-weight:600}'
-    + '.lf-svc{margin:2mm 0 0;padding:0;list-style:none;font-size:10pt;line-height:1.55}'
+    + '.lf-svc{margin:1.6mm 0 0;padding:0;list-style:none;font-size:9.6pt;line-height:1.5}'
     + '.lf-svc li{padding-left:4.5mm;position:relative;margin-bottom:.8mm}.lf-svc li:before{content:"";position:absolute;left:.5mm;top:2.1mm;width:1.6mm;height:1.6mm;border-radius:50%;background:#0a88b5}'
     + '.lf-note{margin-top:2.5mm;font-size:9.3pt;text-align:center;background:#fff3cf;border-radius:2mm;padding:1.4mm 2.5mm}'
     + '.lf-tag{display:inline-block;border-radius:99px;padding:.4mm 4.5mm;font-size:8.5pt;font-weight:600;margin-bottom:1.3mm}'
@@ -39191,7 +39218,8 @@ function _lfBuildHtml(v) {
     + '.lf-foot{margin-top:3mm;border-top:1px solid #cfe3ec;padding-top:2.5mm;text-align:center}'
     + '.lf-sup+.lf-foot{margin-top:2.5mm}.lf-note+.lf-foot,.lf-svc+.lf-foot,.lf-msg+.lf-foot{margin-top:auto}'
     + '.lf-fn{font-size:11pt;font-weight:600;line-height:1.3}.lf-fa{font-size:9pt;line-height:1.5;color:#222;margin-top:.3mm}'
-    + _LF_IC_CSS
+    + _LF_IC_CSS + _LF_BIS_CSS
+    + '.lf-msg p{margin:0 0 1mm}.lf-bis{margin-bottom:1.5mm}'
     + '@media screen{'
     + '#printPreviewOverlay .print-preview-card{width:max-content!important;max-width:100%!important}'
     + '#printPreviewBody{padding:0!important;overflow:auto!important}'
@@ -39220,20 +39248,20 @@ function _lfBuildHtml2(v) {
   var oi = t2.indexOf(' ও '); if (oi > 0) { t2a = t2.slice(0, oi); t2b = t2.slice(oi + 1); }
   var lines = function (t) { return String(t || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean); };
   var svc = lines(v.services).map(function (x) { return '<li>' + _lfEsc(x.replace(/[।.,]+$/, '')) + '</li>'; }).join('');
-  var msg = v.msg || ('প্রিয় এলাকাবাসী, ' + (dtxt ? dtxt + (v.time ? ', ' + v.time : '') + ' ' : '') + (v.venue ? v.venue + '-এ ' : '') + hospRaw + '-এর আয়োজনে চক্ষু ক্যাম্প অনুষ্ঠিত হবে। চোখের সমস্যায় ভোগা সবাইকে ক্যাম্পে আসার জন্য আন্তরিক আমন্ত্রণ জানাচ্ছি।');
+  var msg = v.msg || _lfAutoMsg(v);
   var card = function (clr, label, icon, body) {
     return body ? '<div class="l2-bx" style="--c:' + clr + '"><span class="l2-badge">' + _lfIc(icon, 'l2-ico') + '</span><span class="l2-pill">' + label + '</span>' + body + '</div>' : '';
   };
   var cards =
     card('#0a88b5', 'স্থান', 'pin', v.venue ? '<div class="l2-bv">' + _lfEsc(v.venue) + '</div>' : '')
     + card('#0a2540', 'তারিখ', 'cal', dMain ? '<div class="l2-bv">' + _lfEsc(dMain) + '</div>' + (dSub ? '<div class="l2-bs">(' + _lfEsc(dSub) + ')</div>' : '') : '')
-    + card('#0f4c81', 'সময়', 'clock', v.time ? '<div class="l2-bv">' + _lfEsc(v.time) + '</div>' : '')
+    + card('#0f4c81', 'সময়', 'clock', v.time ? '<div class="l2-bv">' + _lfEsc(String(v.time).replace(/\s*পর্যন্ত$/, '')).replace(/\s+থেকে\s+/, '<br>থেকে<br>') + '</div>' : '')
     + card('#0a88b5', 'টিকিট মূল্য', 'ticket', feeRaw ? '<div class="l2-fee">' + _lfEsc(feeRaw) + '</div>' + (feeNum ? '<div class="l2-bs">টাকা</div>' : '') : '');
   var supBody = '';
   if (v.org) supBody += '<div class="l2-s1">' + _lfEsc(v.org) + '</div>';
   if (persons.length) supBody += '<div class="l2-s2">' + persons.join(' &nbsp;·&nbsp; ') + '</div>';
   var supHtml = supBody ? '<div class="l2-sup"><span class="l2-hbadge">' + _lfIc('hand', 'l2-hand') + '</span><div class="l2-supt"><div class="l2-sl">সার্বিক সহযোগিতায়-</div>' + supBody + '</div></div>' : '';
-  var localHtml = v.helperName ? '<div class="l2-loc">' + _lfIc('phone') + 'স্থানীয় যোগাযোগ: <b>' + _lfEsc(v.helperName) + '</b>' + (v.helperPhone ? ' — ' + _lfEsc(v.helperPhone) : '') + '</div>' : '';
+  var localHtml = (v.helperName || v.helperPhone) ? '<div class="l2-loc">' + _lfIc('phone') + 'স্থানীয় যোগাযোগ: ' + (v.helperName ? '<b>' + _lfEsc(v.helperName) + '</b>' : '') + (v.helperName && v.helperPhone ? ' — ' : '') + (v.helperPhone ? _lfEsc(v.helperPhone) : '') + '</div>' : '';
   var svcHtml = svc ? '<div class="l2-bx l2-svc" style="--c:#0f4c81"><span class="l2-badge">' + _lfIc('eye', 'l2-ico') + '</span><span class="l2-pill">সেবাসমূহ</span><ul>' + svc + '</ul></div>' : '';
   var contactHtml = '';
   if (st.email) contactHtml += '<div class="l2-ct">' + _lfIc('mail') + _lfEsc(st.email) + '</div>';
@@ -39241,8 +39269,9 @@ function _lfBuildHtml2(v) {
   if (ph) contactHtml += '<div class="l2-ct">' + _lfIc('phone') + _lfEsc(ph) + '</div>';
   var one =
     '<div class="l2-cell"><div class="l2">'
+    + (v.bism !== false ? _LF_BIS : '')
     + '<div class="l2-grid">'
-    + '<div class="l2-A"><div class="l2-note"><span class="l2-pin"></span><p>' + _lfEsc(msg) + '</p>' + (v.note ? '<p class="l2-nt">' + _lfEsc(v.note) + '</p>' : '') + '<div class="l2-sig">— ' + hosp + '</div></div></div>'
+    + '<div class="l2-A"><div class="l2-note"><span class="l2-pin"></span>' + _lfMsgHtml(msg) + (v.note ? '<p class="l2-nt">' + _lfEsc(v.note) + '</p>' : '') + '<div class="l2-sig">— ' + hosp + '</div></div></div>'
     + '<div class="l2-R">'
     + '<div class="l2-h"><span class="r">' + _lfEsc(t2a) + '</span>' + (t2b ? '<br><span class="g">' + _lfEsc(t2b) + '</span>' : '') + '</div>'
     + '<div class="l2-orn"><i></i><b></b><i></i></div>'
@@ -39261,39 +39290,39 @@ function _lfBuildHtml2(v) {
     + '</div></div>';
   var css = '<style>'
     + '@page{size:A4 portrait;margin:0}'
-    + _LF_IC_CSS
+    + _LF_IC_CSS + _LF_BIS_CSS
     + '.l2-sheet{width:210mm;height:296mm;display:flex;flex-direction:column;background:#fff;box-sizing:border-box;overflow:hidden;margin:0 auto;font-family:\'Hind Siliguri\',Arial,sans-serif;color:#111;page-break-inside:avoid;break-inside:avoid}'
     + '.l2-sheet *{box-sizing:border-box}'
     + '.l2-cell{width:210mm;height:148mm;padding:5mm 6mm}'
     + '.l2{height:100%;border:.7px solid #0a2540;border-radius:3mm;padding:5mm 6mm 3.5mm;display:flex;flex-direction:column;overflow:hidden;background:radial-gradient(circle at 0 0,rgba(10,136,181,.13) 0,transparent 46mm),radial-gradient(circle at 100% 100%,rgba(15,76,129,.10) 0,transparent 52mm),linear-gradient(135deg,#f7fbff,#fff 55%,#f4f9fe)}'
-    + '.l2-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 76mm;grid-template-rows:auto 1fr;gap:2mm 6mm}'
-    + '.l2-A{min-width:0;padding-top:8mm}'
-    + '.l2-R{display:flex;flex-direction:column;gap:1.5mm;min-width:0}'
-    + '.l2-B{display:grid;grid-template-columns:repeat(4,1fr);gap:2.4mm;min-width:0;min-height:0;margin-top:5.5mm}'
-    + '.l2-C{min-width:0;min-height:0;display:flex;margin-top:5.5mm}'
-    + '.l2-h{text-align:center;font-size:23pt;font-weight:800;line-height:1.16;letter-spacing:-.2px}.l2-h .r{color:#0a2540}.l2-h .g{color:#0a88b5}'
-    + '.l2-orn{display:flex;align-items:center;gap:1.6mm;height:2.2mm}.l2-orn i{flex:1;height:1px;background:linear-gradient(90deg,transparent,#0f4c81)}.l2-orn i:last-child{background:linear-gradient(270deg,transparent,#0f4c81)}.l2-orn b{width:1.7mm;height:1.7mm;background:#0a88b5;transform:rotate(45deg)}'
+    + '.l2-grid{flex:none;height:91mm;display:grid;grid-template-columns:1fr 72mm;grid-template-rows:54mm 35mm;gap:2mm 6mm}.l2 .lf-bis{height:8.5mm;margin-bottom:.5mm;overflow:hidden}'
+    + '.l2-A{min-width:0;padding-top:4.5mm}'
+    + '.l2-R{display:block;min-width:0;overflow:hidden}.l2-R>.l2-sup{margin-top:1.4mm}.l2-R>.l2-loc{margin-top:1.2mm}'
+    + '.l2-B{display:grid;grid-template-columns:repeat(4,1fr);gap:2.2mm;min-width:0;min-height:0;margin-top:5mm}'
+    + '.l2-C{min-width:0;min-height:0;display:flex;margin-top:5mm}'
+    + '.l2-h{text-align:center;font-size:22pt;font-weight:800;line-height:1.16;letter-spacing:-.2px}.l2-h .r{color:#0a2540}.l2-h .g{color:#0a88b5}'
+    + '.l2-orn{display:flex;align-items:center;gap:1.6mm;height:2.2mm;margin:.8mm 0}.l2-orn i{flex:1;height:1px;background:linear-gradient(90deg,transparent,#0f4c81)}.l2-orn i:last-child{background:linear-gradient(270deg,transparent,#0f4c81)}.l2-orn b{width:1.7mm;height:1.7mm;background:#0a88b5;transform:rotate(45deg)}'
     + '.l2-camp{text-align:center;font-size:11.5pt;font-weight:700;color:#0a2540;line-height:1.3}'
-    + '.l2-note{position:relative;background:#fffbea;border:1px solid #eadfb6;border-radius:1.5mm;padding:6mm 5.5mm 3mm;transform:rotate(-1deg);box-shadow:0 1.6mm 3.4mm rgba(10,37,64,.22),inset 0 0 0 1.2mm #fffdf3;margin:0 1mm}'
-    + '.l2-note p{margin:0 0 1.5mm;font-size:10.2pt;line-height:1.7;color:#222}.l2-nt{font-size:9pt!important;color:#6b4a00!important}'
+    + '.l2-note{position:relative;background:#fffbea;border:1px solid #eadfb6;border-radius:1.5mm;padding:5.5mm 5.5mm 2.5mm;transform:rotate(-1deg);box-shadow:0 1.6mm 3.4mm rgba(10,37,64,.22),inset 0 0 0 1.2mm #fffdf3;margin:0 1mm}'
+    + '.l2-note p{margin:0 0 1mm;font-size:9.3pt;line-height:1.5;color:#222}.l2-bis{margin-bottom:1.2mm}.l2-nt{font-size:9pt!important;color:#6b4a00!important}'
     + '.l2-sig{text-align:right;font-size:9pt;font-weight:600;color:#0a2540}'
     + '.l2-pin{position:absolute;left:50%;top:-2.8mm;width:5mm;height:5mm;margin-left:-2.5mm;border-radius:50%;background:radial-gradient(circle at 34% 30%,#6f9bd0,#0f4c81 55%,#071d36);box-shadow:.6mm 1.2mm 1.2mm rgba(0,0,0,.4)}'
-    + '.l2-bx{--c:#0f4c81;position:relative;border:.7px solid #c4d4e6;border-top:2px solid var(--c);border-radius:3mm;background:linear-gradient(180deg,#fff,#f2f7fc);box-shadow:0 1mm 2.2mm rgba(10,37,64,.14);padding:6.8mm 1.6mm 2mm;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1.1mm;min-width:0;overflow:visible}'
-    + '.l2-badge{position:absolute;left:50%;top:0;width:11.5mm;height:11.5mm;margin-left:-5.75mm;margin-top:-6.4mm;border-radius:50%;background:linear-gradient(145deg,var(--c),#0a2540 160%);border:1.2mm solid #fff;box-shadow:0 .8mm 1.8mm rgba(10,37,64,.3);display:flex;align-items:center;justify-content:center;color:#fff}'
-    + '.l2-ico{width:5.4mm;height:5.4mm;color:#fff;flex-shrink:0}'
-    + '.l2-pill{border-radius:99px;padding:.5mm 3.6mm;font-size:8.6pt;font-weight:700;background:var(--c);color:#fff;white-space:nowrap;margin-top:1mm}'
-    + '.l2-bv{font-size:10pt;font-weight:700;line-height:1.3;overflow-wrap:anywhere;color:#111}.l2-bs{font-size:8.8pt;color:#333;line-height:1.2}.l2-fee{font-size:19pt;font-weight:800;line-height:1.05;color:#0a2540}'
-    + '.l2-svc{flex:1;align-items:stretch;text-align:left;padding:6.8mm 3.5mm 2mm}.l2-svc .l2-pill{align-self:center}'
-    + '.l2-svc ul{margin:.6mm 0 0;padding:0;list-style:none;font-size:9.4pt;line-height:1.5}'
+    + '.l2-bx{--c:#0f4c81;position:relative;border:.7px solid #c4d4e6;border-top:2px solid var(--c);border-radius:3mm;background:linear-gradient(180deg,#fff,#f2f7fc);box-shadow:0 1mm 2.2mm rgba(10,37,64,.14);padding:6mm 1.2mm 1.6mm;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1.1mm;min-width:0;overflow:visible}'
+    + '.l2-badge{position:absolute;left:50%;top:0;width:10.5mm;height:10.5mm;margin-left:-5.25mm;margin-top:-5.9mm;border-radius:50%;background:#fff;border:1.3px solid var(--c);box-shadow:0 .6mm 1.4mm rgba(10,37,64,.16);display:flex;align-items:center;justify-content:center;color:#111}'
+    + '.l2-ico{width:5.4mm;height:5.4mm;color:#111;flex-shrink:0}'
+    + '.l2-pill{border-radius:99px;padding:.5mm 3.6mm;font-size:8.6pt;font-weight:700;background:#fff;border:1px solid var(--c);color:#111;white-space:nowrap;margin-top:1mm}'
+    + '.l2-bv{font-size:9.4pt;font-weight:700;line-height:1.3;overflow-wrap:anywhere;color:#111}.l2-bs{font-size:8.8pt;color:#333;line-height:1.2}.l2-fee{font-size:18pt;font-weight:800;line-height:1.05;color:#0a2540}'
+    + '.l2-svc{flex:1;align-items:stretch;text-align:left;padding:6mm 3.5mm 1.6mm}.l2-svc .l2-pill{align-self:center}'
+    + '.l2-svc ul{margin:.6mm 0 0;padding:0;list-style:none;font-size:9.4pt;line-height:1.5;max-height:20mm;overflow:hidden}'
     + '.l2-svc li{position:relative;padding-left:4.2mm;margin-bottom:.5mm}.l2-svc li:before{content:"";position:absolute;left:.7mm;top:1.2mm;width:1.2mm;height:2.2mm;border-right:.38mm solid #0a88b5;border-bottom:.38mm solid #0a88b5;transform:rotate(45deg)}'
     + '.l2-sup{display:flex;align-items:center;gap:2.6mm;background:#eaf1fa;border:.7px solid #c4d4e6;border-radius:3mm;padding:1.5mm 3mm 1.5mm 1.5mm}'
-    + '.l2-hbadge{width:9mm;height:9mm;border-radius:50%;background:linear-gradient(145deg,#0f4c81,#0a2540);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}.l2-hand{width:5.4mm;height:5.4mm}'
+    + '.l2-hbadge{width:9mm;height:9mm;border-radius:50%;background:#fff;border:1.3px solid #0a2540;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#111}.l2-hand{width:5.4mm;height:5.4mm;color:#111}'
     + '.l2-supt{min-width:0;line-height:1.3}.l2-sl{font-size:9pt;font-weight:400;color:#222}.l2-s1{font-size:10.3pt;font-weight:700}.l2-s2{font-size:9.3pt}'
     + '.l2-loc{font-size:9pt;text-align:center;line-height:1.4}'
-    + '.l2-bot{display:flex;justify-content:space-between;align-items:center;gap:6mm;border-top:.7px solid #b9cbe0;padding-top:2.2mm;margin-top:2.2mm;height:26mm}'
+    + '.l2-bot{display:flex;justify-content:space-between;align-items:center;gap:6mm;border-top:.7px solid #b9cbe0;padding-top:2mm;margin-top:2mm;height:22mm}'
     + '.l2-bl2{min-width:0;text-align:left}.l2-hn{font-size:13pt;font-weight:700;line-height:1.3;color:#0a2540}.l2-slg{font-size:9.3pt;color:#333;line-height:1.4}.l2-ad{font-size:9pt;color:#222;line-height:1.5}'
     + '.lf-tag{display:inline-block;border-radius:99px;padding:.3mm 4.5mm;font-size:8.5pt;font-weight:700;margin-bottom:.8mm;background:#e4edf8;color:#0a2540}'
-    + '.l2-br{flex-shrink:0;text-align:center}.l2-br img{height:13mm;width:auto;display:block;margin:0 auto 1mm}.l2-ct{font-size:9pt;line-height:1.45;color:#222;letter-spacing:.2px}'
+    + '.l2-br{flex-shrink:0;text-align:center}.l2-br img{height:12mm;width:auto;display:block;margin:0 auto 1mm}.l2-ct{font-size:9pt;line-height:1.45;color:#222;letter-spacing:.2px}'
     + '@media screen{'
     + '#printPreviewOverlay .print-preview-card{width:max-content!important;max-width:100%!important}'
     + '#printPreviewBody{padding:0!important;overflow:auto!important}'
