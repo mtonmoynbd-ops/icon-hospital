@@ -39000,12 +39000,37 @@ var _LF_BN_WD = ['রবিবার','সোমবার','মঙ্গলব�
 var _LF_OLD_NOTE = 'রোগীর পুরোনো প্রেসক্রিপশন/রিপোর্ট থাকলে সঙ্গে আনুন';
 function _lfEsc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function _lfBn(n) { return Number(n).toLocaleString('bn-BD', { useGrouping: false }); }
+function _lfNormDate(d) {
+  if (d == null || d === '') return '';
+  if (typeof d === 'number' || Object.prototype.toString.call(d) === '[object Date]') {
+    var x = new Date(d); if (isNaN(x)) return '';
+    return x.getFullYear() + '-' + ('0' + (x.getMonth() + 1)).slice(-2) + '-' + ('0' + x.getDate()).slice(-2);
+  }
+  var t = String(d).replace(/[০-৯]/g, function (c) { return '০১২৩৪৫৬৭৮৯'.indexOf(c); });
+  var m = t.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  m = t.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{4})/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return '';
+}
 function _lfDateTxt(d) {
-  if (!d) return '';
-  var p = String(d).split('-'); if (p.length < 3) return d;
+  var n = _lfNormDate(d);
+  if (!n) return d ? String(d) : '';
+  var p = n.split('-');
   var dt = new Date(+p[0], +p[1] - 1, +p[2]);
   return _lfBn(+p[2]) + ' ' + _CV_BN_M[+p[1] - 1] + ' ' + _lfBn(+p[0]) + ', ' + _LF_BN_WD[dt.getDay()];
 }
+var _LF_IC = {
+  pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>',
+  phone: '<path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.8.7a2 2 0 011.7 2z"/>',
+  mail: '<path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M22 6l-10 7L2 6"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  ticket: '<path d="M3 7h18v3a2 2 0 000 4v3H3v-3a2 2 0 000-4z"/><path d="M14 7v10" stroke-dasharray="2 2"/>',
+  hand: '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>'
+};
+function _lfIc(n, cls) { return '<svg class="' + (cls || 'lf-i') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + _LF_IC[n] + '</svg>'; }
+var _LF_IC_CSS = '.lf-i{width:3.3mm;height:3.3mm;vertical-align:-.55mm;margin-right:1.2mm;color:#0f4c81;flex-shrink:0}';
 function _lfTimeTxt(t) {
   if (!t) return '';
   var p = String(t).split(':'), h = +p[0], m = +(p[1] || 0);
@@ -39031,7 +39056,7 @@ function _lfDefaults(s) {
   var st = appData.settings || {}, v = _lfVillageOf(s) || {}, sv = s.leaflet || {};
   var d = {
     ribbon: 'সুখবর!', headline: 'চক্ষু পরীক্ষা ও স্বল্পমূল্যে ছানি অপারেশনের সুযোগ',
-    title: s.name || '', date: s.date || '', time: _lfSchedTime(s),
+    title: s.name || '', date: _lfNormDate(s.date), time: _lfSchedTime(s),
     fee: (s.visitFee > 0) ? ('৳ ' + fmt(s.visitFee)) : '',
     venue: s.location || '', msg: '',
     services: 'চক্ষু পরীক্ষা ও প্রয়োজনীয় চিকিৎসা পরামর্শ\nছানি ধরা পড়লে রোগীদের স্বল্পমূল্যে ছানি অপারেশনের ব্যবস্থা\nচশমা ও ওষুধ সংক্রান্ত পরামর্শ',
@@ -39085,7 +39110,7 @@ function printCampLeaflet(id) {
   var g = function (i) { var el = document.getElementById(i); return el ? String(el.value || '').trim() : ''; };
   var d0 = _lfDefaults(s);
   var v = {
-    ribbon: g('lfRibbon'), headline: g('lfHeadline'), title: g('lfTitle'), date: g('lfDate'), fee: g('lfFee'),
+    ribbon: g('lfRibbon'), headline: g('lfHeadline'), title: g('lfTitle'), date: g('lfDate') || _lfNormDate(s.date) || String(s.date || ''), fee: g('lfFee'),
     venue: g('lfVenue'), msg: g('lfMsg'), services: g('lfServices'), note: g('lfNote'), layout: g('lfLayout') || '1', title2: g('lfTitle2'),
     time: d0.time, org: d0.org, persons: d0.persons, helperName: d0.helperName, helperPhone: d0.helperPhone, contactPhone: d0.contactPhone
   };
@@ -39115,8 +39140,8 @@ function _lfBuildHtml(v) {
       + '</div>';
   }
   var contact = [];
-  if (st.phone || v.contactPhone) contact.push('📞 ' + _lfEsc(st.phone || v.contactPhone));
-  if (st.email) contact.push('✉️ ' + _lfEsc(st.email));
+  if (st.phone || v.contactPhone) contact.push(_lfIc('phone') + _lfEsc(st.phone || v.contactPhone));
+  if (st.email) contact.push(_lfIc('mail') + _lfEsc(st.email));
   var one =
     '<div class="lf-cell"><div class="lf">'
     + '<div class="lf-head">' + (typeof LOGO_B64 !== 'undefined' ? '<img class="lf-logo" src="' + LOGO_B64 + '" alt="' + hosp + '">' : '<div class="lf-hn">' + hosp + '</div>')
@@ -39135,7 +39160,7 @@ function _lfBuildHtml(v) {
     + (v.note ? '<div class="lf-note">' + _lfEsc(v.note) + '</div>' : '')
     + supHtml
     + '<div class="lf-foot"><span class="lf-tag lf-t3">আয়োজনে</span><div class="lf-fn">' + hosp + '</div>'
-    + (st.address ? '<div class="lf-fa">📍 ' + _lfEsc(st.address) + '</div>' : '')
+    + (st.address ? '<div class="lf-fa">' + _lfIc('pin') + _lfEsc(st.address) + '</div>' : '')
     + (contact.length ? '<div class="lf-fa">' + contact.join(' &nbsp;|&nbsp; ') + '</div>' : '')
     + '</div></div></div>';
   var css = '<style>'
@@ -39165,6 +39190,7 @@ function _lfBuildHtml(v) {
     + '.lf-foot{margin-top:3mm;border-top:1px solid #cfe3ec;padding-top:2.5mm;text-align:center}'
     + '.lf-sup+.lf-foot{margin-top:2.5mm}.lf-note+.lf-foot,.lf-svc+.lf-foot,.lf-msg+.lf-foot{margin-top:auto}'
     + '.lf-fn{font-size:11pt;font-weight:600;line-height:1.3}.lf-fa{font-size:9pt;line-height:1.5;color:#222;margin-top:.3mm}'
+    + _LF_IC_CSS
     + '@media screen{'
     + '#printPreviewOverlay .print-preview-card{width:max-content!important;max-width:100%!important}'
     + '#printPreviewBody{padding:0!important;overflow:auto!important}'
@@ -39180,7 +39206,7 @@ function _lfBuildHtml(v) {
   return css + '<div class="lf-sheet">' + one + one + '</div>';
 }
 
-// ===== ডিজাইন ২: A4 পোর্ট্রেট পেজে উপর-নিচে ২টি হরাইজন্টাল লিফলেট (প্রতিটি 210×148mm) =====
+// ===== ডিজাইন ২: A4 পোর্ট্রেট পেজে উপর-নিচে ২টি হরাইজন্টাল লিফলেট (প্রতিটি 210×148mm) — থিম: ডার্ক নেভি ব্লু =====
 function _lfBuildHtml2(v) {
   var st = appData.settings || {};
   var hospRaw = st.hospName || 'ICON Eye Hospital', hosp = _lfEsc(hospRaw);
@@ -39192,80 +39218,77 @@ function _lfBuildHtml2(v) {
   var t2 = String(v.title2 || 'চক্ষু চিকিৎসা ও পরামর্শ ক্যাম্প'), t2a = t2, t2b = '';
   var oi = t2.indexOf(' ও '); if (oi > 0) { t2a = t2.slice(0, oi); t2b = t2.slice(oi + 1); }
   var lines = function (t) { return String(t || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean); };
-  var svc = lines(v.services).map(function (x) { return '<li>' + _lfEsc(x.replace(/[।.]+$/, '')) + '</li>'; }).join('');
+  var svc = lines(v.services).map(function (x) { return '<li>' + _lfEsc(x.replace(/[।.,]+$/, '')) + '</li>'; }).join('');
   var msg = v.msg || ('প্রিয় এলাকাবাসী, ' + (dtxt ? dtxt + (v.time ? ', ' + v.time : '') + ' ' : '') + (v.venue ? v.venue + '-এ ' : '') + hospRaw + '-এর আয়োজনে চক্ষু ক্যাম্প অনুষ্ঠিত হবে। চোখের সমস্যায় ভোগা সবাইকে ক্যাম্পে আসার জন্য আন্তরিক আমন্ত্রণ জানাচ্ছি।');
-  var ico = function (c, inner) { return '<svg class="l2-ico" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>'; };
-  var card = function (cls, label, icon, body) {
-    return body ? '<div class="l2-bx ' + cls + '"><span class="l2-pill">' + label + '</span>' + icon + body + '</div>' : '';
+  var card = function (label, icon, body) {
+    return body ? '<div class="l2-bx"><span class="l2-pill">' + label + '</span>' + _lfIc(icon, 'l2-ico') + body + '</div>' : '';
   };
   var cards =
-    card('c1', 'তারিখ', ico('#b4232a', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'), '<div class="l2-bv">' + _lfEsc(dMain) + '</div>' + (dSub ? '<div class="l2-bs">(' + _lfEsc(dSub) + ')</div>' : ''))
-    + card('c2', 'সময়', ico('#1d4ed8', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), v.time ? '<div class="l2-bv">' + _lfEsc(v.time) + '</div>' : '')
-    + card('c4', 'টিকিট মূল্য', ico('#c2410c', '<path d="M3 7h18v3a2 2 0 000 4v3H3v-3a2 2 0 000-4z"/><path d="M14 7v10" stroke-dasharray="2 2"/>'), feeRaw ? '<div class="l2-fee">' + _lfEsc(feeRaw) + '</div>' + (feeNum ? '<div class="l2-bs">টাকা</div>' : '') : '');
-  var hand = '<svg class="l2-hand" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l4-4 4 1 3-2 4 3 5-1"/><path d="M6 8l-4 4 2 2"/><path d="M22 10l-3 5-3 2-3 1-3-1-3-2"/><path d="M10 14l2 2M12.5 12.5l2 2"/></svg>';
+    card('ক্যাম্পের ঠিকানা', 'pin', v.venue ? '<div class="l2-bv">' + _lfEsc(v.venue) + '</div>' : '')
+    + card('তারিখ', 'cal', dMain ? '<div class="l2-bv">' + _lfEsc(dMain) + '</div>' + (dSub ? '<div class="l2-bs">(' + _lfEsc(dSub) + ')</div>' : '') : '')
+    + card('সময়', 'clock', v.time ? '<div class="l2-bv">' + _lfEsc(v.time) + '</div>' : '')
+    + card('টিকিট মূল্য', 'ticket', feeRaw ? '<div class="l2-fee">' + _lfEsc(feeRaw) + '</div>' + (feeNum ? '<div class="l2-bs">টাকা</div>' : '') : '');
   var supBody = '';
   if (v.org) supBody += '<div class="l2-s1">' + _lfEsc(v.org) + '</div>';
   if (persons.length) supBody += '<div class="l2-s2">' + persons.join(' &nbsp;·&nbsp; ') + '</div>';
-  var supHtml = supBody ? '<div class="l2-sup"><span class="l2-hbadge">' + hand + '</span><div class="l2-supt"><div class="l2-sl">সার্বিক সহযোগিতায়</div>' + supBody + '</div></div>' : '';
-  var localHtml = v.helperName ? '<div class="l2-loc">📞 স্থানীয় যোগাযোগ: <b>' + _lfEsc(v.helperName) + '</b>' + (v.helperPhone ? ' — ' + _lfEsc(v.helperPhone) : '') + '</div>' : '';
-  var svcHtml = svc ? '<div class="l2-svc"><span class="l2-sp">সেবাসমূহ</span><ul>' + svc + '</ul></div>' : '';
+  var supHtml = supBody ? '<div class="l2-sup"><span class="l2-hbadge">' + _lfIc('hand', 'l2-hand') + '</span><div class="l2-supt"><div class="l2-sl">সার্বিক সহযোগিতায়-</div>' + supBody + '</div></div>' : '';
+  var localHtml = v.helperName ? '<div class="l2-loc">' + _lfIc('phone') + 'স্থানীয় যোগাযোগ: <b>' + _lfEsc(v.helperName) + '</b>' + (v.helperPhone ? ' — ' + _lfEsc(v.helperPhone) : '') + '</div>' : '';
+  var svcHtml = svc ? '<div class="l2-bx l2-svc"><span class="l2-pill">সেবাসমূহ</span><ul>' + svc + '</ul></div>' : '';
   var contactHtml = '';
   var ph = st.phone || v.contactPhone;
-  if (ph) contactHtml += '<div class="l2-ct">📞 ' + _lfEsc(ph) + '</div>';
-  if (st.email) contactHtml += '<div class="l2-ct">✉️ ' + _lfEsc(st.email) + '</div>';
+  if (ph) contactHtml += '<div class="l2-ct">' + _lfIc('phone') + _lfEsc(ph) + '</div>';
+  if (st.email) contactHtml += '<div class="l2-ct">' + _lfIc('mail') + _lfEsc(st.email) + '</div>';
   var one =
     '<div class="l2-cell"><div class="l2">'
     + '<div class="l2-grid">'
-    + '<div class="l2-L">'
-    + '<div class="l2-note"><span class="l2-pin"></span><p>' + _lfEsc(msg) + '</p>' + (v.note ? '<p class="l2-nt">' + _lfEsc(v.note) + '</p>' : '') + '<div class="l2-sig">— ' + hosp + '</div></div>'
-    + '<div class="l2-boxes">' + cards + '</div>'
-    + '</div>'
+    + '<div class="l2-A"><div class="l2-note"><span class="l2-pin"></span><p>' + _lfEsc(msg) + '</p>' + (v.note ? '<p class="l2-nt">' + _lfEsc(v.note) + '</p>' : '') + '<div class="l2-sig">— ' + hosp + '</div></div></div>'
     + '<div class="l2-R">'
     + '<div class="l2-h"><span class="r">' + _lfEsc(t2a) + '</span>' + (t2b ? '<br><span class="g">' + _lfEsc(t2b) + '</span>' : '') + '</div>'
     + (v.title ? '<div class="l2-camp">' + _lfEsc(v.title) + '</div>' : '')
-    + (v.venue ? '<div class="l2-addr">📍 ' + _lfEsc(v.venue) + '</div>' : '')
-    + supHtml + localHtml + svcHtml
-    + '</div></div>'
+    + supHtml + localHtml
+    + '</div>'
+    + '<div class="l2-B">' + cards + '</div>'
+    + '<div class="l2-C">' + svcHtml + '</div>'
+    + '</div>'
     + '<div class="l2-bot">'
-    + '<div class="l2-bl2"><span class="lf-tag lf-t3">আয়োজনে</span><div class="l2-hn">' + hosp + '</div>'
+    + '<div class="l2-bl2"><span class="lf-tag">আয়োজনে</span><div class="l2-hn">' + hosp + '</div>'
     + (st.tagline ? '<div class="l2-slg">' + _lfEsc(st.tagline) + '</div>' : '')
-    + (st.address ? '<div class="l2-ad">📍 ' + _lfEsc(st.address) + '</div>' : '') + '</div>'
+    + (st.address ? '<div class="l2-ad">' + _lfIc('pin') + _lfEsc(st.address) + '</div>' : '') + '</div>'
     + '<div class="l2-br">' + (typeof LOGO_B64 !== 'undefined' ? '<img src="' + LOGO_B64 + '" alt="' + hosp + '">' : '<b>' + hosp + '</b>') + contactHtml + '</div>'
     + '</div>'
     + '</div></div>';
   var css = '<style>'
     + '@page{size:A4 portrait;margin:0}'
+    + _LF_IC_CSS
     + '.l2-sheet{width:210mm;height:296mm;display:flex;flex-direction:column;background:#fff;box-sizing:border-box;overflow:hidden;margin:0 auto;font-family:\'Hind Siliguri\',Arial,sans-serif;color:#111;page-break-inside:avoid;break-inside:avoid}'
     + '.l2-sheet *{box-sizing:border-box}'
     + '.l2-cell{width:210mm;height:148mm;padding:5mm 6mm}'
-    + '.l2{height:100%;border:1px solid #c9dde8;border-radius:4mm;background:linear-gradient(135deg,#f4fafe 0%,#fff 50%,#f2fbf5 100%);padding:5mm 6mm 4mm;display:flex;flex-direction:column;position:relative;overflow:hidden}'
-    + '.l2:before{content:"";position:absolute;left:0;right:0;top:0;height:1.4mm;background:linear-gradient(90deg,#b4232a,#e0a526 35%,#0a88b5 70%,#0b7a3b)}'
-    + '.l2-grid{flex:1;min-height:0;display:flex;gap:6mm}'
-    + '.l2-L{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:7mm}'
-    + '.l2-R{width:84mm;flex-shrink:0;display:flex;flex-direction:column;gap:1.8mm;min-height:0}'
-    + '.l2-h{text-align:center;font-size:23pt;font-weight:800;line-height:1.18;margin-top:.5mm}.l2-h .r{color:#b4232a}.l2-h .g{color:#0b7a3b}'
-    + '.l2-camp{text-align:center;font-size:11pt;font-weight:700;line-height:1.3}.l2-addr{text-align:center;font-size:9.3pt;color:#222;line-height:1.4;margin-top:-1mm}'
-    + '.l2-note{position:relative;background:#fffbe6;border:1px solid #ecdfae;border-radius:1.5mm;padding:5.5mm 5mm 3mm;transform:rotate(-0.8deg);box-shadow:0 1.2mm 2.8mm rgba(0,0,0,.2),inset 0 0 0 1.2mm #fffdf1;margin:1mm 1mm 0 1mm}'
-    + '.l2-note p{margin:0 0 1.5mm;font-size:10pt;line-height:1.7;color:#222}.l2-nt{font-size:9pt!important;color:#7a4b00!important}'
-    + '.l2-sig{text-align:right;font-size:9pt;font-weight:600;color:#444}'
-    + '.l2-pin{position:absolute;left:50%;top:-2.6mm;width:5.2mm;height:5.2mm;margin-left:-2.6mm;border-radius:50%;background:radial-gradient(circle at 34% 30%,#ff9a9a,#c0272d 58%,#7a1116);box-shadow:.7mm 1.3mm 1.3mm rgba(0,0,0,.4)}'
-    + '.l2-boxes{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:5mm;flex:1;min-height:0;max-height:40mm}'
-    + '.l2-bx{border:1px solid #d5dee6;border-radius:2.5mm;background:#fff;padding:1.8mm 1.5mm;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8mm;min-width:0;overflow:hidden}'
-    + '.c1{border-color:#f1c5c7;background:#fff7f7}.c2{border-color:#c3d6f5;background:#f5f9ff}.c4{border-color:#f5d3b0;background:#fffaf4}'
-    + '.l2-pill{border-radius:99px;padding:.3mm 4mm;font-size:8.8pt;font-weight:700}.c1 .l2-pill{background:#fde2e2}.c2 .l2-pill{background:#dbeafe}.c4 .l2-pill{background:#ffedd5}'
-    + '.l2-ico{width:6mm;height:6mm;flex-shrink:0}'
-    + '.l2-bv{font-size:10pt;font-weight:600;line-height:1.3;overflow-wrap:anywhere}.l2-bs{font-size:8.8pt;color:#333;line-height:1.2}.l2-fee{font-size:16pt;font-weight:800;line-height:1.1;color:#c2410c}'
-    + '.l2-sup{display:flex;align-items:center;gap:2.6mm;background:#e9eff9;border-radius:3mm;padding:1.6mm 3mm 1.6mm 1.6mm}'
-    + '.l2-hbadge{width:9mm;height:9mm;border-radius:50%;background:#15803d;display:flex;align-items:center;justify-content:center;flex-shrink:0}.l2-hand{width:5.6mm;height:5.6mm}'
-    + '.l2-supt{min-width:0;line-height:1.3}.l2-sl{font-size:8.8pt;font-weight:700;color:#334}.l2-s1{font-size:10.3pt;font-weight:700}.l2-s2{font-size:9.3pt}'
+    + '.l2{height:100%;border:.7px solid #0a2540;border-radius:3mm;background:linear-gradient(135deg,#f6faff 0%,#fff 55%,#f3f8fd 100%);padding:5mm 6mm 4mm;display:flex;flex-direction:column;overflow:hidden}'
+    + '.l2-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 74mm;grid-template-rows:auto 1fr;gap:3.5mm 6mm}'
+    + '.l2-A{min-width:0;padding-top:7mm}'
+    + '.l2-R{display:flex;flex-direction:column;gap:1.8mm;min-width:0}'
+    + '.l2-B{display:grid;grid-template-columns:repeat(4,1fr);gap:2.4mm;min-width:0;min-height:0}'
+    + '.l2-C{min-width:0;min-height:0;display:flex}'
+    + '.l2-h{text-align:center;font-size:22pt;font-weight:800;line-height:1.18}.l2-h .r{color:#0a2540}.l2-h .g{color:#0a88b5}'
+    + '.l2-camp{text-align:center;font-size:11pt;font-weight:700;color:#0a2540;line-height:1.3}'
+    + '.l2-note{position:relative;background:#fffbea;border:1px solid #eadfb6;border-radius:1.5mm;padding:5.5mm 5mm 3mm;transform:rotate(-0.7deg);box-shadow:0 1.2mm 2.8mm rgba(10,37,64,.2),inset 0 0 0 1.2mm #fffdf3;margin:0 1mm}'
+    + '.l2-note p{margin:0 0 1.5mm;font-size:10pt;line-height:1.7;color:#222}.l2-nt{font-size:9pt!important;color:#6b4a00!important}'
+    + '.l2-sig{text-align:right;font-size:9pt;font-weight:600;color:#0a2540}'
+    + '.l2-pin{position:absolute;left:50%;top:-2.8mm;width:5mm;height:5mm;margin-left:-2.5mm;border-radius:50%;background:radial-gradient(circle at 34% 30%,#6f9bd0,#0f4c81 55%,#071d36);box-shadow:.6mm 1.2mm 1.2mm rgba(0,0,0,.4)}'
+    + '.l2-bx{border:.7px solid #b9cbe0;border-radius:2.5mm;background:#fff;padding:2mm 1.5mm;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1mm;min-width:0;overflow:hidden}'
+    + '.l2-pill{border-radius:99px;padding:.3mm 3mm;font-size:8.3pt;font-weight:700;background:#e4edf8;color:#0a2540;white-space:nowrap}'
+    + '.l2-ico{width:6mm;height:6mm;color:#0f4c81;flex-shrink:0}'
+    + '.l2-bv{font-size:9.6pt;font-weight:600;line-height:1.3;overflow-wrap:anywhere}.l2-bs{font-size:8.6pt;color:#333;line-height:1.2}.l2-fee{font-size:17pt;font-weight:800;line-height:1.1;color:#0a2540}'
+    + '.l2-svc{flex:1;align-items:stretch;text-align:left;justify-content:flex-start;padding:2mm 3mm}.l2-svc .l2-pill{align-self:center}'
+    + '.l2-svc ul{margin:1mm 0 0;padding:0;list-style:none;font-size:9.3pt;line-height:1.5}'
+    + '.l2-svc li{position:relative;padding-left:3.8mm}.l2-svc li:before{content:"";position:absolute;left:.4mm;top:2.1mm;width:1.5mm;height:1.5mm;border-radius:50%;background:#0f4c81}'
+    + '.l2-sup{display:flex;align-items:center;gap:2.6mm;background:#eaf1fa;border-radius:3mm;padding:1.6mm 3mm 1.6mm 1.6mm}'
+    + '.l2-hbadge{width:9mm;height:9mm;border-radius:50%;background:#0a2540;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}.l2-hand{width:5.4mm;height:5.4mm}'
+    + '.l2-supt{min-width:0;line-height:1.3}.l2-sl{font-size:9pt;font-weight:400;color:#222}.l2-s1{font-size:10.3pt;font-weight:700}.l2-s2{font-size:9.3pt}'
     + '.l2-loc{font-size:9pt;text-align:center;line-height:1.4}'
-    + '.l2-svc{flex:1;min-height:0;border:1px solid #cfe3ec;border-radius:2.5mm;background:#fff;padding:2.6mm 3mm 1.5mm;position:relative;margin-top:1.8mm;overflow:hidden}'
-    + '.l2-sp{position:absolute;top:0;left:50%;transform:translate(-50%,-50%);background:#e2f4e8;border-radius:99px;padding:.3mm 4.5mm;font-size:8.8pt;font-weight:700;white-space:nowrap}'
-    + '.l2-svc ul{margin:1.2mm 0 0;padding:0;list-style:none;font-size:9.3pt;line-height:1.5}'
-    + '.l2-svc li{position:relative;padding-left:3.8mm}.l2-svc li:before{content:"";position:absolute;left:.4mm;top:2.1mm;width:1.5mm;height:1.5mm;border-radius:50%;background:#0a88b5}'
-    + '.l2-bot{display:flex;justify-content:space-between;align-items:center;gap:6mm;border-top:1px solid #c9dde8;padding-top:2.5mm;margin-top:2.5mm;height:27mm}'
-    + '.l2-bl2{min-width:0;text-align:left}.l2-hn{font-size:13pt;font-weight:700;line-height:1.3}.l2-slg{font-size:9.3pt;color:#333;line-height:1.4}.l2-ad{font-size:9pt;color:#222;line-height:1.5}'
-    + '.lf-tag{display:inline-block;border-radius:99px;padding:.3mm 4.5mm;font-size:8.5pt;font-weight:700;margin-bottom:.8mm}.lf-t3{background:#e2f4e8}'
+    + '.l2-bot{display:flex;justify-content:space-between;align-items:center;gap:6mm;border-top:.7px solid #b9cbe0;padding-top:2.5mm;margin-top:2.5mm;height:27mm}'
+    + '.l2-bl2{min-width:0;text-align:left}.l2-hn{font-size:13pt;font-weight:700;line-height:1.3;color:#0a2540}.l2-slg{font-size:9.3pt;color:#333;line-height:1.4}.l2-ad{font-size:9pt;color:#222;line-height:1.5}'
+    + '.lf-tag{display:inline-block;border-radius:99px;padding:.3mm 4.5mm;font-size:8.5pt;font-weight:700;margin-bottom:.8mm;background:#e4edf8;color:#0a2540}'
     + '.l2-br{flex-shrink:0;text-align:center}.l2-br img{height:13mm;width:auto;display:block;margin:0 auto 1mm}.l2-ct{font-size:9pt;line-height:1.45;color:#222;letter-spacing:.2px}'
     + '@media screen{'
     + '#printPreviewOverlay .print-preview-card{width:max-content!important;max-width:100%!important}'
