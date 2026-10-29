@@ -39035,10 +39035,11 @@ function _lfDefaults(s) {
     fee: (s.visitFee > 0) ? ('৳ ' + fmt(s.visitFee)) : '',
     venue: s.location || '', msg: '',
     services: 'চক্ষু পরীক্ষা ও প্রয়োজনীয় চিকিৎসা পরামর্শ\nছানি ধরা পড়লে রোগীদের স্বল্পমূল্যে ছানি অপারেশনের ব্যবস্থা\nচশমা ও ওষুধ সংক্রান্ত পরামর্শ',
+    layout: '1', title2: 'চক্ষু চিকিৎসা ও পরামর্শ ক্যাম্প',
     note: '', org: s.localOrg || '', persons: s.guests || '', helperName: v.helperName || '', helperPhone: v.helperPhone || '',
     contactPhone: st.phone || ''
   };
-  ['ribbon','headline','msg','services','note'].forEach(function (k) {
+  ['ribbon','headline','msg','services','note','layout','title2'].forEach(function (k) {
     if (sv[k] != null && !(k === 'note' && sv[k] === _LF_OLD_NOTE)) d[k] = sv[k];
   });
   return d;
@@ -39063,7 +39064,8 @@ function openCampLeafletModal(id) {
   w.style.cssText = 'position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto';
   w.innerHTML = '<div style="background:#fff;border-radius:14px;padding:14px 16px;max-width:760px;width:100%;margin:auto">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="font-size:16px;color:var(--primary)">📄 ক্যাম্প প্রচার লিফলেট</b><button type="button" onclick="closeCampLeafletModal()" style="border:0;background:none;font-size:22px;cursor:pointer">✕</button></div>'
-    + row(fld('উপরের ছোট শিরোনাম', 'lfRibbon', d.ribbon) + fld('মূল ঘোষণা (বড় অক্ষরে)', 'lfHeadline', d.headline))
+    + row('<div style="flex:1;min-width:200px"><label style="' + lab + '">🖨️ প্রিন্টের ডিজাইন</label><select id="lfLayout" style="' + inp + ';background:#fff"><option value="1"' + (d.layout !== '2' ? ' selected' : '') + '>ডিজাইন ১ — A4 ল্যান্ডস্কেপ, পাশাপাশি ২টি (ভার্টিক্যাল)</option><option value="2"' + (d.layout === '2' ? ' selected' : '') + '>ডিজাইন ২ — A4 পোর্ট্রেট, উপর-নিচে ২টি (হরাইজন্টাল)</option></select></div>' + fld('ডিজাইন ২-এর প্রধান শিরোনাম', 'lfTitle2', d.title2))
+    + row(fld('উপরের ছোট শিরোনাম', 'lfRibbon', d.ribbon) + fld('মূল ঘোষণা', 'lfHeadline', d.headline))
     + row(fld('ক্যাম্পের নাম *', 'lfTitle', d.title) + fld('তারিখ', 'lfDate', d.date, 'date'))
     + row(fld('ভিজিট ফি', 'lfFee', d.fee, 'text', 'যেমন: ৳ ১০০') + fld('স্থান / ঠিকানা', 'lfVenue', d.venue))
     + row(area('আমন্ত্রণ বার্তা (ফাঁকা রাখলে স্বয়ংক্রিয় লেখা হবে)', 'lfMsg', d.msg, 3))
@@ -39084,16 +39086,17 @@ function printCampLeaflet(id) {
   var d0 = _lfDefaults(s);
   var v = {
     ribbon: g('lfRibbon'), headline: g('lfHeadline'), title: g('lfTitle'), date: g('lfDate'), fee: g('lfFee'),
-    venue: g('lfVenue'), msg: g('lfMsg'), services: g('lfServices'), note: g('lfNote'),
+    venue: g('lfVenue'), msg: g('lfMsg'), services: g('lfServices'), note: g('lfNote'), layout: g('lfLayout') || '1', title2: g('lfTitle2'),
     time: d0.time, org: d0.org, persons: d0.persons, helperName: d0.helperName, helperPhone: d0.helperPhone, contactPhone: d0.contactPhone
   };
   if (!v.title) { showToast('⚠️ ক্যাম্পের নাম লিখুন'); return; }
-  s.leaflet = Object.assign({}, s.leaflet || {}, { ribbon: v.ribbon, headline: v.headline, msg: v.msg, services: v.services, note: v.note });
+  s.leaflet = Object.assign({}, s.leaflet || {}, { ribbon: v.ribbon, headline: v.headline, msg: v.msg, services: v.services, note: v.note, layout: v.layout, title2: v.title2 });
   try { saveData(); } catch (e) {}
   closeCampLeafletModal();
   exportDocumentPDF(_lfBuildHtml(v), 'Camp_Leaflet_' + (s.date || ''), '📄 ' + _lfEsc(v.title) + ' — প্রচার লিফলেট');
 }
 function _lfBuildHtml(v) {
+  if (String(v.layout) === '2') return _lfBuildHtml2(v);
   var st = appData.settings || {};
   var hosp = _lfEsc(st.hospName || 'ICON Eye Hospital');
   var lines = function (t) { return String(t || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean); };
@@ -39175,6 +39178,89 @@ function _lfBuildHtml(v) {
     + '@media print{.lf-sheet{zoom:1!important;box-shadow:none!important;margin:0!important}}'
     + '</style>';
   return css + '<div class="lf-sheet">' + one + one + '</div>';
+}
+
+// ===== ডিজাইন ২: A4 পোর্ট্রেট পেজে উপর-নিচে ২টি হরাইজন্টাল লিফলেট (প্রতিটি 210×148.5mm), থ্রিডি লোগো =====
+function _lfBuildHtml2(v) {
+  var st = appData.settings || {};
+  var hosp = _lfEsc(st.hospName || 'ICON Eye Hospital');
+  var persons = String(v.persons || '').split(/[,،;\n]/).map(function (x) { return x.trim(); }).filter(Boolean).map(_lfEsc);
+  var dtxt = _lfDateTxt(v.date), dMain = dtxt, dSub = '';
+  var ci = dtxt.indexOf(','); if (ci > 0) { dMain = dtxt.slice(0, ci); dSub = dtxt.slice(ci + 1).trim(); }
+  var feeRaw = String(v.fee || '').replace(/^৳\s*/, '').trim();
+  var feeHtml = feeRaw ? ('<div class="l2-big">' + _lfEsc(feeRaw) + '</div>' + (/^[0-9০-৯.,\s]+$/.test(feeRaw) ? '<div class="l2-sm">টাকা</div>' : '')) : '';
+  var t2 = String(v.title2 || 'চক্ষু চিকিৎসা ও পরামর্শ ক্যাম্প'), t2a = t2, t2b = '';
+  var oi = t2.indexOf(' ও '); if (oi > 0) { t2a = t2.slice(0, oi); t2b = t2.slice(oi + 1); }
+  var ico = function (c, inner) { return '<svg class="l2-ico" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>'; };
+  var card = function (cls, label, icon, body) { return body ? '<div class="l2-card ' + cls + '"><span class="l2-pill">' + label + '</span>' + icon + body + '</div>' : ''; };
+  var cards =
+    card('c1', 'তারিখ', ico('#c0272d', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'), '<div class="l2-tx">' + _lfEsc(dMain) + '</div>' + (dSub ? '<div class="l2-sm">(' + _lfEsc(dSub) + ')</div>' : ''))
+    + card('c2', 'সময়', ico('#1d4ed8', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'), v.time ? '<div class="l2-tx">' + _lfEsc(v.time) + '</div>' : '')
+    + card('c3', 'স্থান', ico('#15803d', '<path d="M12 21s-6-5.3-6-10a6 6 0 1112 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/>'), v.venue ? '<div class="l2-tx">' + _lfEsc(v.venue) + '</div>' : '')
+    + card('c4', 'টিকিট মূল্য', ico('#c2410c', '<path d="M3 7h18v3a2 2 0 000 4v3H3v-3a2 2 0 000-4z"/><path d="M14 7v10" stroke-dasharray="2 2"/>'), feeHtml);
+  var contact = [];
+  if (st.phone || v.contactPhone) contact.push('📞 ' + _lfEsc(st.phone || v.contactPhone));
+  if (st.email) contact.push('✉️ ' + _lfEsc(st.email));
+  var supHtml = '<div class="l2-box"><span class="lf-tag lf-t2">সার্বিক সহযোগিতায়</span>'
+    + (v.org ? '<div class="l2-s1">' + _lfEsc(v.org) + '</div>' : '')
+    + (persons.length ? '<div class="l2-s2">' + persons.join(' &nbsp;·&nbsp; ') + '</div>' : '')
+    + (v.helperName ? '<div class="l2-s3">স্থানীয় যোগাযোগ: ' + _lfEsc(v.helperName) + (v.helperPhone ? ' — ' + _lfEsc(v.helperPhone) : '') + '</div>' : '')
+    + (!v.org && !persons.length && !v.helperName ? '<div class="l2-s3">—</div>' : '')
+    + '</div>';
+  var orgHtml = '<div class="l2-box"><span class="lf-tag lf-t3">আয়োজনে</span><div class="l2-s1">' + hosp + '</div>'
+    + (st.address ? '<div class="l2-s3">📍 ' + _lfEsc(st.address) + '</div>' : '')
+    + (contact.length ? '<div class="l2-s3">' + contact.join(' &nbsp;|&nbsp; ') + '</div>' : '') + '</div>';
+  var one =
+    '<div class="l2-cell"><div class="l2">'
+    + '<div class="l2-top">'
+    + '<div class="l2-logoWrap"><div class="l2-logoCard">' + (typeof LOGO_B64 !== 'undefined' ? '<img src="' + LOGO_B64 + '" alt="' + hosp + '">' : '<b>' + hosp + '</b>') + '</div></div>'
+    + '<div class="l2-ttl">' + (v.ribbon ? '<span class="l2-rib">' + _lfEsc(v.ribbon) + '</span>' : '')
+    + '<div class="l2-h"><span class="r">' + _lfEsc(t2a) + '</span>' + (t2b ? '<br><span class="g">' + _lfEsc(t2b) + '</span>' : '') + '</div>'
+    + (v.title ? '<div class="l2-camp">' + _lfEsc(v.title) + '</div>' : '') + '</div></div>'
+    + (v.headline ? '<div class="l2-strip">' + _lfEsc(v.headline) + '</div>' : '')
+    + '<div class="l2-cards">' + cards + '</div>'
+    + '<div class="l2-bot">' + supHtml + orgHtml + '</div>'
+    + '</div></div>';
+  var css = '<style>'
+    + '@page{size:A4 portrait;margin:0}'
+    + '.l2-sheet{width:210mm;height:296mm;display:flex;flex-direction:column;background:#fff;box-sizing:border-box;overflow:hidden;margin:0 auto;font-family:\'Hind Siliguri\',Arial,sans-serif;color:#111;page-break-inside:avoid;break-inside:avoid}'
+    + '.l2-sheet *{box-sizing:border-box}'
+    + '.l2-cell{width:210mm;height:148mm;padding:5mm 6mm}'
+    + '.l2{height:100%;border:1px solid #cfe3ec;border-radius:4mm;background:linear-gradient(135deg,#f3faff 0%,#fff 55%,#f1fbf4 100%);padding:4mm 5mm;display:flex;flex-direction:column;gap:2.5mm;overflow:hidden}'
+    + '.l2-top{display:flex;align-items:center;gap:6mm;height:38mm}'
+    + '.l2-logoWrap{width:76mm;flex-shrink:0;perspective:700px;padding:1mm 3mm 3mm 1mm}'
+    + '.l2-logoCard{background:linear-gradient(145deg,#fff,#e6f3fa);border-radius:4mm;padding:4mm 4.5mm;transform:rotateY(-14deg) rotateX(5deg) rotateZ(-1.5deg);transform-origin:center;box-shadow:1px 1px 0 #bcdcea,2px 2px 0 #a9d0e2,3px 3px 0 #96c4da,4px 4px 0 #84b8d2,10px 12px 16px rgba(10,70,100,.28);border:1px solid #fff}'
+    + '.l2-logoCard img{width:100%;height:auto;display:block;filter:drop-shadow(1.2mm 1.4mm 1mm rgba(10,70,100,.3))}'
+    + '.l2-ttl{flex:1;min-width:0;text-align:center}'
+    + '.l2-rib{display:inline-block;background:#fff3cf;border-radius:99px;padding:.4mm 5mm;font-size:10.5pt;font-weight:600;margin-bottom:1mm}'
+    + '.l2-h{font-size:25pt;font-weight:800;line-height:1.15}.l2-h .r{color:#c0272d}.l2-h .g{color:#0b7a3b}'
+    + '.l2-camp{font-size:9.5pt;color:#333;margin-top:1mm}'
+    + '.l2-strip{text-align:center;font-size:10.5pt;font-weight:600;background:#e8f4fb;border-radius:99px;padding:1.2mm 4mm}'
+    + '.l2-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:3.5mm;flex:1;padding-top:3mm;min-height:0}'
+    + '.l2-card{position:relative;border:1px solid #d5dee6;border-radius:3mm;background:#fff;text-align:center;padding:5.5mm 2mm 2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;overflow:hidden}'
+    + '.l2-pill{position:absolute;top:0;left:50%;transform:translate(-50%,-50%);white-space:nowrap;border-radius:99px;padding:.5mm 5mm;font-size:9.5pt;font-weight:700;border:1px solid rgba(0,0,0,.08)}'
+    + '.c1 .l2-pill{background:#fde2e2}.c2 .l2-pill{background:#dbeafe}.c3 .l2-pill{background:#dcfce7}.c4 .l2-pill{background:#ffedd5}'
+    + '.c1{border-color:#f4c4c4}.c2{border-color:#bcd2f3}.c3{border-color:#b6e2c4}.c4{border-color:#f6cfa8}'
+    + '.l2-ico{width:7.5mm;height:7.5mm;margin-bottom:1mm;flex-shrink:0}'
+    + '.l2-tx{font-size:10.5pt;font-weight:600;line-height:1.35;overflow-wrap:anywhere}.l2-sm{font-size:9pt;color:#333;line-height:1.3}'
+    + '.l2-big{font-size:25pt;font-weight:800;line-height:1.05;color:#c2410c}'
+    + '.l2-bot{display:grid;grid-template-columns:1fr 1fr;gap:4mm;border-top:1px solid #cfe3ec;padding-top:2.5mm;height:30mm}'
+    + '.l2-box{text-align:center;min-width:0;overflow:hidden}.l2-box:first-child{border-right:1px solid #cfe3ec;padding-right:3mm}'
+    + '.lf-tag{display:inline-block;border-radius:99px;padding:.4mm 4.5mm;font-size:8.5pt;font-weight:600;margin-bottom:1mm}.lf-t2{background:#efe8fa}.lf-t3{background:#e2f4e8}'
+    + '.l2-s1{font-size:11pt;font-weight:600;line-height:1.3}.l2-s2{font-size:9.8pt;line-height:1.4;margin-top:.5mm}.l2-s3{font-size:9pt;color:#222;line-height:1.45;margin-top:.5mm}'
+    + '@media screen{'
+    + '#printPreviewOverlay .print-preview-card{width:max-content!important;max-width:100%!important}'
+    + '#printPreviewBody{padding:0!important;overflow:auto!important}'
+    + '.l2-sheet{box-shadow:0 2px 14px rgba(0,0,0,.25);margin:10px auto}'
+    + '}'
+    + '@media screen and (max-width:900px){.l2-sheet{zoom:.85}}'
+    + '@media screen and (max-width:760px){.l2-sheet{zoom:.7}}'
+    + '@media screen and (max-width:620px){.l2-sheet{zoom:.55}}'
+    + '@media screen and (max-width:500px){.l2-sheet{zoom:.43}}'
+    + '@media screen and (max-width:400px){.l2-sheet{zoom:.34}}'
+    + '@media print{.l2-sheet{zoom:1!important;box-shadow:none!important;margin:0!important}}'
+    + '</style>';
+  return css + '<div class="l2-sheet">' + one + one + '</div>';
 }
 
 function renderRecCampSchedule() {
