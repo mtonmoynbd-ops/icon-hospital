@@ -3311,14 +3311,13 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         .cv-tile.on{border-color:var(--primary);background:#eff6ff}
         .cv-tile b{display:block;font-size:13px;color:var(--primary)}
         .cv-tile span{display:block;font-size:11px;color:#64748b;margin-top:1px}
-        .cp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.cp-tab{border:1.5px solid var(--border);background:#fff;border-radius:999px;padding:8px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;color:#475569}.cp-tab:hover{border-color:var(--primary)}.cp-tab.on{background:var(--primary);border-color:var(--primary);color:#fff}
+        .cs-lfprev{}@media(max-width:1180px){.cs-lfprev{display:none!important}}.cp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.cp-tab{border:1.5px solid var(--border);background:#fff;border-radius:999px;padding:8px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;color:#475569}.cp-tab:hover{border-color:var(--primary)}.cp-tab.on{background:var(--primary);border-color:var(--primary);color:#fff}
         .cv-bar{height:6px;border-radius:4px;background:#e2e8f0;margin-top:5px;overflow:hidden}.cv-bar i{display:block;height:100%;background:#16a34a}
       </style>
       <div class="panel" id="campTopBar">
-        <div class="panel-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:10px 16px">
-          <div id="campTop3" onclick="campPageTab('roi')" title="ক্লিক করলে পুরো ROI লিডারবোর্ড খুলবে" style="flex:0 1 auto;cursor:pointer"></div>
-          <div id="campUpcomingCards" style="flex:1 1 380px;min-width:0"></div>
-          <button class="btn btn-success" style="flex:none" onclick="openCampAddModal()">➕ নতুন ক্যাম্প</button>
+        <div class="panel-body" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:10px 16px">
+          <div id="campUpcomingCards" style="flex:1 1 420px;min-width:0"></div>
+          <div id="campTop3" onclick="campPageTab('roi')" title="ক্লিক করলে পুরো ROI লিডারবোর্ড খুলবে" style="flex:0 0 auto;margin-left:auto;cursor:pointer;text-align:right"></div>
           <span id="campVillageSummaryLine" style="display:none"></span>
         </div>
       </div>
@@ -28301,6 +28300,7 @@ function csVillageLookup(src) {
   // স্থান/লোকেশন নিজে ভরে (হাতে লেখা থাকলে ছোঁয়া হয় না)
   var loc = document.getElementById('csLocation');
   if (loc && village && src !== 'init') { var auto = village + (union ? ', ' + union : ''); if (!loc.value || loc.dataset.auto === loc.value) { loc.value = auto; loc.dataset.auto = auto; } }
+  try { csApplyVillageDefaults(); csLfPrevSched(); } catch (e) {}
   var info = document.getElementById('csVillageInfo'); if (!info) return;
   if (!village) { info.innerHTML = ''; return; }
   var m = rec ? _cvAssign()[rec.id] : null;
@@ -28314,13 +28314,13 @@ function csVillageUpsert() {
   return _cvUpsert(uv, g('csHelperName'), g('csHelperPhone'));
 }
 // ---- ফর্মটি মডালে খোলা (ক্যাম্প রেকর্ড পেজ থেকে — সেটিংসে না গিয়ে) ----
-function openCampAddModal(pre) {
+function openCampAddModal(pre, skipDef) {
   var f = document.getElementById('campScheduleForm'); if (!f) return;
   if (document.getElementById('campAddModal')) return;
   window._csFormHome = { parent: f.parentNode, next: f.nextSibling };
   var w = document.createElement('div'); w.id = 'campAddModal';
   w.style.cssText = 'position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto';
-  w.innerHTML = '<div style="background:#fff;border-radius:14px;padding:14px 16px;max-width:900px;width:100%;margin:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:16px;color:var(--primary)">➕ নতুন ক্যাম্প শিডিউল</b><button onclick="csFormClose()" style="border:0;background:none;font-size:22px;cursor:pointer">✕</button></div><div id="campAddModalBody"></div></div>';
+  w.innerHTML = '<div style="background:#fff;border-radius:14px;padding:14px 16px;max-width:1420px;width:100%;margin:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:16px;color:var(--primary)">➕ নতুন ক্যাম্প শিডিউল</b><button onclick="csFormClose()" style="border:0;background:none;font-size:22px;cursor:pointer">✕</button></div><div style="display:flex;gap:18px;align-items:flex-start"><div id="campAddModalBody" style="flex:1;min-width:0"></div><div id="csLfPrevCol" class="cs-lfprev" style="width:480px;flex-shrink:0;position:sticky;top:8px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><b style="flex:1;font-size:13px;color:var(--primary)">👁️ লিফলেট প্রিভিউ (লাইভ)</b><button type="button" id="csLfPvB1" onclick="csLfPrevLayout(\'1\')" style="padding:3px 10px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;background:#fff;color:#0f4c81">ডিজাইন ১</button><button type="button" id="csLfPvB2" onclick="csLfPrevLayout(\'2\')" style="padding:3px 10px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;background:#fff;color:#0f4c81">ডিজাইন ২</button></div><div id="csLfPrevBody" style="border:1px solid #e2e8f0;border-radius:10px;background:#e5eaf0;padding:6px;overflow:hidden"></div><div style="font-size:11px;color:#64748b;margin-top:5px;text-align:center">ফর্মে লিখলেই এখানে বদলায় — প্রিন্ট ক্যাম্প সেভের পর</div></div></div></div>';
   document.body.appendChild(w);
   document.getElementById('campAddModalBody').appendChild(f);
   f.style.display = 'block'; f.style.marginBottom = '0';
@@ -28340,6 +28340,10 @@ function openCampAddModal(pre) {
     var _l = document.getElementById('csLocation'); if (_l && pre.village && !_l.value) { _l.value = pre.village + (pre.union ? ', ' + pre.union : ''); _l.dataset.auto = _l.value; }
     csVillageLookup('init');
   }
+  window._lfPrevLayout = null;
+  if (!skipDef) csApplyDefaults();
+  f.oninput = f.onchange = csLfPrevSched;
+  csLfPrevSched();
 }
 function csFormClose() {
   var f = document.getElementById('campScheduleForm'), m = document.getElementById('campAddModal');
@@ -28677,7 +28681,7 @@ function renderCampScheduleTable() {
     <td><span class="badge ${s.status==='closed'?'badge-danger':s.status==='active'?'badge-success':s.status==='cancelled'?'badge-danger':'badge-info'}">${s.status==='closed'?'সম্পন্ন':s.status==='active'?'সক্রিয়':s.status==='cancelled'?'❌ বাতিল':'নির্ধারিত'}</span>${s.status==='cancelled'&&s.cancelReason?`<div style="font-size:10.5px;color:var(--text-light);margin-top:2px">কারণ: ${s.cancelReason}</div>`:''}${(s.rescheduleHistory&&s.rescheduleHistory.length)?`<div style="font-size:10.5px;color:var(--text-light);margin-top:2px">🔁 রি-শিডিউল হয়েছে ${s.rescheduleHistory.length} বার</div>`:''}</td>
     <td style="display:flex;gap:4px">
       ${(s.status==='closed'||s.status==='cancelled')?'':`<button class="btn btn-sm" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd" onclick="openCampLeafletModal(${s.id})" title="প্রচার লিফলেট প্রিন্ট">🖨️</button>`}
-      <button class="btn btn-primary btn-sm" onclick="editCampSchedule(${s.id})">✏️</button>
+      <button class="btn btn-primary btn-sm" onclick="campSchedEdit(${s.id})">✏️</button>
       <button class="btn btn-danger btn-sm" onclick="deleteCampSchedule(${s.id})">🗑️</button>
     </td>
   </tr>`).join('');
@@ -39115,8 +39119,8 @@ function _lfDefaults(s) {
     fee: (s.visitFee > 0) ? ('৳ ' + fmt(s.visitFee)) : '',
     venue: s.location || '', msg: '',
     services: 'চক্ষু পরীক্ষা ও প্রয়োজনীয় চিকিৎসা পরামর্শ\nছানি ধরা পড়লে রোগীদের স্বল্পমূল্যে ছানি অপারেশনের ব্যবস্থা\nচশমা ও ওষুধ সংক্রান্ত পরামর্শ',
-    layout: '1', title2: 'চক্ষু চিকিৎসা ও পরামর্শ ক্যাম্প',
-    note: '', org: s.localOrg || '', persons: s.guests || '', helperName: v.helperName || '', helperPhone: v.helperPhone || '',
+    layout: (function () { try { return localStorage.getItem('lfLayout') === '2' ? '2' : '1'; } catch (e) { return '1'; } })(), title2: 'চক্ষু চিকিৎসা ও পরামর্শ ক্যাম্প',
+    note: '', org: s.localOrg || '', persons: s.guests || '', helperName: (s._hn != null ? s._hn : (v.helperName || '')), helperPhone: (s._hp != null ? s._hp : (v.helperPhone || '')),
     contactPhone: st.phone || '',
     showOrg: true, showPersons: true, showHName: true, showHPhone: false, showBism: true
   };
@@ -39190,6 +39194,7 @@ function printCampLeaflet(id, previewOnly) {
   s.lfShow = { org: flags.showOrg, persons: flags.showPersons, hname: flags.showHName, hphone: flags.showHPhone };
   try { saveData(); } catch (e) {}
   closeCampLeafletModal();
+  if (!previewOnly) { try { localStorage.setItem('lfLayout', String(v.layout) === '2' ? '2' : '1'); } catch (e) {} }
   if (previewOnly) { _lfShowPreview(v); return; }
   exportDocumentPDF(_lfBuildHtml(v), 'Camp_Leaflet_' + (s.date || ''), '📄 ' + _lfEsc(v.title) + ' — প্রচার লিফলেট');
 }
@@ -39387,6 +39392,62 @@ function _lfBuildHtml2(v) {
 
 // ===== ক্যাম্প রেকর্ড পেজ: টপ-৩ ROI, আসন্ন ক্যাম্প কার্ড, প্যানেল টগল =====
 function csLfShowSet(sh) { sh = sh || {}; var set = function (id, v) { var e = document.getElementById(id); if (e) e.checked = v; }; set('csShOrg', sh.org !== false); set('csShPersons', sh.persons !== false); set('csShHName', sh.hname !== false); set('csShHPhone', sh.hphone === true); }
+
+// ===== নতুন ক্যাম্প ফর্ম: বাই-ডিফল্ট তথ্য ও রিয়েল-টাইম লিফলেট প্রিভিউ (শুধু অ্যাডমিন পিসি) =====
+function _csSortDesc(a, b) { return String(b.date).localeCompare(String(a.date)) || ((b.id || 0) - (a.id || 0)); }
+function _csLastSched() { return (appData.campSchedules || []).filter(function (s) { return s.doctor; }).sort(_csSortDesc)[0] || null; }
+function _csLastSchedForVillage(uv) {
+  if (!uv || !uv.village) return null;
+  var rec = null; try { rec = _cvFind(uv.union, uv.village); } catch (e) {}
+  var list = (appData.campSchedules || []).filter(function (s) {
+    return (rec && s.villageId === rec.id) || (_cvNorm(s.village) === _cvNorm(uv.village) && (!uv.union || !s.union || _cvNorm(s.union) === _cvNorm(uv.union)));
+  }).sort(_csSortDesc);
+  return list.filter(function (s) { return s.localOrg || s.guests; })[0] || list[0] || null;
+}
+function csApplyVillageDefaults() {
+  if ((document.getElementById('csEditId') || {}).value) return;
+  var uv = _cvUV('cs'); if (!uv.village) return;
+  var auto = function (id, val) { var e = document.getElementById(id); if (!e) return; if (!e.value || e.dataset.auto === e.value) { e.value = val || ''; e.dataset.auto = e.value; } };
+  auto('csName', uv.village);
+  var ls = _csLastSchedForVillage(uv);
+  auto('csLocalOrg', ls ? ls.localOrg : ''); auto('csGuests', ls ? ls.guests : '');
+  if (ls && ls.lfShow) csLfShowSet(ls.lfShow);
+}
+function csApplyDefaults() {
+  if ((document.getElementById('csEditId') || {}).value) return;
+  var p = _csLastSched();
+  var set = function (id, v) { var e = document.getElementById(id); if (e && !e.value) e.value = v == null ? '' : v; };
+  if (p) {
+    set('csTimeFrom', p.timeFrom); set('csTimeTo', p.timeTo); set('csVisitFee', p.visitFee || '');
+    if (p.doctor) { populateCsDoctorSelect(p.doctor); var ds = document.getElementById('csDoctor'); if (ds) ds.value = p.doctor; }
+    var cs = document.getElementById('csCamper'); if (cs && p.camper) cs.value = p.camper;
+    renderCsRegularStaff((p.regularStaff || []).map(function (r) { return r.id; }));
+    (p.parttimers || []).forEach(function (q) { addCsParttimeRow(q.name, q.pay); });
+    csLfShowSet(p.lfShow);
+  }
+  csApplyVillageDefaults();
+}
+function _csPseudoSchedule() {
+  var g = function (i) { var e = document.getElementById(i); return e ? String(e.value || '').trim() : ''; };
+  var ck = function (i) { var e = document.getElementById(i); return e ? !!e.checked : false; };
+  var editId = g('csEditId'), ex = editId ? (appData.campSchedules || []).find(function (x) { return x.id == editId; }) : null;
+  var uv = _cvUV('cs');
+  return { id: ex ? ex.id : 0, name: g('csName'), location: g('csLocation'), date: g('csDate'), visitFee: parseFloat(g('csVisitFee')) || 0,
+    timeFrom: g('csTimeFrom'), timeTo: g('csTimeTo'), localOrg: g('csLocalOrg'), guests: g('csGuests'), doctor: g('csDoctor'),
+    village: uv.village, union: uv.union, leaflet: ex ? ex.leaflet : undefined,
+    lfShow: { org: ck('csShOrg'), persons: ck('csShPersons'), hname: ck('csShHName'), hphone: ck('csShHPhone') }, _hn: g('csHelperName'), _hp: g('csHelperPhone') };
+}
+function csLfPreviewRender() {
+  var body = document.getElementById('csLfPrevBody'); if (!body) return;
+  var v = _lfValuesFor(_csPseudoSchedule());
+  var L = window._lfPrevLayout || v.layout || '1'; v.layout = L;
+  var col = document.getElementById('csLfPrevCol');
+  _lfMountSingle(body, v, ((col && col.clientWidth) || 470) - 16);
+  ['1', '2'].forEach(function (k) { var b = document.getElementById('csLfPvB' + k); if (b) { b.style.background = (k === String(L) ? '#0f4c81' : '#fff'); b.style.color = (k === String(L) ? '#fff' : '#0f4c81'); } });
+}
+var _csLfT = null;
+function csLfPrevSched() { clearTimeout(_csLfT); _csLfT = setTimeout(function () { try { csLfPreviewRender(); } catch (e) {} }, 140); }
+function csLfPrevLayout(L) { window._lfPrevLayout = L; csLfPreviewRender(); }
 function campPageTab(n) {
   window._campTab = n;
   var map = { main: ['campUpcomingPanel', 'campListPanel'], mgmt: ['campSchedMgmtPanel'], db: ['campVillagePanel'], roi: ['campROIPanel'] };
@@ -39408,9 +39469,13 @@ function renderCampTop3() {
     var pr = _campNetTrue(c);
     return '<span style="display:inline-flex;align-items:center;gap:5px;background:#f1f6fc;border:1.5px solid #dbe7f5;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap">' + medals[i] + ' ' + esc(c.name) + ' <b style="color:' + (pr >= 0 ? '#0f4c81' : '#e74c3c') + '">৳ ' + fmt(pr) + '</b></span>';
   }).join(' ');
-  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-light);font-weight:700;margin-bottom:4px">🏆 টপ ৩ ক্যাম্প (ROI) <span style="color:var(--primary)">▾ লিডারবোর্ড</span></div><div style="display:flex;gap:6px;flex-wrap:nowrap">' + (chips || '<span style="color:#94a3b8;font-size:12.5px">এখনো ডাটা নেই</span>') + '</div>';
+  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-light);font-weight:700;margin-bottom:4px">🏆 টপ ৩ ক্যাম্প (ROI) <span style="color:var(--primary)">▾ লিডারবোর্ড</span></div><div style="display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end">' + (chips || '<span style="color:#94a3b8;font-size:12.5px">এখনো ডাটা নেই</span>') + '</div>';
 }
-function campSchedEdit(id) { openCampAddModal(); editCampSchedule(id); }
+function campSchedEdit(id) {
+  openCampAddModal(null, true); editCampSchedule(id);
+  var t = document.querySelector('#campAddModal b'); if (t) t.textContent = '✏️ ক্যাম্প সংশোধন';
+  csLfPrevSched();
+}
 function _campUpList() {
   var today = todayStr();
   return (appData.campSchedules || []).filter(function (s) { return s.date >= today && s.status !== 'closed' && s.status !== 'cancelled'; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
@@ -39420,7 +39485,7 @@ function renderCampUpcomingCards() {
   var host = document.getElementById('campUpcomingCards'); if (!host) return;
   var today = todayStr(), esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
   var list = _campUpList();
-  var head = function (nav) { return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px"><span style="font-size:11.5px;font-weight:800;color:var(--primary)">📅 আসন্ন ক্যাম্প (' + fmt(list.length) + ')</span>' + (nav || '') + '</div>'; };
+  var head = function (nav) { return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px"><span style="font-size:11.5px;font-weight:800;color:var(--primary)">📅 আসন্ন ক্যাম্প (' + fmt(list.length) + ')</span><span style="display:inline-flex;align-items:center;gap:8px">' + (nav || '') + '<button type="button" class="btn btn-success btn-sm" style="padding:3px 10px;font-size:11.5px;white-space:nowrap" onclick="openCampAddModal()">➕ নতুন ক্যাম্প</button></span></div>'; };
   if (!list.length) { host.innerHTML = head('') + '<div style="font-size:12.5px;color:#94a3b8;padding:6px 0">কোনো আসন্ন ক্যাম্প নেই</div>'; return; }
   var n = list.length, idx = Math.max(0, Math.min(n - 1, window._campUpIdx || 0)); window._campUpIdx = idx;
   var s = list[idx], tm = (typeof _lfSchedTime === 'function') ? _lfSchedTime(s) : '';
@@ -39466,6 +39531,14 @@ function _lfValuesFor(s) {
     layout: d.layout, title2: d.title2, time: d.time, org: d.showOrg ? d.org : '', persons: d.showPersons ? d.persons : '', helperName: d.showHName ? d.helperName : '',
     helperPhone: d.showHPhone ? d.helperPhone : '', contactPhone: d.contactPhone, bism: d.showBism !== false };
 }
+function _lfMountSingle(body, v, availW) {
+  body.innerHTML = _lfBuildHtml(v);
+  var sh = body.querySelector('.lf-sheet,.l2-sheet'); if (!sh) return;
+  var cells = sh.querySelectorAll('.lf-cell,.l2-cell'); if (cells[1]) cells[1].remove();
+  if (sh.classList.contains('lf-sheet')) sh.style.width = '148.5mm'; else sh.style.height = '148mm';
+  sh.style.zoom = ''; sh.style.margin = '0 auto';
+  var wpx = sh.offsetWidth || 1; sh.style.zoom = Math.min(1, availW / wpx);
+}
 function campLeafletPreview(id) {
   var s = (appData.campSchedules || []).find(function (x) { return x.id === id; });
   if (!s) { showToast('⚠️ ক্যাম্প শিডিউল পাওয়া যায়নি'); return; }
@@ -39487,9 +39560,7 @@ function _lfShowPreview(v) {
   var show = function (L) {
     v.layout = L;
     var body = document.getElementById('lfPvBody'); if (!body) return;
-    body.innerHTML = _lfBuildHtml(v);
-    var sh = body.querySelector('.lf-sheet,.l2-sheet');
-    if (sh) { var cells = sh.querySelectorAll('.lf-cell,.l2-cell'); if (cells[1]) cells[1].remove(); if (sh.classList.contains('lf-sheet')) sh.style.width = '148.5mm'; else sh.style.height = '148mm'; sh.style.zoom = ''; var wpx = sh.offsetWidth || 1; sh.style.zoom = Math.min(1, (window.innerWidth - 16) / wpx); sh.style.margin = '0 auto'; }
+    _lfMountSingle(body, v, window.innerWidth - 16);
     ['1', '2'].forEach(function (k) { var b = document.getElementById('lfPvB' + k); if (b) { b.style.background = (k === L ? '#0f4c81' : '#fff'); b.style.color = (k === L ? '#fff' : '#0f4c81'); } });
   };
   document.getElementById('lfPvB1').onclick = function () { show('1'); };
@@ -48559,11 +48630,12 @@ function amCampForm(id, pre) {
   var _pv = pre || (_vr ? { upazila: _vr.upazila, union: _vr.union, village: _vr.village, helperName: _vr.helperName, helperPhone: _vr.helperPhone } : (s ? { upazila: s.upazila || '', union: s.union || '', village: s.village || '' } : {}));
   var docs = (appData.doctors || []).filter(function (d) { return d.status === 'active'; });
   var pool = []; try { pool = _campStaffPool(); } catch (e) {}
-  var selDoc = s ? s.doctor : '';
+  var _dflt = s ? null : _csLastSched(), _b = s || _dflt || {};
+  var selDoc = _b.doctor || '';
   var dopts = '<option value="">-- ডাক্তার বেছে নিন --</option>' + docs.map(function (d) { return '<option value="' + amEsc(d.name) + '" data-id="' + amEsc(d.id) + '"' + (d.name === selDoc ? ' selected' : '') + '>' + amEsc(d.name) + '</option>'; }).join('');
   if (selDoc && !docs.some(function (d) { return d.name === selDoc; })) dopts += '<option value="' + amEsc(selDoc) + '" data-id="" selected>' + amEsc(selDoc) + ' (তালিকায় নেই)</option>';
-  var copts = '<option value="">-- কর্মী বেছে নিন --</option>' + pool.map(function (p) { return '<option value="' + amEsc(p.name) + '"' + (s && p.name === s.camper ? ' selected' : '') + '>' + amEsc(p.name) + '</option>'; }).join('');
-  var chosen = s ? (s.regularStaff || []).map(function (r) { return r.id; }) : [];
+  var copts = '<option value="">-- কর্মী বেছে নিন --</option>' + pool.map(function (p) { return '<option value="' + amEsc(p.name) + '"' + (_b.camper && p.name === _b.camper ? ' selected' : '') + '>' + amEsc(p.name) + '</option>'; }).join('');
+  var chosen = (_b.regularStaff || []).map(function (r) { return r.id; });
   var staff = pool.length ? pool.map(function (p) {
     var daily = Math.round((p.basic || 0) / 30);
     return '<label><input type="checkbox" class="am-cs-chk" value="' + p.id + '" data-name="' + amEsc(p.name) + '" data-daily="' + daily + '"' + (chosen.indexOf(p.id) >= 0 ? ' checked' : '') + '>' + amEsc(p.name) + '</label>';
@@ -48582,17 +48654,26 @@ function amCampForm(id, pre) {
     + '<div class="am-f" id="amCsRsWrap" style="display:none"><label>তারিখ বদলানোর (রিশিডিউলের) কারণ *</label><textarea id="amCsRsReason" placeholder="এই কারণসহ রিশিডিউলের রেকর্ড সংরক্ষিত হবে"></textarea></div>'
     + '<div class="am-f"><label>ডাক্তার *</label><select id="amCsDoc">' + dopts + '</select></div>'
     + '<div class="am-f"><label>ক্যাম্পেইনার</label><select id="amCsCamper">' + copts + '</select></div>'
-    + '<div class="am-f"><label>ভিজিট ফি (৳)</label><input type="number" inputmode="numeric" id="amCsFee" value="' + (s ? (s.visitFee || '') : '') + '"></div>'
-    + '<div class="am-f"><label>🕘 ক্যাম্পের সময় (শুরু — শেষ)</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="time" id="amCsTF" value="' + amEsc(s ? (s.timeFrom || '') : '') + '"><input type="time" id="amCsTT" value="' + amEsc(s ? (s.timeTo || '') : '') + '"></div></div>'
+    + '<div class="am-f"><label>ভিজিট ফি (৳)</label><input type="number" inputmode="numeric" id="amCsFee" value="' + (_b.visitFee || '') + '"></div>'
+    + '<div class="am-f"><label>🕘 ক্যাম্পের সময় (শুরু — শেষ)</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="time" id="amCsTF" value="' + amEsc(_b.timeFrom || '') + '"><input type="time" id="amCsTT" value="' + amEsc(_b.timeTo || '') + '"></div></div>'
     + '<div class="am-f"><label>🤝 সহযোগী সংগঠন (লিফলেটে আসবে)</label><input id="amCsOrg" value="' + amEsc(s ? (s.localOrg || '') : '') + '" placeholder="স্থানীয় সংগঠনের নাম"></div>'
     + '<div class="am-f"><label>👥 বিশেষ ব্যক্তিবর্গ (কমা দিয়ে নাম)</label><input id="amCsGuests" value="' + amEsc(s ? (s.guests || '') : '') + '" placeholder="নাম ১, নাম ২"></div>'
-    + (function () { var sh = (s && s.lfShow) || {}; var c = function (id, t, on) { return '<label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600;margin:3px 0"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + ' style="width:17px;height:17px"> ' + t + '</label>'; }; return '<div class="am-f"><label>🖨️ লিফলেটে যা ছাপা হবে</label>' + c('amCsShOrg', 'সহযোগী সংগঠন', sh.org !== false) + c('amCsShPersons', 'বিশেষ ব্যক্তিবর্গ', sh.persons !== false) + c('amCsShHName', 'স্থানীয় যোগাযোগের নাম', sh.hname !== false) + c('amCsShHPhone', 'স্থানীয় যোগাযোগের মোবাইল নম্বর', sh.hphone === true) + '</div>'; })()
+    + (function () { var sh = _b.lfShow || {}; var c = function (id, t, on) { return '<label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600;margin:3px 0"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + ' style="width:17px;height:17px"> ' + t + '</label>'; }; return '<div class="am-f"><label>🖨️ লিফলেটে যা ছাপা হবে</label>' + c('amCsShOrg', 'সহযোগী সংগঠন', sh.org !== false) + c('amCsShPersons', 'বিশেষ ব্যক্তিবর্গ', sh.persons !== false) + c('amCsShHName', 'স্থানীয় যোগাযোগের নাম', sh.hname !== false) + c('amCsShHPhone', 'স্থানীয় যোগাযোগের মোবাইল নম্বর', sh.hphone === true) + '</div>'; })()
     + '<div class="am-f"><label>নিয়মিত কর্মী (দৈনিক = মূল বেতন ÷ ৩০)</label><div class="am-staff">' + staff + '</div></div>'
     + '<div class="am-f"><label>পার্টটাইমার</label><div id="amPtRows"></div><button type="button" class="am-btn line" style="width:100%" onclick="amAddPt()">+ পার্টটাইমার যোগ</button></div>'
     + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amSaveCamp()">সেভ করুন</button></div>');
-  if (s) (s.parttimers || []).forEach(function (p) { amAddPt(p.name, p.pay); });
+  (_b.parttimers || []).forEach(function (p) { amAddPt(p.name, p.pay); });
   cvInitSel('amCs', _pv.upazila || '', _pv.union || '', _pv.village || '');
   amCsVillageLookup('init');
+}
+function amApplyVillageDefaults() {
+  if ((document.getElementById('amCsId') || {}).value) return;
+  var uv = _cvUV('amCs'); if (!uv.village) return;
+  var auto = function (id, val) { var e = document.getElementById(id); if (!e) return; if (!e.value || e.dataset.auto === e.value) { e.value = val || ''; e.dataset.auto = e.value; } };
+  auto('amCsName', uv.village);
+  var ls = _csLastSchedForVillage(uv);
+  auto('amCsOrg', ls ? ls.localOrg : ''); auto('amCsGuests', ls ? ls.guests : '');
+  if (ls && ls.lfShow) { var sh = ls.lfShow, set = function (id, v) { var e = document.getElementById(id); if (e) e.checked = v; }; set('amCsShOrg', sh.org !== false); set('amCsShPersons', sh.persons !== false); set('amCsShHName', sh.hname !== false); set('amCsShHPhone', sh.hphone === true); }
 }
 function amCsVillageLookup(src) {
   var uv = _cvUV('amCs'), union = uv.union, village = uv.village;
@@ -48604,6 +48685,7 @@ function amCsVillageLookup(src) {
   }
   var loc = document.getElementById('amCsLoc');
   if (loc && village && src !== 'init') { var auto = village + (union ? ', ' + union : ''); if (!loc.value || loc.dataset.auto === loc.value) { loc.value = auto; loc.dataset.auto = auto; } }
+  try { amApplyVillageDefaults(); } catch (e) {}
   var info = document.getElementById('amCsVInfo'); if (!info) return;
   if (!village) { info.innerHTML = ''; return; }
   if (!rec) { info.innerHTML = '<div class="am-meta" style="margin:0">🆕 নতুন গ্রাম — সেভ করলে ডাটাবেজে যোগ হবে</div>'; return; }
