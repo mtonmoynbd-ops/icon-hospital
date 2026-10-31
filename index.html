@@ -3317,7 +3317,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <div class="panel" id="campTopBar">
         <div class="panel-body" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:10px 16px">
           <div id="campUpcomingCards" style="flex:1 1 420px;min-width:0"></div>
-          <div id="campTop3" onclick="campPageTab('roi')" title="ক্লিক করলে পুরো ROI লিডারবোর্ড খুলবে" style="flex:0 0 auto;margin-left:auto;cursor:pointer;text-align:right"></div>
+          <div id="campLastSummary" style="flex:1 1 420px;min-width:0"></div>
           <span id="campVillageSummaryLine" style="display:none"></span>
         </div>
       </div>
@@ -39462,14 +39462,19 @@ function _oldToggleCampROI() { var p = document.getElementById('campROIPanel'); 
 function toggleCampSchedMgmt() { campPageTab('mgmt'); }
 function _oldToggleCampSchedMgmt() { var p = document.getElementById('campSchedMgmtPanel'); if (!p) return; var open = p.style.display === 'none'; p.style.display = open ? 'block' : 'none'; if (open) { try { renderCampScheduleTable(); } catch (e) {} p.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } }
 function renderCampTop3() {
-  var el = document.getElementById('campTop3'); if (!el) return;
-  var camps = (appData.camps || []).slice().sort(function (a, b) { return _campNetTrue(b) - _campNetTrue(a); }).slice(0, 3);
-  var medals = ['🥇', '🥈', '🥉'], esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
-  var chips = camps.map(function (c, i) {
-    var pr = _campNetTrue(c);
-    return '<span style="display:inline-flex;align-items:center;gap:5px;background:#f1f6fc;border:1.5px solid #dbe7f5;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap">' + medals[i] + ' ' + esc(c.name) + ' <b style="color:' + (pr >= 0 ? '#0f4c81' : '#e74c3c') + '">৳ ' + fmt(pr) + '</b></span>';
-  }).join(' ');
-  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-light);font-weight:700;margin-bottom:4px">🏆 টপ ৩ ক্যাম্প (ROI) <span style="color:var(--primary)">▾ লিডারবোর্ড</span></div><div style="display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end">' + (chips || '<span style="color:#94a3b8;font-size:12.5px">এখনো ডাটা নেই</span>') + '</div>';
+  var el = document.getElementById('campLastSummary'); if (!el) return;
+  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;min-height:24px"><span style="font-size:11.5px;font-weight:800;color:var(--primary)">🏁 সর্বশেষ ক্যাম্পের সামারি</span><button type="button" class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:11.5px;white-space:nowrap" onclick="campPageTab(\'roi\')">🏆 ROI লিডারবোর্ড</button></div>';
+  var c = (appData.camps || []).filter(function (x) { return x && x.date; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)) || ((b.id || 0) - (a.id || 0)); })[0];
+  if (!c) { el.innerHTML = head + '<div style="font-size:12.5px;color:#94a3b8;padding:6px 0">এখনো কোনো ক্যাম্প সম্পন্ন হয়নি</div>'; return; }
+  var inc = c.totalIncome || 0, net = _campNetTrue(c), exp = inc - net, pts = c.totalPatients || (c.patients || []).length || 0;
+  var chip = function (t, clr) { return '<span style="font-size:11px;font-weight:700;color:' + (clr || '#334155') + ';background:#eef3f9;border-radius:99px;padding:1px 8px;white-space:nowrap">' + t + '</span>'; };
+  el.innerHTML = head
+    + '<div onclick="showCampDetail(' + c.id + ')" title="ক্লিক করলে ক্যাম্পের বিস্তারিত" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:#f7fafd;border:1.5px solid #dbe7f5;border-radius:12px;padding:6px 10px">'
+    + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden"><span style="font-size:13px;font-weight:800;color:var(--primary);white-space:nowrap">' + esc(c.name) + '</span>'
+    + chip('👥 ' + fmt(pts) + ' জন') + chip('💰 ৳ ' + fmt(inc), '#047857') + chip('📉 ৳ ' + fmt(exp), '#b45309') + chip('📈 নীট ৳ ' + fmt(net), net >= 0 ? '#0f4c81' : '#e74c3c') + (c.rating ? chip(esc(c.rating)) : '') + '</div>'
+    + '<div style="font-size:11.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">📅 ' + formatDate(c.date) + ' · 📍 ' + esc(c.location || '—') + '</div></div>'
+    + '<div style="flex:none"><button type="button" class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;white-space:nowrap" onclick="event.stopPropagation();showCampDetail(' + c.id + ')">👁️ বিস্তারিত</button></div></div>';
 }
 function campSchedEdit(id) {
   openCampAddModal(null, true); editCampSchedule(id);
