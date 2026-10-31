@@ -3311,13 +3311,14 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         .cv-tile.on{border-color:var(--primary);background:#eff6ff}
         .cv-tile b{display:block;font-size:13px;color:var(--primary)}
         .cv-tile span{display:block;font-size:11px;color:#64748b;margin-top:1px}
-        .cs-lfprev{}@media(max-width:1180px){.cs-lfprev{display:none!important}}.cp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.cp-tab{border:1.5px solid var(--border);background:#fff;border-radius:999px;padding:8px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;color:#475569}.cp-tab:hover{border-color:var(--primary)}.cp-tab.on{background:var(--primary);border-color:var(--primary);color:#fff}
+        @keyframes csSlideIn{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}@media(max-width:1180px){.cs-lfprev{display:none!important}#campAddModalBody{width:auto!important;flex:1!important}}#campAddModalBody .form-row,#campAddModalBody .form-row.three{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px 10px!important;margin-bottom:6px!important}#campAddModalBody .field{margin-bottom:5px}#campAddModalBody .field label{font-size:11.5px;margin-bottom:2px}#campAddModalBody input,#campAddModalBody select,#campAddModalBody textarea{padding:6px 9px;font-size:12.5px}.cp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.cp-tab{border:1.5px solid var(--border);background:#fff;border-radius:999px;padding:8px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;color:#475569}.cp-tab:hover{border-color:var(--primary)}.cp-tab.on{background:var(--primary);border-color:var(--primary);color:#fff}
         .cv-bar{height:6px;border-radius:4px;background:#e2e8f0;margin-top:5px;overflow:hidden}.cv-bar i{display:block;height:100%;background:#16a34a}
       </style>
       <div class="panel" id="campTopBar">
         <div class="panel-body" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:10px 16px">
-          <div id="campUpcomingCards" style="flex:1 1 420px;min-width:0"></div>
-          <div id="campLastSummary" style="flex:1 1 420px;min-width:0"></div>
+          <div id="campTodayCard" style="flex:1 1 360px;min-width:0;display:none"></div>
+          <div id="campUpcomingCards" style="flex:1 1 360px;min-width:0"></div>
+          <div id="campLastSummary" style="flex:1 1 360px;min-width:0"></div>
           <span id="campVillageSummaryLine" style="display:none"></span>
         </div>
       </div>
@@ -21537,37 +21538,52 @@ function _recCampSlipBadgeUpdate() {
 }
 function showCamperSlipRecord() { recGoTab('camperslips'); }
 // ===== 🖨️ রিসেপশন — ক্যাম্প প্রিন্ট পেজ: আসন্ন ক্যাম্পের লিফলেট, ক্যাম্পেইনারের জমা স্লিপ, ভাউচার এক জায়গায় =====
+function rcpSet(k, v) { window['_rcp' + k] = v; renderRecCampPrint(); }
 function renderRecCampPrint() {
   var host = document.getElementById('rec-campprint'); if (!host) return;
   var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
-  var today = todayStr();
+  var today = todayStr(), tab = window._rcpTab || 'slips';
   var card = 'background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;';
-  var sec = function (t, sub, body) { return '<div style="margin-bottom:20px"><div style="font-size:15px;font-weight:800;color:var(--primary)">' + t + '</div><div style="font-size:12px;color:#64748b;margin:2px 0 8px">' + sub + '</div>' + body + '</div>'; };
   var empty = function (t) { return '<div style="color:#94a3b8;font-size:13px;padding:10px 2px">' + t + '</div>'; };
-  var camps = (appData.campSchedules || []).filter(function (s) { return s.date >= today && s.status !== 'closed' && s.status !== 'cancelled'; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
-  var lf = camps.length ? camps.map(function (s) {
-    return '<div style="' + card + '"><div><div style="font-weight:800">' + esc(s.name) + (s.date === today ? ' <span style="color:var(--primary);font-size:12px">(আজ)</span>' : '') + '</div><div style="font-size:12px;color:#475569;margin-top:2px">📅 ' + formatDate(s.date) + ' &nbsp;|&nbsp; 📍 ' + esc(s.location || '') + '</div></div>'
-      + '<button type="button" class="btn btn-primary btn-sm" onclick="openCampLeafletModal(' + s.id + ')">🖨️ লিফলেট প্রিন্ট</button></div>';
-  }).join('') : empty('কোনো আসন্ন ক্যাম্প নেই।');
-  var deps = [];
-  try { deps = _camperSlipRecordList(30).slice(0, 10); } catch (e) {}
-  var dp = deps.length ? deps.map(function (r) {
-    var sn = r.snap || {}, neg = (r.amount || 0) < 0;
-    return '<div style="' + card + '"><div><div style="font-weight:800">' + esc(sn.campName || 'ক্যাম্প') + '</div><div style="font-size:12px;color:#475569;margin-top:2px">ক্যাম্পেইনার: <b>' + esc(_baseBy(r.by)) + '</b> &nbsp;|&nbsp; 📅 ' + formatDate(r.date) + '</div><div style="font-size:12.5px;font-weight:800;margin-top:2px;color:' + (neg ? '#b45309' : '#047857') + '">' + (neg ? 'রিফিল পাওনা ' : '') + '৳ ' + fmt(Math.abs(r.amount || 0)) + (r.printedAt ? ' <span style="font-size:11px;color:#16a34a">· 🖨️ প্রিন্ট হয়েছে</span>' : '') + '</div></div>'
-      + '<button type="button" class="btn btn-outline btn-sm" onclick="previewCamperDeposit(' + r.id + ')">👁️ প্রিভিউ / প্রিন্ট</button></div>';
-  }).join('') + '<div style="text-align:right"><button type="button" class="btn btn-outline btn-sm" onclick="recGoTab(\'camperslips\')">সব জমা স্লিপ দেখুন →</button></div>' : empty('এই মুহূর্তে রিসেপশনে কোনো জমা স্লিপ নেই।');
-  var dsAll = (appData.camperDeposits || []).filter(function (r) { return !r.cancelled && r.campRef != null; });
-  var past = (appData.camps || []).filter(function (c) { return c && c.date && dsAll.some(function (r) { return r.campRef === c.id; }); }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 8);
-  var pp = past.length ? past.map(function (c) {
-    return '<div style="' + card + '"><div><div style="font-weight:800">' + esc(c.name) + '</div><div style="font-size:12px;color:#475569;margin-top:2px">📅 ' + formatDate(c.date) + '</div></div><button type="button" class="btn btn-outline btn-sm" onclick="showCamperDepositSlipByCamp(' + c.id + ')">🧾 জমা স্লিপ</button></div>';
-  }).join('') : empty('জমা স্লিপসহ কোনো সমাপ্ত ক্যাম্প নেই।');
-  host.innerHTML = '<div style="padding:4px 2px"><div style="font-size:18px;font-weight:800;margin-bottom:12px">🖨️ ক্যাম্প প্রিন্ট</div>'
-    + sec('📄 আসন্ন ক্যাম্পের প্রচার লিফলেট', 'ক্যাম্প প্রচারে বিলির জন্য — A4-এ ২টি করে ছাপা হয়', lf)
-    + sec('📥 প্রিন্টের জন্য আসা ভাউচার', 'ক্যাম্পেইনার/মডারেটরের পাঠানো ব্যয় ভাউচার', '<div id="vchInboxCP"></div>')
-    + sec('🧾 ক্যাম্পেইনারের জমা স্লিপ', 'রিসেপশনে পাঠানো বা আপনার হাতে জমা পড়া সাম্প্রতিক স্লিপ', dp)
-    + sec('🏕️ সমাপ্ত ক্যাম্পের জমা স্লিপ', 'সাম্প্রতিক ক্যাম্প ধরে স্লিপ খুলুন', pp)
-    + '</div>';
-  try { renderVchInbox(); } catch (e) {}
+  var tabs = [['slips', '🧾 জমা স্লিপ'], ['leaflet', '📄 লিফলেট'], ['vch', '📥 ভাউচার']].map(function (t) {
+    return '<button type="button" onclick="rcpSet(\'Tab\',\'' + t[0] + '\')" style="border:1.5px solid ' + (tab === t[0] ? 'var(--primary)' : '#cbd5e1') + ';background:' + (tab === t[0] ? 'var(--primary)' : '#fff') + ';color:' + (tab === t[0] ? '#fff' : '#475569') + ';border-radius:999px;padding:8px 18px;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer">' + t[1] + '</button>';
+  }).join(' ');
+  var body = '';
+  if (tab === 'leaflet') {
+    var camps = (appData.campSchedules || []).filter(function (s) { return s.date >= today && s.status !== 'closed' && s.status !== 'cancelled'; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
+    body = '<div style="font-size:12px;color:#64748b;margin-bottom:8px">ক্যাম্প প্রচারে বিলির জন্য — আসন্ন ক্যাম্পের লিফলেট</div>' + (camps.length ? camps.map(function (s) {
+      return '<div style="' + card + '"><div><div style="font-weight:800">' + esc(s.name) + (s.date === today ? ' <span style="color:var(--primary);font-size:12px">(আজ)</span>' : '') + '</div><div style="font-size:12px;color:#475569;margin-top:2px">📅 ' + formatDate(s.date) + ' &nbsp;|&nbsp; 📍 ' + esc(s.location || '') + '</div></div>'
+        + '<button type="button" class="btn btn-primary btn-sm" onclick="openCampLeafletModal(' + s.id + ')">🖨️ লিফলেট প্রিন্ট</button></div>';
+    }).join('') : empty('কোনো আসন্ন ক্যাম্প নেই।'));
+  } else if (tab === 'vch') {
+    body = '<div style="font-size:12px;color:#64748b;margin-bottom:8px">ক্যাম্পেইনার/মডারেটরের পাঠানো ব্যয় ভাউচার</div><div id="vchInboxCP"></div>';
+  } else {
+    var campId = window._rcpCamp || '', from = window._rcpFrom || '', to = window._rcpTo || '';
+    var all = (appData.camperDeposits || []).filter(function (r) { return !r.cancelled; });
+    var withSlip = (appData.camps || []).filter(function (c) { return c && c.date && all.some(function (r) { return r.campRef === c.id; }); }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+    var rows;
+    if (campId) rows = all.filter(function (r) { return String(r.campRef) === String(campId); });
+    else if (from || to) rows = all;
+    else { try { rows = _camperSlipRecordList(30); } catch (e) { rows = []; } }
+    if (from) rows = rows.filter(function (r) { return r.date >= from; });
+    if (to) rows = rows.filter(function (r) { return r.date <= to; });
+    rows = rows.slice().sort(function (a, b) { return (b.id || 0) - (a.id || 0); });
+    var inp = 'padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:9px;font-family:inherit;font-size:13px';
+    var opts = '<option value="">সাম্প্রতিক — রিসেপশনে আসা স্লিপ (৩০ দিন)</option>' + withSlip.map(function (c) { return '<option value="' + c.id + '"' + (String(c.id) === String(campId) ? ' selected' : '') + '>' + esc(c.name) + ' — ' + formatDate(c.date) + '</option>'; }).join('');
+    var flt = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><select style="' + inp + ';min-width:260px" onchange="rcpSet(\'Camp\',this.value)">' + opts + '</select>'
+      + '<label style="font-size:12px;color:#64748b">থেকে <input type="date" value="' + from + '" style="' + inp + '" onchange="rcpSet(\'From\',this.value)"></label>'
+      + '<label style="font-size:12px;color:#64748b">পর্যন্ত <input type="date" value="' + to + '" style="' + inp + '" onchange="rcpSet(\'To\',this.value)"></label>'
+      + ((campId || from || to) ? '<button type="button" class="btn btn-outline btn-sm" onclick="window._rcpCamp=\'\';window._rcpFrom=\'\';window._rcpTo=\'\';renderRecCampPrint()">✕ ফিল্টার মুছুন</button>' : '')
+      + (campId ? '<button type="button" class="btn btn-primary btn-sm" onclick="showCamperDepositSlipByCamp(' + campId + ')">🧾 ক্যাম্পের শেষ স্লিপ</button>' : '') + '</div>';
+    var list = rows.length ? rows.map(function (r) {
+      var sn = r.snap || {}, neg = (r.amount || 0) < 0;
+      return '<div style="' + card + '"><div><div style="font-weight:800">' + esc(sn.campName || 'ক্যাম্প') + '</div><div style="font-size:12px;color:#475569;margin-top:2px">ক্যাম্পেইনার: <b>' + esc(_baseBy(r.by)) + '</b> &nbsp;|&nbsp; 📅 ' + formatDate(r.date) + '</div><div style="font-size:12.5px;font-weight:800;margin-top:2px;color:' + (neg ? '#b45309' : '#047857') + '">' + (neg ? 'রিফিল পাওনা ' : '') + '৳ ' + fmt(Math.abs(r.amount || 0)) + (r.printedAt ? ' <span style="font-size:11px;color:#16a34a">· 🖨️ প্রিন্ট হয়েছে</span>' : '') + '</div></div>'
+        + '<button type="button" class="btn btn-outline btn-sm" onclick="previewCamperDeposit(' + r.id + ')">👁️ প্রিভিউ / প্রিন্ট</button></div>';
+    }).join('') : empty('এই ফিল্টারে কোনো জমা স্লিপ পাওয়া যায়নি।');
+    body = flt + list;
+  }
+  host.innerHTML = '<div style="padding:4px 2px"><div style="font-size:18px;font-weight:800;margin-bottom:12px">🖨️ ক্যাম্প প্রিন্ট</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' + tabs + '</div>' + body + '</div>';
+  if (tab === 'vch') { try { renderVchInbox(); } catch (e) {} }
 }
 function renderRecCamperSlips() {
   var host = document.getElementById('rec-camperslips'); if (!host) return;
@@ -28319,8 +28335,16 @@ function openCampAddModal(pre, skipDef) {
   if (document.getElementById('campAddModal')) return;
   window._csFormHome = { parent: f.parentNode, next: f.nextSibling };
   var w = document.createElement('div'); w.id = 'campAddModal';
-  w.style.cssText = 'position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto';
-  w.innerHTML = '<div style="background:#fff;border-radius:14px;padding:14px 16px;max-width:1420px;width:100%;margin:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:16px;color:var(--primary)">➕ নতুন ক্যাম্প শিডিউল</b><button onclick="csFormClose()" style="border:0;background:none;font-size:22px;cursor:pointer">✕</button></div><div style="display:flex;gap:18px;align-items:flex-start"><div id="campAddModalBody" style="flex:1;min-width:0"></div><div id="csLfPrevCol" class="cs-lfprev" style="width:480px;flex-shrink:0;position:sticky;top:8px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><b style="flex:1;font-size:13px;color:var(--primary)">👁️ লিফলেট প্রিভিউ (লাইভ)</b><button type="button" id="csLfPvB1" onclick="csLfPrevLayout(\'1\')" style="padding:3px 10px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;background:#fff;color:#0f4c81">ডিজাইন ১</button><button type="button" id="csLfPvB2" onclick="csLfPrevLayout(\'2\')" style="padding:3px 10px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;background:#fff;color:#0f4c81">ডিজাইন ২</button></div><div id="csLfPrevBody" style="border:1px solid #e2e8f0;border-radius:10px;background:#e5eaf0;padding:6px;overflow:hidden"></div><div style="font-size:11px;color:#64748b;margin-top:5px;text-align:center">ফর্মে লিখলেই এখানে বদলায় — প্রিন্ট ক্যাম্প সেভের পর</div></div></div></div>';
+  var _sb = document.getElementById('sidebar'), _sbw = (_sb && window.innerWidth > 900) ? _sb.offsetWidth : 0;
+  w.style.cssText = 'position:fixed;top:0;bottom:0;right:0;left:' + _sbw + 'px;z-index:9600;background:#f4f7fb;display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,0,0,.28);animation:csSlideIn .24s ease';
+  w.innerHTML = '<div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;flex:none"><b style="font-size:16px;color:var(--primary)">➕ নতুন ক্যাম্প শিডিউল</b><button onclick="csFormClose()" style="border:0;background:none;font-size:22px;cursor:pointer">✕</button></div>'
+    + '<div style="flex:1;min-height:0;display:flex">'
+    + '<div id="campAddModalBody" style="width:540px;flex:none;overflow-y:auto;background:#fff;padding:12px 16px;border-right:1px solid #e2e8f0"></div>'
+    + '<div id="csLfPrevCol" class="cs-lfprev" style="flex:1;min-width:0;display:flex;flex-direction:column;padding:12px 18px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex:none"><b style="flex:1;font-size:13.5px;color:var(--primary)">👁️ লিফলেট প্রিভিউ (লাইভ)</b>'
+    + '<button type="button" id="csLfPvB1" onclick="csLfPrevLayout(\'1\')" style="padding:4px 12px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;background:#fff;color:#0f4c81">ডিজাইন ১</button>'
+    + '<button type="button" id="csLfPvB2" onclick="csLfPrevLayout(\'2\')" style="padding:4px 12px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;background:#fff;color:#0f4c81">ডিজাইন ২</button></div>'
+    + '<div id="csLfPrevBody" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:auto;border:1px solid #e2e8f0;border-radius:12px;background:#e5eaf0;padding:12px"></div>'
+    + '<div style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;flex:none">ফর্মে লিখলেই এখানে বদলায় — প্রিন্ট ক্যাম্প সেভের পর</div></div></div>';
   document.body.appendChild(w);
   document.getElementById('campAddModalBody').appendChild(f);
   f.style.display = 'block'; f.style.marginBottom = '0';
@@ -39442,7 +39466,7 @@ function csLfPreviewRender() {
   var v = _lfValuesFor(_csPseudoSchedule());
   var L = window._lfPrevLayout || v.layout || '1'; v.layout = L;
   var col = document.getElementById('csLfPrevCol');
-  _lfMountSingle(body, v, ((col && col.clientWidth) || 470) - 16);
+  _lfMountSingle(body, v, (body.clientWidth || 700) - 28, (body.clientHeight || 600) - 28);
   ['1', '2'].forEach(function (k) { var b = document.getElementById('csLfPvB' + k); if (b) { b.style.background = (k === String(L) ? '#0f4c81' : '#fff'); b.style.color = (k === String(L) ? '#fff' : '#0f4c81'); } });
 }
 var _csLfT = null;
@@ -39474,7 +39498,7 @@ function renderCampTop3() {
     + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden"><span style="font-size:13px;font-weight:800;color:var(--primary);white-space:nowrap">' + esc(c.name) + '</span>'
     + chip('👥 ' + fmt(pts) + ' জন') + chip('💰 ৳ ' + fmt(inc), '#047857') + chip('📉 ৳ ' + fmt(exp), '#b45309') + chip('📈 নীট ৳ ' + fmt(net), net >= 0 ? '#0f4c81' : '#e74c3c') + (c.rating ? chip(esc(c.rating)) : '') + '</div>'
     + '<div style="font-size:11.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">📅 ' + formatDate(c.date) + ' · 📍 ' + esc(c.location || '—') + '</div></div>'
-    + '<div style="flex:none"><button type="button" class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;white-space:nowrap" onclick="event.stopPropagation();showCampDetail(' + c.id + ')">👁️ বিস্তারিত</button></div></div>';
+    + '</div>';
 }
 function campSchedEdit(id) {
   openCampAddModal(null, true); editCampSchedule(id);
@@ -39483,10 +39507,30 @@ function campSchedEdit(id) {
 }
 function _campUpList() {
   var today = todayStr();
-  return (appData.campSchedules || []).filter(function (s) { return s.date >= today && s.status !== 'closed' && s.status !== 'cancelled'; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
+  return (appData.campSchedules || []).filter(function (s) { return s.date > today && s.status !== 'closed' && s.status !== 'cancelled'; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
+}
+function _campTodayList() { var today = todayStr(); return (appData.campSchedules || []).filter(function (s) { return s.date === today && s.status !== 'closed' && s.status !== 'cancelled'; }); }
+function campTdNav(d) { window._campTdIdx = (window._campTdIdx || 0) + d; renderCampTodayCard(); }
+function renderCampTodayCard() {
+  var host = document.getElementById('campTodayCard'); if (!host) return;
+  var list = _campTodayList();
+  if (!list.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.style.display = 'block';
+  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  var n = list.length, idx = Math.max(0, Math.min(n - 1, window._campTdIdx || 0)); window._campTdIdx = idx;
+  var s = list[idx], tm = (typeof _lfSchedTime === 'function') ? _lfSchedTime(s) : '';
+  var ab = 'border:1.5px solid #bbf7d0;background:#fff;border-radius:7px;width:24px;height:22px;line-height:1;cursor:pointer;font-size:13px;font-weight:800;color:#15803d';
+  var nav = n > 1 ? '<span style="display:inline-flex;align-items:center;gap:5px"><button type="button" style="' + ab + '" ' + (idx === 0 ? 'disabled' : '') + ' onclick="campTdNav(-1)">‹</button><span style="font-size:11.5px;font-weight:700;color:#475569">' + fmt(idx + 1) + '/' + fmt(n) + '</span><button type="button" style="' + ab + '" ' + (idx === n - 1 ? 'disabled' : '') + ' onclick="campTdNav(1)">›</button></span>' : '';
+  var chip = function (t) { return '<span style="font-size:11px;font-weight:700;color:#334155;background:#e7f7ec;border-radius:99px;padding:1px 8px;white-space:nowrap">' + t + '</span>'; };
+  host.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;min-height:24px"><span style="font-size:11.5px;font-weight:800;color:#15803d">🟢 আজকের ক্যাম্প (' + fmt(n) + ')</span>' + nav + '</div>'
+    + '<div onclick="campUpcomingDetail(' + s.id + ')" title="ক্লিক করলে বিস্তারিত দেখুন" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:6px 10px">'
+    + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden"><span style="font-size:13px;font-weight:800;color:#15803d;white-space:nowrap">' + esc(s.name) + '</span>' + (s.doctor ? chip('👨‍⚕️ ' + esc(s.doctor)) : '') + (s.visitFee > 0 ? chip('🎫 ৳ ' + fmt(s.visitFee)) : '') + (s.camper ? chip('📢 ' + esc(s.camper)) : '') + '</div>'
+    + '<div style="font-size:11.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">🕘 ' + esc((tm || 'সময় দেওয়া নেই').replace(/ পর্যন্ত$/, '')) + ' · 📍 ' + esc(s.location || '—') + '</div></div>'
+    + '<div style="flex:none" onclick="event.stopPropagation()"><button type="button" class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;white-space:nowrap" onclick="campSchedEdit(' + s.id + ')">✏️ সংশোধন</button></div></div>';
 }
 function campUpNav(d) { window._campUpIdx = (window._campUpIdx || 0) + d; renderCampUpcomingCards(); }
 function renderCampUpcomingCards() {
+  try { renderCampTodayCard(); } catch (e) {}
   var host = document.getElementById('campUpcomingCards'); if (!host) return;
   var today = todayStr(), esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
   var list = _campUpList();
@@ -39536,13 +39580,14 @@ function _lfValuesFor(s) {
     layout: d.layout, title2: d.title2, time: d.time, org: d.showOrg ? d.org : '', persons: d.showPersons ? d.persons : '', helperName: d.showHName ? d.helperName : '',
     helperPhone: d.showHPhone ? d.helperPhone : '', contactPhone: d.contactPhone, bism: d.showBism !== false };
 }
-function _lfMountSingle(body, v, availW) {
+function _lfMountSingle(body, v, availW, availH) {
   body.innerHTML = _lfBuildHtml(v);
   var sh = body.querySelector('.lf-sheet,.l2-sheet'); if (!sh) return;
   var cells = sh.querySelectorAll('.lf-cell,.l2-cell'); if (cells[1]) cells[1].remove();
   if (sh.classList.contains('lf-sheet')) sh.style.width = '148.5mm'; else sh.style.height = '148mm';
   sh.style.zoom = ''; sh.style.margin = '0 auto';
-  var wpx = sh.offsetWidth || 1; sh.style.zoom = Math.min(1, availW / wpx);
+  var wpx = sh.offsetWidth || 1, hpx = sh.offsetHeight || 1;
+  sh.style.zoom = availH ? Math.min(1.3, availW / wpx, availH / hpx) : Math.min(1, availW / wpx);
 }
 function campLeafletPreview(id) {
   var s = (appData.campSchedules || []).find(function (x) { return x.id === id; });
