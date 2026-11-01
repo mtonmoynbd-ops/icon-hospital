@@ -3364,6 +3364,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
         <div class="panel-body">
           <div id="campScheduleForm" style="display:none">
+            <div id="csDfltNote" style="display:none"></div>
             <div class="cs-sec"><div class="cs-st">📍 এলাকা ও তারিখ</div>
               <div class="cs-g2">
                 <div class="field"><label>উপজেলা</label><select id="csUpazila" onchange="cvSel('cs','p')"></select><input type="text" id="csUpazilaNew" placeholder="উপজেলার নাম লিখুন" oninput="csVillageLookup('upazila')" style="display:none;margin-top:6px"></div>
@@ -3372,6 +3373,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
                 <div class="field"><label>তারিখ *</label><input type="date" id="csDate"></div>
               </div>
               <div id="csVillageInfo" style="margin-bottom:8px"></div>
+              <div id="csRsCtx" style="margin-bottom:8px"></div>
             </div>
             <div class="cs-sec"><div class="cs-st">🏕️ ক্যাম্পের তথ্য</div>
               <div class="cs-g2">
@@ -9055,7 +9057,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 <!-- OVERDUE CAMP SCHEDULE MODAL — যেসব শিডিউল্ড ক্যাম্পের তারিখ পার হয়ে গেছে সেগুলো বাতিল বা রি-শিডিউল
      করার জন্য (উভয় ক্ষেত্রেই সংক্ষিপ্ত কারণ বাধ্যতামূলক) — দ্রষ্টব্য openOverdueCampModal/saveOverdueCampAction -->
 <div class="modal-overlay" id="overdueCampModal">
-  <div class="modal" style="width:480px">
+  <div class="modal" style="width:540px;max-width:96vw;max-height:94vh;overflow:auto">
     <div class="modal-title">⚠️ মেয়াদোত্তীর্ণ ক্যাম্প — অ্যাকশন নিন</div>
     <input type="hidden" id="ocmScheduleId">
     <div class="field" style="margin-bottom:14px">
@@ -9075,6 +9077,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
       <label>নতুন তারিখ *</label>
       <input type="date" id="ocmNewDate">
     </div>
+    <div id="ocmCtx" style="margin-bottom:14px"></div>
     <div class="field">
       <label id="ocmReasonLabel">কারণ *</label>
       <textarea id="ocmReason" rows="2" placeholder="সংক্ষিপ্ত কারণ লিখুন..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical"></textarea>
@@ -28411,6 +28414,7 @@ function openCampAddModal(pre, skipDef) {
   document.getElementById('campAddModalBody').appendChild(f);
   f.style.display = 'block'; f.style.marginBottom = '0';
   document.getElementById('csDate').value = (pre && pre.date) || todayStr();
+  rsCtxClear('csRsCtx');
   document.getElementById('csEditId').value = '';
   ['csName','csLocation','csVisitFee','csTimeFrom','csTimeTo','csLocalOrg','csGuests'].forEach(function (id) { var el = document.getElementById(id); if (el) { el.value = ''; if (el.dataset) el.dataset.auto = ''; } });
   csLfShowSet(null);
@@ -28427,6 +28431,7 @@ function openCampAddModal(pre, skipDef) {
     csVillageLookup('init');
   }
   window._lfPrevLayout = null;
+  dfClearAll('csDfltNote');
   if (!skipDef) csApplyDefaults();
   f.oninput = f.onchange = csLfPrevSched;
   csLfPrevSched();
@@ -28713,6 +28718,7 @@ function saveCampSchedule() {
   const _lx = { timeFrom: _g2('csTimeFrom'), timeTo: _g2('csTimeTo'), localOrg: _g2('csLocalOrg'), guests: _g2('csGuests'), lfShow: { org: _ck2('csShOrg') !== false, persons: _ck2('csShPersons') !== false, hname: _ck2('csShHName') !== false, hphone: _ck2('csShHPhone') === true } };
   if (!name || !location || !date) { showToast('⚠️ নাম, স্থান ও তারিখ আবশ্যক!'); return; }
   if (!doctor) { showToast('⚠️ ক্যাম্পের ডাক্তার তালিকা থেকে বেছে নিন!'); return; }
+  if (editId) { const _o = (appData.campSchedules||[]).find(s => s.id == editId); if (_o && _o.date !== date && !rsConflictOk(_o.id, date)) return; }
 
   // নিয়মিত কর্মী সংগ্রহ
   const regularStaff = [];
@@ -39500,6 +39506,7 @@ function csApplyVillageDefaults() {
   auto('csName', uv.village);
   var ls = _csLastSchedForVillage(uv);
   auto('csLocalOrg', ls ? ls.localOrg : ''); auto('csGuests', ls ? ls.guests : '');
+  dfMarkAuto(['csLocalOrg', 'csGuests'], 'csDfltNote');
   if (ls && ls.lfShow) csLfShowSet(ls.lfShow);
 }
 function csApplyDefaults() {
@@ -39515,6 +39522,7 @@ function csApplyDefaults() {
     csLfShowSet(p.lfShow);
   }
   csApplyVillageDefaults();
+  dfMarkDesktop(p);
 }
 function _csPseudoSchedule() {
   var g = function (i) { var e = document.getElementById(i); return e ? String(e.value || '').trim() : ''; };
@@ -39567,6 +39575,7 @@ function renderCampTop3() {
 }
 function campSchedEdit(id) {
   openCampAddModal(null, true); editCampSchedule(id);
+  rsCtxInit('csRsCtx', id, 'csDate');
   var t = document.querySelector('#campAddModal b'); if (t) t.textContent = '✏️ ক্যাম্প সংশোধন';
   csLfPrevSched();
 }
@@ -39610,7 +39619,7 @@ function renderCampUpcomingCards() {
   host.innerHTML = head(nav)
     + '<div onclick="campUpcomingDetail(' + s.id + ')" title="ক্লিক করলে বিস্তারিত দেখুন" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:#f7fafd;border:1.5px solid #dbe7f5;border-radius:12px;padding:6px 10px">'
     + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden"><span style="font-size:13px;font-weight:800;color:var(--primary);white-space:nowrap">' + esc(s.name) + (s.date === today ? ' <span style="font-size:10.5px;color:#16a34a">(আজ)</span>' : '') + '</span>'
-    + (s.doctor ? chip('👨‍⚕️ ' + esc(s.doctor)) : '') + (s.visitFee > 0 ? chip('🎫 ৳ ' + fmt(s.visitFee)) : '') + (s.camper ? chip('📢 ' + esc(s.camper)) : '') + '</div>'
+    + campPrepChip(s) + (s.doctor ? chip('👨‍⚕️ ' + esc(s.doctor)) : '') + (s.visitFee > 0 ? chip('🎫 ৳ ' + fmt(s.visitFee)) : '') + (s.camper ? chip('📢 ' + esc(s.camper)) : '') + '</div>'
     + '<div style="font-size:11.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">📅 ' + formatDate(s.date) + (tm ? ' · 🕘 ' + esc(tm.replace(/ পর্যন্ত$/, '')) : '') + ' · 📍 ' + esc(s.location || '—') + '</div></div>'
     + '<div style="display:flex;gap:5px;flex:none" onclick="event.stopPropagation()"><button type="button" class="btn btn-primary btn-sm" style="' + bs + '" onclick="openCampLeafletModal(' + s.id + ')">📄 লিফলেট</button><button type="button" class="btn btn-outline btn-sm" style="' + bs + '" onclick="campSchedEdit(' + s.id + ')">✏️ সংশোধন</button></div></div>';
 }
@@ -39634,6 +39643,7 @@ function campUpcomingDetail(id) {
     + row('🤝 সহযোগী সংগঠন', esc(s.localOrg)) + row('👤 বিশেষ ব্যক্তিবর্গ', esc(s.guests)) + row('📞 স্থানীয় যোগাযোগ', esc([vr.helperName, vr.helperPhone].filter(Boolean).join(' — ')))
     + row('🖨️ লিফলেটে ছাপা হবে', [show.org !== false ? 'সংগঠন' : '', show.persons !== false ? 'ব্যক্তিবর্গ' : '', show.hname !== false ? 'যোগাযোগের নাম' : '', show.hphone === true ? 'নম্বর' : ''].filter(Boolean).join(' · ') || 'কিছু না')
     + row('🔁 রিশিডিউল', rs.length ? fmt(rs.length) + ' বার (শেষ কারণ: ' + esc(rs[rs.length - 1].reason || '—') + ')' : '')
+    + campPrepBlock(s)
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'campUpDetailModal\').remove();campSchedEdit(' + s.id + ')">✏️ সংশোধন</button><button type="button" class="btn btn-primary" onclick="document.getElementById(\'campUpDetailModal\').remove();openCampLeafletModal(' + s.id + ')">📄 লিফলেট</button></div></div>';
   document.body.appendChild(w);
 }
@@ -39736,6 +39746,194 @@ function renderOverdueCampSchedule() {
   }).join('');
   if (typeof updateNotifBell==='function') updateNotifBell();
 }
+// ===== 📅 রিশিডিউল সহায়ক — (১) লিফলেট কপি ছাপা হয়ে থাকলে সতর্কতা (২) মাসের ক্যালেন্ডারে অন্য ক্যাম্পের নাম ও তারিখ =====
+// ব্যবহার: rsCtxInit(বক্স-id, ক্যাম্প-id, তারিখ-ইনপুট-id)  |  সেভের আগে: rsConflictOk(ক্যাম্প-id, নতুনতারিখ)
+var RS_MONTHS = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+function rsBn(n) { return String(n).replace(/\d/g, function (d) { return '০১২৩৪৫৬৭৮৯'.charAt(d); }); }
+function rsE(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function rsPad(n) { return n < 10 ? '0' + n : '' + n; }
+function rsLfCopies(id) {
+  var n = 0;
+  try { _lfLog().forEach(function (r) { if (String(r.campId) === String(id)) n += (parseInt(r.copies, 10) || 0); }); } catch (e) {}
+  return n;
+}
+function rsOtherCamps(id) {
+  return (appData.campSchedules || []).filter(function (x) { return String(x.id) !== String(id) && (x.status === 'scheduled' || x.status === 'active') && x.date; });
+}
+function rsOthersOn(id, date) { return rsOtherCamps(id).filter(function (x) { return x.date === date; }); }
+function rsConflictOk(id, date) {
+  var o = rsOthersOn(id, date);
+  if (!o.length) return true;
+  return confirm('⚠️ ' + formatDate(date) + ' তারিখে আগে থেকেই এই ক্যাম্প শিডিউল করা আছে:\n\n' + o.map(function (x) { return '• ' + (x.name || '') + (x.location ? ' — ' + x.location : ''); }).join('\n') + '\n\nতবুও এই তারিখেই রিশিডিউল করবেন?');
+}
+function rsCtxClear(boxId) { var b = document.getElementById(boxId); if (b) { b.dataset.on = '0'; b.innerHTML = ''; } }
+function rsCtxInit(boxId, id, inputId) {
+  var box = document.getElementById(boxId), inp = document.getElementById(inputId);
+  if (!box || !inp) return;
+  var s = (appData.campSchedules || []).find(function (x) { return String(x.id) === String(id); });
+  var base = inp.value || (s && s.date) || todayStr();
+  if (base < todayStr()) base = todayStr();
+  box.dataset.on = '1'; box.dataset.cid = String(id); box.dataset.inp = inputId; box.dataset.ym = base.slice(0, 7);
+  if (!inp._rsHook) { inp._rsHook = true; inp.addEventListener('change', function () { if (inp.value) box.dataset.ym = inp.value.slice(0, 7); rsCtxRender(boxId); }); }
+  rsCtxRender(boxId);
+}
+function rsCtxNav(boxId, d) {
+  var box = document.getElementById(boxId); if (!box) return;
+  var y = +box.dataset.ym.slice(0, 4), m = +box.dataset.ym.slice(5, 7) + d;
+  if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+  box.dataset.ym = y + '-' + rsPad(m); rsCtxRender(boxId);
+}
+function rsCtxPick(boxId, date) {
+  var box = document.getElementById(boxId); if (!box) return;
+  var inp = document.getElementById(box.dataset.inp); if (!inp) return;
+  inp.value = date; box.dataset.ym = date.slice(0, 7);
+  try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+  rsCtxRender(boxId);
+}
+function rsCtxRender(boxId) {
+  var box = document.getElementById(boxId); if (!box || box.dataset.on !== '1') return;
+  var id = box.dataset.cid, inp = document.getElementById(box.dataset.inp), picked = inp ? inp.value : '';
+  var y = +box.dataset.ym.slice(0, 4), m = +box.dataset.ym.slice(5, 7), today = todayStr();
+  var own = (appData.campSchedules || []).find(function (x) { return String(x.id) === String(id); });
+  var h = '', cp = rsLfCopies(id);
+  if (cp > 0) h += '<div style="background:#fff7e0;border:1.5px solid #f5c76a;color:#7a5200;border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:700;margin-bottom:8px">🖨️ ' + rsBn(cp) + ' কপি লিফলেট ছাপা হয়ে গেছে — তারিখ বদলালে নতুন করে ছাপা লাগবে।</div>';
+  var byDate = {}, monthList = [];
+  rsOtherCamps(id).forEach(function (x) {
+    if (x.date.slice(0, 7) === box.dataset.ym) monthList.push(x);
+    (byDate[x.date] = byDate[x.date] || []).push(x);
+  });
+  monthList.sort(function (a, b) { return a.date.localeCompare(b.date); });
+  var nb = 'type="button" style="border:1.5px solid #cfd9e6;background:#fff;border-radius:8px;width:32px;height:30px;font-size:16px;font-weight:800;cursor:pointer;color:#0f4c81"';
+  h += '<div style="border:1.5px solid #dbe7f5;border-radius:12px;padding:8px;background:#fff">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><button ' + nb + ' onclick="rsCtxNav(\'' + boxId + '\',-1)">‹</button>'
+    + '<b style="color:#0f4c81;font-size:13.5px">📅 ' + RS_MONTHS[m - 1] + ' ' + rsBn(y) + '</b><button ' + nb + ' onclick="rsCtxNav(\'' + boxId + '\',1)">›</button></div>'
+    + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center">';
+  ['র', 'সো', 'ম', 'বু', 'বৃ', 'শু', 'শ'].forEach(function (w) { h += '<div style="font-size:10.5px;font-weight:800;color:#94a3b8">' + w + '</div>'; });
+  var first = new Date(y, m - 1, 1).getDay(), dim = new Date(y, m, 0).getDate(), i;
+  for (i = 0; i < first; i++) h += '<div></div>';
+  for (i = 1; i <= dim; i++) {
+    var d = y + '-' + rsPad(m) + '-' + rsPad(i), past = d < today, list = byDate[d] || [], isPick = picked === d, isOwn = own && own.date === d;
+    var bg = isPick ? '#0f4c81' : (list.length ? '#fdecea' : (past ? '#f1f5f9' : '#f7fafd'));
+    var col = isPick ? '#fff' : (past ? '#b6c0cc' : '#334155');
+    var bd = isOwn ? '1.5px dashed #e67e22' : (list.length && !isPick ? '1.5px solid #f0b4ad' : '1.5px solid transparent');
+    h += '<div ' + (past ? '' : 'onclick="rsCtxPick(\'' + boxId + '\',\'' + d + '\')"') + ' style="min-height:44px;border-radius:8px;padding:2px 1px;background:' + bg + ';color:' + col + ';border:' + bd + ';' + (past ? '' : 'cursor:pointer') + ';overflow:hidden">'
+      + '<div style="font-size:12px;font-weight:800">' + rsBn(i) + '</div>';
+    list.slice(0, 2).forEach(function (x) { h += '<div style="font-size:9px;line-height:1.2;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + (isPick ? '#ffd9d4' : '#c0392b') + '">' + rsE(x.name || x.location || 'ক্যাম্প') + '</div>'; });
+    if (list.length > 2) h += '<div style="font-size:9px;color:#c0392b">+' + rsBn(list.length - 2) + '</div>';
+    if (isOwn && !list.length) h += '<div style="font-size:9px;font-weight:700;color:#e67e22">বর্তমান</div>';
+    h += '</div>';
+  }
+  h += '</div></div>';
+  h += '<div style="font-size:12px;color:#475569;margin-top:8px"><b>এই মাসের অন্য ক্যাম্প:</b> ';
+  if (!monthList.length) h += '<span style="color:#16a34a;font-weight:700">নেই</span>';
+  else h += '<div style="margin-top:4px">' + monthList.map(function (x) { return '<div style="padding:3px 0;border-bottom:1px dashed #e2e8f0">🏕️ <b>' + formatDate(x.date) + '</b> — ' + rsE(x.name || '') + (x.location ? ' <span style="color:#94a3b8">(' + rsE(x.location) + ')</span>' : '') + '</div>'; }).join('') + '</div>';
+  h += '</div>';
+  if (picked) {
+    var cf = rsOthersOn(id, picked);
+    h += cf.length
+      ? '<div style="background:#fdecea;border:1.5px solid #f0b4ad;color:#a93226;border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:700;margin-top:8px">⚠️ ' + formatDate(picked) + ' তারিখে আগে থেকেই আছে: ' + cf.map(function (x) { return rsE(x.name || ''); }).join(', ') + '</div>'
+      : '<div style="color:#16a34a;font-size:12.5px;font-weight:700;margin-top:8px">✅ ' + formatDate(picked) + ' তারিখে অন্য কোনো ক্যাম্প নেই</div>';
+  }
+  box.innerHTML = h;
+}
+
+// ===== 🟨 ডিফল্ট-বসানো ঘর চেনা — আগের ক্যাম্প (বা গ্রামের আগের ক্যাম্প) থেকে নিজে বসা ঘর হালকা হলুদ; ঘর ছুঁলেই (ফোকাস/ক্লিক/বদল) সাধারণ রঙ =====
+function dfCss() {
+  if (document.getElementById('dfCss')) return;
+  var st = document.createElement('style'); st.id = 'dfCss';
+  st.textContent = '.df-auto{background:#fff6d6 !important;border-color:#f0cf6b !important;color:#5b4300 !important}.df-auto.df-box{outline:2px dashed #f0cf6b;outline-offset:3px;border-radius:10px}.df-note{background:#fff6d6;border:1.5px solid #f0cf6b;color:#5b4300;border-radius:10px;padding:7px 11px;font-size:12.5px;font-weight:700;margin-bottom:10px}';
+  document.head.appendChild(st);
+}
+function dfNote(noteId) {
+  var e = noteId && document.getElementById(noteId); if (!e) return;
+  var n = document.querySelectorAll('.df-auto').length;
+  e.className = n ? 'df-note' : ''; e.style.display = n ? 'block' : 'none';
+  e.textContent = n ? '🟨 হালকা হলুদ ঘরগুলো আগের ক্যাম্প থেকে নিজে বসেছে — ঠিক আছে কিনা দেখে নিন (ঘর ছুঁলেই রঙ চলে যাবে)।' : '';
+}
+function dfUnmark(id, noteId) { var el = document.getElementById(id); if (el) el.classList.remove('df-auto'); dfNote(noteId); }
+function dfMark(id, noteId, isBox) {
+  var el = document.getElementById(id); if (!el) return;
+  dfCss();
+  el.classList.add('df-auto'); if (isBox) el.classList.add('df-box');
+  el._dfNote = noteId;
+  if (!el._dfH) {
+    el._dfH = function () { el.classList.remove('df-auto'); dfNote(el._dfNote); };
+    ['focus', 'input', 'change', 'click'].forEach(function (ev) { el.addEventListener(ev, el._dfH); });
+    if (isBox) el.addEventListener('focusin', el._dfH);
+  }
+  dfNote(noteId);
+}
+function dfClearAll(noteId) { Array.prototype.forEach.call(document.querySelectorAll('.df-auto'), function (e) { e.classList.remove('df-auto'); }); dfNote(noteId); }
+// ডিফল্ট থেকে বসা মান (el.dataset.auto === el.value) থাকলেই চিহ্ন; ব্যবহারকারী নিজে লিখলে নয়
+function dfMarkAuto(ids, noteId) {
+  ids.forEach(function (id) { var el = document.getElementById(id); if (!el) return; if (el.value && el.dataset.auto === el.value) dfMark(id, noteId); else dfUnmark(id, noteId); });
+}
+// ডেস্কটপ: p = আগের ক্যাম্প (csApplyDefaults)
+function dfMarkDesktop(p) {
+  if (!p) return;
+  var same = function (id, v) { var el = document.getElementById(id); if (el && v != null && v !== '' && String(el.value) === String(v)) dfMark(id, 'csDfltNote'); };
+  same('csTimeFrom', p.timeFrom); same('csTimeTo', p.timeTo); same('csVisitFee', p.visitFee); same('csDoctor', p.doctor); same('csCamper', p.camper);
+  if ((p.regularStaff || []).length) dfMark('csRegularStaffList', 'csDfltNote', true);
+  if ((p.parttimers || []).length) dfMark('csParttimeRows', 'csDfltNote', true);
+}
+// মোবাইল: b = আগের ক্যাম্প (amCampForm — নতুন ক্যাম্পের সময়)
+function dfMarkMobile(b) {
+  if (!b) return;
+  var same = function (id, v) { var el = document.getElementById(id); if (el && v != null && v !== '' && String(el.value) === String(v)) dfMark(id, 'amDfNote'); };
+  same('amCsFee', b.visitFee); same('amCsTF', b.timeFrom); same('amCsTT', b.timeTo); same('amCsDoc', b.doctor); same('amCsCamper', b.camper);
+  if ((b.regularStaff || []).length) dfMark('amCsStaffBox', 'amDfNote', true);
+  if ((b.parttimers || []).length) dfMark('amPtRows', 'amDfNote', true);
+}
+
+// ===== ✅ ক্যাম্প প্রস্তুতি "৩/৬" — ডাক্তার/কর্মী/প্রচার হাতে টিক (আগে থেকেই আছে), বাকি ৩টা সিস্টেম নিজে দেখে =====
+// (স্টক এখানে নেই — ক্যাম্পেইনার স্টক নেন, আগের সিদ্ধান্ত অনুযায়ী)
+function campPrep(s) {
+  var ck = s.checklist || {}, cp = rsLfCopies(s.id), tm = s.timeFrom && s.timeTo;
+  var names = (s.regularStaff || []).length + (s.parttimers || []).length;
+  var items = [
+    { k: 'doc', t: 'ডাক্তার নিশ্চিত', ok: !!ck.doc, man: true, v: s.doctor || '' },
+    { k: 'staff', t: 'কর্মী নিশ্চিত', ok: !!ck.staff, man: true, v: names ? fmt(names) + ' জন' : '' },
+    { k: 'promo', t: 'প্রচার', ok: !!ck.promo, man: true, v: '' },
+    { k: 'leaflet', t: 'লিফলেট ছাপা', ok: cp > 0, v: cp > 0 ? fmt(cp) + ' কপি' : 'ছাপার সময় কপির সংখ্যা লিখলে টিক পড়বে' },
+    { k: 'camper', t: 'ক্যাম্পেইনার ঠিক', ok: !!s.camper, v: s.camper || 'ঠিক করা হয়নি' },
+    { k: 'tf', t: 'সময় ও ফি ঠিক', ok: !!(tm && s.visitFee > 0), v: (tm && s.visitFee > 0) ? '৳ ' + fmt(s.visitFee) : (!tm ? 'সময় দেওয়া নেই' : 'ফি দেওয়া নেই') }
+  ];
+  var done = items.filter(function (x) { return x.ok; }).length;
+  return { items: items, done: done, total: items.length };
+}
+function campPrepLevel(s) { var p = campPrep(s); return p.done === p.total ? 'g' : ((s.date || '') <= (function () { var d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + rsPad(d.getMonth() + 1) + '-' + rsPad(d.getDate()); })() ? 'r' : 'w'); }
+function amPrepTag(s) { var p = campPrep(s); return '<span class="am-tag ' + campPrepLevel(s) + '">' + (p.done === p.total ? '✓ ' : '') + 'প্রস্তুতি ' + fmt(p.done) + '/' + fmt(p.total) + '</span>'; }
+function campPrepChip(s) {
+  var p = campPrep(s), L = campPrepLevel(s), c = L === 'g' ? ['#dcfce7', '#15803d'] : (L === 'r' ? ['#fee2e2', '#b91c1c'] : ['#fef3c7', '#92400e']);
+  return '<span title="ক্লিক করে বিস্তারিত দেখুন" style="font-size:11px;font-weight:800;color:' + c[1] + ';background:' + c[0] + ';border-radius:99px;padding:1px 8px;white-space:nowrap">' + (p.done === p.total ? '✓ ' : '') + 'প্রস্তুতি ' + fmt(p.done) + '/' + fmt(p.total) + '</span>';
+}
+function campPrepToggle(id, k) {
+  var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
+  var c = Object.assign({}, s.checklist || {}); c[k] = !c[k]; s.checklist = c;
+  saveData();
+  try { renderCampUpcomingCards(); } catch (e) {}
+  campUpcomingDetail(id);
+}
+// ডেস্কটপ বিস্তারিত মডালের ব্লক
+function campPrepBlock(s) {
+  var p = campPrep(s), isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
+  var rows = p.items.map(function (it) {
+    var box = (it.man && it.k !== 'promo' && isAdmin)
+      ? '<input type="checkbox" ' + (it.ok ? 'checked ' : '') + 'onchange="campPrepToggle(' + s.id + ',\'' + it.k + '\')" style="width:17px;height:17px;accent-color:#0f4c81;cursor:pointer;margin:0">'
+      : '<span style="width:17px;text-align:center;font-weight:800;color:' + (it.ok ? '#16a34a' : '#cbd5e1') + '">' + (it.ok ? '✓' : '○') + '</span>';
+    var note = it.k === 'promo' ? (it.ok ? 'মডারেটর/অ্যাডমিন টিক দিয়েছেন' : 'প্রচার টিম গেলে টিক পড়ে') : (it.k === 'doc' || it.k === 'staff' ? (it.ok ? it.v : '') : it.v);
+    return '<label style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px dashed #e2e8f0;font-size:13px;cursor:' + (it.man && it.k !== 'promo' && isAdmin ? 'pointer' : 'default') + '">' + box
+      + '<span style="font-weight:700;color:' + (it.ok ? '#0f172a' : '#64748b') + ';min-width:120px">' + it.t + '</span><span style="font-size:12px;color:#64748b;overflow-wrap:anywhere">' + (note || '') + '</span></label>';
+  }).join('');
+  return '<div style="margin-top:12px;border:1.5px solid #dbe7f5;border-radius:12px;padding:8px 12px"><div style="font-weight:800;color:#0f4c81;font-size:13.5px;margin-bottom:2px">✅ প্রস্তুতি ' + fmt(p.done) + '/' + fmt(p.total) + '</div>' + rows + '</div>';
+}
+// মোবাইল: amCkRows-এর নিচে যোগ হয় — সিস্টেম-নিজে-দেখা ৩টা (শুধু দেখার জন্য)
+function amCkAutoRows(s) {
+  return campPrep(s).items.filter(function (it) { return !it.man; }).map(function (it) {
+    return '<div><label class="am-ckr" style="cursor:default"><input type="checkbox" disabled' + (it.ok ? ' checked' : '') + '><span class="n' + (it.ok ? ' d' : '') + '">' + it.t + '</span></label>' + (it.v ? '<div class="am-cks"' + (it.ok ? '' : ' style="color:var(--am-warn)"') + '>' + amEsc(it.v) + '</div>' : '') + '</div>';
+  }).join('');
+}
+
 // ✅ মেয়াদোত্তীর্ণ ক্যাম্প বাতিল বা রি-শিডিউল করার মডাল
 function openOverdueCampModal(id) {
   var s = (appData.campSchedules||[]).find(function(x){ return x.id===id; });
@@ -39747,6 +39945,7 @@ function openOverdueCampModal(id) {
   document.getElementById('ocmNewDate').value = '';
   document.getElementById('ocmReason').value = '';
   toggleOcmNewDateField();
+  rsCtxInit('ocmCtx', id, 'ocmNewDate');
   document.getElementById('overdueCampModal').classList.add('open');
   setTimeout(function () { var r = document.getElementById('ocmReason'); if (r) { r.disabled = false; r.readOnly = false; r.focus(); } }, 120);
 }
@@ -39756,6 +39955,7 @@ function closeOverdueCampModal() {
 function toggleOcmNewDateField() {
   var action = document.getElementById('ocmAction').value;
   document.getElementById('ocmNewDateField').style.display = action==='reschedule' ? 'block' : 'none';
+  var _rcx = document.getElementById('ocmCtx'); if (_rcx) _rcx.style.display = action==='reschedule' ? 'block' : 'none';
   document.getElementById('ocmReasonLabel').textContent = action==='cancel' ? 'বাতিলের কারণ *' : 'রি-শিডিউলের কারণ *';
   document.getElementById('ocmSubmitBtn').textContent = action==='cancel' ? '❌ বাতিল নিশ্চিত করুন' : '📅 রি-শিডিউল নিশ্চিত করুন';
 }
@@ -39777,6 +39977,7 @@ function saveOverdueCampAction() {
     var today = todayStr();
     if (!newDate) { showToast('⚠️ অনুগ্রহ করে নতুন তারিখ নির্বাচন করুন'); return; }
     if (newDate < today) { showToast('⚠️ নতুন তারিখ আজ অথবা তার পরের হতে হবে'); return; }
+    if (!rsConflictOk(s.id, newDate)) return;
     if (!s.rescheduleHistory) s.rescheduleHistory = [];
     s.rescheduleHistory.push({ oldDate: s.date, newDate: newDate, reason: reason, by: who, at: Date.now() });
     s.date = newDate;
@@ -47899,7 +48100,7 @@ function amCkRows(s, cost, mod) {
       v = stv + (cost > 0 ? (stv ? ' ' : '') + '<span style="color:var(--am-warn);font-weight:800">৳ ' + fmt(cost) + '</span>' : '');
     }
     return '<div><label class="am-ckr"' + (dis ? ' style="cursor:default"' : '') + '><input type="checkbox"' + (on ? ' checked' : '') + (dis ? ' disabled' : ' onchange="amCkToggle(' + s.id + ',\'' + it[0] + '\')"') + '><span class="n' + (on ? ' d' : '') + '">' + it[1] + '</span>' + (v ? '<span class="r">' + v + '</span>' : '') + '</label>' + amCkSub(s, it[0]) + '</div>';
-  }).join('');
+  }).join('') + amCkAutoRows(s);
 }
 
 // ----- লাইভ পেজ (এডমিন লাইভ মনিটরের ডিজাইন; প্রচারের কার্ড প্রায়োরিটিতে) -----
@@ -47964,7 +48165,7 @@ function mmPromoCard(s) {
   var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length, cost = mmPreCost(s.id);
   var st = mmPromoState(s), p = s.promo || {}, mine = st === 'on' && p.byUser === currentUser.username;
   var t = todayStr(), dayTag = s.date === t ? '<span class="am-tag r">আজ</span>' : (s.date === mmDayAdd(1) ? '<span class="am-tag w">আগামীকাল</span>' : '');
-  var rows = amCkRows(s, cost, true);
+  var rows = amCkRows(s, cost, true); dayTag += amPrepTag(s);
   var btns = '';
   if (mmAllow('promo')) {
     if (st === 'on' && mine) btns += '<button class="am-btn ok" onclick="mmPromoEndAsk(' + s.id + ')">✅ প্রচার শেষ</button><button class="am-btn line" onclick="mmPromoSheet(' + s.id + ')">👥 টিম বদলান</button>';
@@ -48618,7 +48819,7 @@ function amCampPeople(s) {
 }
 function amCampCard(s) {
   var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length;
-  return '<div class="am-card" onclick="amCampDetail(' + s.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '</div><div>' + amStatusTag(s) + '</div></div>'
+  return '<div class="am-card" onclick="amCampDetail(' + s.id + ')"><div class="am-ap-top"><div class="am-ap-t">' + amEsc(s.name) + '</div><div>' + amStatusTag(s) + amPrepTag(s) + '</div></div>'
     + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + ' · ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + amPromoLine(s) + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট টিম মেম্বার ' + fmt(pp.total) + ' জন</b><br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>';
 }
 // সম্পন্ন ক্যাম্প — ক্যাম্পেইনার প্যানেলের "আগের ক্যাম্প" কার্ডের নকশা; "বিস্তারিত" পিসি/ওনার/ক্যাম্পেইনারের একই পূর্ণ-পেজ ভিউ (showCampDetail)
@@ -48695,6 +48896,7 @@ function amCampDetail(id) {
     + (amPreCampCost(s.id) > 0 ? '<div class="am-row"><span class="k">প্রি-ক্যাম্প খরচ</span><span class="v">৳ ' + fmt(amPreCampCost(s.id)) + '</span></div>' : '')
     + '<div class="am-row"><span class="k">টিমের কর্মী</span><span class="v" style="text-align:right;max-width:62%">' + (staff || '—') + '</span></div>'
     + '<div class="am-row tot"><span>মোট টিম মেম্বার</span><span>' + fmt(pp.total) + ' জন</span></div></div>'
+    + (open ? '<div class="am-h"><span>প্রস্তুতি ' + fmt(campPrep(s).done) + '/' + fmt(campPrep(s).total) + '</span></div><div class="am-card" style="padding:6px 12px">' + amCkRows(s, amPreCampCost(s.id), false) + '</div>' : '')
     + (s.status === 'cancelled' ? '<div class="am-meta" style="background:var(--am-badsoft);border-radius:10px;padding:8px;margin-bottom:8px"><b>বাতিলের কারণ:</b> ' + amEsc(s.cancelReason || '—') + (s.cancelledBy ? '<br>' + amEsc(s.cancelledBy) + ' · ' + amEsc(amFmtAt(s.cancelledAt)) : '') + '</div>' : '')
     + (hist ? '<div class="am-h"><span>রিশিডিউলের ইতিহাস</span></div><div class="am-card" style="padding:4px 12px">' + hist + '</div>' : '')
     + (open ? '<div class="am-btns" style="flex-wrap:wrap"><button class="am-btn pri" onclick="amReschedForm(' + id + ')">রিশিডিউল</button><button class="am-btn" onclick="amCampForm(' + id + ')">সংশোধন</button><button class="am-btn bad" onclick="amCancelForm(' + id + ')">বাতিল</button></div>' : ''));
@@ -48703,9 +48905,10 @@ function amReschedForm(id) {
   var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
   amOpenSheet('<div class="hd"><b>ক্যাম্প রিশিডিউল</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
     + '<div class="am-meta" style="font-size:14px;margin-bottom:10px"><b>' + amEsc(s.name) + '</b><br>বর্তমান তারিখ: ' + formatDate(s.date) + '</div>'
-    + '<div class="am-f"><label>নতুন তারিখ *</label><input type="date" id="amRsDate" min="' + todayStr() + '"></div>'
+    + '<div class="am-f"><label>নতুন তারিখ *</label><input type="date" id="amRsDate" min="' + todayStr() + '"></div><div id="amRsCtx" style="margin-bottom:10px"></div>'
     + '<div class="am-f"><label>রিশিডিউলের কারণ *</label><textarea id="amRsReason" placeholder="যেমন: স্থানীয় কর্তৃপক্ষের অনুরোধে"></textarea></div>'
     + '<div class="am-btns"><button class="am-btn line" onclick="amCampDetail(' + id + ')">ফিরে যান</button><button class="am-btn pri" onclick="amDoResched(' + id + ')">রিশিডিউল নিশ্চিত করুন</button></div>');
+  rsCtxInit('amRsCtx', id, 'amRsDate');
 }
 function amPushResched(s, newDate, reason) {
   if (!s.rescheduleHistory) s.rescheduleHistory = [];
@@ -48719,6 +48922,7 @@ function amDoResched(id) {
   if (nd < todayStr()) { showToast('⚠️ নতুন তারিখ আজ অথবা তার পরের হতে হবে'); return; }
   if (nd === s.date) { showToast('⚠️ নতুন তারিখ আগের তারিখ থেকে আলাদা হতে হবে'); return; }
   if (!rs) { showToast('⚠️ রিশিডিউলের কারণ লিখুন'); return; }
+  if (!rsConflictOk(s.id, nd)) return;
   amPushResched(s, nd, rs); s.date = nd; s.status = 'scheduled';
   saveData(); try { renderCampScheduleTable(); } catch (e) {} try { renderRecCampSchedule(); } catch (e) {}
   amCloseSheet(); showToast('📅 ক্যাম্প রিশিডিউল হয়েছে'); amAfter();
@@ -48758,7 +48962,7 @@ function amCampForm(id, pre) {
   }).join('') : '<span class="am-meta">স্যালারি শিটে কোনো কর্মী নেই</span>';
   amPtN = 0;
   amOpenSheet('<div class="hd"><b>' + (s ? 'ক্যাম্প সংশোধন' : 'নতুন ক্যাম্প') + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'
-    + '<input type="hidden" id="amCsId" value="' + (s ? s.id : '') + '"><input type="hidden" id="amCsOldDate" value="' + (s ? amEsc(s.date) : '') + '">'
+    + '<div id="amDfNote" style="display:none"></div><input type="hidden" id="amCsId" value="' + (s ? s.id : '') + '"><input type="hidden" id="amCsOldDate" value="' + (s ? amEsc(s.date) : '') + '">'
     + '<div class="am-f"><label>ক্যাম্পের নাম *</label><input id="amCsName" value="' + amEsc(s ? s.name : '') + '" placeholder="যেমন: দোহার ফ্রি আই ক্যাম্প"></div>'
     + '<div class="am-f"><label>উপজেলা</label><select id="amCsUpazila" onchange="cvSel(\'amCs\',\'p\')"></select><input id="amCsUpazilaNew" placeholder="উপজেলার নাম লিখুন" style="display:none;margin-top:6px" oninput="amCsVillageLookup()"></div>'
     + '<div class="am-f"><label>ইউনিয়ন</label><select id="amCsUnion" onchange="cvSel(\'amCs\',\'u\')"></select><input id="amCsUnionNew" placeholder="ইউনিয়নের নাম লিখুন" style="display:none;margin-top:6px" oninput="amCsVillageLookup()"></div>'
@@ -48768,6 +48972,7 @@ function amCampForm(id, pre) {
     + '<div class="am-f"><label>📞 স্থানীয় সহযোগীর নাম ও মোবাইল</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="amCsHName" value="' + amEsc(_pv.helperName || '') + '" placeholder="নাম"><input id="amCsHPhone" type="tel" inputmode="tel" value="' + amEsc(_pv.helperPhone || '') + '" placeholder="মোবাইল"></div></div>'
     + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amCsDate" value="' + (s ? s.date : todayStr()) + '" onchange="amCsDateChg()"></div>'
     + '<div class="am-f" id="amCsRsWrap" style="display:none"><label>তারিখ বদলানোর (রিশিডিউলের) কারণ *</label><textarea id="amCsRsReason" placeholder="এই কারণসহ রিশিডিউলের রেকর্ড সংরক্ষিত হবে"></textarea></div>'
+    + '<div id="amCsRsCtx" style="margin-bottom:10px"></div>'
     + '<div class="am-f"><label>ডাক্তার *</label><select id="amCsDoc">' + dopts + '</select></div>'
     + '<div class="am-f"><label>ক্যাম্পেইনার</label><select id="amCsCamper">' + copts + '</select></div>'
     + '<div class="am-f"><label>ভিজিট ফি (৳)</label><input type="number" inputmode="numeric" id="amCsFee" value="' + (_b.visitFee || '') + '"></div>'
@@ -48775,10 +48980,11 @@ function amCampForm(id, pre) {
     + '<div class="am-f"><label>🤝 সহযোগী সংগঠন (লিফলেটে আসবে)</label><input id="amCsOrg" value="' + amEsc(s ? (s.localOrg || '') : '') + '" placeholder="স্থানীয় সংগঠনের নাম"></div>'
     + '<div class="am-f"><label>👥 বিশেষ ব্যক্তিবর্গ (কমা দিয়ে নাম)</label><input id="amCsGuests" value="' + amEsc(s ? (s.guests || '') : '') + '" placeholder="নাম ১, নাম ২"></div>'
     + (function () { var sh = _b.lfShow || {}; var c = function (id, t, on) { return '<label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600;margin:3px 0"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + ' style="width:17px;height:17px"> ' + t + '</label>'; }; return '<div class="am-f"><label>🖨️ লিফলেটে যা ছাপা হবে</label>' + c('amCsShOrg', 'সহযোগী সংগঠন', sh.org !== false) + c('amCsShPersons', 'বিশেষ ব্যক্তিবর্গ', sh.persons !== false) + c('amCsShHName', 'স্থানীয় যোগাযোগের নাম', sh.hname !== false) + c('amCsShHPhone', 'স্থানীয় যোগাযোগের মোবাইল নম্বর', sh.hphone === true) + '</div>'; })()
-    + '<div class="am-f"><label>নিয়মিত কর্মী (দৈনিক = মূল বেতন ÷ ৩০)</label><div class="am-staff">' + staff + '</div></div>'
+    + '<div class="am-f"><label>নিয়মিত কর্মী (দৈনিক = মূল বেতন ÷ ৩০)</label><div class="am-staff" id="amCsStaffBox">' + staff + '</div></div>'
     + '<div class="am-f"><label>পার্টটাইমার</label><div id="amPtRows"></div><button type="button" class="am-btn line" style="width:100%" onclick="amAddPt()">+ পার্টটাইমার যোগ</button></div>'
     + '<div class="am-btns"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="amSaveCamp()">সেভ করুন</button></div>');
   (_b.parttimers || []).forEach(function (p) { amAddPt(p.name, p.pay); });
+  if (!s && _dflt) dfMarkMobile(_b);
   cvInitSel('amCs', _pv.upazila || '', _pv.union || '', _pv.village || '');
   amCsVillageLookup('init');
 }
@@ -48789,6 +48995,7 @@ function amApplyVillageDefaults() {
   auto('amCsName', uv.village);
   var ls = _csLastSchedForVillage(uv);
   auto('amCsOrg', ls ? ls.localOrg : ''); auto('amCsGuests', ls ? ls.guests : '');
+  dfMarkAuto(['amCsOrg', 'amCsGuests'], 'amDfNote');
   if (ls && ls.lfShow) { var sh = ls.lfShow, set = function (id, v) { var e = document.getElementById(id); if (e) e.checked = v; }; set('amCsShOrg', sh.org !== false); set('amCsShPersons', sh.persons !== false); set('amCsShHName', sh.hname !== false); set('amCsShHPhone', sh.hphone === true); }
 }
 function amCsVillageLookup(src) {
@@ -48811,6 +49018,7 @@ function amCsVillageLookup(src) {
 function amCsDateChg() {
   var old = (document.getElementById('amCsOldDate') || {}).value || '', nd = (document.getElementById('amCsDate') || {}).value || '';
   var w = document.getElementById('amCsRsWrap'); if (w) w.style.display = (old && nd && nd !== old) ? '' : 'none';
+  if (old && nd && nd !== old) rsCtxInit('amCsRsCtx', (document.getElementById('amCsId') || {}).value, 'amCsDate'); else rsCtxClear('amCsRsCtx');
 }
 function amAddPt(name, pay) {
   amPtN++; var n = amPtN, d = document.createElement('div'); d.className = 'am-pt'; d.id = 'amPt-' + n;
@@ -48828,6 +49036,7 @@ function amSaveCamp() {
   if (!doctor) { showToast('⚠️ ক্যাম্পের ডাক্তার বেছে নিন!'); return; }
   var dateChanged = !!(editId && oldDate && date !== oldDate);
   if (dateChanged && !rsReason) { showToast('⚠️ তারিখ বদলাতে রিশিডিউলের কারণ লিখুন'); return; }
+  if (dateChanged && !rsConflictOk(editId, date)) return;
   var regularStaff = [];
   document.querySelectorAll('.am-cs-chk:checked').forEach(function (c) { regularStaff.push({ id: parseInt(c.value), name: c.getAttribute('data-name'), dailyPay: parseInt(c.getAttribute('data-daily')) || 0 }); });
   var parttimers = [];
@@ -49656,7 +49865,7 @@ function amCkToggle(id, k) {
 function amLvCampCard(s) {
   var pp = amCampPeople(s), rs = (s.rescheduleHistory || []).length, rows = amCkRows(s, amPreCampCost(s.id), false);
   return '<div class="am-card" style="display:flex;gap:10px;align-items:stretch" onclick="amCampDetail(' + s.id + ')">'
-    + '<div style="flex:1;min-width:0"><div class="am-ap-t">' + amEsc(s.name) + '</div>'
+    + '<div style="flex:1;min-width:0"><div class="am-ap-t">' + amEsc(s.name) + '</div><div style="margin:2px 0 3px">' + amPrepTag(s) + '</div>'
     + '<div class="am-meta">' + formatDate(s.date) + ' · ' + amEsc(s.location) + (rs ? ' <span class="am-tag w">রিশিডিউল ×' + fmt(rs) + '</span>' : '') + '<br>ডাক্তার: ' + amEsc(s.doctor || '—') + '<br>ক্যাম্পেইনার: ' + amEsc(s.camper || '—') + '<br>টিমের কর্মী: ' + (pp.others.length ? amEsc(pp.others.join(', ')) : '—') + '<br><b>মোট টিম মেম্বার ' + fmt(pp.total) + ' জন</b><br>ভিজিট ফি ৳ ' + fmt(s.visitFee || 0) + '</div></div>'
     + '<div class="am-ck" onclick="event.stopPropagation()">' + rows + '</div></div>';
 }
