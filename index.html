@@ -223,7 +223,7 @@
   .btn-logout:hover { background:rgba(231,76,60,0.24); border-color:rgba(231,76,60,0.4); }
 
   /* MAIN CONTENT */
-  .main-content { margin-left:260px; width:calc(100% - 260px); min-height:100vh; height:100vh; overflow-y:auto; padding:24px; display:flex; flex-direction:column; box-sizing:border-box; }
+  .main-content { scrollbar-gutter:stable; margin-left:260px; width:calc(100% - 260px); min-height:100vh; height:100vh; overflow-y:auto; padding:24px; display:flex; flex-direction:column; box-sizing:border-box; }
   /* ✅ লোগো, টাইটেল ও সার্চ বার সবসময় উপরে স্থির থাকবে, শুধু নিচের পেজ কন্টেন্ট স্ক্রল হবে */
   .sticky-header-wrap { position:sticky; top:-24px; z-index:30; background:var(--bg); margin:-24px -24px 0 -24px; padding:24px 24px 0 24px; flex-shrink:0; }
   .app-topbar-logo { height:var(--topbar-logo-h); width:auto; max-width:260px; object-fit:contain; flex-shrink:0; cursor:default; user-select:none; -webkit-user-select:none; }
@@ -993,8 +993,9 @@
   .dash-cards-col .stat-change { font-size:9px; }
   .dash-cards-col .stat-card-bg-icon { --wm-icon-size:160px; }
   /* আজ/আগামীকালের ক্যাম্প প্রস্তুতি — ৯ কার্ডের নিচে স্ট্রিপ */
-  #campPrepAlert.cp-strip { flex:0 0 auto; background:#fff7f7; border:1.5px solid #fecaca; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
-  .cp-strip-row { display:flex; align-items:center; gap:10px; height:34px; padding:0 10px; overflow-x:auto; white-space:nowrap; }
+  #campPrepAlert.cp-strip { flex:0 0 34px; height:34px; min-height:34px; max-height:34px; contain:layout style; background:#fff7f7; border:1.5px solid #fecaca; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+  .cp-strip-row { display:flex; align-items:center; gap:10px; height:34px; padding:0 10px; overflow-x:auto; overflow-y:hidden; white-space:nowrap; scrollbar-width:none; }
+  .cp-strip-row::-webkit-scrollbar { display:none; }
   .cp-strip-title { font-size:12px; font-weight:800; color:#b91c1c; flex-shrink:0; }
   .cp-strip-item { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding-left:10px; border-left:1px solid #fecaca; flex-shrink:0; }
   .cp-strip-item .cp-miss { color:#a93226; max-width:280px; overflow:hidden; text-overflow:ellipsis; }
@@ -19541,6 +19542,7 @@ function renderCampOps() {
   // অ্যাডমিনের ম্যানুয়াল ক্যাম্প এন্ট্রি ফর্ম থেকে যোগ করা অপারেশন-রোগী
   appData.camps.forEach(c => {
     (c.patients||[]).forEach(p => {
+      if (!p || !p.opType) return; // স্ন্যাপশটের সাধারণ রোগী বাদ — শুধু অপারেশন এন্ট্রি
       allOps.push({ _key:`camp:${c.id}:${p.id}`, campName:c.name, campDate:c.date, name:p.name, phone:p.phone, opType:p.opType, status:p.status||'pending' });
     });
   });
@@ -39420,8 +39422,7 @@ function lfeWatch() {
       var fresh = (appData.lfEditRequests || []).filter(function (r) { return r.status === 'pending' && seen.indexOf('p' + r.id) < 0; });
       if (!fresh.length) return;
       mark(fresh.map(function (r) { return 'p' + r.id; }));
-      var live = fresh.filter(function (r) { return r.id > recent; });
-      if (live.length) { showToast('🔔 লিফলেট এডিটের অনুরোধ — ' + live[0].campName + ' (' + _baseBy(live[0].by || '') + ')' + (live.length > 1 ? ' + আরও ' + fmt(live.length - 1) + 'টি' : '')); }
+      // অ্যাডমিনের জন্য টোস্ট নেই — শুধু বেল নোটিফিকেশনে দেখাবে (updateNotifBell নিচে)
       if (typeof updateNotifBell === 'function') updateNotifBell();
     } else if (currentUser.role === 'receptionist') {
       var dec = (appData.lfEditRequests || []).filter(function (r) { return r.by === currentUser.name && (r.status === 'approved' || r.status === 'rejected') && seen.indexOf('d' + r.id + r.status) < 0; });
@@ -40259,7 +40260,44 @@ function campLfResultHtml(c) {
 function campOnePageClose() { var o = document.getElementById('campOnePage'); if (o) o.remove(); }
 function _copPageMode() { try { return !!document.getElementById('pg-camponepage') && typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin' && typeof adminUiMode === 'function' && adminUiMode() === 'pc'; } catch (e) { return false; } }
 function _copOpen() { return !!document.getElementById('campOnePage') || (typeof currentActivePage !== 'undefined' && currentActivePage === 'camponepage'); }
-function campOnePageBack() { var to = (window._copFrom && window._copFrom !== 'camponepage') ? window._copFrom : 'camp'; window._copId = null; showPage(to); }
+function campOnePageBack() {
+  // ফিরে যান = ক্যাম্প পেজে (সম্পন্ন ক্যাম্পের তালিকা / আসন্ন ক্যাম্পের শিডিউল ট্যাবে); ড্যাশবোর্ড বা অন্য পেজ থেকে খুলে থাকলেও পেজ থেকে বেরিয়ে যাবে না
+  var id = window._copId, from = window._copFrom, to = 'camp';
+  if (from && from !== 'camponepage' && from !== 'dashboard' && from !== 'camp') to = from;
+  if (to === 'camp') {
+    var done = (appData.camps || []).some(function (x) { return String(x.id) === String(id); });
+    window._campTab = done ? 'main' : 'mgmt';
+  }
+  window._copId = null; showPage(to);
+}
+// ===== 🏘️ টপ বারে: এই গ্রামে কত নম্বর ক্যাম্প + আগের ক্যাম্পগুলোর তারিখ/সফলতা =====
+function _copOrd(n) { var sfx = ['', 'ম', 'য়', 'য়', 'র্থ', 'ম', 'ষ্ঠ', 'ম', 'ম', 'ম', 'ম']; return fmt(n) + (n <= 10 ? sfx[n] : 'তম'); }
+function _copVillageBar(b, compact) {
+  try {
+    var asg = _cvAssign(), m = null, vr = asg.__byCamp[b.id];
+    if (vr && asg[vr.id]) m = asg[vr.id];
+    if (!m) { var v2 = _lfVillageOf(b); if (v2 && asg[v2.id]) m = asg[v2.id]; }
+    if (!m) return '';
+    var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+    var bd = String(b.date || '');
+    var prev = m.camps.filter(function (x) { return !(String(x.id) === String(b.id) && !x.manual) && String(x.date || '') < bd; })
+      .sort(function (x, y) { return String(y.date || '').localeCompare(String(x.date || '')); });
+    var no = prev.length + 1;
+    var line = function (c) {
+      var pts = c.totalPatients || (Array.isArray(c.patients) ? c.patients.length : 0) || 0;
+      var inc = c.settleIncome != null ? c.settleIncome : (c.totalIncome || 0);
+      return _cvDateTxt(c) + (c.rating ? ' · ' + (_CV_EMO[c.rating] || '') + ' ' + esc(c.rating) : '') + (pts ? ' · ' + fmt(pts) + ' জন' : '') + (inc ? ' · ৳' + fmt(inc) : '');
+    };
+    var chip = 'display:inline-flex;align-items:center;gap:4px;border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:3px 9px;font-size:11.5px;color:#334155;white-space:nowrap';
+    var h = '<span style="' + chip + ';border-color:#bfdbfe;background:#eff6ff;color:#0f4c81;font-weight:800">🏘️ ' + esc(m.v.village) + ' — ' + _copOrd(no) + ' ক্যাম্প</span>';
+    var shown = prev.slice(0, compact ? 1 : 2);
+    shown.forEach(function (c, i) { h += '<span style="' + chip + '" title="আগের ক্যাম্প">' + (i === 0 ? 'আগের: ' : '') + line(c) + '</span>'; });
+    if (prev.length > shown.length) {
+      h += '<span style="' + chip + ';cursor:help" title="' + prev.slice(shown.length).map(function (c) { return line(c).replace(/<[^>]*>/g, ''); }).join('&#10;') + '">+আরও ' + fmt(prev.length - shown.length) + 'টি</span>';
+    }
+    return h;
+  } catch (e) { return ''; }
+}
 function _copRenderPage(h, id, s, c) {
   var pg = document.getElementById('pg-camponepage'); if (!pg) return;
   var wasOn = (typeof currentActivePage !== 'undefined' && currentActivePage === 'camponepage');
@@ -40288,6 +40326,17 @@ function _copRenderPage(h, id, s, c) {
   } else { rt.style.display = 'none'; }
   if (sc) sc.scrollTop = keep;
 }
+// ভাউচারের প্রিভিউ (জমা স্লিপের মতো পূর্ণ-স্ক্রিন) — ক্যাম্প বিস্তারিতের ভাউচার অংশ থেকে
+function copVoucherPreview(id) {
+  var e = _expVFind(id);
+  if (!e) { showToast('⚠️ ভাউচার পাওয়া যায়নি'); return; }
+  var role = currentUser && currentUser.role, btn = 'flex:1;min-width:140px;justify-content:center';
+  var canPrint = role === 'admin' || role === 'receptionist';
+  var footer = '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + (canPrint ? '<button class="btn btn-primary" style="' + btn + '" onclick="printExpenseVouchers([' + e.id + '])">🖨️ প্রিন্ট করুন</button>' : '')
+    + '<button class="btn btn-outline" style="' + btn + '" onclick="closeSlipPreview()">বন্ধ করুন</button></div>';
+  _openSlipPreview(buildExpenseVouchersHtml([e], false), '🧾 ব্যয় ভাউচার — ' + (e.voucher || ''), footer);
+}
 function campOnePage(id) {
   var s = (appData.campSchedules || []).find(function (x) { return String(x.id) === String(id); }) || null;
   var c = (appData.camps || []).find(function (x) { return String(x.id) === String(id); }) || null;
@@ -40311,12 +40360,15 @@ function campOnePage(id) {
   if (s && isOpen) acts += '<button type="button" style="' + sbtn + '" onclick="campOnePageClose();campSchedEdit(' + id + ')">✏️ সংশোধন</button><button type="button" style="' + sbtn + '" onclick="campOnePageClose();openCampLeafletModal(' + id + ')">📄 লিফলেট</button><button type="button" style="' + sbtn + '" onclick="promoTextsOpen(' + id + ')">📣 প্রচারের লেখা</button>';
   if (c && !pm) acts += '<button type="button" style="' + sbtn + '" onclick="showCampDetail(' + id + ')">🔎 পূর্ণ হিসাব</button>';
   var rsn = s ? (s.rescheduleHistory || []).length : 0;
+  var _vbPc = pm ? _copVillageBar(b) : '';
   if (pm) {
     h += '<div style="padding:8px 14px"><div style="display:flex;gap:6px 12px;align-items:center;flex-wrap:wrap"><span style="font-size:18px;font-weight:800;color:#0f4c81">' + esc(b.name) + '</span>' + pill(st[0], st[1], st[2]) + (rsn ? pill('রিশিডিউল ×' + fmt(rsn), '#fef3c7', '#92400e') : '')
       + '<span style="font-size:12.5px;color:#475569">📅 ' + formatDate(b.date) + ' &nbsp;·&nbsp; 📍 ' + esc(b.location || '—') + (s && s.landmark ? ' (' + esc(s.landmark) + ')' : '') + '</span>' + acts
-      + '<button type="button" class="btn btn-outline btn-sm" style="margin-left:auto" onclick="campOnePageBack()">← ফিরে যান</button></div></div><!--COP_SPLIT--><div class="cop-body" style="padding:10px 16px 40px">';
+      + (_vbPc ? '<span style="margin-left:auto;display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center">' + _vbPc + '</span>' : '')
+      + '<button type="button" class="btn btn-outline btn-sm" style="' + (_vbPc ? '' : 'margin-left:auto') + '" onclick="campOnePageBack()">← ফিরে যান</button></div></div><!--COP_SPLIT--><div class="cop-body" style="padding:10px 16px 40px">';
   } else h += '<div style="padding:12px 16px 4px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:19px;font-weight:800;color:#0f4c81">' + esc(b.name) + '</span>' + pill(st[0], st[1], st[2]) + (rsn ? pill('রিশিডিউল ×' + fmt(rsn), '#fef3c7', '#92400e') : '') + '</div>'
     + '<div style="font-size:12.5px;color:#475569;margin-top:3px">📅 ' + formatDate(b.date) + ' &nbsp;·&nbsp; 📍 ' + esc(b.location || '—') + (s && s.landmark ? ' (' + esc(s.landmark) + ')' : '') + '</div>'
+    + (function () { var vb = _copVillageBar(b, true); return vb ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' + vb + '</div>' : ''; })()
     + (acts ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + acts + '</div>' : '') + '</div><!--COP_SPLIT--><div class="cop-body" style="padding:10px 16px 40px">';
 
   // প্রস্তুতি
@@ -40383,7 +40435,7 @@ function campOnePage(id) {
   // ভাউচার
   var vch = (appData.expense || []).filter(function (e) { return e && String(e.campId) === String(id) && !e.rejected; }).sort(function (a, b2) { return String(a.date).localeCompare(String(b2.date)); });
   var vt = vch.reduce(function (t, e) { return t + (e.amount || 0); }, 0);
-  var vrows = vch.map(function (e) { return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed #e2e8f0;font-size:12.5px"><span style="min-width:0">' + (e.voucher ? '<b>' + esc(e.voucher) + '</b> · ' : '') + esc(e.subCategory || e.category || '—') + (e.preCamp ? ' <span style="color:#94a3b8">(প্রি-ক্যাম্প)</span>' : '') + (e.status === 'pending' ? ' ' + pill('অপেক্ষমাণ', '#fef3c7', '#92400e') : '') + '<div style="font-size:11.5px;color:#64748b">' + esc(formatDate(e.date)) + (e.note ? ' · ' + esc(String(e.note).slice(0, 60)) : '') + '</div></span><b style="color:#b91c1c;white-space:nowrap">৳ ' + fmt(e.amount || 0) + '</b></div>'; }).join('');
+  var vrows = vch.map(function (e) { return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed #e2e8f0;font-size:12.5px"><span style="min-width:0">' + (e.voucher ? '<b>' + esc(e.voucher) + '</b> · ' : '') + esc(e.subCategory || e.category || '—') + (e.preCamp ? ' <span style="color:#94a3b8">(প্রি-ক্যাম্প)</span>' : '') + (e.status === 'pending' ? ' ' + pill('অপেক্ষমাণ', '#fef3c7', '#92400e') : '') + '<div style="font-size:11.5px;color:#64748b">' + esc(formatDate(e.date)) + (e.note ? ' · ' + esc(String(e.note).slice(0, 60)) : '') + '</div></span><div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><b style="color:#b91c1c;white-space:nowrap">৳ ' + fmt(e.amount || 0) + '</b>' + (e.voucher ? '<button type="button" style="' + sbtn + '" onclick="copVoucherPreview(' + e.id + ')">👁️ ভাউচার</button>' : '') + '</div></div>'; }).join('');
   h += sec('📥 ভাউচার', vrows || none('এই ক্যাম্পে কোনো ভাউচার নেই'), vch.length ? fmt(vch.length) + 'টি · ৳ ' + fmt(vt) : '');
 
   // কর্মী
@@ -40612,7 +40664,7 @@ function campHeardHtml(c) {
 var CAMP_OP_FOLLOW_DAYS = 3;
 function campOpAll() {
   var all = [];
-  (appData.camps || []).forEach(function (c) { (c.patients || []).forEach(function (p) { all.push({ _key: 'camp:' + c.id + ':' + p.id, campName: c.name, campDate: c.date, name: p.name, phone: p.phone, opType: p.opType, status: p.status || 'pending' }); }); });
+  (appData.camps || []).forEach(function (c) { (c.patients || []).forEach(function (p) { if (!p || !p.opType) return; /* ক্যাম্প-ক্লোজের স্ন্যাপশটে সব রোগী থাকে — শুধু অপারেশন হিসেবে এন্ট্রি দেওয়াগুলো */ all.push({ _key: 'camp:' + c.id + ':' + p.id, campName: c.name, campDate: c.date, name: p.name, phone: p.phone, opType: p.opType, status: p.status || 'pending' }); }); });
   (appData.campOpPatients || []).forEach(function (p) { all.push({ _key: 'live:' + p.id, campName: p.campName, campDate: p.campDate, name: p.name, phone: p.phone, opType: p.opType, status: p.status || 'pending', age: p.age }); });
   return all;
 }
@@ -40681,12 +40733,13 @@ function campOpsAlertRender() {
 function campPrepAlertRender() {
   var box = document.getElementById('campPrepAlert'), body = document.getElementById('campPrepAlertBody'); if (!box || !body) return;
   var al = campSoonAlerts();
-  if (!al.length) { box.style.display = 'none'; body.innerHTML = ''; return; }
-  box.style.display = 'block';
-  body.innerHTML = '<span class="cp-strip-title" style="cursor:pointer" onclick="campOnePage(' + al[0].s.id + ')">🚨 ক্যাম্প প্রস্তুতি বাকি</span>' + al.map(function (a) {
+  if (!al.length) { if (box.style.display !== 'none') box.style.display = 'none'; if (body.innerHTML) body.innerHTML = ''; window._cpStripSig = ''; return; }
+  var _html = '<span class="cp-strip-title" style="cursor:pointer" onclick="campOnePage(' + al[0].s.id + ')">🚨 ক্যাম্প প্রস্তুতি বাকি</span>' + al.map(function (a) {
     var miss = a.miss.map(function (x) { return rsE(x.t); }).join(', ');
     return '<span class="cp-strip-item" title="বাকি: ' + miss.replace(/"/g, '&quot;') + ' — ক্লিক করলে ক্যাম্প বিস্তারিত" onclick="campOnePage(' + a.s.id + ')"><b>🏕️ ' + rsE(a.s.name) + '</b><span style="color:#b91c1c;font-weight:800">' + a.day + '</span><span style="color:#64748b">' + fmt(a.p.done) + '/' + fmt(a.p.total) + '</span><span class="cp-miss">বাকি: ' + miss + '</span></span>';
   }).join('');
+  // আগের মতোই থাকলে DOM ছুঁই না (ড্যাশবোর্ডে ক্লিকে বারবার রি-রেন্ডারে লে-আউট কাঁপছিল)
+  if (window._cpStripSig !== _html || box.style.display === 'none') { window._cpStripSig = _html; body.innerHTML = _html; box.style.display = 'block'; }
 }
 
 // ✅ মেয়াদোত্তীর্ণ ক্যাম্প বাতিল বা রি-শিডিউল করার মডাল
