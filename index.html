@@ -1000,12 +1000,14 @@
   .cp-strip-item .cp-miss { color:#a93226; max-width:280px; overflow:hidden; text-overflow:ellipsis; }
   /* ক্যাম্পের এক পেজ — পিসিতে পুরো পেজ, একাধিক কলাম (স্ক্রল ছাড়াই) */
   .cop-wrap { max-width:720px; }
-  @media(min-width:1100px){
-    .cop-wrap { max-width:none !important; }
-    .cop-body { column-count:3; column-gap:14px; }
-    .cop-body > div { break-inside:avoid; -webkit-column-break-inside:avoid; page-break-inside:avoid; }
-  }
-  @media(min-width:1700px){ .cop-body { column-count:4; } }
+  .cop-pg-head { background:#fff; border:1.5px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:10px; padding-bottom:10px; }
+  .cop-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(400px,500px); gap:12px; align-items:start; }
+  .cop-left .cop-body { columns:340px auto; column-gap:12px; padding:0 !important; }
+  .cop-left .cop-body > div { break-inside:avoid; -webkit-column-break-inside:avoid; page-break-inside:avoid; }
+  .cop-right { position:sticky; top:8px; background:#fff; border:1.5px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); max-height:calc(100vh - 96px); overflow:auto; }
+  .cop-rt-h { position:sticky; top:0; z-index:2; background:#fff; padding:8px 12px; border-bottom:1.5px solid #e2e8f0; font-weight:800; color:#0f4c81; font-size:14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  @media(max-width:1000px){ .cop-grid { grid-template-columns:1fr; } .cop-right { position:static; max-height:none; } }
+  .cp-strip-item { cursor:pointer; }
   .stat-spark { position:relative; z-index:1; height:14px; margin-top:2px; opacity:0.85; }
   .stat-spark svg { display:block; width:100%; height:100%; overflow:visible; }
   #dashModalSpark svg { display:block; width:100%; height:100%; overflow:visible; }
@@ -3512,6 +3514,9 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </div>
           <div id="campPatientRows"></div>
     </div>
+
+    <!-- ক্যাম্প বিস্তারিত (এক পেজ) -->
+    <div id="pg-camponepage" class="page-view"></div>
 
     <!-- DUE LIST -->
     <div id="pg-due" class="page-view">
@@ -11791,6 +11796,7 @@ function saveData() {
 
 // ===== NAVIGATION =====
 const pageMap = {
+  camponepage: { title:'🏕️ ক্যাম্প বিস্তারিত', sub:'শিডিউল, প্রস্তুতি, লিফলেট, জমা, ভাউচার ও হিসাব — এক পেজে' },
   dashboard:{ title:'ড্যাশবোর্ড', sub:'আজকের সারসংক্ষেপ' },
   income:   { title:'💰 আয়', sub:'নতুন আয় যোগ করুন' },
   expense:  { title:'💸 ব্যয়', sub:'নতুন ব্যয় যোগ করুন' },
@@ -11847,6 +11853,7 @@ function filterSidebarCategory(cat) {
   }
 }
 function showPage(name) {
+  if (name === 'camponepage' && !window._copId) name = 'camp';
   if (name === 'settings' && currentUser.role !== 'admin') return;
   if (name === 'memorandum' && currentUser.role !== 'admin' && !canAccess(currentUser.role, 'memorandum')) return;
   currentActivePage = name;
@@ -11856,6 +11863,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('data-page') === name) n.classList.add('active');
   });
+  if (name === 'camponepage') document.querySelectorAll('.nav-item').forEach(n => { if (n.getAttribute('data-page') === 'camp') n.classList.add('active'); });
   const info = pageMap[name] || { title:name, sub:'' };
   document.getElementById('pageTitle').textContent = info.title;
   document.getElementById('pageSub').textContent = info.sub;
@@ -19249,7 +19257,7 @@ function renderCampList() {
     <td style="font-size:12px;color:var(--text-light)">${c.receiptStart&&c.receiptEnd?`#${c.receiptStart}–${c.receiptEnd}`:'—'}</td>
     <td>${c.rating?`<span class="badge ${c.rating==='খুব সফল'?'badge-success':c.rating==='সফল'?'badge-info':c.rating==='অসফল'?'badge-danger':'badge-warning'}">${ratingEmoji[c.rating]||''} ${c.rating}</span>`:'—'}</td>
     <td style="display:flex;gap:4px">
-      <button class="btn btn-primary btn-sm" onclick="showCampDetail(${c.id})">👁️</button>
+      <button class="btn btn-primary btn-sm" onclick="campOnePage(${c.id})">📂 বিস্তারিত</button>
       ${currentUser.role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteCamp(${c.id})">🗑️</button>`:''}
     </td>
   </tr>`).join('');
@@ -19327,7 +19335,7 @@ function recalcCampCOGS(id) {
     showCampDetail(c.id); showToast('✅ COGS পুনর্হিসাব হয়েছে');
   });
 }
-function showCampDetail(id) {
+function showCampDetail(id, host) {
   const c = appData.camps.find(c=>c.id===id);
   if (!c) return;
   const ratingEmoji = { 'খুব সফল':'🌟','সফল':'✅','মোটামুটি':'🆗','অসফল':'❌' };
@@ -19417,7 +19425,7 @@ function showCampDetail(id) {
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:10px">
         <span style="font-weight:500;font-size:11.5px;color:var(--text-light);margin-top:2px">${c.rating?`(${c.rating})`:''}</span>
-        <div style="display:flex;gap:6px"><button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove());campOnePage(${c.id})" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:var(--primary);">📂 এক পেজ</button><button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove())" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:var(--primary);">🏠 হোম</button></div>
+        <div style="display:flex;gap:6px"><button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove());campOnePage(${c.id})" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:var(--primary);">📂 বিস্তারিত</button><button onclick="document.querySelectorAll('.camp-modal-wrap').forEach(m=>m.remove())" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:var(--primary);">🏠 হোম</button></div>
       </div>
     </div>
     <div style="padding:14px 16px 0;">
@@ -19522,6 +19530,7 @@ function showCampDetail(id) {
 
     <div style="font-size:11px;color:#aaa">বন্ধ: ${c.closedBy||'—'} | ${c.closedAt||''}</div>
   </div></div>`;
+  if (host) { const _ct = modal.firstElementChild && modal.firstElementChild.children[1]; host.innerHTML = ''; if (_ct) { _ct.style.padding = '12px 14px 14px'; host.appendChild(_ct); } return; }
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
@@ -21564,7 +21573,7 @@ function _lfLogAdd(s, copies, note) {
   try { logActivity('add', 'লিফলেট প্রিন্ট এন্ট্রি', (s.name || '') + ' — ' + copies + ' কপি'); } catch (e) {}
   saveData();
   try { var cp = document.getElementById('rec-campprint'); if (cp && cp.classList.contains('active')) renderRecCampPrint(); } catch (e) {}
-  try { if (document.getElementById('campOnePage')) campOnePage(s.id); } catch (e) {}
+  try { if (_copOpen()) campOnePage(s.id); } catch (e) {}
 }
 function lfLogDel(id) { if (!confirm('এই এন্ট্রিটি মুছবেন?')) return; var q = _lfLog(); var k = q.findIndex(function (r) { return r.id === id; }); if (k >= 0) { q.splice(k, 1); saveData(); renderRecCampPrint(); } }
 function lfCopyEntry(campId) {
@@ -39643,10 +39652,10 @@ function renderCampTodayCard() {
   var nav = n > 1 ? '<span style="display:inline-flex;align-items:center;gap:5px"><button type="button" style="' + ab + '" ' + (idx === 0 ? 'disabled' : '') + ' onclick="campTdNav(-1)">‹</button><span style="font-size:11.5px;font-weight:700;color:#475569">' + fmt(idx + 1) + '/' + fmt(n) + '</span><button type="button" style="' + ab + '" ' + (idx === n - 1 ? 'disabled' : '') + ' onclick="campTdNav(1)">›</button></span>' : '';
   var chip = function (t) { return '<span style="font-size:11px;font-weight:700;color:#334155;background:#e7f7ec;border-radius:99px;padding:1px 8px;white-space:nowrap">' + t + '</span>'; };
   host.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;min-height:24px"><span style="font-size:11.5px;font-weight:800;color:#15803d">🟢 আজকের ক্যাম্প (' + fmt(n) + ')</span>' + nav + '</div>'
-    + '<div onclick="campUpcomingDetail(' + s.id + ')" title="ক্লিক করলে বিস্তারিত দেখুন" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:6px 10px">'
+    + '<div onclick="campOnePage(' + s.id + ')" title="ক্লিক করলে বিস্তারিত দেখুন" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:6px 10px">'
     + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden"><span style="font-size:13px;font-weight:800;color:#15803d;white-space:nowrap">' + esc(s.name) + '</span>' + (s.doctor ? chip('👨‍⚕️ ' + esc(s.doctor)) : '') + (s.visitFee > 0 ? chip('🎫 ৳ ' + fmt(s.visitFee)) : '') + (s.camper ? chip('📢 ' + esc(s.camper)) : '') + '</div>'
     + '<div style="font-size:11.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">🕘 ' + esc((tm || 'সময় দেওয়া নেই').replace(/ পর্যন্ত$/, '')) + ' · 📍 ' + esc(s.location || '—') + '</div></div>'
-    + '<div style="flex:none" onclick="event.stopPropagation()"><button type="button" class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;white-space:nowrap" onclick="campSchedEdit(' + s.id + ')">✏️ সংশোধন</button></div></div>';
+    + '<div style="flex:none" onclick="event.stopPropagation()"><button type="button" class="btn btn-outline btn-sm" style="padding:4px 9px;font-size:11.5px;white-space:nowrap" onclick="campOnePage(' + s.id + ')">📂 বিস্তারিত</button></div></div>';
 }
 function campUpNav(d) { window._campUpIdx = (window._campUpIdx || 0) + d; renderCampUpcomingCards(); }
 function renderCampUpcomingCards() {
@@ -39663,11 +39672,11 @@ function renderCampUpcomingCards() {
   var bs = 'padding:4px 9px;font-size:11.5px;white-space:nowrap';
   var chip = function (t) { return '<span style="font-size:11px;font-weight:700;color:#334155;background:#eef3f9;border-radius:99px;padding:1px 8px;white-space:nowrap">' + t + '</span>'; };
   host.innerHTML = head(nav)
-    + '<div onclick="campUpcomingDetail(' + s.id + ')" title="ক্লিক করলে বিস্তারিত দেখুন" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:#f7fafd;border:1.5px solid #dbe7f5;border-radius:12px;padding:6px 10px">'
+    + '<div onclick="campOnePage(' + s.id + ')" title="ক্লিক করলে বিস্তারিত দেখুন" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:#f7fafd;border:1.5px solid #dbe7f5;border-radius:12px;padding:6px 10px">'
     + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden"><span style="font-size:13px;font-weight:800;color:var(--primary);white-space:nowrap">' + esc(s.name) + (s.date === today ? ' <span style="font-size:10.5px;color:#16a34a">(আজ)</span>' : '') + '</span>'
     + campPrepChip(s) + (s.doctor ? chip('👨‍⚕️ ' + esc(s.doctor)) : '') + (s.visitFee > 0 ? chip('🎫 ৳ ' + fmt(s.visitFee)) : '') + (s.camper ? chip('📢 ' + esc(s.camper)) : '') + '</div>'
     + '<div style="font-size:11.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">📅 ' + formatDate(s.date) + (tm ? ' · 🕘 ' + esc(tm.replace(/ পর্যন্ত$/, '')) : '') + ' · 📍 ' + esc(s.location || '—') + '</div></div>'
-    + '<div style="display:flex;gap:5px;flex:none" onclick="event.stopPropagation()"><button type="button" class="btn btn-primary btn-sm" style="' + bs + '" onclick="openCampLeafletModal(' + s.id + ')">📄 লিফলেট</button><button type="button" class="btn btn-outline btn-sm" style="' + bs + '" onclick="promoTextsOpen(' + s.id + ')">📣 প্রচার</button><button type="button" class="btn btn-outline btn-sm" style="' + bs + '" onclick="campSchedEdit(' + s.id + ')">✏️ সংশোধন</button></div></div>';
+    + '<div style="display:flex;gap:5px;flex:none" onclick="event.stopPropagation()"><button type="button" class="btn btn-primary btn-sm" style="' + bs + '" onclick="openCampLeafletModal(' + s.id + ')">📄 লিফলেট</button><button type="button" class="btn btn-outline btn-sm" style="' + bs + '" onclick="promoTextsOpen(' + s.id + ')">📣 প্রচার</button><button type="button" class="btn btn-outline btn-sm" style="' + bs + '" onclick="campOnePage(' + s.id + ')">📂 বিস্তারিত</button></div></div>';
 }
 function campUpcomingDetail(id) {
   var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
@@ -39690,7 +39699,7 @@ function campUpcomingDetail(id) {
     + row('🖨️ লিফলেটে ছাপা হবে', [show.org !== false ? 'সংগঠন' : '', show.persons !== false ? 'ব্যক্তিবর্গ' : '', show.hname !== false ? 'যোগাযোগের নাম' : '', show.hphone === true ? 'নম্বর' : ''].filter(Boolean).join(' · ') || 'কিছু না')
     + row('🔁 রিশিডিউল', rs.length ? fmt(rs.length) + ' বার (শেষ কারণ: ' + esc(rs[rs.length - 1].reason || '—') + ')' : '')
     + campPrepBlock(s)
-    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'campUpDetailModal\').remove();campSchedEdit(' + s.id + ')">✏️ সংশোধন</button><button type="button" class="btn btn-primary" onclick="document.getElementById(\'campUpDetailModal\').remove();openCampLeafletModal(' + s.id + ')">📄 লিফলেট</button><button type="button" class="btn btn-outline" onclick="promoTextsOpen(' + s.id + ')">📣 প্রচারের লেখা</button><button type="button" class="btn btn-outline" onclick="document.getElementById(\'campUpDetailModal\').remove();campOnePage(' + s.id + ')">📂 এক পেজ</button></div></div>';
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'campUpDetailModal\').remove();campSchedEdit(' + s.id + ')">✏️ সংশোধন</button><button type="button" class="btn btn-primary" onclick="document.getElementById(\'campUpDetailModal\').remove();openCampLeafletModal(' + s.id + ')">📄 লিফলেট</button><button type="button" class="btn btn-outline" onclick="promoTextsOpen(' + s.id + ')">📣 প্রচারের লেখা</button><button type="button" class="btn btn-outline" onclick="document.getElementById(\'campUpDetailModal\').remove();campOnePage(' + s.id + ')">📂 বিস্তারিত</button></div></div>';
   document.body.appendChild(w);
 }
 
@@ -39958,7 +39967,7 @@ function campPrepToggle(id, k) {
   var c = Object.assign({}, s.checklist || {}); c[k] = !c[k]; s.checklist = c;
   saveData();
   try { renderCampUpcomingCards(); } catch (e) {}
-  if (document.getElementById('campOnePage')) campOnePage(id); else campUpcomingDetail(id);
+  if (_copOpen()) campOnePage(id); else campUpcomingDetail(id);
 }
 // ডেস্কটপ বিস্তারিত মডালের ব্লক
 function campPrepBlock(s) {
@@ -40084,11 +40093,44 @@ function campLfResultHtml(c) {
 
 // ===== 📂 ক্যাম্পের এক পেজ — শিডিউল, লিফলেট, জমা স্লিপ, ভাউচার, কর্মী, হিসাব এক জায়গায় =====
 function campOnePageClose() { var o = document.getElementById('campOnePage'); if (o) o.remove(); }
+function _copPageMode() { try { return !!document.getElementById('pg-camponepage') && typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin' && typeof adminUiMode === 'function' && adminUiMode() === 'pc'; } catch (e) { return false; } }
+function _copOpen() { return !!document.getElementById('campOnePage') || (typeof currentActivePage !== 'undefined' && currentActivePage === 'camponepage'); }
+function campOnePageBack() { var to = (window._copFrom && window._copFrom !== 'camponepage') ? window._copFrom : 'camp'; window._copId = null; showPage(to); }
+function _copRenderPage(h, id, s, c) {
+  var pg = document.getElementById('pg-camponepage'); if (!pg) return;
+  var wasOn = (typeof currentActivePage !== 'undefined' && currentActivePage === 'camponepage');
+  if (!wasOn) window._copFrom = (typeof currentActivePage !== 'undefined') ? currentActivePage : 'camp';
+  window._copId = id;
+  var sc = pg.parentElement, keep = (wasOn && sc) ? sc.scrollTop : 0;
+  if (!wasOn) showPage('camponepage');
+  var parts = h.split('<!--COP_SPLIT-->');
+  pg.innerHTML = '<div style="margin-bottom:8px"><button type="button" class="btn btn-outline btn-sm" onclick="campOnePageBack()">← ফিরে যান</button></div>'
+    + '<div class="cop-pg-head">' + parts[0] + '</div>'
+    + '<div class="cop-grid"><div class="cop-left">' + (parts[1] || '') + '</div><div class="cop-right" id="copRight"></div></div>';
+  var rt = document.getElementById('copRight');
+  if (c) {
+    rt.innerHTML = '<div class="cop-rt-h"><span>📊 ক্যাম্পের হিসাব ও বিস্তারিত</span></div><div id="copRtBody"></div>';
+    try { showCampDetail(id, document.getElementById('copRtBody')); } catch (e) { console.warn('copRight', e); }
+  } else if (s) {
+    rt.innerHTML = '<div class="cop-rt-h"><span>👁️ লিফলেট প্রিভিউ</span><span style="display:flex;gap:6px"><button type="button" id="copLfB1" style="padding:4px 11px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">ডিজাইন ১</button><button type="button" id="copLfB2" style="padding:4px 11px;border-radius:99px;border:1.5px solid #0f4c81;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">ডিজাইন ২</button></span></div><div id="copLfBody" style="padding:8px;background:#e5eaf0;height:calc(100vh - 175px);overflow:auto"></div>';
+    var v = _lfValuesFor(s), lb = document.getElementById('copLfBody');
+    var show = function (L) {
+      v.layout = L; window._lfPrevLayout = L;
+      try { _lfMountSingle(lb, v, (lb.clientWidth || 460) - 16, (lb.clientHeight || 560) - 16); } catch (e) { console.warn('copLf', e); }
+      ['1', '2'].forEach(function (k) { var b = document.getElementById('copLfB' + k); if (b) { b.style.background = (k === L ? '#0f4c81' : '#fff'); b.style.color = (k === L ? '#fff' : '#0f4c81'); } });
+    };
+    document.getElementById('copLfB1').onclick = function () { show('1'); };
+    document.getElementById('copLfB2').onclick = function () { show('2'); };
+    show(String(window._lfPrevLayout || v.layout) === '2' ? '2' : '1');
+  } else { rt.style.display = 'none'; }
+  if (sc) sc.scrollTop = keep;
+}
 function campOnePage(id) {
   var s = (appData.campSchedules || []).find(function (x) { return String(x.id) === String(id); }) || null;
   var c = (appData.camps || []).find(function (x) { return String(x.id) === String(id); }) || null;
   var b = s || c; if (!b) { showToast('⚠️ ক্যাম্প পাওয়া যায়নি'); return; }
   id = b.id;
+  var pm = _copPageMode();
   var old = document.getElementById('campOnePage'), keep = old ? old.scrollTop : 0; if (old) old.remove();
   var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
   var today = todayStr(), isOpen = !!s && s.status !== 'closed' && s.status !== 'cancelled' && !c;
@@ -40104,11 +40146,11 @@ function campOnePage(id) {
   // হেডার ও দ্রুত বোতাম
   var acts = '';
   if (s && isOpen) acts += '<button type="button" style="' + sbtn + '" onclick="campOnePageClose();campSchedEdit(' + id + ')">✏️ সংশোধন</button><button type="button" style="' + sbtn + '" onclick="campOnePageClose();openCampLeafletModal(' + id + ')">📄 লিফলেট</button><button type="button" style="' + sbtn + '" onclick="promoTextsOpen(' + id + ')">📣 প্রচারের লেখা</button>';
-  if (c) acts += '<button type="button" style="' + sbtn + '" onclick="showCampDetail(' + id + ')">🔎 পূর্ণ হিসাব</button>';
+  if (c && !pm) acts += '<button type="button" style="' + sbtn + '" onclick="showCampDetail(' + id + ')">🔎 পূর্ণ হিসাব</button>';
   var rsn = s ? (s.rescheduleHistory || []).length : 0;
   h += '<div style="padding:12px 16px 4px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:19px;font-weight:800;color:#0f4c81">' + esc(b.name) + '</span>' + pill(st[0], st[1], st[2]) + (rsn ? pill('রিশিডিউল ×' + fmt(rsn), '#fef3c7', '#92400e') : '') + '</div>'
     + '<div style="font-size:12.5px;color:#475569;margin-top:3px">📅 ' + formatDate(b.date) + ' &nbsp;·&nbsp; 📍 ' + esc(b.location || '—') + (s && s.landmark ? ' (' + esc(s.landmark) + ')' : '') + '</div>'
-    + (acts ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + acts + '</div>' : '') + '</div><div class="cop-body" style="padding:10px 16px 40px">';
+    + (acts ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + acts + '</div>' : '') + '</div><!--COP_SPLIT--><div class="cop-body" style="padding:10px 16px 40px">';
 
   // প্রস্তুতি
   if (s && isOpen) h += campPrepBlock(s).replace('margin-top:12px;', 'margin:0 0 14px;');
@@ -40153,7 +40195,7 @@ function campOnePage(id) {
   h += sec('👥 কর্মী', (s && s.camper ? row('📢 ক্যাম্পেইনার', esc(s.camper)) : '') + (srows || none('কর্মী বাছা হয়নি')), (rs.length + pt.length) ? fmt(rs.length + pt.length) + ' জন' : '');
 
   // হিসাব
-  if (c) {
+  if (c && pm) { /* পিসি পেজে পূর্ণ হিসাব ডান পাশে */ } else if (c) {
     var net = _campNetTrue(c), out = (c.totalIncome || 0) - net, loss = net < 0, line = function (k, v, col) { return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #e2e8f0;font-size:13px"><span>' + k + '</span><b' + (col ? ' style="color:' + col + '"' : '') + '>' + v + '</b></div>'; };
     h += sec('💰 হিসাব', line('👥 মোট রোগী', fmt(c.totalPatients || 0) + ' জন') + line('মোট আয়', '৳ ' + fmt(c.totalIncome || 0), '#15803d') + line('মোট ব্যয় <span style="color:#94a3b8;font-size:11.5px">(পণ্য, খরচ, কর্মী সহ)</span>', '৳ ' + fmt(Math.max(0, out)), '#b91c1c')
       + ((c.preCampTotal || 0) > 0 ? line('⛺ এর মধ্যে প্রি-ক্যাম্প', '৳ ' + fmt(c.preCampTotal)) : '') + ((c.totalDue || 0) > 0 ? line('বাকি (রোগীদের কাছে)', '৳ ' + fmt(c.totalDue), '#b45309') : '')
@@ -40164,9 +40206,10 @@ function campOnePage(id) {
   }
   h += '</div>';
 
+  if (pm) { _copRenderPage(h, id, s, c); return; }
   var w = document.createElement('div'); w.id = 'campOnePage';
   w.style.cssText = 'position:fixed;inset:0;z-index:9650;background:#f0f4f8;overflow-y:auto';
-  w.innerHTML = '<div class="cop-wrap" style="margin:0 auto;min-height:100%;background:#f8fafc"><div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1.5px solid #e2e8f0;padding:10px 16px;display:flex;justify-content:space-between;align-items:center"><b style="color:#0f4c81;font-size:14px">📂 ক্যাম্পের এক পেজ</b><button type="button" onclick="campOnePageClose()" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#0f4c81">✕ বন্ধ</button></div>' + h + '</div>';
+  w.innerHTML = '<div class="cop-wrap" style="margin:0 auto;min-height:100%;background:#f8fafc"><div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1.5px solid #e2e8f0;padding:10px 16px;display:flex;justify-content:space-between;align-items:center"><b style="color:#0f4c81;font-size:14px">🏕️ ক্যাম্প বিস্তারিত</b><button type="button" onclick="campOnePageClose()" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;color:#0f4c81">✕ বন্ধ</button></div>' + h + '</div>';
   document.body.appendChild(w); w.scrollTop = keep;
 }
 
@@ -40294,7 +40337,7 @@ function lfStaleAck(id) {
   var s = (appData.campSchedules || []).find(function (x) { return String(x.id) === String(id); }); if (!s || !s.lfPrinted) return;
   s.lfPrinted = Object.assign({}, s.lfPrinted, { v: lfSnapFrom(_lfValuesFor(s)), ackAt: Date.now(), ackBy: (currentUser && currentUser.name) || '' });
   saveData();
-  try { if (document.getElementById('campOnePage')) campOnePage(s.id); } catch (e) {}
+  try { if (_copOpen()) campOnePage(s.id); } catch (e) {}
   try { renderRecCampPrint(); } catch (e) {}
   try { renderCampUpcomingCards(); } catch (e) {}
   showToast('✅ সতর্কতা সরানো হয়েছে');
@@ -40386,7 +40429,7 @@ function campOpStats(list) {
 function campOpDue() { return campOpAll().filter(function (p) { return p.status === 'pending' && campOpDays(p.campDate) >= CAMP_OP_FOLLOW_DAYS; }); }
 function campOpSetStatus(key, status, campId) {
   try { updateOpStatus(key, status); } catch (e) {}
-  try { if (document.getElementById('campOnePage')) campOnePage(campId); } catch (e) {}
+  try { if (_copOpen()) campOnePage(campId); } catch (e) {}
 }
 function campOpWaUrl(p) {
   var st = appData.settings || {}, hosp = st.hospName || 'ICON Eye Hospital';
@@ -40442,9 +40485,9 @@ function campPrepAlertRender() {
   var al = campSoonAlerts();
   if (!al.length) { box.style.display = 'none'; body.innerHTML = ''; return; }
   box.style.display = 'block';
-  body.innerHTML = '<span class="cp-strip-title">🚨 ক্যাম্প প্রস্তুতি বাকি</span>' + al.map(function (a) {
+  body.innerHTML = '<span class="cp-strip-title" style="cursor:pointer" onclick="campOnePage(' + al[0].s.id + ')">🚨 ক্যাম্প প্রস্তুতি বাকি</span>' + al.map(function (a) {
     var miss = a.miss.map(function (x) { return rsE(x.t); }).join(', ');
-    return '<span class="cp-strip-item" title="বাকি: ' + miss.replace(/"/g, '&quot;') + '"><b>🏕️ ' + rsE(a.s.name) + '</b><span style="color:#b91c1c;font-weight:800">' + a.day + '</span><span style="color:#64748b">' + fmt(a.p.done) + '/' + fmt(a.p.total) + '</span><span class="cp-miss">বাকি: ' + miss + '</span><button type="button" class="btn btn-primary btn-sm" style="padding:2px 9px;font-size:11px" onclick="campOnePage(' + a.s.id + ')">📂 খুলুন</button></span>';
+    return '<span class="cp-strip-item" title="বাকি: ' + miss.replace(/"/g, '&quot;') + ' — ক্লিক করলে ক্যাম্প বিস্তারিত" onclick="campOnePage(' + a.s.id + ')"><b>🏕️ ' + rsE(a.s.name) + '</b><span style="color:#b91c1c;font-weight:800">' + a.day + '</span><span style="color:#64748b">' + fmt(a.p.done) + '/' + fmt(a.p.total) + '</span><span class="cp-miss">বাকি: ' + miss + '</span></span>';
   }).join('');
 }
 
@@ -49415,7 +49458,7 @@ function amCampDetail(id) {
     + (open ? '<div class="am-h"><span>প্রস্তুতি ' + fmt(campPrep(s).done) + '/' + fmt(campPrep(s).total) + '</span></div><div class="am-card" style="padding:6px 12px">' + amCkRows(s, amPreCampCost(s.id), false) + '</div>' : '')
     + (s.status === 'cancelled' ? '<div class="am-meta" style="background:var(--am-badsoft);border-radius:10px;padding:8px;margin-bottom:8px"><b>বাতিলের কারণ:</b> ' + amEsc(s.cancelReason || '—') + (s.cancelledBy ? '<br>' + amEsc(s.cancelledBy) + ' · ' + amEsc(amFmtAt(s.cancelledAt)) : '') + '</div>' : '')
     + (hist ? '<div class="am-h"><span>রিশিডিউলের ইতিহাস</span></div><div class="am-card" style="padding:4px 12px">' + hist + '</div>' : '')
-    + (open ? '<div class="am-btns" style="flex-wrap:wrap"><button class="am-btn pri" onclick="amReschedForm(' + id + ')">রিশিডিউল</button><button class="am-btn" onclick="amCampForm(' + id + ')">সংশোধন</button><button class="am-btn bad" onclick="amCancelForm(' + id + ')">বাতিল</button><button class="am-btn line" onclick="promoTextsOpen(' + id + ')">📣 প্রচারের লেখা</button></div>' : '') + '<div class="am-btns" style="margin-top:8px"><button class="am-btn line" onclick="amCloseSheet();campOnePage(' + id + ')">📂 ক্যাম্পের এক পেজ</button></div>');
+    + (open ? '<div class="am-btns" style="flex-wrap:wrap"><button class="am-btn pri" onclick="amReschedForm(' + id + ')">রিশিডিউল</button><button class="am-btn" onclick="amCampForm(' + id + ')">সংশোধন</button><button class="am-btn bad" onclick="amCancelForm(' + id + ')">বাতিল</button><button class="am-btn line" onclick="promoTextsOpen(' + id + ')">📣 প্রচারের লেখা</button></div>' : '') + '<div class="am-btns" style="margin-top:8px"><button class="am-btn line" onclick="amCloseSheet();campOnePage(' + id + ')">📂 ক্যাম্প বিস্তারিত</button></div>');
 }
 function amReschedForm(id) {
   var s = (appData.campSchedules || []).find(function (x) { return x.id === id; }); if (!s) return;
