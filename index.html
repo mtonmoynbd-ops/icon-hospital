@@ -3338,6 +3338,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         <button type="button" class="cp-tab" data-t="mgmt" onclick="campPageTab('mgmt')">🗂️ শিডিউল ম্যানেজমেন্ট</button>
         <button type="button" class="cp-tab" data-t="db" onclick="campPageTab('db')">📍 ক্যাম্প ডাটাবেজ</button>
         <button type="button" class="cp-tab" data-t="roi" onclick="campPageTab('roi')">🏆 ROI লিডারবোর্ড</button>
+        <button type="button" class="cp-tab" data-t="slips" onclick="campPageTab('slips')">📥 জমা স্লিপ <span id="campSlipTabBadge" style="display:none;background:#dc2626;color:#fff;border-radius:99px;font-size:10.5px;font-weight:800;padding:1px 7px;margin-left:3px"></span></button>
       </div>
       <div class="panel" id="campVillagePanel" style="display:none">
         <div class="panel-header" style="flex-wrap:wrap;gap:8px">
@@ -3449,6 +3450,11 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
           </table></div>
         </div>
       </div>
+      <!-- 📥 ক্যাম্পেইনারের পাঠানো ক্যাশ জমার স্লিপ (আগে রিসেপশন রেকর্ড পেজে ছিল; এখন ক্যাম্প রেকর্ডের ট্যাব) -->
+      <div class="panel" id="campSlipPanel" style="display:none">
+        <div class="panel-header"><div class="panel-title">📥 ক্যাম্পেইনারের পাঠানো ক্যাশ জমার স্লিপ</div><button class="btn btn-outline btn-sm" onclick="showCamperFundSettings()">💼 তহবিল সেট করুন</button></div>
+        <div class="panel-body"><div id="camperDepInboxAdmin"></div></div>
+      </div>
       <!-- ক্যাম্পের তালিকা -->
       <div class="panel" id="campListPanel">
         <div class="panel-header">
@@ -3466,7 +3472,7 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
         </div>
         <div class="panel-body">
           <div class="table-wrap"><table>
-            <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>মোট আয়</th><th>রোগী</th><th>রিসিট রেঞ্জ</th><th>মতামত</th><th>অ্যাকশন</th></tr></thead>
+            <thead><tr><th>তারিখ</th><th>ক্যাম্পের নাম</th><th>স্থান</th><th>মোট আয়</th><th>রোগী</th><th>রিসিট রেঞ্জ</th><th>📤 কোথায় পাঠানো</th><th>💰 জমা / রিফিল</th><th>🧾 ভাউচার</th><th>📄 স্লিপ</th><th>মতামত</th><th>অ্যাকশন</th></tr></thead>
             <tbody id="campListTable"></tbody>
           </table></div>
         </div>
@@ -3551,10 +3557,6 @@ ${extraStyle ? `<style>${extraStyle}</style>` : ''}
 
     <!-- RECEPTION DEPOSIT RECORDS -->
     <div id="pg-recdeposit" class="page-view">
-      <div class="panel" style="margin-bottom:14px">
-        <div class="panel-header"><div class="panel-title">📥 ক্যাম্পেইনারের পাঠানো ক্যাশ জমার স্লিপ</div><button class="btn btn-outline btn-sm" onclick="showCamperFundSettings()">💼 তহবিল সেট করুন</button></div>
-        <div class="panel-body"><div id="camperDepInboxAdmin"></div></div>
-      </div>
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">🏦 রিসেপশনিস্ট ক্যাশ জমার রেকর্ড</div>
@@ -15759,6 +15761,17 @@ function _camperSlipInboxHtml(who) {
 }
 // অ্যাডমিন প্যানেল: ক্যাম্পেইনারের পাঠানো সব জমার স্লিপ
 function renderCamperDepInboxAdmin() {
+  try { _renderCamperDepInboxCore(); } catch (e) { console.warn('camperDepInbox', e); }
+  try {   // ট্যাবের ব্যাজ: প্রিন্ট/রিফিলের অপেক্ষায় থাকা স্লিপ
+    const b = document.getElementById('campSlipTabBadge');
+    if (b) { const n = (appData.camperDeposits||[]).filter(r => r.sentTo && (!r.printedAt || _camperRefundPending(r, 'admin'))).length; b.textContent = fmt(n); b.style.display = n ? '' : 'none'; }
+  } catch (e) {}
+  try {   // ক্যাম্পের তালিকার জমা/রিফিল কলামও হালনাগাদ (তালিকা খোলা থাকলে)
+    const pg = document.getElementById('pg-camp');
+    if (pg && pg.classList.contains('active') && (window._campTab || 'main') === 'main') renderCampList();
+  } catch (e) {}
+}
+function _renderCamperDepInboxCore() {
   const box = document.getElementById('camperDepInboxAdmin'); if (!box) return;
   const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const items = (appData.camperDeposits||[]).filter(r => r.sentTo).sort((a,b)=>b.id-a.id);
@@ -19402,6 +19415,28 @@ function renderCampROILeaderboard() {
   }).join('');
 }
 
+// ক্যাম্পের তালিকার জমা-স্লিপ কলাম: কোথায় পাঠানো / জমা বা রিফিল (সম্পূর্ণ কিনা) / ভাউচার / স্লিপ — ক্যাম্পেইনারের জমার রেকর্ড (camperDeposits, campRef) থেকে
+function _campDepCells(c) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const chip = (t, fg, bg) => '<span style="display:inline-block;font-size:11px;font-weight:800;color:'+fg+';background:'+bg+';border-radius:20px;padding:2px 8px;margin:1px 0;white-space:nowrap">'+t+'</span>';
+  const deps = (appData.camperDeposits||[]).filter(d => d.campRef === c.id).sort((a,b) => a.id-b.id);
+  if (!deps.length) { const dash = '<td style="color:#cbd5e1;text-align:center">—</td>'; return dash + dash + dash + dash; }
+  const sent = [], amt = [], vch = [], slip = [];
+  deps.forEach(d => {
+    const neg = (d.amount||0) < 0, rem = _camperRefundRemaining(d);
+    sent.push(d.sentTo
+      ? chip('📤 '+(d.sentTo==='admin' ? 'অ্যাডমিনে' : 'রিসেপশনে'), '#0369a1', '#e0f2fe') + '<br>' + (d.printedAt ? chip('🖨️ প্রিন্ট হয়েছে', '#16a34a', '#dcfce7') : chip('প্রিন্টের অপেক্ষায়', '#b45309', '#fef3c7'))
+      : chip('⏳ পাঠানো হয়নি', '#64748b', '#f1f5f9'));
+    amt.push(neg
+      ? '<b style="color:#b45309">রিফিল পাওনা ৳ '+fmt(Math.abs(d.amount))+'</b><br>' + (rem > 0 ? chip('💸 বাকি ৳ '+fmt(rem), '#9a3412', '#ffedd5') + (d.refillHandoff ? '<br>'+chip('📨 রিসেপশন থেকে পাঠানো', '#6d28d9', '#ede9fe') : '') : chip('✅ রিফিল সম্পূর্ণ', '#16a34a', '#dcfce7'))
+      : '<b style="color:var(--success)">৳ '+fmt(d.amount||0)+'</b> <span style="font-size:11px;color:var(--text-light)">জমা</span>');
+    const rv = (d.refunds||[]).filter(r => r.voucher);
+    vch.push(rv.length ? rv.map(r => '<a href="javascript:void(0)" onclick="printCamperRefundVoucher('+r.refundId+')" title="'+esc(formatDate(r.date))+' — ৳ '+fmt(r.amount)+' (প্রিন্ট)" style="display:block;font-size:12px;font-weight:700;color:#7e22ce;text-decoration:none">🧾 '+esc(r.voucher)+'</a>').join('') : '<span style="color:#cbd5e1">—</span>');
+    slip.push('<button class="btn btn-outline btn-sm" onclick="previewCamperDeposit('+d.id+')" title="স্লিপ প্রিভিউ">👁️</button> <button class="btn btn-primary btn-sm" onclick="printCamperDeposit('+d.id+')" title="স্লিপ প্রিন্ট">🖨️</button>');
+  });
+  const j = a => '<td style="font-size:12px;line-height:1.5">' + a.join('<hr style="border:none;border-top:1px dashed #e2e8f0;margin:4px 0">') + '</td>';
+  return j(sent) + j(amt) + j(vch) + '<td style="white-space:nowrap">' + slip.join('<br>') + '</td>';
+}
 function renderCampList() {
   renderCampROILeaderboard();
   const fm = document.getElementById('campFilterMonth');
@@ -19415,7 +19450,7 @@ function renderCampList() {
 
   const tbody = document.getElementById('campListTable');
   if (!camps.length) {
-    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#aaa;padding:30px">কোনো ক্যাম্প নেই</td></tr>';
+    tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:#aaa;padding:30px">কোনো ক্যাম্প নেই</td></tr>';
     return;
   }
   const ratingEmoji = { 'খুব সফল':'🌟','সফল':'✅','মোটামুটি':'🆗','অসফল':'❌' };
@@ -19428,6 +19463,7 @@ function renderCampList() {
       <span class="badge badge-info">${c.totalPatients||(c.patients||[]).length} জন</span>
     </td>
     <td style="font-size:12px;color:var(--text-light)">${c.receiptStart&&c.receiptEnd?`#${c.receiptStart}–${c.receiptEnd}`:'—'}</td>
+    ${_campDepCells(c)}
     <td>${c.rating?`<span class="badge ${c.rating==='খুব সফল'?'badge-success':c.rating==='সফল'?'badge-info':c.rating==='অসফল'?'badge-danger':'badge-warning'}">${ratingEmoji[c.rating]||''} ${c.rating}</span>`:'—'}</td>
     <td style="display:flex;gap:4px">
       <button class="btn btn-primary btn-sm" onclick="campOnePage(${c.id})">📂 বিস্তারিত</button>
@@ -32374,8 +32410,9 @@ function openCamperDepFromBell(id) {
   if (d) _addNotifSeen(_camperSlipKey(d));
   if (typeof updateNotifBell==='function') updateNotifBell();
   const panel = document.getElementById('notifBellPanel'); if (panel) panel.style.display = 'none';
-  showPage('recdeposit');
-  setTimeout(function(){ try { previewCamperDeposit(id); } catch(e){} }, 300);
+  window._campTab = 'slips';
+  showPage('camp');
+  setTimeout(function(){ try { campPageTab('slips'); } catch(e){} try { previewCamperDeposit(id); } catch(e){} }, 300);
 }
 // ✅ বেলে ক্লিক করে একবার নোটিফিকেশন প্যানেল খুললে সেগুলোকে "দেখা হয়ে গেছে" হিসেবে মনে রাখা হয়
 // (লোকালস্টোরেজে, ইউজারভিত্তিক) — তারপর ব্যাজে আর সংখ্যা দেখাবে না, যতক্ষণ না নতুন কোনো
@@ -39938,12 +39975,13 @@ function csLfPrevSched() { clearTimeout(_csLfT); _csLfT = setTimeout(function ()
 function csLfPrevLayout(L) { window._lfPrevLayout = L; csLfPreviewRender(); }
 function campPageTab(n) {
   window._campTab = n;
-  var map = { main: ['campUpcomingPanel', 'campListPanel'], mgmt: ['campSchedMgmtPanel'], db: ['campVillagePanel'], roi: ['campROIPanel'] };
+  var map = { main: ['campUpcomingPanel', 'campListPanel'], mgmt: ['campSchedMgmtPanel'], db: ['campVillagePanel'], roi: ['campROIPanel'], slips: ['campSlipPanel'] };
   Object.keys(map).forEach(function (k) { map[k].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = (k === n ? 'block' : 'none'); }); });
   Array.prototype.forEach.call(document.querySelectorAll('#campTabs .cp-tab'), function (b) { b.classList.toggle('on', b.getAttribute('data-t') === n); });
   if (n === 'mgmt') { try { renderCampScheduleTable(); } catch (e) {} }
   if (n === 'db') { try { renderCampVillageDB(); } catch (e) {} }
   if (n === 'roi') { try { renderCampROILeaderboard(); } catch (e) {} }
+  if (n === 'slips') { try { renderCamperDepInboxAdmin(); } catch (e) {} }
 }
 function toggleCampROI() { campPageTab('roi'); }
 function _oldToggleCampROI() { var p = document.getElementById('campROIPanel'); if (!p) return; var open = p.style.display === 'none'; p.style.display = open ? 'block' : 'none'; if (open) { renderCampROILeaderboard(); p.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } }
