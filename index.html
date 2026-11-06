@@ -51595,7 +51595,8 @@ function amEntBtns(sub) {
   if (!currentUser || currentUser.role !== 'admin') return '';
   var b1 = '<button class="am-btn ok" style="flex:1" onclick="amIncForm()">➕ নতুন আয়</button>';
   var b2 = '<button class="am-btn pri" style="flex:1" onclick="amExpForm()">➕ নতুন ব্যয়</button>';
-  return '<div style="display:flex;gap:8px;margin-bottom:10px">' + (sub === 'o_income' ? b1 : sub === 'o_expense' ? b2 : b1 + b2) + '</div>';
+  var b3 = '<button class="am-btn line" style="flex:1" onclick="amPceForm()">⛺ প্রি-ক্যাম্প খরচ</button>';
+  return '<div style="display:flex;gap:8px;margin-bottom:10px">' + (sub === 'o_income' ? b1 : sub === 'o_expense' ? b2 + b3 : b1 + b2) + '</div>';
 }
 function amEntCatOpts(kind) {
   var cats = kind === 'inc' ? getIncCats() : getExpCats();
@@ -51620,6 +51621,10 @@ function amEntPayChg(px) {
   set('MfsRow', m === 'mfs'); set('BankBox', m === 'bank'); set('PersonRow', m !== 'mfs');
   var pl = amEid(px + 'PersonLbl'); if (pl) pl.textContent = m === 'bank' ? 'চেক বহনকারী / বাহক ব্যক্তি' : 'পরিশোধকারী ব্যক্তি';
   if (px === 'amXe' && m === 'bank') amXeCbFill();
+}
+function amEntPersonOpts() { return '<option value="">-- বাছুন (ঐচ্ছিক) --</option>' + (((appData.settings || {}).expPersons) || []).map(function (n) { return '<option value="' + amEsc(n) + '">' + amEsc(n) + '</option>'; }).join(''); }
+function amEntKindSwitch(cur) {   // সাধারণ ব্যয় ⇄ প্রি-ক্যাম্প খরচ
+  return '<div style="display:flex;gap:6px;margin-bottom:10px"><button class="am-btn ' + (cur === 'exp' ? 'pri' : 'line') + '" style="flex:1" onclick="' + (cur === 'exp' ? '' : 'amExpForm()') + '">🧾 সাধারণ ব্যয়</button><button class="am-btn ' + (cur === 'pce' ? 'pri' : 'line') + '" style="flex:1" onclick="' + (cur === 'pce' ? '' : 'amPceForm()') + '">⛺ প্রি-ক্যাম্প খরচ</button></div>';
 }
 function amEntHead(t) { return '<div class="hd"><b>' + t + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'; }
 function amEntBtnRow(fn) { return '<div class="am-btns" style="margin-top:10px"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="' + fn + '()">পরবর্তী ›</button></div>'; }
@@ -51672,8 +51677,7 @@ function amIncDo() {
 // ----- ব্যয় -----
 function amExpForm() {
   var vch = ''; try { vch = generateNextVoucherNo(todayStr()); } catch (e) {}
-  var persons = (appData.settings && appData.settings.expPersons) || [];
-  amOpenSheet(amEntHead('➕ নতুন ব্যয় এন্ট্রি')
+  amOpenSheet(amEntHead('➕ নতুন ব্যয় এন্ট্রি') + amEntKindSwitch('exp')
     + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amXeDate" value="' + todayStr() + '" onchange="amXeVch()"></div>'
     + '<div class="am-f"><label>ক্যাটাগরি *</label><select id="amXeCat" onchange="amXeCatChg()">' + amEntCatOpts('exp') + '</select></div>'
     + '<div class="am-f" id="amXeSubRow" style="display:none"><label>সাব-ক্যাটাগরি</label><select id="amXeSub"></select></div>'
@@ -51682,7 +51686,8 @@ function amExpForm() {
     + '<div class="am-f" style="margin:0"><label>জরিমানা (ঐচ্ছিক, আলাদা এন্ট্রি হবে)</label><input type="number" id="amXeFine" inputmode="decimal" min="0" placeholder="০"></div></div>'
     + '<div class="am-f"><label>পরিমাণ (৳) *</label><input type="number" id="amXeAmt" inputmode="decimal" min="0" placeholder="০.০০"></div>'
     + '<div class="am-f"><label>পেমেন্ট মাধ্যম</label><select id="amXePay" onchange="amEntPayChg(\'amXe\')">' + amEntPayOpts() + '</select></div>'
-    + '<div class="am-f" id="amXePersonRow"><label id="amXePersonLbl">পরিশোধকারী ব্যক্তি</label><select id="amXePerson"><option value="">-- বাছুন (ঐচ্ছিক) --</option>' + persons.map(function (n) { return '<option value="' + amEsc(n) + '">' + amEsc(n) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="am-f" id="amXePersonRow"><label id="amXePersonLbl">পরিশোধকারী ব্যক্তি</label><div style="display:flex;gap:6px"><select id="amXePerson" style="flex:1;min-width:0">' + amEntPersonOpts() + '</select><button type="button" class="am-btn line" style="white-space:nowrap" onclick="amXePersonToggle()">➕ নতুন</button></div>'
+    + '<div id="amXeNewPRow" style="display:none;margin-top:6px"><div style="display:flex;gap:6px"><input type="text" id="amXeNewP" placeholder="নতুন ব্যক্তির নাম" style="flex:1;min-width:0"><button type="button" class="am-btn ok" onclick="amXePersonAdd()">যোগ করুন</button></div></div></div>'
     + '<div id="amXeBankBox" style="display:none"><div class="am-f"><label>চেক বই</label><select id="amXeCb" onchange="amXeCbChg()"></select></div>'
     + '<div class="am-f"><label>চেক নং (অটো)</label><input type="text" id="amXeChkNo"></div>'
     + '<div class="am-f"><label>ভাঙানোর তারিখ</label><input type="date" id="amXeClear" value="' + todayStr() + '"></div>'
@@ -51768,6 +51773,85 @@ function amExpDo() {
     } catch (e) { console.warn('amExpDo', e); }
     if ((appData.expense || []).length > before) { _amEnt = null; amAfter(); }
     else showToast('⚠️ ব্যয় সেভ হয়নি — আবার চেষ্টা করুন');
+  });
+}
+
+
+// ----- পরিশোধকারী ব্যক্তি: ড্রপডাউন থেকেই নতুন যোগ (পিসির addExpPerson-এর মতো; তালিকা appData.settings.expPersons) -----
+function amXePersonToggle() {
+  var r = amEid('amXeNewPRow'); if (!r) return;
+  var open = r.style.display === 'none'; r.style.display = open ? '' : 'none';
+  if (open) { var i = amEid('amXeNewP'); if (i) i.focus(); }
+}
+function amXePersonAdd() {
+  var name = amEval('amXeNewP'); if (!name) { showToast('⚠️ নাম লিখুন!'); return; }
+  if (!appData.settings) appData.settings = {};
+  if (!appData.settings.expPersons) appData.settings.expPersons = [];
+  var exists = appData.settings.expPersons.indexOf(name) >= 0;
+  if (!exists) { appData.settings.expPersons.push(name); try { saveData(); } catch (e) { console.warn('amXePersonAdd', e); } }
+  var sel = amEid('amXePerson'); if (sel) { sel.innerHTML = amEntPersonOpts(); sel.value = name; }
+  var inp = amEid('amXeNewP'); if (inp) inp.value = '';
+  var r = amEid('amXeNewPRow'); if (r) r.style.display = 'none';
+  try { populateExpPersonSelect(); } catch (e) {}   // পিসির ড্রপডাউনও সাথে সাথে হালনাগাদ
+  showToast(exists ? 'এই নাম আগে থেকেই আছে — বেছে নেওয়া হয়েছে' : '✅ ব্যক্তি যোগ হয়েছে: ' + name);
+}
+
+// ----- ⛺ প্রি-ক্যাম্প খরচ (পিসির "প্রি-ক্যাম্প খরচ" বাটনের মতো: ক্যাম্প বেছে এন্ট্রি; পিসির savePreCampExpense()-ই চলে) -----
+function amPceCamps() {
+  return (appData.campSchedules || []).filter(function (s) { return s.status !== 'closed' && s.status !== 'cancelled'; }).sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); });
+}
+function amPceForm() {
+  var camps = amPceCamps();
+  if (!camps.length) { showToast('⚠️ কোনো শিডিউল করা ক্যাম্প (যা এখনো ক্লোজ হয়নি) নেই!'); return; }
+  var def = ''; try { def = mmPreCat(); } catch (e) {}   // প্রি-ক্যাম্প নামের খাত থাকলে সেটাই আগে থেকে বাছা
+  var cats = getExpCats();
+  amOpenSheet(amEntHead('⛺ প্রি-ক্যাম্প খরচ') + amEntKindSwitch('pce')
+    + '<div class="am-f"><label>কোন ক্যাম্পের জন্য? *</label><select id="amPcCamp" onchange="amPceInfo()"><option value="">-- ক্যাম্প বাছুন --</option>' + camps.map(function (s) { return '<option value="' + amEsc(s.id) + '">' + amEsc(formatDate(s.date) + ' — ' + (s.name || '') + (s.location ? ' (' + s.location + ')' : '')) + '</option>'; }).join('') + '</select></div>'
+    + '<div id="amPcInfo" class="am-meta" style="margin:-4px 0 10px"></div>'
+    + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amPcDate" value="' + todayStr() + '"></div>'
+    + '<div class="am-f"><label>খাত *</label><select id="amPcCat" onchange="amEntSubFill(\'exp\',\'amPc\',this.value)"><option value="">-- বেছে নিন --</option>' + cats.map(function (c) { return '<option value="' + amEsc(c) + '"' + (c === def ? ' selected' : '') + '>' + amEsc(c) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="am-f" id="amPcSubRow" style="display:none"><label>সাব-ক্যাটাগরি</label><select id="amPcSub"></select></div>'
+    + '<div class="am-f"><label>পরিমাণ (৳) *</label><input type="number" id="amPcAmt" inputmode="decimal" min="0" placeholder="০.০০"></div>'
+    + '<div class="am-f"><label>পেমেন্ট মাধ্যম</label><select id="amPcPay" onchange="amEntPayChg(\'amPc\')">' + amEntPayOpts() + '</select></div>'
+    + '<div class="am-f" id="amPcMfsRow" style="display:none"><label>মোবাইল ব্যাংকিং একাউন্ট *</label><select id="amPcMfs">' + amEntMfsOpts() + '</select></div>'
+    + '<div class="am-f"><label>বিবরণ (ঐচ্ছিক)</label><input type="text" id="amPcNote" placeholder="যেমন: মাইকিং গাড়ি ভাড়া"></div>'
+    + '<div class="am-meta" style="margin:0 0 4px">ভাউচার নং অটো হবে। এই খরচ ক্যাম্প ক্লোজের সময় ঐ ক্যাম্পের লাভ-ক্ষতিতে যোগ হবে।</div>'
+    + amEntBtnRow('amPceReview'));
+  if (def) amEntSubFill('exp', 'amPc', def);
+}
+function amPceInfo() {
+  var id = amEval('amPcCamp'), box = amEid('amPcInfo'); if (!box) return;
+  if (!id) { box.textContent = ''; return; }
+  var items = (appData.expense || []).filter(function (e) { return String(e.campId) === id && e.preCamp && !e.rejected; });
+  var ok = items.filter(function (e) { return e.status !== 'pending'; }).reduce(function (t, e) { return t + (e.amount || 0); }, 0), pend = items.filter(function (e) { return e.status === 'pending'; }).length;
+  box.textContent = items.length ? 'এ পর্যন্ত প্রি-ক্যাম্প খরচ: ৳ ' + fmt(ok) + ' (' + fmt(items.length) + ' টি এন্ট্রি' + (pend ? ', ' + fmt(pend) + ' টি অনুমোদনের অপেক্ষায়' : '') + ')' : 'এই ক্যাম্পে এখনো কোনো প্রি-ক্যাম্প খরচ নেই';
+}
+function amPceReview() {
+  var camp = amEval('amPcCamp'), d = amEval('amPcDate'), cat = amEval('amPcCat'), amt = parseFloat(amEval('amPcAmt')), pay = amEval('amPcPay') || 'cash', mfs = amEval('amPcMfs');
+  if (!camp) { showToast('⚠️ ক্যাম্প বাছুন!'); return; }
+  if (!d || !cat || !(amt > 0)) { showToast('⚠️ তারিখ, খাত ও পরিমাণ আবশ্যক!'); return; }
+  if (pay === 'mfs' && !mfs) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট বাছুন!'); return; }
+  var s = (appData.campSchedules || []).filter(function (x) { return String(x.id) === camp; })[0]; if (!s) { showToast('⚠️ ক্যাম্প শিডিউল খুঁজে পাওয়া যায়নি!'); return; }
+  _amEnt = { kind: 'pce', camp: camp, date: d, cat: cat, sub: amEval('amPcSub'), amount: amt, pay: pay, mfs: mfs, note: amEval('amPcNote') };
+  amConfirm('প্রি-ক্যাম্প খরচ নিশ্চিত করুন', 'ক্যাম্প: <b>' + amEsc((s.name || '') + (s.location ? ', ' + s.location : '')) + '</b> (' + formatDate(s.date) + ')<br>খাত: <b>' + amEsc(cat + (_amEnt.sub ? ' / ' + _amEnt.sub : '')) + '</b><br>পরিমাণ: <b>৳ ' + fmt(amt) + '</b><br>মাধ্যম: ' + amEsc(amEntPayLabel(pay)) + (pay === 'mfs' ? ' — ' + amEsc((amEid('amPcMfs').selectedOptions[0] || {}).textContent || '') : '') + '<br>তারিখ: ' + formatDate(d) + (_amEnt.note ? '<br>বিবরণ: ' + amEsc(_amEnt.note) : ''), 'সেভ করুন', 'amPceDo', null);
+}
+function amPceDo() {
+  var p = _amEnt; if (!p || p.kind !== 'pce') return;
+  amGuard(function () {
+    var before = (appData.expense || []).length;
+    try {
+      var sc = function (id, v) { var el = amEid(id); if (el) el.value = v; };
+      if (!amEid('pceCategory')) throw new Error('প্রি-ক্যাম্প ফর্ম পাওয়া যায়নি');
+      resetPceFormFields();   // খাতের তালিকা ভরে, সম্পাদনা-মোড (pceEditId) খালি করে
+      sc('pceScheduleId', p.camp); sc('pceDate', p.date); sc('pceCategory', p.cat);
+      try { updatePceSubCats(); } catch (e) {}
+      sc('pceSubCategory', p.sub); sc('pceAmount', p.amount); sc('pceNote', p.note); sc('pcePayMode', p.pay);
+      try { togglePceMfsField(); } catch (e) {}
+      if (p.pay === 'mfs') sc('pceMfsAccount', p.mfs);
+      savePreCampExpense();
+    } catch (e) { console.warn('amPceDo', e); }
+    if ((appData.expense || []).length > before) { _amEnt = null; amAfter(); }
+    else showToast('⚠️ প্রি-ক্যাম্প খরচ সেভ হয়নি — আবার চেষ্টা করুন');
   });
 }
 
