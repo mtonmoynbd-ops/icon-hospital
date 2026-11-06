@@ -19416,12 +19416,29 @@ function renderCampROILeaderboard() {
 }
 
 // ক্যাম্পের তালিকার জমা-স্লিপ কলাম: কোথায় পাঠানো / জমা বা রিফিল (সম্পূর্ণ কিনা) / ভাউচার / স্লিপ — ক্যাম্পেইনারের জমার রেকর্ড (camperDeposits, campRef) থেকে
+// ভাউচার কলাম জমার রেকর্ড ছাড়াও চলে: ক্যাম্পের সব খরচের ভাউচার (স্লিপের "ভাউচার রেঞ্জ"-এর মতো, প্রি-ক্যাম্পসহ) + রিফিলের ভাউচার
+function _campVoucherCell(c, deps) {
+  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const set = {};
+  (appData.expense||[]).forEach(e => { if (e.campId === c.id && e.voucher && !e.rejected) set[e.voucher] = 1; });
+  deps.forEach(d => ((d.snap||{}).vouchers||[]).forEach(v => { if (v) set[v] = 1; }));
+  const list = Object.keys(set).sort((x, y) => String(x).localeCompare(String(y), undefined, { numeric: true }));
+  let h = '';
+  if (list.length) {
+    const rng = list.length > 1 ? esc(list[0]) + ' – ' + esc(list[list.length-1]) : esc(list[0]);
+    h += '<div title="' + esc(list.join(', ')) + '" style="font-size:12px;font-weight:700;color:#7e22ce;white-space:nowrap">🧾 ' + rng + '</div><div style="font-size:11px;color:var(--text-light)">' + fmt(list.length) + ' টি খরচের ভাউচার</div>';
+  }
+  deps.forEach(d => (d.refunds||[]).filter(r => r.voucher).forEach(r => {
+    h += '<a href="javascript:void(0)" onclick="printCamperRefundVoucher(' + r.refundId + ')" title="রিফিল ' + esc(formatDate(r.date)) + ' — ৳ ' + fmt(r.amount) + ' (প্রিন্ট)" style="display:block;font-size:12px;font-weight:700;color:#b45309;text-decoration:none;white-space:nowrap">💸 ' + esc(r.voucher) + ' <span style="font-weight:500">(৳ ' + fmt(r.amount) + ')</span></a>';
+  }));
+  return '<td style="line-height:1.5">' + (h || '<span style="color:#cbd5e1">—</span>') + '</td>';
+}
 function _campDepCells(c) {
-  const esc = x => String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const chip = (t, fg, bg) => '<span style="display:inline-block;font-size:11px;font-weight:800;color:'+fg+';background:'+bg+';border-radius:20px;padding:2px 8px;margin:1px 0;white-space:nowrap">'+t+'</span>';
   const deps = (appData.camperDeposits||[]).filter(d => d.campRef === c.id).sort((a,b) => a.id-b.id);
-  if (!deps.length) { const dash = '<td style="color:#cbd5e1;text-align:center">—</td>'; return dash + dash + dash + dash; }
-  const sent = [], amt = [], vch = [], slip = [];
+  const vch = _campVoucherCell(c, deps);
+  if (!deps.length) { const dash = '<td style="color:#cbd5e1;text-align:center">—</td>'; return dash + dash + vch + dash; }
+  const sent = [], amt = [], slip = [];
   deps.forEach(d => {
     const neg = (d.amount||0) < 0, rem = _camperRefundRemaining(d);
     sent.push(d.sentTo
@@ -19430,12 +19447,10 @@ function _campDepCells(c) {
     amt.push(neg
       ? '<b style="color:#b45309">রিফিল পাওনা ৳ '+fmt(Math.abs(d.amount))+'</b><br>' + (rem > 0 ? chip('💸 বাকি ৳ '+fmt(rem), '#9a3412', '#ffedd5') + (d.refillHandoff ? '<br>'+chip('📨 রিসেপশন থেকে পাঠানো', '#6d28d9', '#ede9fe') : '') : chip('✅ রিফিল সম্পূর্ণ', '#16a34a', '#dcfce7'))
       : '<b style="color:var(--success)">৳ '+fmt(d.amount||0)+'</b> <span style="font-size:11px;color:var(--text-light)">জমা</span>');
-    const rv = (d.refunds||[]).filter(r => r.voucher);
-    vch.push(rv.length ? rv.map(r => '<a href="javascript:void(0)" onclick="printCamperRefundVoucher('+r.refundId+')" title="'+esc(formatDate(r.date))+' — ৳ '+fmt(r.amount)+' (প্রিন্ট)" style="display:block;font-size:12px;font-weight:700;color:#7e22ce;text-decoration:none">🧾 '+esc(r.voucher)+'</a>').join('') : '<span style="color:#cbd5e1">—</span>');
     slip.push('<button class="btn btn-outline btn-sm" onclick="previewCamperDeposit('+d.id+')" title="স্লিপ প্রিভিউ">👁️</button> <button class="btn btn-primary btn-sm" onclick="printCamperDeposit('+d.id+')" title="স্লিপ প্রিন্ট">🖨️</button>');
   });
   const j = a => '<td style="font-size:12px;line-height:1.5">' + a.join('<hr style="border:none;border-top:1px dashed #e2e8f0;margin:4px 0">') + '</td>';
-  return j(sent) + j(amt) + j(vch) + '<td style="white-space:nowrap">' + slip.join('<br>') + '</td>';
+  return j(sent) + j(amt) + vch + '<td style="white-space:nowrap">' + slip.join('<br>') + '</td>';
 }
 function renderCampList() {
   renderCampROILeaderboard();
