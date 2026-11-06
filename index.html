@@ -51584,6 +51584,193 @@ function amDoXfer() {
 }
 
 
+// ===== অ্যাডমিন মোবাইল: আয় ও ব্যয় এন্ট্রি =====
+// পিসির লুকানো ফর্মের ঘরে মান বসিয়ে পিসির saveIncome()/saveExpense()-ই চালানো হয় — তাই বিলের মাস/জরিমানা, চেক বই, মোবাইল ব্যাংকিং,
+// মেমো/ভাউচার নম্বর ও ক্যাশ-ব্যাংক হিসাবের নিয়ম পিসি ও মোবাইলে হুবহু এক থাকে (আলাদা কপি নেই)। এডমিনের নিজের এন্ট্রি সরাসরি পাকা হয়।
+var _amEnt = null;
+var AM_ENT_PAY = [['cash', '💵 ক্যাশ'], ['bank', '🏦 ব্যাংক'], ['mfs', '📱 মোবাইল ব্যাংকিং']];
+function amEid(id) { return document.getElementById(id); }
+function amEval(id) { var e = amEid(id); return e ? String(e.value == null ? '' : e.value).trim() : ''; }
+function amEntBtns(sub) {
+  if (!currentUser || currentUser.role !== 'admin') return '';
+  var b1 = '<button class="am-btn ok" style="flex:1" onclick="amIncForm()">➕ নতুন আয়</button>';
+  var b2 = '<button class="am-btn pri" style="flex:1" onclick="amExpForm()">➕ নতুন ব্যয়</button>';
+  return '<div style="display:flex;gap:8px;margin-bottom:10px">' + (sub === 'o_income' ? b1 : sub === 'o_expense' ? b2 : b1 + b2) + '</div>';
+}
+function amEntCatOpts(kind) {
+  var cats = kind === 'inc' ? getIncCats() : getExpCats();
+  return '<option value="">-- বেছে নিন --</option>' + cats.map(function (c) { return '<option value="' + amEsc(c) + '">' + amEsc(c) + '</option>'; }).join('');
+}
+function amEntSubs(kind, cat) { return ((appData.settings || {})[kind === 'inc' ? 'incSubCats' : 'expSubCats'] || {})[fbSafeKey(cat)] || []; }
+function amEntSubFill(kind, px, cat) {
+  var subs = cat ? amEntSubs(kind, cat) : [], row = amEid(px + 'SubRow'), sel = amEid(px + 'Sub');
+  if (sel) sel.innerHTML = '<option value="">-- সাব-ক্যাটাগরি (ঐচ্ছিক) --</option>' + subs.map(function (s) { return '<option value="' + amEsc(s) + '">' + amEsc(s) + '</option>'; }).join('');
+  if (row) row.style.display = subs.length ? '' : 'none';
+}
+function amEntMfsOpts() {
+  var accs = appData.mfsAccounts || [];
+  if (!accs.length) return '<option value="">কোনো একাউন্ট নেই</option>';
+  return '<option value="">-- একাউন্ট বাছুন --</option>' + accs.map(function (a) { var bal = 0; try { bal = calcMfsAccountBalance(a.id); } catch (e) {} return '<option value="' + amEsc(a.id) + '">' + amEsc(a.name || a.title || a.label || 'একাউন্ট') + ' (৳ ' + fmt(bal) + ')</option>'; }).join('');
+}
+function amEntPayOpts() { return AM_ENT_PAY.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>'; }).join(''); }
+function amEntPayLabel(v) { return (AM_ENT_PAY.filter(function (p) { return p[0] === v; })[0] || [0, v])[1]; }
+function amEntPayChg(px) {
+  var m = amEval(px + 'Pay') || 'cash';
+  var set = function (id, on) { var e = amEid(px + id); if (e) e.style.display = on ? '' : 'none'; };
+  set('MfsRow', m === 'mfs'); set('BankBox', m === 'bank'); set('PersonRow', m !== 'mfs');
+  var pl = amEid(px + 'PersonLbl'); if (pl) pl.textContent = m === 'bank' ? 'চেক বহনকারী / বাহক ব্যক্তি' : 'পরিশোধকারী ব্যক্তি';
+  if (px === 'amXe' && m === 'bank') amXeCbFill();
+}
+function amEntHead(t) { return '<div class="hd"><b>' + t + '</b><button class="x" onclick="amCloseSheet()">&#10005;</button></div>'; }
+function amEntBtnRow(fn) { return '<div class="am-btns" style="margin-top:10px"><button class="am-btn line" onclick="amCloseSheet()">বাতিল</button><button class="am-btn pri" onclick="' + fn + '()">পরবর্তী ›</button></div>'; }
+
+// ----- আয় -----
+function amIncForm() {
+  var memo = ''; try { memo = generateNextMemoNo(); } catch (e) {}
+  amOpenSheet(amEntHead('➕ নতুন আয় এন্ট্রি')
+    + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amIeDate" value="' + todayStr() + '"></div>'
+    + '<div class="am-f"><label>খাত *</label><select id="amIeCat" onchange="amEntSubFill(\'inc\',\'amIe\',this.value)">' + amEntCatOpts('inc') + '</select></div>'
+    + '<div class="am-f" id="amIeSubRow" style="display:none"><label>সাব-ক্যাটাগরি</label><select id="amIeSub"></select></div>'
+    + '<div class="am-f"><label>পরিমাণ (৳) *</label><input type="number" id="amIeAmt" inputmode="decimal" min="0" placeholder="০.০০"></div>'
+    + '<div class="am-f"><label>পেমেন্ট মাধ্যম</label><select id="amIePay" onchange="amEntPayChg(\'amIe\')">' + amEntPayOpts() + '</select></div>'
+    + '<div class="am-f" id="amIeMfsRow" style="display:none"><label>মোবাইল ব্যাংকিং একাউন্ট *</label><select id="amIeMfs">' + amEntMfsOpts() + '</select></div>'
+    + '<div class="am-f"><label>মেমো নং (অটো)</label><input type="text" id="amIeMemo" data-auto="' + amEsc(memo) + '" value="' + amEsc(memo) + '"></div>'
+    + '<div class="am-f"><label>রোগীর নাম / রেফারেন্স</label><input type="text" id="amIeRef" placeholder="ঐচ্ছিক"></div>'
+    + '<div class="am-f"><label>বিবরণ</label><input type="text" id="amIeNote" placeholder="সংক্ষিপ্ত বিবরণ"></div>'
+    + amEntBtnRow('amIncReview'));
+}
+function amIncReview() {
+  var d = amEval('amIeDate'), cat = amEval('amIeCat'), amt = parseFloat(amEval('amIeAmt')), pay = amEval('amIePay') || 'cash', mfs = amEval('amIeMfs');
+  if (!d || !cat || !(amt > 0)) { showToast('⚠️ তারিখ, খাত ও পরিমাণ আবশ্যক!'); return; }
+  if (pay === 'mfs' && !mfs) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট বাছুন!'); return; }
+  var me = amEid('amIeMemo'), memo = amEval('amIeMemo');
+  _amEnt = { kind: 'inc', date: d, cat: cat, sub: amEval('amIeSub'), amount: amt, pay: pay, mfs: mfs, memo: (me && memo === me.getAttribute('data-auto')) ? '' : memo, ref: amEval('amIeRef'), note: amEval('amIeNote') };
+  amConfirm('আয় এন্ট্রি নিশ্চিত করুন', 'খাত: <b>' + amEsc(cat + (_amEnt.sub ? ' / ' + _amEnt.sub : '')) + '</b><br>পরিমাণ: <b>৳ ' + fmt(amt) + '</b><br>মাধ্যম: ' + amEsc(amEntPayLabel(pay)) + (pay === 'mfs' ? ' — ' + amEsc((amEid('amIeMfs').selectedOptions[0] || {}).textContent || '') : '') + '<br>তারিখ: ' + formatDate(d)
+    + (_amEnt.ref ? '<br>রেফারেন্স: ' + amEsc(_amEnt.ref) : '') + (_amEnt.note ? '<br>বিবরণ: ' + amEsc(_amEnt.note) : ''), 'সেভ করুন', 'amIncDo', null);
+}
+function amIncDo() {
+  var p = _amEnt; if (!p || p.kind !== 'inc') return;
+  amGuard(function () {
+    var before = (appData.income || []).length;
+    try {
+      var sc = function (id, v) { var el = amEid(id); if (el) el.value = v; };
+      var ce = amEid('incCategory'); if (!ce) throw new Error('আয়ের ফর্ম পাওয়া যায়নি');
+      if (![].some.call(ce.options, function (o) { return o.value === p.cat; })) { try { updateCategorySelects(); } catch (e) {} }
+      sc('incDate', p.date); sc('incCategory', p.cat);
+      try { updateIncSubCats(); } catch (e) {}
+      sc('incSubCategory', p.sub); sc('incAmount', p.amount); sc('incMemo', p.memo); sc('incRef', p.ref); sc('incNote', p.note);
+      var rd = amEid(p.pay === 'bank' ? 'incPayBank' : p.pay === 'mfs' ? 'incPayMfs' : 'incPayCash'); if (rd) rd.checked = true;
+      try { onIncPayModeChange(); } catch (e) {}
+      if (p.pay === 'mfs') { try { refreshAllMfsSelects(); } catch (e) {} sc('incMfsAccount', p.mfs); }
+      saveIncome();
+    } catch (e) { console.warn('amIncDo', e); }
+    if ((appData.income || []).length > before) { _amEnt = null; amAfter(); }
+    else showToast('⚠️ আয় সেভ হয়নি — আবার চেষ্টা করুন');
+  });
+}
+
+// ----- ব্যয় -----
+function amExpForm() {
+  var vch = ''; try { vch = generateNextVoucherNo(todayStr()); } catch (e) {}
+  var persons = (appData.settings && appData.settings.expPersons) || [];
+  amOpenSheet(amEntHead('➕ নতুন ব্যয় এন্ট্রি')
+    + '<div class="am-f"><label>তারিখ *</label><input type="date" id="amXeDate" value="' + todayStr() + '" onchange="amXeVch()"></div>'
+    + '<div class="am-f"><label>ক্যাটাগরি *</label><select id="amXeCat" onchange="amXeCatChg()">' + amEntCatOpts('exp') + '</select></div>'
+    + '<div class="am-f" id="amXeSubRow" style="display:none"><label>সাব-ক্যাটাগরি</label><select id="amXeSub"></select></div>'
+    + '<div id="amXeBill" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:10px 12px;margin-bottom:10px">'
+    + '<div class="am-f"><label>📅 কোন মাসের বিল? * <span class="am-meta" style="margin:0">(শুধু বাকি মাস)</span></label><select id="amXeMonth" onchange="amXeMonthChg()"></select></div>'
+    + '<div class="am-f" style="margin:0"><label>জরিমানা (ঐচ্ছিক, আলাদা এন্ট্রি হবে)</label><input type="number" id="amXeFine" inputmode="decimal" min="0" placeholder="০"></div></div>'
+    + '<div class="am-f"><label>পরিমাণ (৳) *</label><input type="number" id="amXeAmt" inputmode="decimal" min="0" placeholder="০.০০"></div>'
+    + '<div class="am-f"><label>পেমেন্ট মাধ্যম</label><select id="amXePay" onchange="amEntPayChg(\'amXe\')">' + amEntPayOpts() + '</select></div>'
+    + '<div class="am-f" id="amXePersonRow"><label id="amXePersonLbl">পরিশোধকারী ব্যক্তি</label><select id="amXePerson"><option value="">-- বাছুন (ঐচ্ছিক) --</option>' + persons.map(function (n) { return '<option value="' + amEsc(n) + '">' + amEsc(n) + '</option>'; }).join('') + '</select></div>'
+    + '<div id="amXeBankBox" style="display:none"><div class="am-f"><label>চেক বই</label><select id="amXeCb" onchange="amXeCbChg()"></select></div>'
+    + '<div class="am-f"><label>চেক নং (অটো)</label><input type="text" id="amXeChkNo"></div>'
+    + '<div class="am-f"><label>ভাঙানোর তারিখ</label><input type="date" id="amXeClear" value="' + todayStr() + '"></div>'
+    + '<div class="am-meta" style="margin:0 0 10px">ভাঙানোর তারিখ আজকের পরে হলে ব্যাংক থেকে টাকা তখন কাটবে (পেন্ডিং থাকবে)।</div></div>'
+    + '<div class="am-f" id="amXeMfsRow" style="display:none"><label>মোবাইল ব্যাংকিং একাউন্ট *</label><select id="amXeMfs">' + amEntMfsOpts() + '</select></div>'
+    + '<div class="am-f"><label>ভাউচার নং (অটো)</label><input type="text" id="amXeVch" data-auto="' + amEsc(vch) + '" value="' + amEsc(vch) + '"></div>'
+    + '<div class="am-f"><label>বিবরণ</label><input type="text" id="amXeNote" placeholder="সংক্ষিপ্ত বিবরণ"></div>'
+    + amEntBtnRow('amExpReview'));
+}
+function amXeVch() {
+  var el = amEid('amXeVch'); if (!el) return;
+  var auto = el.getAttribute('data-auto') || '';
+  if (el.value.trim() && el.value.trim() !== auto) return;   // হাতে বদলানো নম্বর ছোঁয়া হবে না
+  var n = ''; try { n = generateNextVoucherNo(amEval('amXeDate') || todayStr()); } catch (e) {}
+  el.value = n; el.setAttribute('data-auto', n);
+}
+function amXeBillRows() { var it = null; try { it = fixedBillItemForCategory(amEval('amXeCat')); } catch (e) {} return it ? { it: it, rows: getUnpaidBillMonths(it.key) } : null; }
+function amXeCatChg() {
+  var cat = amEval('amXeCat'); amEntSubFill('exp', 'amXe', cat);
+  var b = cat ? amXeBillRows() : null, wrap = amEid('amXeBill'), sel = amEid('amXeMonth');
+  if (wrap) wrap.style.display = b ? '' : 'none';
+  if (b && sel) {
+    sel.innerHTML = b.rows.length ? b.rows.map(function (r) { return '<option value="' + r.month + '">' + amEsc(_fbMonthLabel(r.month)) + ' — বাকি ৳ ' + fmt(r.due) + ' (' + (r.exact ? 'সঠিক বিল' : 'আনুমানিক') + ')</option>'; }).join('') : '<option value="">— কোনো মাসের বিল বাকি নেই —</option>';
+    amXeMonthChg();
+  }
+}
+function amXeMonthChg() {
+  var b = amXeBillRows(), a = amEid('amXeAmt'); if (!b || !a) return;
+  var m = amEval('amXeMonth'), row = b.rows.filter(function (r) { return r.month === m; })[0];
+  a.value = row ? Math.round(row.due * 100) / 100 : '';
+}
+function amXeCbFill() {
+  var sel = amEid('amXeCb'); if (!sel) return;
+  var books = (appData.checkbooks || []).filter(function (b) { return b.lastUsed < b.end; });
+  sel.innerHTML = '<option value="">-- চেক বই বাছুন --</option>' + books.map(function (b) { return '<option value="' + amEsc(b.id) + '">' + amEsc(b.name) + ' (' + b.start + '–' + b.end + ')</option>'; }).join('');
+  if (books.length === 1) { sel.value = books[0].id; amXeCbChg(); }
+}
+function amXeCbChg() {
+  var id = amEval('amXeCb'), no = amEid('amXeChkNo'); if (!no) return;
+  var cb = id ? (appData.checkbooks || []).filter(function (b) { return String(b.id) === id; })[0] : null;
+  if (!cb) { no.value = ''; return; }
+  var n = (cb.lastUsed || 0) + 1; no.value = n <= cb.end ? n : '';
+  if (n > cb.end) showToast('⚠️ এই চেক বইয়ের চেক শেষ!');
+}
+function amExpReview() {
+  var d = amEval('amXeDate'), cat = amEval('amXeCat'), amt = parseFloat(amEval('amXeAmt')), pay = amEval('amXePay') || 'cash', mfs = amEval('amXeMfs');
+  if (!d || !cat || !(amt > 0)) { showToast('⚠️ তারিখ, ক্যাটাগরি ও পরিমাণ আবশ্যক!'); return; }
+  var b = amXeBillRows(), month = '', fine = 0;
+  if (b) {
+    month = amEval('amXeMonth');
+    if (!month) { showToast('⚠️ কোনো মাসের বিল বাকি নেই — নতুন বিল এলে পিসি থেকে "বিল এন্ট্রি" করুন'); return; }
+    var row = b.rows.filter(function (r) { return r.month === month; })[0];
+    if (!row) { showToast('⚠️ এই মাসের বিল ইতিমধ্যে পরিশোধিত'); return; }
+    if (amt > row.due + 0.5) { showToast('⚠️ ' + _fbMonthLabel(month) + ' এর বাকি মাত্র ৳' + fmt(row.due) + ' — এর বেশি দেওয়া যাবে না'); return; }
+    fine = parseFloat(amEval('amXeFine')) || 0;
+  }
+  if (pay === 'mfs' && !mfs) { showToast('⚠️ মোবাইল ব্যাংকিং একাউন্ট বাছুন!'); return; }
+  var ve = amEid('amXeVch'), vch = amEval('amXeVch'), clear = amEval('amXeClear') || d;
+  _amEnt = { kind: 'exp', date: d, cat: cat, sub: amEval('amXeSub'), amount: amt, pay: pay, mfs: mfs, person: amEval('amXePerson'), cb: amEval('amXeCb'), chkNo: amEval('amXeChkNo'), clear: clear, month: month, fine: fine, voucher: (ve && vch === ve.getAttribute('data-auto')) ? '' : vch, note: amEval('amXeNote') };
+  amConfirm('ব্যয় এন্ট্রি নিশ্চিত করুন', 'ক্যাটাগরি: <b>' + amEsc(cat + (_amEnt.sub ? ' / ' + _amEnt.sub : '')) + '</b>' + (month ? '<br>বিলের মাস: ' + amEsc(_fbMonthLabel(month)) : '') + '<br>পরিমাণ: <b>৳ ' + fmt(amt) + '</b>' + (fine > 0 ? ' + জরিমানা ৳ ' + fmt(fine) : '')
+    + '<br>মাধ্যম: ' + amEsc(amEntPayLabel(pay)) + (pay === 'mfs' ? ' — ' + amEsc((amEid('amXeMfs').selectedOptions[0] || {}).textContent || '') : '') + (pay === 'bank' && _amEnt.chkNo ? ' (চেক নং ' + amEsc(_amEnt.chkNo) + ', ভাঙানো ' + formatDate(clear) + ')' : '')
+    + '<br>তারিখ: ' + formatDate(d) + (_amEnt.person ? '<br>ব্যক্তি: ' + amEsc(_amEnt.person) : '') + (_amEnt.note ? '<br>বিবরণ: ' + amEsc(_amEnt.note) : ''), 'সেভ করুন', 'amExpDo', null);
+}
+function amExpDo() {
+  var p = _amEnt; if (!p || p.kind !== 'exp') return;
+  amGuard(function () {
+    var before = (appData.expense || []).length;
+    try {
+      var sc = function (id, v) { var el = amEid(id); if (el) el.value = v; };
+      var ce = amEid('expCategory'); if (!ce) throw new Error('ব্যয়ের ফর্ম পাওয়া যায়নি');
+      if (![].some.call(ce.options, function (o) { return o.value === p.cat; })) { try { updateCategorySelects(); } catch (e) {} }
+      sc('expDate', p.date); sc('expCategory', p.cat);
+      try { updateExpSubCats(); } catch (e) {}   // সাব-ক্যাটাগরি + বিলের মাস তালিকা ভরে
+      sc('expSubCategory', p.sub); if (p.month) sc('expForMonth', p.month);
+      sc('expAmount', p.amount); sc('expFine', p.fine > 0 ? p.fine : ''); sc('expNote', p.note); sc('expVoucher', p.voucher);
+      var rd = amEid(p.pay === 'bank' ? 'expPayBank' : p.pay === 'mfs' ? 'expPayMfs' : 'expPayCash'); if (rd) rd.checked = true;
+      try { onExpPayModeChange(); } catch (e) {}
+      try { populateExpPersonSelect(); } catch (e) {}
+      sc('expCashPerson', p.person);
+      if (p.pay === 'bank') { try { populateCheckbookSelect(); } catch (e) {} sc('expCheckbook', p.cb); sc('expCheckNo', p.chkNo); sc('expClearDate', p.clear); }
+      if (p.pay === 'mfs') { try { refreshAllMfsSelects(); } catch (e) {} sc('expMfsAccount', p.mfs); }
+      saveExpense();
+    } catch (e) { console.warn('amExpDo', e); }
+    if ((appData.expense || []).length > before) { _amEnt = null; amAfter(); }
+    else showToast('⚠️ ব্যয় সেভ হয়নি — আবার চেষ্টা করুন');
+  });
+}
+
 // ===== ওনার প্যানেলের হুবহু ডিজাইনে তালিকা পেজ (buildReadOnlyHTML(feature,'owner')-এর আউটপুটই দেখানো হয়) =====
 var AM_OWN = { o_testfees: 'testfees', stock: 'stock', bank: 'bank', o_loan: 'loan', o_income: 'income', o_expense: 'expense', o_due: 'due', o_today: 'todayEntries' };
 var amOwnQv = '';
@@ -51608,7 +51795,7 @@ function amOwnHtml(sub) {
   var inner = '';
   window.__amOwnRender = true;
   try { inner = buildReadOnlyHTML(f, 'owner'); } catch (e) { console.warn('amOwnHtml', e); inner = '<div class="am-empty">দেখানো যায়নি</div>'; } finally { window.__amOwnRender = false; }
-  return amBack() + pre + '<div class="am-own">' + inner + '</div>';
+  return amBack() + amEntBtns(sub) + pre + '<div class="am-own">' + inner + '</div>';
 }
 
 // ===== হরাইজন্টাল স্ক্রল চিপ-সারির বদলে এরো (▾) বাটন → মোডাল থেকে সিলেক্ট =====
